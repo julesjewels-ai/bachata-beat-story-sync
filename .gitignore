@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments
+venv/
+.env
+
+# IDEs
+.vscode/
+.idea/
+
+# Media Output
+*.mp4
+*.wav
+*.mov

@@ -1,0 +1,70 @@
+"""
+Entry point for the Bachata Beat-Story Sync application.
+"""
+import argparse
+import sys
+import logging
+from src.core.app import BachataSyncEngine
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Bachata Beat-Story Sync: Automated Video Editor"
+    )
+    parser.add_argument(
+        "--audio", 
+        type=str, 
+        help="Path to the input .wav Bachata track"
+    )
+    parser.add_argument(
+        "--video-dir", 
+        type=str, 
+        help="Directory containing .mp4 video clips"
+    )
+    parser.add_argument(
+        "--output", 
+        type=str, 
+        default="output_story.mp4",
+        help="Path for the final output video"
+    )
+    parser.add_argument(
+        "--version", 
+        action="version", 
+        version="%(prog)s 0.1.0"
+    )
+    return parser.parse_args()
+
+def main() -> None:
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+    args = parse_args()
+
+    logger = logging.getLogger(__name__)
+    logger.info("Starting Bachata Beat-Story Sync...")
+
+    engine = BachataSyncEngine()
+
+    if args.audio and args.video_dir:
+        try:
+            # 1. Analyze Audio
+            logger.info(f"Analyzing audio track: {args.audio}")
+            audio_meta = engine.analyze_audio(args.audio)
+            logger.info(f"Detected BPM: {audio_meta.get('bpm')} | Emotional Peaks: {len(audio_meta.get('peaks', []))}")
+
+            # 2. Scan Videos
+            logger.info(f"Scanning video library in: {args.video_dir}")
+            video_clips = engine.scan_video_library(args.video_dir)
+            logger.info(f"Found {len(video_clips)} suitable clips.")
+
+            # 3. Sync and Generate
+            logger.info("Syncing visual narrative to musical dynamics...")
+            result_path = engine.generate_story(audio_meta, video_clips, args.output)
+            logger.info(f"Process complete. Output saved to: {result_path}")
+        except Exception as e:
+            logger.error(f"An error occurred during processing: {e}")
+            sys.exit(1)
+    else:
+        logger.warning("No audio or video directory provided. Running in simulation/demo mode.")
+        # Run a quick self-check or demo logic
+        engine.run_simulation()
+
+if __name__ == "__main__":
+    main()
