@@ -14,6 +14,8 @@ logger = logging.getLogger(__name__)
 MAX_VIDEO_FRAMES = 100_000  # Approx 1 hour at 30 FPS
 MAX_VIDEO_DURATION_SECONDS = 3600  # 1 hour
 
+SUPPORTED_VIDEO_EXTENSIONS = {'.mp4', '.mov', '.avi', '.mkv'}
+
 class VideoAnalysisInput(BaseModel):
     """
     Input model for video analysis validation.
@@ -27,9 +29,8 @@ class VideoAnalysisInput(BaseModel):
             raise ValueError(f"Video file not found: {v}")
 
         # Security: Allowlist extensions
-        allowed_extensions = {'.mp4', '.mov', '.avi', '.mkv'}
         _, ext = os.path.splitext(v)
-        if ext.lower() not in allowed_extensions:
+        if ext.lower() not in SUPPORTED_VIDEO_EXTENSIONS:
             raise ValueError(f"Unsupported video extension: {ext}")
         return v
 
