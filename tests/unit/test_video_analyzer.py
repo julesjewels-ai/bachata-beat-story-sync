@@ -4,7 +4,8 @@ Unit tests for the VideoAnalyzer module.
 import unittest
 from unittest.mock import patch, MagicMock
 import numpy as np
-from src.core.video_analyzer import VideoAnalyzer
+from pydantic import ValidationError
+from src.core.video_analyzer import VideoAnalyzer, VideoAnalysisInput
 
 class TestVideoAnalyzer(unittest.TestCase):
     """
@@ -29,7 +30,9 @@ class TestVideoAnalyzer(unittest.TestCase):
         mock_video_capture.return_value = mock_cap
 
         analyzer = VideoAnalyzer()
-        result = analyzer.analyze('dummy_path.mp4')
+        # FIX: Wrap input in VideoAnalysisInput
+        input_data = VideoAnalysisInput(file_path='dummy_path.mp4')
+        result = analyzer.analyze(input_data)
 
         self.assertEqual(result['path'], 'dummy_path.mp4')
         self.assertAlmostEqual(result['duration'], 10.0)
@@ -38,11 +41,12 @@ class TestVideoAnalyzer(unittest.TestCase):
     @patch('os.path.exists', return_value=False)
     def test_analyze_file_not_found(self, mock_exists):
         """
-        Tests that a FileNotFoundError is raised when the video file does not exist.
+        Tests that a ValueError is raised when the video file does not exist.
+        (Changed from FileNotFoundError because Pydantic validator raises ValueError)
         """
         analyzer = VideoAnalyzer()
-        with self.assertRaises(FileNotFoundError):
-            analyzer.analyze('non_existent_file.mp4')
+        with self.assertRaises(ValueError):
+             VideoAnalysisInput(file_path='non_existent_file.mp4')
 
 if __name__ == '__main__':
     unittest.main()
