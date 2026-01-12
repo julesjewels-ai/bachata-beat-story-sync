@@ -5,6 +5,7 @@ Handles audio analysis logic and video synchronization algorithms.
 import logging
 import os
 from typing import List, Dict, Any, Optional
+from src.core.video_analyzer import VideoAnalyzer
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +18,7 @@ class BachataSyncEngine:
     def __init__(self) -> None:
         self.supported_audio_ext = ['.wav', '.mp3']
         self.supported_video_ext = ['.mp4', '.mov']
+        self.video_analyzer = VideoAnalyzer()
 
     def analyze_audio(self, file_path: str) -> Dict[str, Any]:
         """
@@ -46,15 +48,12 @@ class BachataSyncEngine:
              raise FileNotFoundError(f"Video directory not found: {directory}")
 
         clips = []
-        # Mock scanning
         for root, _, files in os.walk(directory):
             for file in files:
                 if any(file.endswith(ext) for ext in self.supported_video_ext):
-                    clips.append({
-                        "path": os.path.join(root, file),
-                        "intensity_score": 0.5, # Placeholder for CV analysis
-                        "duration": 10.0
-                    })
+                    video_path = os.path.join(root, file)
+                    analysis_result = self.video_analyzer.analyze(video_path)
+                    clips.append(analysis_result)
         return clips
 
     def generate_story(self, audio_data: Dict[str, Any], 
