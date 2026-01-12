@@ -6,7 +6,7 @@ import logging
 import os
 from typing import List, Dict, Any, Optional
 from pydantic import ValidationError
-from src.core.video_analyzer import VideoAnalyzer, VideoAnalysisInput
+from src.core.video_analyzer import VideoAnalyzer, VideoAnalysisInput, SUPPORTED_VIDEO_EXTENSIONS
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,8 @@ class BachataSyncEngine:
 
     def __init__(self) -> None:
         self.supported_audio_ext = ['.wav', '.mp3']
-        self.supported_video_ext = ['.mp4', '.mov']
+        # Use the centralized constant for supported video extensions
+        self.supported_video_ext = SUPPORTED_VIDEO_EXTENSIONS
         self.video_analyzer = VideoAnalyzer()
 
     def analyze_audio(self, file_path: str) -> Dict[str, Any]:
@@ -51,7 +52,8 @@ class BachataSyncEngine:
         clips = []
         for root, _, files in os.walk(directory):
             for file in files:
-                if any(file.endswith(ext) for ext in self.supported_video_ext):
+                _, ext = os.path.splitext(file)
+                if ext.lower() in self.supported_video_ext:
                     video_path = os.path.join(root, file)
                     try:
                         input_data = VideoAnalysisInput(file_path=video_path)
