@@ -5,7 +5,8 @@ Handles audio analysis logic and video synchronization algorithms.
 import logging
 import os
 from typing import List, Dict, Any, Optional
-from src.core.video_analyzer import VideoAnalyzer
+from pydantic import ValidationError
+from src.core.video_analyzer import VideoAnalyzer, VideoAnalysisInput
 
 logger = logging.getLogger(__name__)
 
@@ -52,8 +53,14 @@ class BachataSyncEngine:
             for file in files:
                 if any(file.endswith(ext) for ext in self.supported_video_ext):
                     video_path = os.path.join(root, file)
-                    analysis_result = self.video_analyzer.analyze(video_path)
-                    clips.append(analysis_result)
+                    try:
+                        input_data = VideoAnalysisInput(file_path=video_path)
+                        analysis_result = self.video_analyzer.analyze(input_data)
+                        clips.append(analysis_result)
+                    except (ValidationError, ValueError) as e:
+                        logger.warning(f"Skipping invalid video {video_path}: {e}")
+                    except Exception as e:
+                        logger.error(f"Error processing {video_path}: {e}")
         return clips
 
     def generate_story(self, audio_data: Dict[str, Any], 
