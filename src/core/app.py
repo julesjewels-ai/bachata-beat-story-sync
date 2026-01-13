@@ -4,11 +4,48 @@ Handles audio analysis logic and video synchronization algorithms.
 """
 import logging
 import os
+import re
 from typing import List, Dict, Any, Optional
-from pydantic import ValidationError
+from pydantic import ValidationError, BaseModel, Field, field_validator
 from src.core.video_analyzer import VideoAnalyzer, VideoAnalysisInput, SUPPORTED_VIDEO_EXTENSIONS
 
 logger = logging.getLogger(__name__)
+
+class StoryGenerationInput(BaseModel):
+    """
+    Input model for story generation validation.
+    Enforces strict security checks on the output path to prevent traversal and invalid files.
+    """
+    output_path: str = Field(..., description="Path for the final output video")
+
+    @field_validator('output_path')
+    @classmethod
+    def validate_output_path(cls, v: str) -> str:
+        """
+        Validates the output path.
+        Rules:
+        1. Must end with .mp4
+        2. Must not contain directory traversal sequences ('..')
+        3. Filename must contain only safe characters (alphanumeric, -, _, ., spaces)
+        """
+        # 1. Extension check
+        if not v.lower().endswith('.mp4'):
+            raise ValueError("Output file must be an .mp4 file")
+
+        # 2. Path Traversal Check
+        if ".." in v:
+            raise ValueError("Path traversal detected in output path.")
+
+        # 3. Filename validation (allow only safe chars in the basename)
+        # We allow directory separators if they are not '..', but to be extra safe
+        # we check the basename.
+        basename = os.path.basename(v)
+        # Regex: Allow alphanumeric, dot, underscore, hyphen, space.
+        # This prevents shell injection chars if passed to a shell (though we use open())
+        if not re.match(r"^[\w\-. ]+$", basename):
+             raise ValueError(f"Filename contains invalid characters: {basename}")
+
+        return v
 
 class BachataSyncEngine:
     """
@@ -70,15 +107,25 @@ class BachataSyncEngine:
                        output_path: str) -> str:
         """
         Syncs clips to audio data and exports the timeline.
+
+        Args:
+            audio_data: Metadata from analyze_audio
+            video_clips: List of analyzed video clips
+            output_path: Destination path (validated via StoryGenerationInput)
         """
+        # VALIDATION: Ensure strict output path security
+        # This encapsulates the validation logic
+        validated_input = StoryGenerationInput(output_path=output_path)
+        safe_path = validated_input.output_path
+
         # Logic to match audio['peaks'] with video['intensity_score']
         logger.info(f"Synthesizing {len(video_clips)} clips against {audio_data['bpm']} BPM audio...")
         
         # Mock export process
-        with open(output_path, 'w') as f:
+        with open(safe_path, 'w') as f:
             f.write("Mock Video Content")
         
-        return output_path
+        return safe_path
 
     def run_simulation(self) -> None:
         """
