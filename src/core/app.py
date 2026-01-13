@@ -52,18 +52,26 @@ class BachataSyncEngine:
         clips = []
         for root, _, files in os.walk(directory):
             for file in files:
-                _, ext = os.path.splitext(file)
-                if ext.lower() in self.supported_video_ext:
-                    video_path = os.path.join(root, file)
-                    try:
-                        input_data = VideoAnalysisInput(file_path=video_path)
-                        analysis_result = self.video_analyzer.analyze(input_data)
-                        clips.append(analysis_result)
-                    except (ValidationError, ValueError) as e:
-                        logger.warning(f"Skipping invalid video {video_path}: {e}")
-                    except Exception as e:
-                        logger.error(f"Error processing {video_path}: {e}")
+                if result := self._process_video_file(root, file):
+                    clips.append(result)
         return clips
+
+    def _process_video_file(self, root: str, filename: str) -> Optional[Dict[str, Any]]:
+        """Helper to process a single video file."""
+        _, ext = os.path.splitext(filename)
+        if ext.lower() not in self.supported_video_ext:
+            return None
+
+        video_path = os.path.join(root, filename)
+        try:
+            input_data = VideoAnalysisInput(file_path=video_path)
+            return self.video_analyzer.analyze(input_data)
+        except (ValidationError, ValueError) as e:
+            logger.warning(f"Skipping invalid video {video_path}: {e}")
+        except Exception as e:
+            logger.error(f"Error processing {video_path}: {e}")
+
+        return None
 
     def generate_story(self, audio_data: Dict[str, Any], 
                        video_clips: List[Dict[str, Any]], 

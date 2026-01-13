@@ -15,6 +15,8 @@ MAX_VIDEO_FRAMES = 100_000  # Approx 1 hour at 30 FPS
 MAX_VIDEO_DURATION_SECONDS = 3600  # 1 hour
 
 SUPPORTED_VIDEO_EXTENSIONS = {'.mp4', '.mov', '.avi', '.mkv'}
+BLUR_KERNEL_SIZE = (21, 21)
+NORMALIZATION_FACTOR = 100
 
 class VideoAnalysisInput(BaseModel):
     """
@@ -67,30 +69,33 @@ class VideoAnalyzer:
             if duration > MAX_VIDEO_DURATION_SECONDS:
                  raise ValueError(f"Video exceeds maximum duration ({MAX_VIDEO_DURATION_SECONDS}s)")
 
-            prev_frame = None
-            motion_scores = []
-
-            while True:
-                ret, frame = cap.read()
-                if not ret:
-                    break
-
-                gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                gray_frame = cv2.GaussianBlur(gray_frame, (21, 21), 0)
-
-                if prev_frame is not None:
-                    frame_delta = cv2.absdiff(prev_frame, gray_frame)
-                    motion_score = np.mean(frame_delta)
-                    motion_scores.append(motion_score)
-
-                prev_frame = gray_frame
-
-            intensity_score = np.mean(motion_scores) if motion_scores else 0.0
+            intensity_score = self._calculate_intensity(cap)
 
             return {
                 "path": file_path,
-                "intensity_score": intensity_score / 100,  # Normalize score
+                "intensity_score": intensity_score / NORMALIZATION_FACTOR,
                 "duration": duration
             }
         finally:
             cap.release()
+
+    def _calculate_intensity(self, cap: cv2.VideoCapture) -> float:
+        """Calculates the average motion intensity of the video."""
+        prev_frame = None
+        motion_scores = []
+
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+
+            gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            gray_frame = cv2.GaussianBlur(gray_frame, BLUR_KERNEL_SIZE, 0)
+
+            if prev_frame is not None:
+                frame_delta = cv2.absdiff(prev_frame, gray_frame)
+                motion_scores.append(np.mean(frame_delta))
+
+            prev_frame = gray_frame
+
+        return np.mean(motion_scores) if motion_scores else 0.0
