@@ -6,7 +6,7 @@ import numpy as np
 import os
 import logging
 from typing import Dict, Any
-from pydantic import BaseModel, Field, field_validator, ValidationError
+from pydantic import BaseModel, Field, field_validator
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +39,42 @@ class VideoAnalyzer:
     Analyzes video files to determine their visual intensity and other metrics.
     """
 
+    def _validate_video_properties(self, cap: cv2.VideoCapture) -> float:
+        """Validates video properties and returns duration."""
+        frame_rate = cap.get(cv2.CAP_PROP_FPS)
+        frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
+        if frame_count > MAX_VIDEO_FRAMES:
+            raise ValueError(f"Video exceeds maximum allowed frames ({MAX_VIDEO_FRAMES})")
+
+        duration = frame_count / frame_rate if frame_rate > 0 else 0
+        if duration > MAX_VIDEO_DURATION_SECONDS:
+             raise ValueError(f"Video exceeds maximum duration ({MAX_VIDEO_DURATION_SECONDS}s)")
+
+        return duration
+
+    def _calculate_motion_score(self, cap: cv2.VideoCapture) -> float:
+        """Calculates the average motion score from the video."""
+        prev_frame = None
+        motion_scores = []
+
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+
+            gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            gray_frame = cv2.GaussianBlur(gray_frame, (21, 21), 0)
+
+            if prev_frame is not None:
+                frame_delta = cv2.absdiff(prev_frame, gray_frame)
+                motion_score = np.mean(frame_delta)
+                motion_scores.append(motion_score)
+
+            prev_frame = gray_frame
+
+        return np.mean(motion_scores) if motion_scores else 0.0
+
     def analyze(self, input_data: VideoAnalysisInput) -> Dict[str, Any]:
         """
         Analyzes a video file to calculate a visual intensity score.
@@ -56,36 +92,8 @@ class VideoAnalyzer:
             raise IOError(f"Could not open video file: {file_path}")
 
         try:
-            frame_rate = cap.get(cv2.CAP_PROP_FPS)
-            frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-
-            # Security Check: Prevent DoS via massive video files
-            if frame_count > MAX_VIDEO_FRAMES:
-                raise ValueError(f"Video exceeds maximum allowed frames ({MAX_VIDEO_FRAMES})")
-
-            duration = frame_count / frame_rate if frame_rate > 0 else 0
-            if duration > MAX_VIDEO_DURATION_SECONDS:
-                 raise ValueError(f"Video exceeds maximum duration ({MAX_VIDEO_DURATION_SECONDS}s)")
-
-            prev_frame = None
-            motion_scores = []
-
-            while True:
-                ret, frame = cap.read()
-                if not ret:
-                    break
-
-                gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                gray_frame = cv2.GaussianBlur(gray_frame, (21, 21), 0)
-
-                if prev_frame is not None:
-                    frame_delta = cv2.absdiff(prev_frame, gray_frame)
-                    motion_score = np.mean(frame_delta)
-                    motion_scores.append(motion_score)
-
-                prev_frame = gray_frame
-
-            intensity_score = np.mean(motion_scores) if motion_scores else 0.0
+            duration = self._validate_video_properties(cap)
+            intensity_score = self._calculate_motion_score(cap)
 
             return {
                 "path": file_path,

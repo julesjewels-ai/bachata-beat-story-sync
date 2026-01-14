@@ -42,6 +42,17 @@ class BachataSyncEngine:
             "sections": ["intro", "verse", "chorus", "break", "outro"]
         }
 
+    def _process_video_file(self, video_path: str) -> Optional[Dict[str, Any]]:
+        """Analyzes a single video file and returns the result or None if failed."""
+        try:
+            input_data = VideoAnalysisInput(file_path=video_path)
+            return self.video_analyzer.analyze(input_data)
+        except (ValidationError, ValueError) as e:
+            logger.warning(f"Skipping invalid video {video_path}: {e}")
+        except Exception as e:
+            logger.error(f"Error processing {video_path}: {e}")
+        return None
+
     def scan_video_library(self, directory: str) -> List[Dict[str, Any]]:
         """
         Scans a directory for video files and assigns a 'visual intensity' score.
@@ -55,14 +66,9 @@ class BachataSyncEngine:
                 _, ext = os.path.splitext(file)
                 if ext.lower() in self.supported_video_ext:
                     video_path = os.path.join(root, file)
-                    try:
-                        input_data = VideoAnalysisInput(file_path=video_path)
-                        analysis_result = self.video_analyzer.analyze(input_data)
-                        clips.append(analysis_result)
-                    except (ValidationError, ValueError) as e:
-                        logger.warning(f"Skipping invalid video {video_path}: {e}")
-                    except Exception as e:
-                        logger.error(f"Error processing {video_path}: {e}")
+                    result = self._process_video_file(video_path)
+                    if result:
+                        clips.append(result)
         return clips
 
     def generate_story(self, audio_data: Dict[str, Any], 
