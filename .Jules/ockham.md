@@ -1,0 +1,1 @@
+## 2024-05-23 - [Simplifying Core Logic] **Observation:** Nested loops and try-except blocks in `scan_video_library` and long method in `VideoAnalyzer.analyze`. **Action:** Extracted `_process_video_file` and `_calculate_intensity` helper methods to flatten logic and reduce cognitive load. Defined constants for magic numbers.
