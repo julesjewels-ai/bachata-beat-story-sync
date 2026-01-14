@@ -28,9 +28,15 @@ def test_generate_story_mock(engine, tmp_path):
     """Test the generation logic with mock data."""
     mock_audio = {"bpm": 120, "peaks": [], "filename": "test.wav"}
     mock_video = []
-    output_file = tmp_path / "test_output.mp4"
     
-    result = engine.generate_story(mock_audio, mock_video, str(output_file))
-    
-    assert result == str(output_file)
-    assert os.path.exists(result)
+    # We enforce strict filename characters (no dirs), so we must run in tmp_path
+    cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        output_file = "test_output.mp4"
+        result = engine.generate_story(mock_audio, mock_video, output_file)
+
+        assert result == output_file
+        assert os.path.exists(result)
+    finally:
+        os.chdir(cwd)

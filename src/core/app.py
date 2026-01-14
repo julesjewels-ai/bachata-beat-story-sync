@@ -5,10 +5,34 @@ Handles audio analysis logic and video synchronization algorithms.
 import logging
 import os
 from typing import List, Dict, Any, Optional
-from pydantic import ValidationError
+import re
+from pydantic import ValidationError, BaseModel, Field, field_validator
 from src.core.video_analyzer import VideoAnalyzer, VideoAnalysisInput, SUPPORTED_VIDEO_EXTENSIONS
 
 logger = logging.getLogger(__name__)
+
+
+class StoryGenerationInput(BaseModel):
+    """
+    Input model for validating story generation output.
+    """
+    output_path: str = Field(..., description="Path for the output video file")
+
+    @field_validator('output_path')
+    @classmethod
+    def validate_output_path(cls, v: str) -> str:
+        # Enforce strict filename characters (no directory separators allowed to prevent traversal)
+        if not re.match(r"^[\w\-. ]+$", v):
+            raise ValueError(
+                "Invalid characters in filename. Allowed: A-Z, a-z, 0-9, -, ., space"
+            )
+
+        # Enforce .mp4 extension
+        if not v.lower().endswith('.mp4'):
+            raise ValueError("Output file must have .mp4 extension")
+
+        return v
+
 
 class BachataSyncEngine:
     """
@@ -71,14 +95,18 @@ class BachataSyncEngine:
         """
         Syncs clips to audio data and exports the timeline.
         """
+        # Security: Validate output path
+        validated_input = StoryGenerationInput(output_path=output_path)
+        safe_path = validated_input.output_path
+
         # Logic to match audio['peaks'] with video['intensity_score']
         logger.info(f"Synthesizing {len(video_clips)} clips against {audio_data['bpm']} BPM audio...")
         
         # Mock export process
-        with open(output_path, 'w') as f:
+        with open(safe_path, 'w') as f:
             f.write("Mock Video Content")
         
-        return output_path
+        return safe_path
 
     def run_simulation(self) -> None:
         """
