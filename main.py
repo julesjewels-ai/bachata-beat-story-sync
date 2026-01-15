@@ -1,40 +1,38 @@
 """
 Entry point for the Bachata Beat-Story Sync application.
 """
+
 import argparse
 import sys
 import logging
-from src.core.app import BachataSyncEngine
+from src.core.app import BachataSyncEngine, StoryGenerationInput
+from pydantic import ValidationError
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Bachata Beat-Story Sync: Automated Video Editor"
     )
     parser.add_argument(
-        "--audio", 
-        type=str, 
-        help="Path to the input .wav Bachata track"
+        "--audio", type=str, help="Path to the input .wav Bachata track"
     )
     parser.add_argument(
-        "--video-dir", 
-        type=str, 
-        help="Directory containing .mp4 video clips"
+        "--video-dir", type=str, help="Directory containing .mp4 video clips"
     )
     parser.add_argument(
-        "--output", 
-        type=str, 
+        "--output",
+        type=str,
         default="output_story.mp4",
-        help="Path for the final output video"
+        help="Path for the final output video",
     )
-    parser.add_argument(
-        "--version", 
-        action="version", 
-        version="%(prog)s 0.1.0"
-    )
+    parser.add_argument("--version", action="version", version="%(prog)s 0.1.0")
     return parser.parse_args()
 
+
 def main() -> None:
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+    )
     args = parse_args()
 
     logger = logging.getLogger(__name__)
@@ -47,7 +45,9 @@ def main() -> None:
             # 1. Analyze Audio
             logger.info(f"Analyzing audio track: {args.audio}")
             audio_meta = engine.analyze_audio(args.audio)
-            logger.info(f"Detected BPM: {audio_meta.get('bpm')} | Emotional Peaks: {len(audio_meta.get('peaks', []))}")
+            logger.info(
+                f"Detected BPM: {audio_meta.get('bpm')} | Emotional Peaks: {len(audio_meta.get('peaks', []))}"
+            )
 
             # 2. Scan Videos
             logger.info(f"Scanning video library in: {args.video_dir}")
@@ -56,15 +56,25 @@ def main() -> None:
 
             # 3. Sync and Generate
             logger.info("Syncing visual narrative to musical dynamics...")
-            result_path = engine.generate_story(audio_meta, video_clips, args.output)
+
+            # Create validated input model
+            story_input = StoryGenerationInput(output_path=args.output)
+
+            result_path = engine.generate_story(audio_meta, video_clips, story_input)
             logger.info(f"Process complete. Output saved to: {result_path}")
+        except ValidationError as e:
+            logger.error(f"Security validation failed: {e}")
+            sys.exit(1)
         except Exception as e:
             logger.error(f"An error occurred during processing: {e}")
             sys.exit(1)
     else:
-        logger.warning("No audio or video directory provided. Running in simulation/demo mode.")
+        logger.warning(
+            "No audio or video directory provided. Running in simulation/demo mode."
+        )
         # Run a quick self-check or demo logic
         engine.run_simulation()
+
 
 if __name__ == "__main__":
     main()
