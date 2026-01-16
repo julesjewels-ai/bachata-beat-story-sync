@@ -58,17 +58,7 @@ class VideoAnalyzer:
             raise IOError(f"Could not open video file: {file_path}")
 
         try:
-            frame_rate = cap.get(cv2.CAP_PROP_FPS)
-            frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-
-            # Security Check: Prevent DoS via massive video files
-            if frame_count > MAX_VIDEO_FRAMES:
-                raise ValueError(f"Video exceeds maximum allowed frames ({MAX_VIDEO_FRAMES})")
-
-            duration = frame_count / frame_rate if frame_rate > 0 else 0
-            if duration > MAX_VIDEO_DURATION_SECONDS:
-                 raise ValueError(f"Video exceeds maximum duration ({MAX_VIDEO_DURATION_SECONDS}s)")
-
+            duration = self._validate_video_properties(cap)
             intensity_score = self._calculate_intensity(cap)
 
             return {
@@ -78,6 +68,24 @@ class VideoAnalyzer:
             }
         finally:
             cap.release()
+
+    def _validate_video_properties(self, cap: cv2.VideoCapture) -> float:
+        """
+        Validates frame count and duration to prevent DoS.
+        Returns the video duration in seconds.
+        """
+        frame_rate = cap.get(cv2.CAP_PROP_FPS)
+        frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
+        # Security Check: Prevent DoS via massive video files
+        if frame_count > MAX_VIDEO_FRAMES:
+            raise ValueError(f"Video exceeds maximum allowed frames ({MAX_VIDEO_FRAMES})")
+
+        duration = frame_count / frame_rate if frame_rate > 0 else 0
+        if duration > MAX_VIDEO_DURATION_SECONDS:
+            raise ValueError(f"Video exceeds maximum duration ({MAX_VIDEO_DURATION_SECONDS}s)")
+
+        return duration
 
     def _calculate_intensity(self, cap: cv2.VideoCapture) -> float:
         """Calculates the average motion intensity of the video."""
