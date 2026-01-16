@@ -3,7 +3,8 @@ Unit tests for the core logic.
 """
 import pytest
 import os
-from src.core.app import BachataSyncEngine
+from pydantic import ValidationError
+from src.core.app import BachataSyncEngine, AudioAnalysisInput
 
 @pytest.fixture
 def engine():
@@ -21,8 +22,27 @@ def test_simulation_mode(engine, caplog):
 
 def test_file_not_found_handling(engine):
     """Ensure the engine raises errors for missing files."""
-    with pytest.raises(FileNotFoundError):
-        engine.analyze_audio("non_existent_bachata.wav")
+    # Since we are using Pydantic, the validation happens at instantiation of AudioAnalysisInput
+    # and it raises ValueError (which Pydantic wraps or we see it directly depending on usage)
+    # The validate_path method raises ValueError.
+    # When creating the model: AudioAnalysisInput(file_path="...")
+
+    with pytest.raises(ValidationError) as excinfo:
+        AudioAnalysisInput(file_path="non_existent_bachata.wav")
+    assert "Audio file not found" in str(excinfo.value)
+
+def test_analyze_audio_with_model(engine):
+    """Test analyze_audio with valid input model (mocked existence)."""
+    # Create a dummy file
+    with open("test_audio.wav", "w") as f:
+        f.write("mock")
+
+    try:
+        inp = AudioAnalysisInput(file_path="test_audio.wav")
+        res = engine.analyze_audio(inp)
+        assert res["bpm"] == 128
+    finally:
+        os.remove("test_audio.wav")
 
 def test_generate_story_mock(engine, tmp_path):
     """Test the generation logic with mock data."""

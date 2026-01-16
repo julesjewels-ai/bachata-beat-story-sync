@@ -4,7 +4,8 @@ Entry point for the Bachata Beat-Story Sync application.
 import argparse
 import sys
 import logging
-from src.core.app import BachataSyncEngine
+from src.core.app import BachataSyncEngine, AudioAnalysisInput
+from pydantic import ValidationError
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -46,7 +47,8 @@ def main() -> None:
         try:
             # 1. Analyze Audio
             logger.info(f"Analyzing audio track: {args.audio}")
-            audio_meta = engine.analyze_audio(args.audio)
+            audio_input = AudioAnalysisInput(file_path=args.audio)
+            audio_meta = engine.analyze_audio(audio_input)
             logger.info(f"Detected BPM: {audio_meta.get('bpm')} | Emotional Peaks: {len(audio_meta.get('peaks', []))}")
 
             # 2. Scan Videos
@@ -58,6 +60,9 @@ def main() -> None:
             logger.info("Syncing visual narrative to musical dynamics...")
             result_path = engine.generate_story(audio_meta, video_clips, args.output)
             logger.info(f"Process complete. Output saved to: {result_path}")
+        except ValidationError as e:
+            logger.error(f"Input validation error: {e}")
+            sys.exit(1)
         except Exception as e:
             logger.error(f"An error occurred during processing: {e}")
             sys.exit(1)
