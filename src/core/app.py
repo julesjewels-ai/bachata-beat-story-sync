@@ -5,10 +5,34 @@ Handles audio analysis logic and video synchronization algorithms.
 import logging
 import os
 from typing import List, Dict, Any, Optional
-from pydantic import ValidationError
+from pydantic import BaseModel, Field, field_validator, ValidationError
 from src.core.video_analyzer import VideoAnalyzer, VideoAnalysisInput, SUPPORTED_VIDEO_EXTENSIONS
 
 logger = logging.getLogger(__name__)
+
+SUPPORTED_AUDIO_EXTENSIONS = {'.wav', '.mp3'}
+
+class AudioAnalysisInput(BaseModel):
+    """
+    Input model for audio analysis validation.
+    """
+    file_path: str = Field(..., description="Path to the audio file")
+
+    @field_validator('file_path')
+    @classmethod
+    def validate_path(cls, v: str) -> str:
+        # Security: Prevent path traversal
+        if ".." in v:
+            raise ValueError("Path traversal attempt detected")
+
+        if not os.path.exists(v):
+            raise ValueError(f"Audio file not found: {v}")
+
+        # Security: Allowlist extensions
+        _, ext = os.path.splitext(v)
+        if ext.lower() not in SUPPORTED_AUDIO_EXTENSIONS:
+            raise ValueError(f"Unsupported audio extension: {ext}")
+        return v
 
 class BachataSyncEngine:
     """
@@ -17,20 +41,19 @@ class BachataSyncEngine:
     """
 
     def __init__(self) -> None:
-        self.supported_audio_ext = ['.wav', '.mp3']
+        self.supported_audio_ext = list(SUPPORTED_AUDIO_EXTENSIONS)
         # Use the centralized constant for supported video extensions
         self.supported_video_ext = SUPPORTED_VIDEO_EXTENSIONS
         self.video_analyzer = VideoAnalyzer()
 
-    def analyze_audio(self, file_path: str) -> Dict[str, Any]:
+    def analyze_audio(self, input_data: AudioAnalysisInput) -> Dict[str, Any]:
         """
         Analyzes a Bachata track to find BPM, beats, and intensity drops.
         
         In a real implementation, this would use librosa or essentialia.
         For the scaffold, it mimics analysis results.
         """
-        if not os.path.exists(file_path):
-            raise FileNotFoundError(f"Audio file not found: {file_path}")
+        file_path = input_data.file_path
         
         # Mock logic for MVP scaffold
         # Real logic: y, sr = librosa.load(file_path); onset_env = ...
