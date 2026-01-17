@@ -4,9 +4,12 @@ Handles audio analysis logic and video synchronization algorithms.
 """
 import logging
 import os
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Callable
+import time
+import random
 from pydantic import BaseModel, Field, field_validator, ValidationError
 from src.core.video_analyzer import VideoAnalyzer, VideoAnalysisInput, SUPPORTED_VIDEO_EXTENSIONS
+from src.core.models import SimulationRequest
 
 logger = logging.getLogger(__name__)
 
@@ -110,3 +113,49 @@ class BachataSyncEngine:
             f.write("Mock Video Content")
         
         return output_path
+
+    def run_simulation(self, request: SimulationRequest, on_progress: Optional[Callable[[float, str], None]] = None) -> Dict[str, Any]:
+        """
+        Runs a simulation of the syncing process.
+
+        Args:
+            request: Configuration for the simulation.
+            on_progress: Optional callback for progress reporting.
+
+        Returns:
+            A dictionary containing the simulation results.
+        """
+        track_name = request.track_name
+        duration = request.duration
+        clip_count = request.clip_count
+
+        steps = [
+            ("Analyzing audio track...", 10),
+            ("Detecting beats...", 20),
+            ("Identifying emotional peaks...", 30),
+            ("Scanning video library...", 50),
+            ("Calculating visual intensity...", 70),
+            ("Matching beats to clips...", 85),
+            ("Rendering final output...", 100)
+        ]
+
+        if on_progress:
+            on_progress(0, f"Starting simulation for '{track_name}' ({duration}s)...")
+
+        for message, progress in steps:
+            time.sleep(random.uniform(0.1, 0.3))  # Simulate work
+            if on_progress:
+                on_progress(float(progress), message)
+
+        result = {
+            "status": "success",
+            "audio_file": track_name,
+            "clips_used": clip_count,
+            "bpm": random.randint(120, 140),
+            "output_path": "simulation_output.mp4"
+        }
+
+        if on_progress:
+            on_progress(100.0, "Simulation complete!")
+
+        return result

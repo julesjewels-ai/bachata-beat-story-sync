@@ -5,3 +5,4 @@ moviepy>=1.0.3
 opencv-python>=4.5.0
 tensorflow>=2.7.0
 pydantic>=2.0.0
+rich>=10.0.0
