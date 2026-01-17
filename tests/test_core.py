@@ -14,12 +14,6 @@ def test_engine_initialization(engine):
     assert engine is not None
     assert ".wav" in engine.supported_audio_ext
 
-def test_simulation_mode(engine, caplog):
-    """Test that simulation mode runs without error."""
-    with caplog.at_level("INFO"):
-        engine.run_simulation()
-    assert "--- SIMULATION MODE ---" in caplog.text
-
 def test_file_not_found_handling(engine):
     """Ensure the engine raises errors for missing files."""
     # Since we are using Pydantic, the validation happens at instantiation of AudioAnalysisInput

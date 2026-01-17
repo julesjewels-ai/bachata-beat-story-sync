@@ -110,13 +110,3 @@ class BachataSyncEngine:
             f.write("Mock Video Content")
         
         return output_path
-
-    def run_simulation(self) -> None:
-        """
-        Runs a simulation for testing or demo purposes without real files.
-        """
-        logger.info("--- SIMULATION MODE ---")
-        mock_audio = {"bpm": 130, "peaks": [10, 20]}
-        logger.info(f"Simulated Audio Analysis: {mock_audio}")
-        logger.info("Simulated Video Matching: Match Found at index 0")
-        logger.info("--- SIMULATION COMPLETE ---")
