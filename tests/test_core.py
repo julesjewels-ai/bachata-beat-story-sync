@@ -23,7 +23,7 @@ def test_file_not_found_handling(engine):
 
     with pytest.raises(ValidationError) as excinfo:
         AudioAnalysisInput(file_path="non_existent_bachata.wav")
-    assert "Audio file not found" in str(excinfo.value)
+    assert "File not found" in str(excinfo.value)
 
 def test_analyze_audio_with_model(engine):
     """Test analyze_audio with valid input model (mocked existence)."""

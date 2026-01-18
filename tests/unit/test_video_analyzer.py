@@ -44,9 +44,9 @@ class TestVideoAnalyzer(unittest.TestCase):
         Tests that a ValueError is raised when the video file does not exist.
         (Changed from FileNotFoundError because Pydantic validator raises ValueError)
         """
-        analyzer = VideoAnalyzer()
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ValidationError) as context:
              VideoAnalysisInput(file_path='non_existent_file.mp4')
+        self.assertIn("File not found", str(context.exception))
 
 if __name__ == '__main__':
     unittest.main()

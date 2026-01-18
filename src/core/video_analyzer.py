@@ -3,10 +3,10 @@ Video analysis module for Bachata Beat-Story Sync.
 """
 import cv2
 import numpy as np
-import os
 import logging
 from typing import Dict, Any
-from pydantic import BaseModel, Field, field_validator, ValidationError
+from pydantic import BaseModel, Field, field_validator
+from src.core.validation import validate_file_path
 
 logger = logging.getLogger(__name__)
 
@@ -27,14 +27,7 @@ class VideoAnalysisInput(BaseModel):
     @field_validator('file_path')
     @classmethod
     def validate_path(cls, v: str) -> str:
-        if not os.path.exists(v):
-            raise ValueError(f"Video file not found: {v}")
-
-        # Security: Allowlist extensions
-        _, ext = os.path.splitext(v)
-        if ext.lower() not in SUPPORTED_VIDEO_EXTENSIONS:
-            raise ValueError(f"Unsupported video extension: {ext}")
-        return v
+        return validate_file_path(v, SUPPORTED_VIDEO_EXTENSIONS)
 
 class VideoAnalyzer:
     """

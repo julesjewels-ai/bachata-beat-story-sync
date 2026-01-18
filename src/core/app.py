@@ -7,6 +7,7 @@ import os
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field, field_validator, ValidationError
 from src.core.video_analyzer import VideoAnalyzer, VideoAnalysisInput, SUPPORTED_VIDEO_EXTENSIONS
+from src.core.validation import validate_file_path
 
 logger = logging.getLogger(__name__)
 
@@ -21,18 +22,7 @@ class AudioAnalysisInput(BaseModel):
     @field_validator('file_path')
     @classmethod
     def validate_path(cls, v: str) -> str:
-        # Security: Prevent path traversal
-        if ".." in v:
-            raise ValueError("Path traversal attempt detected")
-
-        if not os.path.exists(v):
-            raise ValueError(f"Audio file not found: {v}")
-
-        # Security: Allowlist extensions
-        _, ext = os.path.splitext(v)
-        if ext.lower() not in SUPPORTED_AUDIO_EXTENSIONS:
-            raise ValueError(f"Unsupported audio extension: {ext}")
-        return v
+        return validate_file_path(v, SUPPORTED_AUDIO_EXTENSIONS)
 
 class BachataSyncEngine:
     """

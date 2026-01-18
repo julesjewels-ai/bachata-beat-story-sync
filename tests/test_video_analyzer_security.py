@@ -1,7 +1,6 @@
 import unittest
 from unittest.mock import MagicMock, patch
 import cv2
-import numpy as np
 from pydantic import ValidationError
 from src.core.video_analyzer import VideoAnalyzer, VideoAnalysisInput
 
@@ -44,4 +43,14 @@ class TestVideoAnalyzerSecurity(unittest.TestCase):
 
         # Check that the error message mentions the extension issue
         # Note: Pydantic errors are wrapped, so we check the string representation
-        self.assertIn("Unsupported video extension", str(context.exception))
+        self.assertIn("Unsupported extension", str(context.exception))
+
+    @patch('os.path.exists')
+    def test_path_traversal(self, mock_exists):
+        """Test that paths with traversal characters are rejected."""
+        mock_exists.return_value = True
+
+        # Test basic traversal
+        with self.assertRaises(ValidationError) as context:
+            VideoAnalysisInput(file_path="../secret.mp4")
+        self.assertIn("Path traversal attempt detected", str(context.exception))
