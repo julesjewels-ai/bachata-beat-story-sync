@@ -14,11 +14,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--audio", 
         type=str, 
+        required=True,
         help="Path to the input .wav Bachata track"
     )
     parser.add_argument(
         "--video-dir", 
         type=str, 
+        required=True,
         help="Directory containing .mp4 video clips"
     )
     parser.add_argument(
@@ -43,33 +45,28 @@ def main() -> None:
 
     engine = BachataSyncEngine()
 
-    if args.audio and args.video_dir:
-        try:
-            # 1. Analyze Audio
-            logger.info(f"Analyzing audio track: {args.audio}")
-            audio_input = AudioAnalysisInput(file_path=args.audio)
-            audio_meta = engine.analyze_audio(audio_input)
-            logger.info(f"Detected BPM: {audio_meta.get('bpm')} | Emotional Peaks: {len(audio_meta.get('peaks', []))}")
+    try:
+        # 1. Analyze Audio
+        logger.info(f"Analyzing audio track: {args.audio}")
+        audio_input = AudioAnalysisInput(file_path=args.audio)
+        audio_meta = engine.analyze_audio(audio_input)
+        logger.info(f"Detected BPM: {audio_meta.get('bpm')} | Emotional Peaks: {len(audio_meta.get('peaks', []))}")
 
-            # 2. Scan Videos
-            logger.info(f"Scanning video library in: {args.video_dir}")
-            video_clips = engine.scan_video_library(args.video_dir)
-            logger.info(f"Found {len(video_clips)} suitable clips.")
+        # 2. Scan Videos
+        logger.info(f"Scanning video library in: {args.video_dir}")
+        video_clips = engine.scan_video_library(args.video_dir)
+        logger.info(f"Found {len(video_clips)} suitable clips.")
 
-            # 3. Sync and Generate
-            logger.info("Syncing visual narrative to musical dynamics...")
-            result_path = engine.generate_story(audio_meta, video_clips, args.output)
-            logger.info(f"Process complete. Output saved to: {result_path}")
-        except ValidationError as e:
-            logger.error(f"Input validation error: {e}")
-            sys.exit(1)
-        except Exception as e:
-            logger.error(f"An error occurred during processing: {e}")
-            sys.exit(1)
-    else:
-        logger.warning("No audio or video directory provided. Running in simulation/demo mode.")
-        # Run a quick self-check or demo logic
-        engine.run_simulation()
+        # 3. Sync and Generate
+        logger.info("Syncing visual narrative to musical dynamics...")
+        result_path = engine.generate_story(audio_meta, video_clips, args.output)
+        logger.info(f"Process complete. Output saved to: {result_path}")
+    except ValidationError as e:
+        logger.error(f"Input validation error: {e}")
+        sys.exit(1)
+    except Exception as e:
+        logger.error(f"An error occurred during processing: {e}")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
