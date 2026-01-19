@@ -5,6 +5,7 @@ import pytest
 import os
 from pydantic import ValidationError
 from src.core.app import BachataSyncEngine, AudioAnalysisInput
+from src.core.models import AudioAnalysisResult
 
 @pytest.fixture
 def engine():
@@ -34,13 +35,19 @@ def test_analyze_audio_with_model(engine):
     try:
         inp = AudioAnalysisInput(file_path="test_audio.wav")
         res = engine.analyze_audio(inp)
-        assert res["bpm"] == 128
+        assert res.bpm == 128
     finally:
         os.remove("test_audio.wav")
 
 def test_generate_story_mock(engine, tmp_path):
     """Test the generation logic with mock data."""
-    mock_audio = {"bpm": 120, "peaks": [], "filename": "test.wav"}
+    mock_audio = AudioAnalysisResult(
+        bpm=120,
+        peaks=[],
+        filename="test.wav",
+        duration=180.0,
+        sections=[]
+    )
     mock_video = []
     output_file = tmp_path / "test_output.mp4"
     

@@ -4,10 +4,11 @@ Handles audio analysis logic and video synchronization algorithms.
 """
 import logging
 import os
-from typing import List, Dict, Any, Optional
+from typing import List, Optional
 from pydantic import BaseModel, Field, field_validator, ValidationError
 from src.core.video_analyzer import VideoAnalyzer, VideoAnalysisInput, SUPPORTED_VIDEO_EXTENSIONS
 from src.core.validation import validate_file_path
+from src.core.models import AudioAnalysisResult, VideoAnalysisResult
 
 logger = logging.getLogger(__name__)
 
@@ -36,31 +37,31 @@ class BachataSyncEngine:
         self.supported_video_ext = SUPPORTED_VIDEO_EXTENSIONS
         self.video_analyzer = VideoAnalyzer()
 
-    def analyze_audio(self, input_data: AudioAnalysisInput) -> Dict[str, Any]:
+    def analyze_audio(self, input_data: AudioAnalysisInput) -> AudioAnalysisResult:
         """
         Analyzes a Bachata track to find BPM, beats, and intensity drops.
-        
+
         In a real implementation, this would use librosa or essentialia.
         For the scaffold, it mimics analysis results.
         """
         file_path = input_data.file_path
-        
+
         # Mock logic for MVP scaffold
         # Real logic: y, sr = librosa.load(file_path); onset_env = ...
-        return {
-            "filename": os.path.basename(file_path),
-            "bpm": 128,  # Typical Bachata tempo
-            "duration": 180.0,
-            "peaks": [15.5, 45.2, 90.0, 120.5], # Timestamps of high intensity
-            "sections": ["intro", "verse", "chorus", "break", "outro"]
-        }
+        return AudioAnalysisResult(
+            filename=os.path.basename(file_path),
+            bpm=128,  # Typical Bachata tempo
+            duration=180.0,
+            peaks=[15.5, 45.2, 90.0, 120.5], # Timestamps of high intensity
+            sections=["intro", "verse", "chorus", "break", "outro"]
+        )
 
-    def scan_video_library(self, directory: str) -> List[Dict[str, Any]]:
+    def scan_video_library(self, directory: str) -> List[VideoAnalysisResult]:
         """
         Scans a directory for video files and assigns a 'visual intensity' score.
         """
         if not os.path.exists(directory):
-             raise FileNotFoundError(f"Video directory not found: {directory}")
+            raise FileNotFoundError(f"Video directory not found: {directory}")
 
         clips = []
         for root, _, files in os.walk(directory):
@@ -69,7 +70,7 @@ class BachataSyncEngine:
                     clips.append(result)
         return clips
 
-    def _process_video_file(self, root: str, filename: str) -> Optional[Dict[str, Any]]:
+    def _process_video_file(self, root: str, filename: str) -> Optional[VideoAnalysisResult]:
         """Helper to process a single video file."""
         _, ext = os.path.splitext(filename)
         if ext.lower() not in self.supported_video_ext:
@@ -86,17 +87,20 @@ class BachataSyncEngine:
 
         return None
 
-    def generate_story(self, audio_data: Dict[str, Any], 
-                       video_clips: List[Dict[str, Any]], 
+    def generate_story(self, audio_data: AudioAnalysisResult,
+                       video_clips: List[VideoAnalysisResult],
                        output_path: str) -> str:
         """
         Syncs clips to audio data and exports the timeline.
         """
         # Logic to match audio['peaks'] with video['intensity_score']
-        logger.info(f"Synthesizing {len(video_clips)} clips against {audio_data['bpm']} BPM audio...")
-        
+        logger.info(
+            "Synthesizing %d clips against %s BPM audio...",
+            len(video_clips), audio_data.bpm
+        )
+
         # Mock export process
-        with open(output_path, 'w') as f:
+        with open(output_path, 'w', encoding='utf-8') as f:
             f.write("Mock Video Content")
-        
+
         return output_path
