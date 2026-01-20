@@ -34,14 +34,23 @@ def test_analyze_audio_with_model(engine):
     try:
         inp = AudioAnalysisInput(file_path="test_audio.wav")
         res = engine.analyze_audio(inp)
-        assert res["bpm"] == 128
+        assert res.bpm == 128
     finally:
         os.remove("test_audio.wav")
 
 def test_generate_story_mock(engine, tmp_path):
     """Test the generation logic with mock data."""
-    mock_audio = {"bpm": 120, "peaks": [], "filename": "test.wav"}
-    mock_video = []
+    # Create mock Pydantic objects since generate_story expects them
+    from src.core.models import AudioAnalysisResult, VideoAnalysisResult
+
+    mock_audio = AudioAnalysisResult(
+        filename="test.wav",
+        bpm=120,
+        duration=180.0,
+        peaks=[],
+        sections=[]
+    )
+    mock_video: list[VideoAnalysisResult] = []
     output_file = tmp_path / "test_output.mp4"
     
     result = engine.generate_story(mock_audio, mock_video, str(output_file))

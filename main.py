@@ -50,7 +50,7 @@ def main() -> None:
         logger.info(f"Analyzing audio track: {args.audio}")
         audio_input = AudioAnalysisInput(file_path=args.audio)
         audio_meta = engine.analyze_audio(audio_input)
-        logger.info(f"Detected BPM: {audio_meta.get('bpm')} | Emotional Peaks: {len(audio_meta.get('peaks', []))}")
+        logger.info(f"Detected BPM: {audio_meta.bpm} | Emotional Peaks: {len(audio_meta.peaks)}")
 
         # 2. Scan Videos
         logger.info(f"Scanning video library in: {args.video_dir}")

@@ -34,9 +34,9 @@ class TestVideoAnalyzer(unittest.TestCase):
         input_data = VideoAnalysisInput(file_path='dummy_path.mp4')
         result = analyzer.analyze(input_data)
 
-        self.assertEqual(result['path'], 'dummy_path.mp4')
-        self.assertAlmostEqual(result['duration'], 10.0)
-        self.assertGreater(result['intensity_score'], 0.0)
+        self.assertEqual(result.path, 'dummy_path.mp4')
+        self.assertAlmostEqual(result.duration, 10.0)
+        self.assertGreater(result.intensity_score, 0.0)
 
     @patch('os.path.exists', return_value=False)
     def test_analyze_file_not_found(self, mock_exists):

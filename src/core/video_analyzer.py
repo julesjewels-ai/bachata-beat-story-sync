@@ -4,9 +4,9 @@ Video analysis module for Bachata Beat-Story Sync.
 import cv2
 import numpy as np
 import logging
-from typing import Dict, Any
 from pydantic import BaseModel, Field, field_validator
 from src.core.validation import validate_file_path
+from src.core.models import VideoAnalysisResult
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ class VideoAnalyzer:
     Analyzes video files to determine their visual intensity and other metrics.
     """
 
-    def analyze(self, input_data: VideoAnalysisInput) -> Dict[str, Any]:
+    def analyze(self, input_data: VideoAnalysisInput) -> VideoAnalysisResult:
         """
         Analyzes a video file to calculate a visual intensity score.
 
@@ -42,7 +42,7 @@ class VideoAnalyzer:
             input_data: Validated input containing the file path.
 
         Returns:
-            A dictionary with the video's path, intensity score, and duration.
+            A VideoAnalysisResult object.
         """
         file_path = input_data.file_path
 
@@ -54,11 +54,11 @@ class VideoAnalyzer:
             duration = self._validate_video_properties(cap)
             intensity_score = self._calculate_intensity(cap)
 
-            return {
-                "path": file_path,
-                "intensity_score": intensity_score / NORMALIZATION_FACTOR,
-                "duration": duration
-            }
+            return VideoAnalysisResult(
+                path=file_path,
+                intensity_score=intensity_score / NORMALIZATION_FACTOR,
+                duration=duration
+            )
         finally:
             cap.release()
 
