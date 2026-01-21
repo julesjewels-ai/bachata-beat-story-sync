@@ -6,6 +6,7 @@ import sys
 import logging
 from src.core.app import BachataSyncEngine, AudioAnalysisInput
 from src.services.reporting import ExcelReportGenerator
+from src.ui.console import RichConsole
 from pydantic import ValidationError
 
 def parse_args() -> argparse.Namespace:
@@ -44,42 +45,50 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 def main() -> None:
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-    args = parse_args()
+    # Disable default logging to stdout since we are using Rich
+    logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s')
 
-    logger = logging.getLogger(__name__)
-    logger.info("Starting Bachata Beat-Story Sync...")
+    args = parse_args()
+    console = RichConsole()
+    console.print_header("Bachata Beat-Story Sync")
 
     engine = BachataSyncEngine()
 
     try:
         # 1. Analyze Audio
-        logger.info(f"Analyzing audio track: {args.audio}")
+        console.print_info(f"Analyzing audio track: {args.audio}")
         audio_input = AudioAnalysisInput(file_path=args.audio)
         audio_meta = engine.analyze_audio(audio_input)
-        logger.info(f"Detected BPM: {audio_meta.bpm} | Emotional Peaks: {len(audio_meta.peaks)}")
+        console.print_success(f"Detected BPM: {audio_meta.bpm} | Emotional Peaks: {len(audio_meta.peaks)}")
 
         # 2. Scan Videos
-        logger.info(f"Scanning video library in: {args.video_dir}")
-        video_clips = engine.scan_video_library(args.video_dir)
-        logger.info(f"Found {len(video_clips)} suitable clips.")
+        console.print_info(f"Scanning video library in: {args.video_dir}")
+        # Pass the console as the observer
+        video_clips = engine.scan_video_library(args.video_dir, observer=console)
+        # Ensure progress bar is stopped if it was running
+        console.stop()
+
+        console.print_success(f"Found {len(video_clips)} suitable clips.")
 
         # 3. Sync and Generate
-        logger.info("Syncing visual narrative to musical dynamics...")
+        console.print_info("Syncing visual narrative to musical dynamics...")
         result_path = engine.generate_story(audio_meta, video_clips, args.output)
-        logger.info(f"Process complete. Output saved to: {result_path}")
+        console.print_success(f"Process complete. Output saved to: {result_path}")
 
         # 4. Generate Report
         if args.export_report:
-            logger.info(f"Generating analysis report to {args.export_report}...")
+            console.print_info(f"Generating analysis report to {args.export_report}...")
             report_gen = ExcelReportGenerator()
             report_gen.generate_report(audio_meta, video_clips, args.export_report)
+            console.print_success("Report generated successfully.")
 
     except ValidationError as e:
-        logger.error(f"Input validation error: {e}")
+        console.stop()
+        console.print_error(f"Input validation error: {e}")
         sys.exit(1)
     except Exception as e:
-        logger.error(f"An error occurred during processing: {e}")
+        console.stop()
+        console.print_error(f"An error occurred during processing: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":
