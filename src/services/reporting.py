@@ -2,7 +2,7 @@
 Reporting service for generating analysis reports.
 """
 import logging
-from typing import List
+from typing import List, Any
 import openpyxl
 from openpyxl.styles import Font, Alignment
 from openpyxl.utils import get_column_letter
@@ -35,12 +35,9 @@ class ExcelReportGenerator:
 
         # Sheet 1: Summary
         ws_summary = wb.active
-        if ws_summary:
-            ws_summary.title = "Analysis Summary"
-            self._write_summary(ws_summary, audio_data, len(video_data))
-        else:
-            ws_summary = wb.create_sheet(title="Analysis Summary")
-            self._write_summary(ws_summary, audio_data, len(video_data))
+        # wb.active is always set for a new Workbook
+        ws_summary.title = "Analysis Summary"  # type: ignore
+        self._write_summary(ws_summary, audio_data, len(video_data))
 
         # Sheet 2: Video Details
         ws_videos = wb.create_sheet(title="Video Library")
@@ -53,15 +50,27 @@ class ExcelReportGenerator:
     def _write_summary(self, ws, audio_data: AudioAnalysisResult, video_count: int):
         """Writes summary data to the worksheet."""
         headers = ["Metric", "Value"]
-        data = [
-            ("Audio File", audio_data.filename),
-            ("BPM", audio_data.bpm),
-            ("Duration (s)", audio_data.duration),
-            ("Peak Count", len(audio_data.peaks)),
-            ("Sections", ", ".join(audio_data.sections)),
-            ("Total Videos Scanned", video_count)
+        data: List[List[Any]] = [
+            ["Audio File", audio_data.filename],
+            ["BPM", audio_data.bpm],
+            ["Duration (s)", audio_data.duration],
+            ["Peak Count", len(audio_data.peaks)],
+            ["Sections", ", ".join(audio_data.sections)],
+            ["Total Videos Scanned", video_count]
         ]
+        self._write_table(ws, headers, data, bold_first_col=True)
 
+    def _write_video_details(self, ws, video_data: List[VideoAnalysisResult]):
+        """Writes detailed video analysis data."""
+        headers = ["File Path", "Duration (s)", "Intensity Score"]
+        data = [
+            [video.path, video.duration, video.intensity_score]
+            for video in video_data
+        ]
+        self._write_table(ws, headers, data, bold_first_col=False)
+
+    def _write_table(self, ws, headers: List[str], data: List[List[Any]], bold_first_col: bool = False):
+        """Helper to write a standardized table with headers and auto-width."""
         # Write Headers
         for col_num, header in enumerate(headers, 1):
             cell = ws.cell(row=1, column=col_num, value=header)
@@ -69,27 +78,11 @@ class ExcelReportGenerator:
             cell.alignment = Alignment(horizontal="center")
 
         # Write Data
-        for row_num, (metric, value) in enumerate(data, 2):
-            ws.cell(row=row_num, column=1, value=metric).font = Font(bold=True)
-            ws.cell(row=row_num, column=2, value=value)
-
-        # Auto-width
-        self._adjust_column_widths(ws)
-
-    def _write_video_details(self, ws, video_data: List[VideoAnalysisResult]):
-        """Writes detailed video analysis data."""
-        headers = ["File Path", "Duration (s)", "Intensity Score"]
-
-        # Write Headers
-        for col_num, header in enumerate(headers, 1):
-            cell = ws.cell(row=1, column=col_num, value=header)
-            cell.font = Font(bold=True)
-
-        # Write Data
-        for row_num, video in enumerate(video_data, 2):
-            ws.cell(row=row_num, column=1, value=video.path)
-            ws.cell(row=row_num, column=2, value=video.duration)
-            ws.cell(row=row_num, column=3, value=video.intensity_score)
+        for row_num, row_data in enumerate(data, 2):
+            for col_num, value in enumerate(row_data, 1):
+                cell = ws.cell(row=row_num, column=col_num, value=value)
+                if bold_first_col and col_num == 1:
+                    cell.font = Font(bold=True)
 
         self._adjust_column_widths(ws)
 
