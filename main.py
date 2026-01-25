@@ -6,6 +6,7 @@ import sys
 import logging
 from src.core.app import BachataSyncEngine, AudioAnalysisInput
 from src.services.reporting import ExcelReportGenerator
+from src.ui.console import RichConsole
 from pydantic import ValidationError
 
 def parse_args() -> argparse.Namespace:
@@ -51,6 +52,7 @@ def main() -> None:
     logger.info("Starting Bachata Beat-Story Sync...")
 
     engine = BachataSyncEngine()
+    console = RichConsole()
 
     try:
         # 1. Analyze Audio
@@ -61,7 +63,9 @@ def main() -> None:
 
         # 2. Scan Videos
         logger.info(f"Scanning video library in: {args.video_dir}")
-        video_clips = engine.scan_video_library(args.video_dir)
+        video_clips = engine.scan_video_library(args.video_dir, observer=console)
+        # Ensure progress bar is stopped even if it finished
+        console.stop()
         logger.info(f"Found {len(video_clips)} suitable clips.")
 
         # 3. Sync and Generate
@@ -76,9 +80,11 @@ def main() -> None:
             report_gen.generate_report(audio_meta, video_clips, args.export_report)
 
     except ValidationError as e:
+        console.stop()
         logger.error(f"Input validation error: {e}")
         sys.exit(1)
     except Exception as e:
+        console.stop()
         logger.error(f"An error occurred during processing: {e}")
         sys.exit(1)
 

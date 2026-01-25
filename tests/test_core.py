@@ -3,6 +3,7 @@ Unit tests for the core logic.
 """
 import pytest
 import os
+from unittest.mock import MagicMock
 from pydantic import ValidationError
 from src.core.app import BachataSyncEngine, AudioAnalysisInput
 from src.core.models import AudioAnalysisResult, VideoAnalysisResult
@@ -55,3 +56,30 @@ def test_generate_story_mock(engine, tmp_path):
     
     assert result == str(output_file)
     assert os.path.exists(result)
+
+def test_scan_video_library_with_observer(engine, tmp_path):
+    """Test scan_video_library calls the observer."""
+    # Create dummy video files
+    video_dir = tmp_path / "videos"
+    video_dir.mkdir()
+    (video_dir / "vid1.mp4").touch()
+    (video_dir / "vid2.mp4").touch()
+
+    # Mock engine._process_video_file because it tries to read the file with cv2
+    engine._process_video_file = MagicMock(return_value=VideoAnalysisResult(path="p", intensity_score=1.0, duration=10))
+
+    observer = MagicMock()
+    engine.scan_video_library(str(video_dir), observer=observer)
+
+    # Verify observer was called
+    # Should be called once for init (0/2) and once for each file (1/2, 2/2)
+    assert observer.on_progress.call_count == 3
+
+    calls = observer.on_progress.call_args_list
+    # First call: 0, 2
+    assert calls[0][0][0] == 0
+    assert calls[0][0][1] == 2
+
+    # Last call: 2, 2
+    assert calls[2][0][0] == 2
+    assert calls[2][0][1] == 2
