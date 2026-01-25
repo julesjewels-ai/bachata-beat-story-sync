@@ -2,7 +2,8 @@ import unittest
 from unittest.mock import MagicMock, patch
 import cv2
 from pydantic import ValidationError
-from src.core.video_analyzer import VideoAnalyzer, VideoAnalysisInput
+from src.core.video_analyzer import VideoAnalyzer
+from src.core.models import VideoAnalysisInput
 
 class TestVideoAnalyzerSecurity(unittest.TestCase):
     def setUp(self):

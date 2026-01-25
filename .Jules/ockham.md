@@ -5,3 +5,5 @@
 ## 2024-05-25 - [Unifying Input Validation] **Observation:** Duplicated validation logic and inconsistent security checks in `AudioAnalysisInput` and `VideoAnalysisInput`. **Action:** Extracted `validate_file_path` to `src/core/validation.py` to centralize logic and enforce path traversal checks globally.
 
 ## 2026-01-18 - [Dead Code in Entry Point] **Observation:** `main.py` contained a call to a non-existent `run_simulation` method and unnecessary nesting. **Action:** Refactored `main.py` to enforce required arguments via `argparse`, removed the dead `else` block, and flattened the execution flow.
+
+## 2026-01-20 - [Centralizing Models and Constants] **Observation:** `AudioAnalysisInput` and `VideoAnalysisInput` DTOs were scattered across `app.py` and `video_analyzer.py`, and constants were duplicated or misplaced. **Action:** Centralized all models in `src/core/models.py` and constants in `src/core/constants.py` to improve cohesion and reduce circular dependency risks.

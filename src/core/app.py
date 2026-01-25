@@ -4,26 +4,13 @@ Handles audio analysis logic and video synchronization algorithms.
 """
 import logging
 import os
-from typing import List, Dict, Any, Optional
-from pydantic import BaseModel, Field, field_validator, ValidationError
-from src.core.video_analyzer import VideoAnalyzer, VideoAnalysisInput, SUPPORTED_VIDEO_EXTENSIONS
-from src.core.validation import validate_file_path
-from src.core.models import AudioAnalysisResult, VideoAnalysisResult
+from typing import List, Optional
+from pydantic import ValidationError
+from src.core.video_analyzer import VideoAnalyzer
+from src.core.models import AudioAnalysisResult, VideoAnalysisResult, AudioAnalysisInput, VideoAnalysisInput
+from src.core.constants import SUPPORTED_AUDIO_EXTENSIONS, SUPPORTED_VIDEO_EXTENSIONS
 
 logger = logging.getLogger(__name__)
-
-SUPPORTED_AUDIO_EXTENSIONS = {'.wav', '.mp3'}
-
-class AudioAnalysisInput(BaseModel):
-    """
-    Input model for audio analysis validation.
-    """
-    file_path: str = Field(..., description="Path to the audio file")
-
-    @field_validator('file_path')
-    @classmethod
-    def validate_path(cls, v: str) -> str:
-        return validate_file_path(v, SUPPORTED_AUDIO_EXTENSIONS)
 
 class BachataSyncEngine:
     """

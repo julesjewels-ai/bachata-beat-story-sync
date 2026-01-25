@@ -4,8 +4,8 @@ Unit tests for the core logic.
 import pytest
 import os
 from pydantic import ValidationError
-from src.core.app import BachataSyncEngine, AudioAnalysisInput
-from src.core.models import AudioAnalysisResult, VideoAnalysisResult
+from src.core.app import BachataSyncEngine
+from src.core.models import AudioAnalysisResult, VideoAnalysisResult, AudioAnalysisInput
 
 @pytest.fixture
 def engine():

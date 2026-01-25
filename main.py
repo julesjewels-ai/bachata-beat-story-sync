@@ -4,7 +4,8 @@ Entry point for the Bachata Beat-Story Sync application.
 import argparse
 import sys
 import logging
-from src.core.app import BachataSyncEngine, AudioAnalysisInput
+from src.core.app import BachataSyncEngine
+from src.core.models import AudioAnalysisInput
 from src.services.reporting import ExcelReportGenerator
 from pydantic import ValidationError
 
