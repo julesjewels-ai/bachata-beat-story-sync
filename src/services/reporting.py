@@ -4,6 +4,7 @@ Reporting service for generating analysis reports.
 import logging
 from typing import List
 import openpyxl
+from openpyxl.chart import BarChart, Reference
 from openpyxl.styles import Font, Alignment
 from openpyxl.utils import get_column_letter
 
@@ -45,6 +46,9 @@ class ExcelReportGenerator:
         # Sheet 2: Video Details
         ws_videos = wb.create_sheet(title="Video Library")
         self._write_video_details(ws_videos, video_data)
+
+        # Sheet 3: Visualizations
+        self._add_visualizations(wb, "Video Library", len(video_data))
 
         wb.save(output_path)
         logger.info(f"Report generated at: {output_path}")
@@ -99,3 +103,38 @@ class ExcelReportGenerator:
             length = max(len(str(cell.value) or "") for cell in column_cells)
             length = min(length, 50) # Cap width
             ws.column_dimensions[get_column_letter(column_cells[0].column)].width = length + 2
+
+    def _add_visualizations(self, wb, video_sheet_name: str, data_count: int):
+        """
+        Adds a chart to visualize video intensity.
+
+        Args:
+            wb: The openpyxl Workbook object.
+            video_sheet_name: Name of the sheet containing video data.
+            data_count: Number of video entries.
+        """
+        if data_count == 0:
+            return
+
+        ws = wb.create_sheet(title="Visualizations")
+
+        # Create Chart
+        chart = BarChart()
+        chart.type = "col"
+        chart.style = 10
+        chart.title = "Video Intensity Distribution"
+        chart.y_axis.title = "Intensity Score"
+        chart.x_axis.title = "Video Clip Index"
+
+        # Reference Data from Video Library sheet
+        # Column 3 is Intensity Score. Row 1 is header.
+        data = Reference(
+            wb[video_sheet_name],
+            min_col=3,
+            min_row=1,
+            max_row=data_count + 1,
+            max_col=3
+        )
+        chart.add_data(data, titles_from_data=True)
+
+        ws.add_chart(chart, "A1")
