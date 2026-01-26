@@ -2,7 +2,7 @@
 Reporting service for generating analysis reports.
 """
 import logging
-from typing import List
+from typing import List, Tuple, Any
 import openpyxl
 from openpyxl.styles import Font, Alignment
 from openpyxl.utils import get_column_letter
@@ -10,6 +10,7 @@ from openpyxl.utils import get_column_letter
 from src.core.models import AudioAnalysisResult, VideoAnalysisResult
 
 logger = logging.getLogger(__name__)
+
 
 class ExcelReportGenerator:
     """
@@ -37,10 +38,10 @@ class ExcelReportGenerator:
         ws_summary = wb.active
         if ws_summary:
             ws_summary.title = "Analysis Summary"
-            self._write_summary(ws_summary, audio_data, len(video_data))
         else:
             ws_summary = wb.create_sheet(title="Analysis Summary")
-            self._write_summary(ws_summary, audio_data, len(video_data))
+
+        self._write_summary(ws_summary, audio_data, len(video_data))
 
         # Sheet 2: Video Details
         ws_videos = wb.create_sheet(title="Video Library")
@@ -50,7 +51,8 @@ class ExcelReportGenerator:
         logger.info(f"Report generated at: {output_path}")
         return output_path
 
-    def _write_summary(self, ws, audio_data: AudioAnalysisResult, video_count: int):
+    def _write_summary(self, ws, audio_data: AudioAnalysisResult,
+                       video_count: int):
         """Writes summary data to the worksheet."""
         headers = ["Metric", "Value"]
         data = [
@@ -62,34 +64,37 @@ class ExcelReportGenerator:
             ("Total Videos Scanned", video_count)
         ]
 
-        # Write Headers
-        for col_num, header in enumerate(headers, 1):
-            cell = ws.cell(row=1, column=col_num, value=header)
-            cell.font = Font(bold=True)
-            cell.alignment = Alignment(horizontal="center")
-
-        # Write Data
-        for row_num, (metric, value) in enumerate(data, 2):
-            ws.cell(row=row_num, column=1, value=metric).font = Font(bold=True)
-            ws.cell(row=row_num, column=2, value=value)
-
-        # Auto-width
-        self._adjust_column_widths(ws)
+        self._write_table(ws, headers, data, bold_first_col=True,
+                          center_headers=True)
 
     def _write_video_details(self, ws, video_data: List[VideoAnalysisResult]):
         """Writes detailed video analysis data."""
         headers = ["File Path", "Duration (s)", "Intensity Score"]
 
+        data = [
+            (video.path, video.duration, video.intensity_score)
+            for video in video_data
+        ]
+
+        self._write_table(ws, headers, data)
+
+    def _write_table(self, ws, headers: List[str], data: List[Tuple[Any, ...]],
+                     bold_first_col: bool = False,
+                     center_headers: bool = False) -> None:
+        """Helper to write a table with headers and data."""
         # Write Headers
         for col_num, header in enumerate(headers, 1):
             cell = ws.cell(row=1, column=col_num, value=header)
             cell.font = Font(bold=True)
+            if center_headers:
+                cell.alignment = Alignment(horizontal="center")
 
         # Write Data
-        for row_num, video in enumerate(video_data, 2):
-            ws.cell(row=row_num, column=1, value=video.path)
-            ws.cell(row=row_num, column=2, value=video.duration)
-            ws.cell(row=row_num, column=3, value=video.intensity_score)
+        for row_num, row_data in enumerate(data, 2):
+            for col_num, value in enumerate(row_data, 1):
+                cell = ws.cell(row=row_num, column=col_num, value=value)
+                if col_num == 1 and bold_first_col:
+                    cell.font = Font(bold=True)
 
         self._adjust_column_widths(ws)
 
@@ -97,5 +102,7 @@ class ExcelReportGenerator:
         """Auto-adjusts column widths based on content."""
         for column_cells in ws.columns:
             length = max(len(str(cell.value) or "") for cell in column_cells)
-            length = min(length, 50) # Cap width
-            ws.column_dimensions[get_column_letter(column_cells[0].column)].width = length + 2
+            length = min(length, 50)  # Cap width
+            ws.column_dimensions[
+                get_column_letter(column_cells[0].column)
+            ].width = length + 2
