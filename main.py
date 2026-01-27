@@ -6,6 +6,7 @@ import sys
 import logging
 from src.core.app import BachataSyncEngine, AudioAnalysisInput
 from src.services.reporting import ExcelReportGenerator
+from src.ui.console import RichProgressObserver
 from pydantic import ValidationError
 
 def parse_args() -> argparse.Namespace:
@@ -61,7 +62,9 @@ def main() -> None:
 
         # 2. Scan Videos
         logger.info(f"Scanning video library in: {args.video_dir}")
-        video_clips = engine.scan_video_library(args.video_dir)
+        # Use RichProgressObserver for visual feedback
+        observer = RichProgressObserver()
+        video_clips = engine.scan_video_library(args.video_dir, observer=observer)
         logger.info(f"Found {len(video_clips)} suitable clips.")
 
         # 3. Sync and Generate

@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field, field_validator, ValidationError
 from src.core.video_analyzer import VideoAnalyzer, VideoAnalysisInput, SUPPORTED_VIDEO_EXTENSIONS
 from src.core.validation import validate_file_path
 from src.core.models import AudioAnalysisResult, VideoAnalysisResult
+from src.core.interfaces import ProgressObserver
 
 logger = logging.getLogger(__name__)
 
@@ -56,18 +57,36 @@ class BachataSyncEngine:
             sections=["intro", "verse", "chorus", "break", "outro"]
         )
 
-    def scan_video_library(self, directory: str) -> List[VideoAnalysisResult]:
+    def scan_video_library(self, directory: str, observer: Optional[ProgressObserver] = None) -> List[VideoAnalysisResult]:
         """
         Scans a directory for video files and assigns a 'visual intensity' score.
         """
         if not os.path.exists(directory):
              raise FileNotFoundError(f"Video directory not found: {directory}")
 
-        clips = []
+        # 1. Collect all potential files to determine total count
+        files_to_process = []
         for root, _, files in os.walk(directory):
             for file in files:
+                _, ext = os.path.splitext(file)
+                if ext.lower() in self.supported_video_ext:
+                    files_to_process.append((root, file))
+
+        total_files = len(files_to_process)
+        clips = []
+
+        # 2. Process files with progress reporting
+        try:
+            for i, (root, file) in enumerate(files_to_process):
+                if observer:
+                    observer.on_progress(i, total_files, f"Scanning {file}...")
+
                 if result := self._process_video_file(root, file):
                     clips.append(result)
+        finally:
+            if observer:
+                observer.on_progress(total_files, total_files, "Scan complete.")
+
         return clips
 
     def _process_video_file(self, root: str, filename: str) -> Optional[VideoAnalysisResult]:
