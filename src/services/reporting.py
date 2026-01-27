@@ -2,7 +2,7 @@
 Reporting service for generating analysis reports.
 """
 import logging
-from typing import List
+from typing import List, Any
 import openpyxl
 from openpyxl.chart import BarChart, Reference
 from openpyxl.styles import Font, Alignment
@@ -11,6 +11,7 @@ from openpyxl.utils import get_column_letter
 from src.core.models import AudioAnalysisResult, VideoAnalysisResult
 
 logger = logging.getLogger(__name__)
+
 
 class ExcelReportGenerator:
     """
@@ -54,7 +55,28 @@ class ExcelReportGenerator:
         logger.info(f"Report generated at: {output_path}")
         return output_path
 
-    def _write_summary(self, ws, audio_data: AudioAnalysisResult, video_count: int):
+    def _write_table(self, ws, headers: List[str], data: List[Any],
+                     bold_first_col: bool = False,
+                     center_headers: bool = False):
+        """Helper to write standardized tables."""
+        # Write Headers
+        for col_num, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col_num, value=header)
+            cell.font = Font(bold=True)
+            if center_headers:
+                cell.alignment = Alignment(horizontal="center")
+
+        # Write Data
+        for row_num, row_data in enumerate(data, 2):
+            for col_num, value in enumerate(row_data, 1):
+                cell = ws.cell(row=row_num, column=col_num, value=value)
+                if col_num == 1 and bold_first_col:
+                    cell.font = Font(bold=True)
+
+        self._adjust_column_widths(ws)
+
+    def _write_summary(self, ws, audio_data: AudioAnalysisResult,
+                       video_count: int):
         """Writes summary data to the worksheet."""
         headers = ["Metric", "Value"]
         data = [
@@ -65,44 +87,25 @@ class ExcelReportGenerator:
             ("Sections", ", ".join(audio_data.sections)),
             ("Total Videos Scanned", video_count)
         ]
-
-        # Write Headers
-        for col_num, header in enumerate(headers, 1):
-            cell = ws.cell(row=1, column=col_num, value=header)
-            cell.font = Font(bold=True)
-            cell.alignment = Alignment(horizontal="center")
-
-        # Write Data
-        for row_num, (metric, value) in enumerate(data, 2):
-            ws.cell(row=row_num, column=1, value=metric).font = Font(bold=True)
-            ws.cell(row=row_num, column=2, value=value)
-
-        # Auto-width
-        self._adjust_column_widths(ws)
+        self._write_table(ws, headers, data, bold_first_col=True,
+                          center_headers=True)
 
     def _write_video_details(self, ws, video_data: List[VideoAnalysisResult]):
         """Writes detailed video analysis data."""
         headers = ["File Path", "Duration (s)", "Intensity Score"]
-
-        # Write Headers
-        for col_num, header in enumerate(headers, 1):
-            cell = ws.cell(row=1, column=col_num, value=header)
-            cell.font = Font(bold=True)
-
-        # Write Data
-        for row_num, video in enumerate(video_data, 2):
-            ws.cell(row=row_num, column=1, value=video.path)
-            ws.cell(row=row_num, column=2, value=video.duration)
-            ws.cell(row=row_num, column=3, value=video.intensity_score)
-
-        self._adjust_column_widths(ws)
+        data = [
+            (v.path, v.duration, v.intensity_score)
+            for v in video_data
+        ]
+        self._write_table(ws, headers, data)
 
     def _adjust_column_widths(self, ws):
         """Auto-adjusts column widths based on content."""
         for column_cells in ws.columns:
             length = max(len(str(cell.value) or "") for cell in column_cells)
-            length = min(length, 50) # Cap width
-            ws.column_dimensions[get_column_letter(column_cells[0].column)].width = length + 2
+            length = min(length, 50)  # Cap width
+            col_letter = get_column_letter(column_cells[0].column)
+            ws.column_dimensions[col_letter].width = length + 2
 
     def _add_visualizations(self, wb, video_sheet_name: str, data_count: int):
         """
