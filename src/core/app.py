@@ -4,9 +4,11 @@ Handles audio analysis logic and video synchronization algorithms.
 """
 import logging
 import os
-from typing import List, Dict, Any, Optional
+from typing import List, Optional
 from pydantic import BaseModel, Field, field_validator, ValidationError
-from src.core.video_analyzer import VideoAnalyzer, VideoAnalysisInput, SUPPORTED_VIDEO_EXTENSIONS
+from src.core.video_analyzer import (
+    VideoAnalyzer, VideoAnalysisInput, SUPPORTED_VIDEO_EXTENSIONS
+)
 from src.core.validation import validate_file_path
 from src.core.models import AudioAnalysisResult, VideoAnalysisResult
 from src.core.interfaces import ProgressObserver
@@ -14,6 +16,7 @@ from src.core.interfaces import ProgressObserver
 logger = logging.getLogger(__name__)
 
 SUPPORTED_AUDIO_EXTENSIONS = {'.wav', '.mp3'}
+
 
 class AudioAnalysisInput(BaseModel):
     """
@@ -25,6 +28,7 @@ class AudioAnalysisInput(BaseModel):
     @classmethod
     def validate_path(cls, v: str) -> str:
         return validate_file_path(v, SUPPORTED_AUDIO_EXTENSIONS)
+
 
 class BachataSyncEngine:
     """
@@ -38,64 +42,73 @@ class BachataSyncEngine:
         self.supported_video_ext = SUPPORTED_VIDEO_EXTENSIONS
         self.video_analyzer = VideoAnalyzer()
 
-    def analyze_audio(self, input_data: AudioAnalysisInput) -> AudioAnalysisResult:
+    def analyze_audio(
+        self, input_data: AudioAnalysisInput
+    ) -> AudioAnalysisResult:
         """
         Analyzes a Bachata track to find BPM, beats, and intensity drops.
-        
+
         In a real implementation, this would use librosa or essentialia.
         For the scaffold, it mimics analysis results.
         """
         file_path = input_data.file_path
-        
+
         # Mock logic for MVP scaffold
         # Real logic: y, sr = librosa.load(file_path); onset_env = ...
         return AudioAnalysisResult(
             filename=os.path.basename(file_path),
             bpm=128,  # Typical Bachata tempo
             duration=180.0,
-            peaks=[15.5, 45.2, 90.0, 120.5], # Timestamps of high intensity
+            peaks=[15.5, 45.2, 90.0, 120.5],  # Timestamps of high intensity
             sections=["intro", "verse", "chorus", "break", "outro"]
         )
 
-    def scan_video_library(self, directory: str, observer: Optional[ProgressObserver] = None) -> List[VideoAnalysisResult]:
+    def scan_video_library(
+        self, directory: str, observer: Optional[ProgressObserver] = None
+    ) -> List[VideoAnalysisResult]:
         """
-        Scans a directory for video files and assigns a 'visual intensity' score.
+        Scans a directory for video files and assigns a visual intensity score.
         """
         if not os.path.exists(directory):
-             raise FileNotFoundError(f"Video directory not found: {directory}")
+            raise FileNotFoundError(f"Video directory not found: {directory}")
 
-        # 1. Collect all potential files to determine total count
+        files_to_process = self._collect_video_files(directory)
+        total_files = len(files_to_process)
+        clips = []
+
+        # Process files with progress reporting
+        try:
+            for i, video_path in enumerate(files_to_process):
+                filename = os.path.basename(video_path)
+                if observer:
+                    observer.on_progress(
+                        i, total_files, f"Scanning {filename}..."
+                    )
+
+                if result := self._process_video_file(video_path):
+                    clips.append(result)
+        finally:
+            if observer:
+                observer.on_progress(
+                    total_files, total_files, "Scan complete."
+                )
+
+        return clips
+
+    def _collect_video_files(self, directory: str) -> List[str]:
+        """Recursively collects all supported video files in a directory."""
         files_to_process = []
         for root, _, files in os.walk(directory):
             for file in files:
                 _, ext = os.path.splitext(file)
                 if ext.lower() in self.supported_video_ext:
-                    files_to_process.append((root, file))
+                    files_to_process.append(os.path.join(root, file))
+        return files_to_process
 
-        total_files = len(files_to_process)
-        clips = []
-
-        # 2. Process files with progress reporting
-        try:
-            for i, (root, file) in enumerate(files_to_process):
-                if observer:
-                    observer.on_progress(i, total_files, f"Scanning {file}...")
-
-                if result := self._process_video_file(root, file):
-                    clips.append(result)
-        finally:
-            if observer:
-                observer.on_progress(total_files, total_files, "Scan complete.")
-
-        return clips
-
-    def _process_video_file(self, root: str, filename: str) -> Optional[VideoAnalysisResult]:
+    def _process_video_file(
+        self, video_path: str
+    ) -> Optional[VideoAnalysisResult]:
         """Helper to process a single video file."""
-        _, ext = os.path.splitext(filename)
-        if ext.lower() not in self.supported_video_ext:
-            return None
-
-        video_path = os.path.join(root, filename)
         try:
             input_data = VideoAnalysisInput(file_path=video_path)
             return self.video_analyzer.analyze(input_data)
@@ -113,10 +126,13 @@ class BachataSyncEngine:
         Syncs clips to audio data and exports the timeline.
         """
         # Logic to match audio.peaks with video.intensity_score
-        logger.info(f"Synthesizing {len(video_clips)} clips against {audio_data.bpm} BPM audio...")
-        
+        logger.info(
+            f"Synthesizing {len(video_clips)} clips against "
+            f"{audio_data.bpm} BPM audio..."
+        )
+
         # Mock export process
         with open(output_path, 'w') as f:
             f.write("Mock Video Content")
-        
+
         return output_path

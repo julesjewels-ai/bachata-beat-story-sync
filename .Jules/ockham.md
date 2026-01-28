@@ -7,3 +7,5 @@
 ## 2026-01-18 - [Dead Code in Entry Point] **Observation:** `main.py` contained a call to a non-existent `run_simulation` method and unnecessary nesting. **Action:** Refactored `main.py` to enforce required arguments via `argparse`, removed the dead `else` block, and flattened the execution flow.
 
 ## 2026-01-26 - [Refactoring Reporting Service] **Observation:** `ExcelReportGenerator` contained duplicate logic for writing table headers and data in `_write_summary` and `_write_video_details`. **Action:** Extracted `_write_table` helper method to consolidate table generation logic, enforcing DRY and reducing code duplication.
+
+## 2026-02-14 - [Separating Discovery from Processing] **Observation:** `scan_video_library` mixed file system traversal with processing logic and progress reporting. **Action:** Extracted `_collect_video_files` to handle discovery, simplifying the main loop and enabling cleaner path handling.
