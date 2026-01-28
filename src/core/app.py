@@ -4,7 +4,7 @@ Handles audio analysis logic and video synchronization algorithms.
 """
 import logging
 import os
-from typing import List, Dict, Any, Optional
+from typing import List, Optional, Tuple
 from pydantic import BaseModel, Field, field_validator, ValidationError
 from src.core.video_analyzer import VideoAnalyzer, VideoAnalysisInput, SUPPORTED_VIDEO_EXTENSIONS
 from src.core.validation import validate_file_path
@@ -57,21 +57,20 @@ class BachataSyncEngine:
             sections=["intro", "verse", "chorus", "break", "outro"]
         )
 
-    def scan_video_library(self, directory: str, observer: Optional[ProgressObserver] = None) -> List[VideoAnalysisResult]:
+    def scan_video_library(
+        self, directory: str, observer: Optional[ProgressObserver] = None
+    ) -> List[VideoAnalysisResult]:
         """
-        Scans a directory for video files and assigns a 'visual intensity' score.
+        Scans a directory for video files and assigns a
+        'visual intensity' score.
         """
         if not os.path.exists(directory):
-             raise FileNotFoundError(f"Video directory not found: {directory}")
+            raise FileNotFoundError(
+                f"Video directory not found: {directory}"
+            )
 
         # 1. Collect all potential files to determine total count
-        files_to_process = []
-        for root, _, files in os.walk(directory):
-            for file in files:
-                _, ext = os.path.splitext(file)
-                if ext.lower() in self.supported_video_ext:
-                    files_to_process.append((root, file))
-
+        files_to_process = self._collect_video_files(directory)
         total_files = len(files_to_process)
         clips = []
 
@@ -85,11 +84,25 @@ class BachataSyncEngine:
                     clips.append(result)
         finally:
             if observer:
-                observer.on_progress(total_files, total_files, "Scan complete.")
+                observer.on_progress(
+                    total_files, total_files, "Scan complete."
+                )
 
         return clips
 
-    def _process_video_file(self, root: str, filename: str) -> Optional[VideoAnalysisResult]:
+    def _collect_video_files(self, directory: str) -> List[Tuple[str, str]]:
+        """Collects video files from the directory."""
+        files_to_process = []
+        for root, _, files in os.walk(directory):
+            for file in files:
+                _, ext = os.path.splitext(file)
+                if ext.lower() in self.supported_video_ext:
+                    files_to_process.append((root, file))
+        return files_to_process
+
+    def _process_video_file(
+        self, root: str, filename: str
+    ) -> Optional[VideoAnalysisResult]:
         """Helper to process a single video file."""
         _, ext = os.path.splitext(filename)
         if ext.lower() not in self.supported_video_ext:

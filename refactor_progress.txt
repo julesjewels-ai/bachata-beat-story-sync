@@ -1,0 +1,1 @@
+src/core/app.py:BachataSyncEngine.scan_video_library
