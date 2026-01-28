@@ -4,7 +4,7 @@ Video analysis module for Bachata Beat-Story Sync.
 import cv2
 import numpy as np
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from pydantic import BaseModel, Field, field_validator
 from src.core.validation import validate_file_path
 from src.core.models import VideoAnalysisResult
@@ -53,15 +53,47 @@ class VideoAnalyzer:
 
         try:
             duration = self._validate_video_properties(cap)
+            thumbnail_data = self._generate_thumbnail(cap)
             intensity_score = self._calculate_intensity(cap)
 
             return VideoAnalysisResult(
                 path=file_path,
                 intensity_score=intensity_score / NORMALIZATION_FACTOR,
-                duration=duration
+                duration=duration,
+                thumbnail_data=thumbnail_data
             )
         finally:
             cap.release()
+
+    def _generate_thumbnail(self, cap: cv2.VideoCapture) -> Optional[bytes]:
+        """Generates a thumbnail for the video."""
+        try:
+            # Seek to start
+            cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            ret, frame = cap.read()
+            if not ret:
+                return None
+
+            # Resize (maintain aspect ratio, height=50)
+            height = 50
+            if frame.shape[0] > 0:
+                aspect_ratio = frame.shape[1] / frame.shape[0]
+                width = int(height * aspect_ratio)
+                resized = cv2.resize(frame, (width, height))
+            else:
+                return None
+
+            # Encode to PNG
+            success, buffer = cv2.imencode(".png", resized)
+            if success:
+                return buffer.tobytes()
+            return None
+        except Exception as e:
+            logger.warning("Failed to generate thumbnail: %s", e)
+            return None
+        finally:
+            # Reset to start for subsequent analysis
+            cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
 
     def _validate_video_properties(self, cap: cv2.VideoCapture) -> float:
         """

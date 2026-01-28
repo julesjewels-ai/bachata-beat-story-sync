@@ -2,8 +2,11 @@
 Reporting service for generating analysis reports.
 """
 import logging
+import io
 from typing import List, Any
 import openpyxl
+from PIL import Image as PILImage
+from openpyxl.drawing.image import Image
 from openpyxl.chart import BarChart, Reference
 from openpyxl.styles import Font, Alignment
 from openpyxl.utils import get_column_letter
@@ -92,12 +95,29 @@ class ExcelReportGenerator:
 
     def _write_video_details(self, ws, video_data: List[VideoAnalysisResult]):
         """Writes detailed video analysis data."""
-        headers = ["File Path", "Duration (s)", "Intensity Score"]
+        headers = ["File Path", "Duration (s)", "Intensity Score", "Thumbnail"]
         data = [
-            (v.path, v.duration, v.intensity_score)
+            (v.path, v.duration, v.intensity_score, "")
             for v in video_data
         ]
         self._write_table(ws, headers, data)
+
+        # Add thumbnails
+        # Row 1 is headers. Data starts at row 2.
+        # Thumbnail is column 4.
+        for i, v in enumerate(video_data):
+            if v.thumbnail_data:
+                try:
+                    stream = io.BytesIO(v.thumbnail_data)
+                    pil_img = PILImage.open(stream)
+                    img = Image(pil_img)
+                    # Adjust row height to fit image (approx 50px)
+                    ws.row_dimensions[i + 2].height = 40
+                    # Add image to cell D{i+2}
+                    cell_coord = f"D{i + 2}"
+                    ws.add_image(img, cell_coord)
+                except Exception as e:
+                    logger.warning("Failed to add thumbnail for %s: %s", v.path, e)
 
     def _adjust_column_widths(self, ws):
         """Auto-adjusts column widths based on content."""
