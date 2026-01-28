@@ -3,6 +3,7 @@ Unit tests for the core logic.
 """
 import pytest
 import os
+from unittest.mock import MagicMock
 from pydantic import ValidationError
 from src.core.app import BachataSyncEngine, AudioAnalysisInput
 from src.core.models import AudioAnalysisResult, VideoAnalysisResult
@@ -33,9 +34,19 @@ def test_analyze_audio_with_model(engine):
         f.write("mock")
 
     try:
+        # Mock the audio analyzer to avoid librosa calls on dummy file
+        engine.audio_analyzer = MagicMock()
+        engine.audio_analyzer.analyze.return_value = AudioAnalysisResult(
+            filename="test_audio.wav",
+            bpm=128.0,
+            duration=180.0,
+            peaks=[15.5],
+            sections=["main"]
+        )
+
         inp = AudioAnalysisInput(file_path="test_audio.wav")
         res = engine.analyze_audio(inp)
-        assert res.bpm == 128
+        assert res.bpm == 128.0
     finally:
         os.remove("test_audio.wav")
 
