@@ -9,3 +9,5 @@
 ## 2026-01-26 - [Refactoring Reporting Service] **Observation:** `ExcelReportGenerator` contained duplicate logic for writing table headers and data in `_write_summary` and `_write_video_details`. **Action:** Extracted `_write_table` helper method to consolidate table generation logic, enforcing DRY and reducing code duplication.
 
 ## 2026-02-14 - [Separating Discovery from Processing] **Observation:** `scan_video_library` mixed file system traversal with processing logic and progress reporting. **Action:** Extracted `_collect_video_files` to handle discovery, simplifying the main loop and enabling cleaner path handling.
+
+## 2026-03-05 - [Extracting Audio Logic] **Observation:** BachataSyncEngine was a "God Object" handling audio analysis, video scanning, and story generation. **Action:** Extracted `AudioAnalyzer` and `AudioAnalysisInput` to `src/core/audio_analyzer.py`, reducing complexity and decoupling concerns.
