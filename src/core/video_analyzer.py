@@ -4,7 +4,7 @@ Video analysis module for Bachata Beat-Story Sync.
 import cv2
 import numpy as np
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from pydantic import BaseModel, Field, field_validator
 from src.core.validation import validate_file_path
 from src.core.models import VideoAnalysisResult
@@ -54,11 +54,13 @@ class VideoAnalyzer:
         try:
             duration = self._validate_video_properties(cap)
             intensity_score = self._calculate_intensity(cap)
+            thumbnail_data = self._extract_thumbnail(cap)
 
             return VideoAnalysisResult(
                 path=file_path,
                 intensity_score=intensity_score / NORMALIZATION_FACTOR,
-                duration=duration
+                duration=duration,
+                thumbnail_data=thumbnail_data
             )
         finally:
             cap.release()
@@ -83,6 +85,11 @@ class VideoAnalyzer:
 
     def _calculate_intensity(self, cap: cv2.VideoCapture) -> float:
         """Calculates the average motion intensity of the video."""
+        # Reset position to start just in case, though usually it starts at 0.
+        # However, _validate uses .get() so it shouldn't move.
+        # But let's be safe if we reuse this method.
+        cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+
         prev_frame = None
         motion_scores = []
 
@@ -101,3 +108,41 @@ class VideoAnalyzer:
             prev_frame = gray_frame
 
         return np.mean(motion_scores) if motion_scores else 0.0
+
+    def _extract_thumbnail(self, cap: cv2.VideoCapture) -> Optional[bytes]:
+        """
+        Extracts a thumbnail from the middle of the video.
+        """
+        try:
+            frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            if frame_count <= 0:
+                return None
+
+            middle_frame = frame_count // 2
+            cap.set(cv2.CAP_PROP_POS_FRAMES, middle_frame)
+
+            ret, frame = cap.read()
+            if not ret:
+                logger.warning("Could not read frame for thumbnail.")
+                return None
+
+            # Resize to save space (e.g., height 100px)
+            height, width = frame.shape[:2]
+            target_height = 100
+            if height > 0:
+                scale = target_height / height
+                target_width = int(width * scale)
+                resized = cv2.resize(frame, (target_width, target_height))
+            else:
+                resized = frame # Should not happen if ret is True
+
+            # Encode as JPEG
+            success, encoded_img = cv2.imencode('.jpg', resized)
+            if not success:
+                return None
+
+            return encoded_img.tobytes()
+
+        except Exception as e:
+            logger.warning(f"Thumbnail extraction failed: {e}")
+            return None

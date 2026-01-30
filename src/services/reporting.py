@@ -3,10 +3,13 @@ Reporting service for generating analysis reports.
 """
 import logging
 from typing import List, Any
+from io import BytesIO
+from PIL import Image as PILImage
 import openpyxl
 from openpyxl.chart import BarChart, Reference
 from openpyxl.styles import Font, Alignment
 from openpyxl.utils import get_column_letter
+from openpyxl.drawing.image import Image as OpenpyxlImage
 
 from src.core.models import AudioAnalysisResult, VideoAnalysisResult
 
@@ -92,12 +95,38 @@ class ExcelReportGenerator:
 
     def _write_video_details(self, ws, video_data: List[VideoAnalysisResult]):
         """Writes detailed video analysis data."""
-        headers = ["File Path", "Duration (s)", "Intensity Score"]
+        headers = ["File Path", "Duration (s)", "Intensity Score", "Thumbnail"]
         data = [
-            (v.path, v.duration, v.intensity_score)
+            (v.path, v.duration, v.intensity_score, "")
             for v in video_data
         ]
         self._write_table(ws, headers, data)
+
+        # Add thumbnails
+        # Header is row 1, data starts at row 2
+        for i, v in enumerate(video_data):
+            if v.thumbnail_data:
+                try:
+                    img_stream = BytesIO(v.thumbnail_data)
+                    pil_img = PILImage.open(img_stream)
+                    # Openpyxl image
+                    img = OpenpyxlImage(pil_img)
+
+                    # Anchor to 'D' column (4th column), row i+2
+                    # Cell addresses are e.g. D2, D3...
+                    cell_address = f"D{i+2}"
+                    ws.add_image(img, cell_address)
+
+                    # Adjust row height to fit image (~100px height)
+                    # Excel row height is in points. 1 point = 1/72 inch.
+                    # 100px / 96dpi * 72 = 75 points. Let's use 80.
+                    ws.row_dimensions[i+2].height = 80
+
+                except Exception as e:
+                    logger.warning(f"Could not embed thumbnail for {v.path}: {e}")
+
+        # Adjust column D width to be wider
+        ws.column_dimensions['D'].width = 20
 
     def _adjust_column_widths(self, ws):
         """Auto-adjusts column widths based on content."""
@@ -105,6 +134,11 @@ class ExcelReportGenerator:
             length = max(len(str(cell.value) or "") for cell in column_cells)
             length = min(length, 50)  # Cap width
             col_letter = get_column_letter(column_cells[0].column)
+
+            # Don't resize thumbnail column (D) if it's explicitly set later,
+            # but here it happens before. _write_video_details calls this via _write_table.
+            # So _write_table calls _adjust_column_widths.
+            # Then _write_video_details sets D width to 20. So it overrides. That's fine.
             ws.column_dimensions[col_letter].width = length + 2
 
     def _add_visualizations(self, wb, video_sheet_name: str, data_count: int):
