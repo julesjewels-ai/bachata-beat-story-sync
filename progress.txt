@@ -1,0 +1,13 @@
+# Progress Report
+
+This file tracks the implementation progress of the audio analysis refactoring.
+
+## Tasks
+
+- [ ] Create `src/core/audio_analyzer.py`
+- [ ] Implement `AudioAnalyzer` class
+- [ ] Move `AudioAnalysisInput` to `src/core/audio_analyzer.py`
+- [ ] Update `src/core/app.py` to remove `AudioAnalysisInput` and `analyze_audio`
+- [ ] Update `main.py` to use `AudioAnalyzer`
+- [ ] Add unit tests for `AudioAnalyzer`
+- [ ] Verify functionality
