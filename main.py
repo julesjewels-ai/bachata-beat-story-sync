@@ -4,7 +4,8 @@ Entry point for the Bachata Beat-Story Sync application.
 import argparse
 import sys
 import logging
-from src.core.app import BachataSyncEngine, AudioAnalysisInput
+from src.core.app import BachataSyncEngine
+from src.core.audio_analyzer import AudioAnalyzer, AudioAnalysisInput
 from src.services.reporting import ExcelReportGenerator
 from src.ui.console import RichProgressObserver
 from pydantic import ValidationError
@@ -52,12 +53,13 @@ def main() -> None:
     logger.info("Starting Bachata Beat-Story Sync...")
 
     engine = BachataSyncEngine()
+    audio_analyzer = AudioAnalyzer()
 
     try:
         # 1. Analyze Audio
         logger.info(f"Analyzing audio track: {args.audio}")
         audio_input = AudioAnalysisInput(file_path=args.audio)
-        audio_meta = engine.analyze_audio(audio_input)
+        audio_meta = audio_analyzer.analyze(audio_input)
         logger.info(f"Detected BPM: {audio_meta.bpm} | Emotional Peaks: {len(audio_meta.peaks)}")
 
         # 2. Scan Videos
