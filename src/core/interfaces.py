@@ -3,6 +3,7 @@ Core interfaces and protocols for Bachata Beat-Story Sync.
 """
 from typing import Protocol
 
+
 class ProgressObserver(Protocol):
     """
     Protocol for objects that observe progress of long-running operations.

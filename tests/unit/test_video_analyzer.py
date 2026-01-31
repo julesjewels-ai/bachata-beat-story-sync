@@ -7,6 +7,7 @@ import numpy as np
 from pydantic import ValidationError
 from src.core.video_analyzer import VideoAnalyzer, VideoAnalysisInput
 
+
 class TestVideoAnalyzer(unittest.TestCase):
     """
     Test suite for the VideoAnalyzer class.
@@ -42,11 +43,13 @@ class TestVideoAnalyzer(unittest.TestCase):
     def test_analyze_file_not_found(self, mock_exists):
         """
         Tests that a ValueError is raised when the video file does not exist.
-        (Changed from FileNotFoundError because Pydantic validator raises ValueError)
+        (Changed from FileNotFoundError because Pydantic validator raises
+        ValueError)
         """
         with self.assertRaises(ValidationError) as context:
-             VideoAnalysisInput(file_path='non_existent_file.mp4')
+            VideoAnalysisInput(file_path='non_existent_file.mp4')
         self.assertIn("File not found", str(context.exception))
+
 
 if __name__ == '__main__':
     unittest.main()

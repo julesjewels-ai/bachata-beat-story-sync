@@ -1,11 +1,10 @@
 """
 Unit tests for progress reporting in the core engine.
 """
-import os
 import pytest
 from unittest.mock import MagicMock
 from src.core.app import BachataSyncEngine
-from src.core.interfaces import ProgressObserver
+
 
 class MockObserver:
     def __init__(self):
@@ -14,9 +13,11 @@ class MockObserver:
     def on_progress(self, current: int, total: int, message: str = "") -> None:
         self.updates.append((current, total, message))
 
+
 @pytest.fixture
 def engine():
     return BachataSyncEngine()
+
 
 def test_scan_video_library_progress(engine, tmp_path):
     """
