@@ -4,7 +4,7 @@ Video analysis module for Bachata Beat-Story Sync.
 import cv2
 import numpy as np
 import logging
-from typing import Dict, Any
+from typing import Optional
 from pydantic import BaseModel, Field, field_validator
 from src.core.validation import validate_file_path
 from src.core.models import VideoAnalysisResult
@@ -19,6 +19,7 @@ SUPPORTED_VIDEO_EXTENSIONS = {'.mp4', '.mov', '.avi', '.mkv'}
 BLUR_KERNEL_SIZE = (21, 21)
 NORMALIZATION_FACTOR = 100
 
+
 class VideoAnalysisInput(BaseModel):
     """
     Input model for video analysis validation.
@@ -29,6 +30,7 @@ class VideoAnalysisInput(BaseModel):
     @classmethod
     def validate_path(cls, v: str) -> str:
         return validate_file_path(v, SUPPORTED_VIDEO_EXTENSIONS)
+
 
 class VideoAnalyzer:
     """
@@ -43,7 +45,8 @@ class VideoAnalyzer:
             input_data: Validated input containing the file path.
 
         Returns:
-            A VideoAnalysisResult with the video's path, intensity score, and duration.
+            A VideoAnalysisResult with the video's path, intensity score,
+            and duration.
         """
         file_path = input_data.file_path
 
@@ -54,14 +57,47 @@ class VideoAnalyzer:
         try:
             duration = self._validate_video_properties(cap)
             intensity_score = self._calculate_intensity(cap)
+            thumbnail_data = self._extract_thumbnail(cap)
 
             return VideoAnalysisResult(
                 path=file_path,
                 intensity_score=intensity_score / NORMALIZATION_FACTOR,
-                duration=duration
+                duration=duration,
+                thumbnail_data=thumbnail_data
             )
         finally:
             cap.release()
+
+    def _extract_thumbnail(self, cap: cv2.VideoCapture) -> Optional[bytes]:
+        """
+        Extracts a thumbnail from the middle of the video.
+        """
+        try:
+            frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            if frame_count > 0:
+                cap.set(cv2.CAP_PROP_POS_FRAMES, frame_count // 2)
+
+            ret, frame = cap.read()
+            if not ret:
+                return None
+
+            # Resize to max width 160px while maintaining aspect ratio
+            height, width = frame.shape[:2]
+            target_width = 160
+            aspect_ratio = height / width
+            target_height = int(target_width * aspect_ratio)
+
+            frame_resized = cv2.resize(frame, (target_width, target_height))
+
+            # Encode as JPEG
+            success, buffer = cv2.imencode(".jpg", frame_resized)
+            if not success:
+                return None
+
+            return buffer.tobytes()
+        except Exception as e:
+            logger.warning("Failed to extract thumbnail: %s", e)
+            return None
 
     def _validate_video_properties(self, cap: cv2.VideoCapture) -> float:
         """
@@ -73,11 +109,16 @@ class VideoAnalyzer:
 
         # Security Check: Prevent DoS via massive video files
         if frame_count > MAX_VIDEO_FRAMES:
-            raise ValueError(f"Video exceeds maximum allowed frames ({MAX_VIDEO_FRAMES})")
+            raise ValueError(
+                f"Video exceeds maximum allowed frames ({MAX_VIDEO_FRAMES})"
+            )
 
         duration = frame_count / frame_rate if frame_rate > 0 else 0
         if duration > MAX_VIDEO_DURATION_SECONDS:
-            raise ValueError(f"Video exceeds maximum duration ({MAX_VIDEO_DURATION_SECONDS}s)")
+            raise ValueError(
+                f"Video exceeds maximum duration "
+                f"({MAX_VIDEO_DURATION_SECONDS}s)"
+            )
 
         return duration
 
