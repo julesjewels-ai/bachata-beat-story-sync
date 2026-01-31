@@ -1,7 +1,8 @@
 """
 Console UI implementations using Rich.
 """
-from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn
+from typing import Optional
+from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TaskID
 from src.core.interfaces import ProgressObserver
 
 class RichProgressObserver:
@@ -15,7 +16,7 @@ class RichProgressObserver:
             BarColumn(),
             TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
         )
-        self.task_id = None
+        self.task_id: Optional[TaskID] = None
         self.started = False
 
     def on_progress(self, current: int, total: int, message: str = "") -> None:
