@@ -4,6 +4,7 @@ Video analysis module for Bachata Beat-Story Sync.
 import cv2
 import numpy as np
 import logging
+from typing import Optional
 from pydantic import BaseModel, Field, field_validator
 from src.core.validation import validate_file_path
 from src.core.models import VideoAnalysisResult
@@ -56,11 +57,13 @@ class VideoAnalyzer:
         try:
             duration = self._validate_video_properties(cap)
             intensity_score = self._calculate_intensity(cap)
+            thumbnail_data = self._extract_thumbnail(cap)
 
             return VideoAnalysisResult(
                 path=file_path,
                 intensity_score=intensity_score / NORMALIZATION_FACTOR,
-                duration=duration
+                duration=duration,
+                thumbnail_data=thumbnail_data
             )
         finally:
             cap.release()
@@ -108,3 +111,40 @@ class VideoAnalyzer:
             prev_frame = gray_frame
 
         return np.mean(motion_scores) if motion_scores else 0.0
+
+    def _extract_thumbnail(self, cap: cv2.VideoCapture) -> Optional[bytes]:
+        """
+        Extracts a thumbnail from the middle of the video.
+        Resizes to max width 160px while preserving aspect ratio.
+        """
+        try:
+            frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            if frame_count <= 0:
+                return None
+
+            # Seek to middle
+            cap.set(cv2.CAP_PROP_POS_FRAMES, frame_count // 2)
+            ret, frame = cap.read()
+            if not ret:
+                return None
+
+            # Resize while preserving aspect ratio
+            target_width = 160
+            height, width = frame.shape[:2]
+            if width <= 0 or height <= 0:
+                return None
+
+            aspect_ratio = height / width
+            target_height = int(target_width * aspect_ratio)
+
+            thumbnail = cv2.resize(frame, (target_width, target_height))
+
+            # Encode to PNG
+            ret, buffer = cv2.imencode('.png', thumbnail)
+            if not ret:
+                return None
+
+            return buffer.tobytes()
+        except Exception as e:
+            logger.warning("Failed to extract thumbnail: %s", e)
+            return None

@@ -2,11 +2,14 @@
 Reporting service for generating analysis reports.
 """
 import logging
+import io
 from typing import List, Any
 import openpyxl
 from openpyxl.chart import BarChart, Reference
 from openpyxl.styles import Font, Alignment
 from openpyxl.utils import get_column_letter
+from PIL import Image as PILImage
+from openpyxl.drawing.image import Image as OpenpyxlImage
 
 from src.core.models import AudioAnalysisResult, VideoAnalysisResult
 
@@ -91,13 +94,35 @@ class ExcelReportGenerator:
                           center_headers=True)
 
     def _write_video_details(self, ws, video_data: List[VideoAnalysisResult]):
-        """Writes detailed video analysis data."""
-        headers = ["File Path", "Duration (s)", "Intensity Score"]
+        """Writes detailed video analysis data with thumbnails."""
+        headers = ["File Path", "Duration (s)", "Intensity Score", "Thumbnail"]
         data = [
-            (v.path, v.duration, v.intensity_score)
+            (v.path, v.duration, v.intensity_score, "")
             for v in video_data
         ]
         self._write_table(ws, headers, data)
+
+        # Insert images
+        for i, video in enumerate(video_data):
+            if video.thumbnail_data:
+                try:
+                    img_data = io.BytesIO(video.thumbnail_data)
+                    pil_img = PILImage.open(img_data)
+                    img = OpenpyxlImage(pil_img)
+
+                    # Position: Row i+2 (header is 1), Column 4 (D)
+                    cell_address = f"D{i+2}"
+                    ws.add_image(img, cell_address)
+
+                    # Adjust row height (approx conversion)
+                    ws.row_dimensions[i + 2].height = pil_img.height * 0.75
+                except Exception as e:
+                    logger.warning(
+                        "Failed to embed thumbnail for %s: %s", video.path, e
+                    )
+
+        # Adjust thumbnail column width
+        ws.column_dimensions['D'].width = 25
 
     def _adjust_column_widths(self, ws):
         """Auto-adjusts column widths based on content."""
