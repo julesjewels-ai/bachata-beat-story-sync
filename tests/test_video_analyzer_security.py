@@ -4,6 +4,7 @@ import cv2
 from pydantic import ValidationError
 from src.core.video_analyzer import VideoAnalyzer, VideoAnalysisInput
 
+
 class TestVideoAnalyzerSecurity(unittest.TestCase):
     def setUp(self):
         self.analyzer = VideoAnalyzer()
@@ -29,20 +30,22 @@ class TestVideoAnalyzerSecurity(unittest.TestCase):
 
         # We expect a ValueError (from our explicit check)
         with self.assertRaises(ValueError) as context:
-             input_data = VideoAnalysisInput(file_path="fake_huge_video.mp4")
-             self.analyzer.analyze(input_data)
+            input_data = VideoAnalysisInput(file_path="fake_huge_video.mp4")
+            self.analyzer.analyze(input_data)
 
         self.assertIn("exceeds maximum allowed frames", str(context.exception))
 
     @patch('os.path.exists')
     def test_invalid_extension(self, mock_exists):
-        """Test that files with invalid extensions are rejected by Pydantic model"""
+        """
+        Test that files with invalid extensions are rejected by Pydantic model
+        """
         mock_exists.return_value = True
         with self.assertRaises(ValidationError) as context:
             VideoAnalysisInput(file_path="dangerous_script.py")
 
         # Check that the error message mentions the extension issue
-        # Note: Pydantic errors are wrapped, so we check the string representation
+        # Note: Pydantic errors are wrapped, so we check the string repr
         self.assertIn("Unsupported extension", str(context.exception))
 
     @patch('os.path.exists')
@@ -53,4 +56,6 @@ class TestVideoAnalyzerSecurity(unittest.TestCase):
         # Test basic traversal
         with self.assertRaises(ValidationError) as context:
             VideoAnalysisInput(file_path="../secret.mp4")
-        self.assertIn("Path traversal attempt detected", str(context.exception))
+        self.assertIn(
+            "Path traversal attempt detected", str(context.exception)
+        )

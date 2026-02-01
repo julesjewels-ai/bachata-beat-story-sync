@@ -4,19 +4,22 @@ Common validation logic for file inputs.
 import os
 from typing import Iterable
 
+
 def validate_file_path(path: str, allowed_extensions: Iterable[str]) -> str:
     """
     Validates a file path for security and existence.
 
     Args:
         path: The file path to validate.
-        allowed_extensions: A collection of allowed file extensions (e.g., {'.wav', '.mp3'}).
+        allowed_extensions: A collection of allowed file extensions
+                            (e.g., {'.wav', '.mp3'}).
 
     Returns:
         The validated path.
 
     Raises:
-        ValueError: If path traversal is detected, file is missing, or extension is invalid.
+        ValueError: If path traversal is detected, file is missing,
+                    or extension is invalid.
     """
     # Security: Prevent path traversal
     if ".." in path:

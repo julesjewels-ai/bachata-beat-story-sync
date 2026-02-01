@@ -1,11 +1,11 @@
 """
 Tests for the ExcelReportGenerator.
 """
-import pytest
 import os
 import openpyxl
 from src.services.reporting import ExcelReportGenerator
 from src.core.models import AudioAnalysisResult, VideoAnalysisResult
+
 
 def test_generate_report(tmp_path):
     output_path = tmp_path / "test_report.xlsx"
@@ -32,7 +32,9 @@ def test_generate_report(tmp_path):
     ]
 
     generator = ExcelReportGenerator()
-    result = generator.generate_report(audio_data, video_data, str(output_path))
+    result = generator.generate_report(
+        audio_data, video_data, str(output_path)
+    )
 
     assert result == str(output_path)
     assert os.path.exists(output_path)

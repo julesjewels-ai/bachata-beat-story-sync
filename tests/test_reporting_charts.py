@@ -1,12 +1,11 @@
 """
 Tests for Chart Generation in Excel Reports.
 """
-import pytest
-import os
 import openpyxl
 from openpyxl.chart import BarChart
 from src.services.reporting import ExcelReportGenerator
 from src.core.models import AudioAnalysisResult, VideoAnalysisResult
+
 
 def test_excel_report_includes_chart(tmp_path):
     """
@@ -48,5 +47,6 @@ def test_excel_report_includes_chart(tmp_path):
 
     assert isinstance(chart, BarChart)
     assert chart.type == "col"
-    # Verify title is not None (content verification depends on openpyxl version internals)
+    # Verify title is not None (content verification depends on openpyxl
+    # version internals)
     assert chart.title is not None
