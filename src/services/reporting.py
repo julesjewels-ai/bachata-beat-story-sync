@@ -59,21 +59,25 @@ class ExcelReportGenerator:
                      bold_first_col: bool = False,
                      center_headers: bool = False):
         """Helper to write standardized tables."""
-        # Write Headers
+        self._write_headers(ws, headers, center_headers)
+        self._write_rows(ws, data, bold_first_col)
+        self._adjust_column_widths(ws)
+
+    def _write_headers(self, ws, headers: List[str], center_headers: bool):
+        """Writes table headers to the first row."""
         for col_num, header in enumerate(headers, 1):
             cell = ws.cell(row=1, column=col_num, value=header)
             cell.font = Font(bold=True)
             if center_headers:
                 cell.alignment = Alignment(horizontal="center")
 
-        # Write Data
+    def _write_rows(self, ws, data: List[Any], bold_first_col: bool):
+        """Writes table data starting from the second row."""
         for row_num, row_data in enumerate(data, 2):
             for col_num, value in enumerate(row_data, 1):
                 cell = ws.cell(row=row_num, column=col_num, value=value)
                 if col_num == 1 and bold_first_col:
                     cell.font = Font(bold=True)
-
-        self._adjust_column_widths(ws)
 
     def _write_summary(self, ws, audio_data: AudioAnalysisResult,
                        video_count: int):
