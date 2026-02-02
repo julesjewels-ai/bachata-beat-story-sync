@@ -3,8 +3,9 @@ Unit tests for the core logic.
 """
 import pytest
 import os
+from typing import List
 from src.core.app import BachataSyncEngine
-from src.core.models import AudioAnalysisResult
+from src.core.models import AudioAnalysisResult, VideoAnalysisResult
 
 
 @pytest.fixture
@@ -26,7 +27,7 @@ def test_generate_story_mock(engine, tmp_path):
         duration=100,
         sections=[]
     )
-    mock_video = []
+    mock_video: List[VideoAnalysisResult] = []
     output_file = tmp_path / "test_output.mp4"
 
     result = engine.generate_story(mock_audio, mock_video, str(output_file))
