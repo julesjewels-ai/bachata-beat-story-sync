@@ -22,8 +22,11 @@ class TestVideoAnalyzer(unittest.TestCase):
         # Mock the video capture object
         mock_cap = MagicMock()
         mock_cap.isOpened.return_value = True
-        mock_cap.get.side_effect = [30.0, 300]  # FPS, Frame Count
+        # FPS, Frame Count (Validate), Frame Count (Thumbnail)
+        mock_cap.get.side_effect = [30.0, 300, 300]
+        # Thumbnail Frame, Frame 1, Frame 2, End
         mock_cap.read.side_effect = [
+            (True, np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)),
             (True, np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)),
             (True, np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)),
             (False, None)
@@ -38,6 +41,7 @@ class TestVideoAnalyzer(unittest.TestCase):
         self.assertEqual(result.path, 'dummy_path.mp4')
         self.assertAlmostEqual(result.duration, 10.0)
         self.assertGreater(result.intensity_score, 0.0)
+        self.assertIsNotNone(result.thumbnail_data)
 
     @patch('os.path.exists', return_value=False)
     def test_analyze_file_not_found(self, mock_exists):

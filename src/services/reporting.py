@@ -7,6 +7,9 @@ import openpyxl
 from openpyxl.chart import BarChart, Reference
 from openpyxl.styles import Font, Alignment
 from openpyxl.utils import get_column_letter
+import io
+from PIL import Image as PILImage
+from openpyxl.drawing.image import Image as OpenpyxlImage
 
 from src.core.models import AudioAnalysisResult, VideoAnalysisResult
 
@@ -96,12 +99,43 @@ class ExcelReportGenerator:
 
     def _write_video_details(self, ws, video_data: List[VideoAnalysisResult]):
         """Writes detailed video analysis data."""
-        headers = ["File Path", "Duration (s)", "Intensity Score"]
-        data = [
-            (v.path, v.duration, v.intensity_score)
-            for v in video_data
-        ]
-        self._write_table(ws, headers, data)
+        headers = ["Thumbnail", "File Path", "Duration (s)", "Intensity Score"]
+        self._write_headers(ws, headers, center_headers=False)
+
+        # Set specific width for Thumbnail column
+        ws.column_dimensions['A'].width = 15
+
+        for row_num, v in enumerate(video_data, 2):
+            # Write text data
+            ws.cell(row=row_num, column=2, value=v.path)
+            ws.cell(row=row_num, column=3, value=v.duration)
+            ws.cell(row=row_num, column=4, value=v.intensity_score)
+
+            # Adjust row height for thumbnail
+            ws.row_dimensions[row_num].height = 60
+
+            # Add thumbnail
+            if v.thumbnail_data:
+                try:
+                    img_data = io.BytesIO(v.thumbnail_data)
+                    pil_img = PILImage.open(img_data)
+                    img = OpenpyxlImage(pil_img)
+
+                    # Constrain size
+                    img.height = 75
+                    img.width = 75 * (pil_img.width / pil_img.height)
+
+                    img.anchor = f"A{row_num}"
+                    ws.add_image(img)
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to embed thumbnail for {v.path}: {e}"
+                    )
+                    ws.cell(row=row_num, column=1, value="[Error]")
+            else:
+                ws.cell(row=row_num, column=1, value="[No Image]")
+
+        self._adjust_column_widths(ws)
 
     def _adjust_column_widths(self, ws):
         """Auto-adjusts column widths based on content."""
@@ -134,13 +168,13 @@ class ExcelReportGenerator:
         chart.x_axis.title = "Video Clip Index"
 
         # Reference Data from Video Library sheet
-        # Column 3 is Intensity Score. Row 1 is header.
+        # Column 4 is Intensity Score (Thumbnail, Path, Duration, Intensity).
         data = Reference(
             wb[video_sheet_name],
-            min_col=3,
+            min_col=4,
             min_row=1,
             max_row=data_count + 1,
-            max_col=3
+            max_col=4
         )
         chart.add_data(data, titles_from_data=True)
 
