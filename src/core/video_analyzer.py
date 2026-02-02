@@ -4,6 +4,7 @@ Video analysis module for Bachata Beat-Story Sync.
 import cv2
 import numpy as np
 import logging
+from typing import Iterator
 from pydantic import BaseModel, Field, field_validator
 from src.core.validation import validate_file_path
 from src.core.models import VideoAnalysisResult
@@ -93,18 +94,26 @@ class VideoAnalyzer:
         prev_frame = None
         motion_scores = []
 
+        for frame in self._yield_frames(cap):
+            processed_frame = self._preprocess_frame(frame)
+
+            if prev_frame is not None:
+                frame_delta = cv2.absdiff(prev_frame, processed_frame)
+                motion_scores.append(np.mean(frame_delta))
+
+            prev_frame = processed_frame
+
+        return np.mean(motion_scores) if motion_scores else 0.0
+
+    def _yield_frames(self, cap: cv2.VideoCapture) -> Iterator[np.ndarray]:
+        """Yields frames from the video capture until end of stream."""
         while True:
             ret, frame = cap.read()
             if not ret:
                 break
+            yield frame
 
-            gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            gray_frame = cv2.GaussianBlur(gray_frame, BLUR_KERNEL_SIZE, 0)
-
-            if prev_frame is not None:
-                frame_delta = cv2.absdiff(prev_frame, gray_frame)
-                motion_scores.append(np.mean(frame_delta))
-
-            prev_frame = gray_frame
-
-        return np.mean(motion_scores) if motion_scores else 0.0
+    def _preprocess_frame(self, frame: np.ndarray) -> np.ndarray:
+        """Converts frame to grayscale and applies Gaussian blur."""
+        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        return cv2.GaussianBlur(gray_frame, BLUR_KERNEL_SIZE, 0)
