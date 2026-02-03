@@ -13,3 +13,5 @@
 ## 2026-02-15 - [Decomposing Table Generation] **Observation:** `ExcelReportGenerator._write_table` had high cyclomatic complexity (7) due to mixing header and row generation logic with multiple flags. **Action:** Split into `_write_headers` and `_write_rows` to enforce Single Responsibility Principle and flatten logic.
 
 ## 2026-02-16 - [Simplifying Video Iteration] **Observation:** `VideoAnalyzer._calculate_intensity` mixed low-level frame iteration logic with image processing, using a manual `while True` loop. **Action:** Extracted `_yield_frames` generator and `_preprocess_frame` helper to separate concerns and flatten the main logic loop.
+
+## 2026-03-24 - [Simplifying Excel Sheet Initialization] **Observation:** `ExcelReportGenerator.generate_report` contained duplicated logic for initializing and naming the summary sheet in an `if/else` block. **Action:** Simplified to a single line using `wb.active or wb.create_sheet()` and unified configuration logic.

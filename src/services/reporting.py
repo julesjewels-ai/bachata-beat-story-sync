@@ -36,13 +36,9 @@ class ExcelReportGenerator:
         wb = openpyxl.Workbook()
 
         # Sheet 1: Summary
-        ws_summary = wb.active
-        if ws_summary:
-            ws_summary.title = "Analysis Summary"
-            self._write_summary(ws_summary, audio_data, len(video_data))
-        else:
-            ws_summary = wb.create_sheet(title="Analysis Summary")
-            self._write_summary(ws_summary, audio_data, len(video_data))
+        ws_summary = wb.active or wb.create_sheet()
+        ws_summary.title = "Analysis Summary"
+        self._write_summary(ws_summary, audio_data, len(video_data))
 
         # Sheet 2: Video Details
         ws_videos = wb.create_sheet(title="Video Library")
