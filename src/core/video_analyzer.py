@@ -4,7 +4,7 @@ Video analysis module for Bachata Beat-Story Sync.
 import cv2
 import numpy as np
 import logging
-from typing import Iterator
+from typing import Iterator, Optional
 from pydantic import BaseModel, Field, field_validator
 from src.core.validation import validate_file_path
 from src.core.models import VideoAnalysisResult
@@ -56,15 +56,56 @@ class VideoAnalyzer:
 
         try:
             duration = self._validate_video_properties(cap)
+            thumbnail_data = self._extract_thumbnail(cap)
+
+            # Reset frame position for intensity calculation
+            if not cap.set(cv2.CAP_PROP_POS_FRAMES, 0):
+                logger.warning(
+                    f"Could not reset frame position for {file_path}"
+                )
+
             intensity_score = self._calculate_intensity(cap)
 
             return VideoAnalysisResult(
                 path=file_path,
                 intensity_score=intensity_score / NORMALIZATION_FACTOR,
-                duration=duration
+                duration=duration,
+                thumbnail_data=thumbnail_data
             )
         finally:
             cap.release()
+
+    def _extract_thumbnail(self, cap: cv2.VideoCapture) -> Optional[bytes]:
+        """Extracts a thumbnail from the middle of the video."""
+        try:
+            frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            if frame_count <= 0:
+                return None
+
+            middle_frame = frame_count // 2
+            cap.set(cv2.CAP_PROP_POS_FRAMES, middle_frame)
+
+            ret, frame = cap.read()
+            if not ret:
+                return None
+
+            # Resize while preserving aspect ratio
+            height, width = frame.shape[:2]
+            max_width = 160
+            if width > max_width:
+                scale_ratio = max_width / width
+                new_width = max_width
+                new_height = int(height * scale_ratio)
+                frame = cv2.resize(frame, (new_width, new_height))
+
+            success, buffer = cv2.imencode(".png", frame)
+            if not success:
+                return None
+
+            return buffer.tobytes()
+        except Exception as e:
+            logger.warning(f"Failed to extract thumbnail: {e}")
+            return None
 
     def _validate_video_properties(self, cap: cv2.VideoCapture) -> float:
         """
