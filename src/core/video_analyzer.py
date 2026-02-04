@@ -4,7 +4,7 @@ Video analysis module for Bachata Beat-Story Sync.
 import cv2
 import numpy as np
 import logging
-from typing import Iterator
+from typing import Iterator, Optional
 from pydantic import BaseModel, Field, field_validator
 from src.core.validation import validate_file_path
 from src.core.models import VideoAnalysisResult
@@ -18,6 +18,7 @@ MAX_VIDEO_DURATION_SECONDS = 3600  # 1 hour
 SUPPORTED_VIDEO_EXTENSIONS = {'.mp4', '.mov', '.avi', '.mkv'}
 BLUR_KERNEL_SIZE = (21, 21)
 NORMALIZATION_FACTOR = 100
+THUMBNAIL_MAX_WIDTH = 160
 
 
 class VideoAnalysisInput(BaseModel):
@@ -46,7 +47,7 @@ class VideoAnalyzer:
 
         Returns:
             A VideoAnalysisResult with the video's path, intensity score,
-            and duration.
+            duration, and thumbnail.
         """
         file_path = input_data.file_path
 
@@ -56,15 +57,60 @@ class VideoAnalyzer:
 
         try:
             duration = self._validate_video_properties(cap)
+            thumbnail = self._extract_thumbnail(cap)
             intensity_score = self._calculate_intensity(cap)
 
             return VideoAnalysisResult(
                 path=file_path,
                 intensity_score=intensity_score / NORMALIZATION_FACTOR,
-                duration=duration
+                duration=duration,
+                thumbnail=thumbnail
             )
         finally:
             cap.release()
+
+    def _extract_thumbnail(self, cap: cv2.VideoCapture) -> Optional[bytes]:
+        """
+        Extracts a representative thumbnail from the middle of the video.
+        Resizes to max width 160px.
+        """
+        try:
+            frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            if frame_count <= 0:
+                return None
+
+            middle_frame_idx = frame_count // 2
+            cap.set(cv2.CAP_PROP_POS_FRAMES, middle_frame_idx)
+
+            ret, frame = cap.read()
+
+            # Reset immediately for subsequent processing
+            cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+
+            if not ret or frame is None:
+                logger.warning("Failed to read thumbnail frame.")
+                return None
+
+            # Resize logic
+            height, width = frame.shape[:2]
+            if width > THUMBNAIL_MAX_WIDTH:
+                scale = THUMBNAIL_MAX_WIDTH / width
+                new_width = THUMBNAIL_MAX_WIDTH
+                new_height = int(height * scale)
+                frame = cv2.resize(frame, (new_width, new_height))
+
+            success, buffer = cv2.imencode(".jpg", frame)
+            if not success:
+                logger.warning("Failed to encode thumbnail.")
+                return None
+
+            return buffer.tobytes()
+
+        except Exception as e:
+            logger.warning(f"Error extracting thumbnail: {e}")
+            # Ensure we reset cursor even on error
+            cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            return None
 
     def _validate_video_properties(self, cap: cv2.VideoCapture) -> float:
         """

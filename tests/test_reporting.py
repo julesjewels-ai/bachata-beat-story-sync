@@ -49,5 +49,5 @@ def test_generate_report(tmp_path):
     assert ws_summary["B3"].value == 128.0
 
     ws_videos = wb["Video Library"]
-    assert ws_videos["A2"].value == "/videos/clip1.mp4"
-    assert ws_videos["C2"].value == 0.8
+    assert ws_videos["B2"].value == "/videos/clip1.mp4"
+    assert ws_videos["D2"].value == 0.8

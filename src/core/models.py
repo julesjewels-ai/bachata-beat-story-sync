@@ -2,7 +2,7 @@
 Data Transfer Objects (DTOs) for Bachata Beat-Story Sync.
 These models define the strict contracts for data exchange between layers.
 """
-from typing import List
+from typing import List, Optional
 from pydantic import BaseModel, Field
 
 
@@ -33,4 +33,7 @@ class VideoAnalysisResult(BaseModel):
     )
     duration: float = Field(
         ..., description="Duration of the video clip in seconds"
+    )
+    thumbnail: Optional[bytes] = Field(
+        None, description="JPEG encoded thumbnail data"
     )
