@@ -13,3 +13,5 @@
 ## 2026-02-15 - [Decomposing Table Generation] **Observation:** `ExcelReportGenerator._write_table` had high cyclomatic complexity (7) due to mixing header and row generation logic with multiple flags. **Action:** Split into `_write_headers` and `_write_rows` to enforce Single Responsibility Principle and flatten logic.
 
 ## 2026-02-16 - [Simplifying Video Iteration] **Observation:** `VideoAnalyzer._calculate_intensity` mixed low-level frame iteration logic with image processing, using a manual `while True` loop. **Action:** Extracted `_yield_frames` generator and `_preprocess_frame` helper to separate concerns and flatten the main logic loop.
+
+## 2026-02-17 - [Simplifying File Collection] **Observation:** `BachataSyncEngine._collect_video_files` used a verbose nested loop and an unnecessary instance variable `supported_video_ext`. **Action:** Refactored to a list comprehension using the global constant directly, and removed the instance variable.

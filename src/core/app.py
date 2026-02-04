@@ -17,13 +17,10 @@ logger = logging.getLogger(__name__)
 
 class BachataSyncEngine:
     """
-    The main engine responsible for analyzing audio features and
-    mapping them to video segments based on intensity.
+    The main engine responsible for syncing video segments to audio.
     """
 
     def __init__(self) -> None:
-        # Use the centralized constant for supported video extensions
-        self.supported_video_ext = SUPPORTED_VIDEO_EXTENSIONS
         self.video_analyzer = VideoAnalyzer()
 
     def scan_video_library(
@@ -60,13 +57,12 @@ class BachataSyncEngine:
 
     def _collect_video_files(self, directory: str) -> List[str]:
         """Recursively collects all supported video files in a directory."""
-        files_to_process = []
-        for root, _, files in os.walk(directory):
-            for file in files:
-                _, ext = os.path.splitext(file)
-                if ext.lower() in self.supported_video_ext:
-                    files_to_process.append(os.path.join(root, file))
-        return files_to_process
+        return [
+            os.path.join(root, file)
+            for root, _, files in os.walk(directory)
+            for file in files
+            if os.path.splitext(file)[1].lower() in SUPPORTED_VIDEO_EXTENSIONS
+        ]
 
     def _process_video_file(
         self, video_path: str
