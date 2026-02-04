@@ -2,11 +2,14 @@
 Reporting service for generating analysis reports.
 """
 import logging
+import io
 from typing import List, Any
 import openpyxl
 from openpyxl.chart import BarChart, Reference
 from openpyxl.styles import Font, Alignment
 from openpyxl.utils import get_column_letter
+from openpyxl.drawing.image import Image as OpenpyxlImage
+from PIL import Image as PILImage
 
 from src.core.models import AudioAnalysisResult, VideoAnalysisResult
 
@@ -92,12 +95,37 @@ class ExcelReportGenerator:
 
     def _write_video_details(self, ws, video_data: List[VideoAnalysisResult]):
         """Writes detailed video analysis data."""
-        headers = ["File Path", "Duration (s)", "Intensity Score"]
-        data = [
-            (v.path, v.duration, v.intensity_score)
-            for v in video_data
-        ]
-        self._write_table(ws, headers, data)
+        headers = ["File Path", "Duration (s)", "Intensity Score", "Thumbnail"]
+        self._write_headers(ws, headers, center_headers=False)
+
+        for row_num, video in enumerate(video_data, 2):
+            # Write text data
+            ws.cell(row=row_num, column=1, value=video.path)
+            ws.cell(row=row_num, column=2, value=video.duration)
+            ws.cell(row=row_num, column=3, value=video.intensity_score)
+
+            # Write Thumbnail
+            if video.thumbnail_data:
+                try:
+                    img_stream = io.BytesIO(video.thumbnail_data)
+                    pil_img = PILImage.open(img_stream)
+                    img = OpenpyxlImage(pil_img)
+
+                    # Anchor to cell D{row_num}
+                    cell_address = f"D{row_num}"
+                    ws.add_image(img, cell_address)
+
+                    # Adjust row height to accommodate image
+                    ws.row_dimensions[row_num].height = 60
+                except Exception as e:
+                    logger.warning(
+                        f"Could not embed image for {video.path}: {e}"
+                    )
+                    ws.cell(row=row_num, column=4, value="[Error]")
+            else:
+                ws.cell(row=row_num, column=4, value="[No Image]")
+
+        self._adjust_column_widths(ws)
 
     def _adjust_column_widths(self, ws):
         """Auto-adjusts column widths based on content."""

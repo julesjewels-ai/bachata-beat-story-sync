@@ -42,8 +42,8 @@ def test_excel_report_includes_chart(tmp_path):
 
     # Check Chart Existence
     # Note: Accessing private attribute _charts is common for testing openpyxl
-    assert len(ws_viz._charts) > 0
-    chart = ws_viz._charts[0]
+    assert len(ws_viz._charts) > 0  # type: ignore[attr-defined]
+    chart = ws_viz._charts[0]  # type: ignore[attr-defined]
 
     assert isinstance(chart, BarChart)
     assert chart.type == "col"
