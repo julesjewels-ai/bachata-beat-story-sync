@@ -105,7 +105,9 @@ class VideoAnalyzer:
         ret, frame = cap.read()
         return frame if ret else None
 
-    def _resize_frame(self, frame: np.ndarray, max_width: int = 160) -> np.ndarray:
+    def _resize_frame(
+        self, frame: np.ndarray, max_width: int = 160
+    ) -> np.ndarray:
         """Resizes the frame while preserving aspect ratio."""
         height, width = frame.shape[:2]
         if width <= max_width:

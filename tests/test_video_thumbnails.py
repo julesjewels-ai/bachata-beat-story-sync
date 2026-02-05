@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 from src.core.video_analyzer import VideoAnalyzer
 
+
 class TestVideoThumbnails(unittest.TestCase):
     def setUp(self):
         self.analyzer = VideoAnalyzer()
@@ -15,7 +16,9 @@ class TestVideoThumbnails(unittest.TestCase):
         mock_cap = MagicMock()
 
         # Frame count = 100
-        mock_cap.get.side_effect = lambda prop: 100 if prop == cv2.CAP_PROP_FRAME_COUNT else 0
+        mock_cap.get.side_effect = (
+            lambda prop: 100 if prop == cv2.CAP_PROP_FRAME_COUNT else 0
+        )
 
         # Read returns a dummy frame (100x200)
         # Height 100, Width 200
@@ -49,7 +52,7 @@ class TestVideoThumbnails(unittest.TestCase):
 
     def test_extract_thumbnail_empty(self):
         mock_cap = MagicMock()
-        mock_cap.get.return_value = 0 # 0 frames
+        mock_cap.get.return_value = 0  # 0 frames
 
         result = self.analyzer._extract_thumbnail(mock_cap)
         self.assertIsNone(result)

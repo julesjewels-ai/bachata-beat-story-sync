@@ -1,21 +1,25 @@
-import os
 import io
 import openpyxl
 from PIL import Image
 from src.services.reporting import ExcelReportGenerator
 from src.core.models import AudioAnalysisResult, VideoAnalysisResult
 
+
 def test_generate_report_with_thumbnails(tmp_path):
     output_path = tmp_path / "test_report_images.xlsx"
 
     # Create a dummy image
-    img = Image.new('RGB', (60, 30), color = 'red')
+    img = Image.new('RGB', (60, 30), color='red')
     img_byte_arr = io.BytesIO()
     img.save(img_byte_arr, format='PNG')
     img_bytes = img_byte_arr.getvalue()
 
     audio_data = AudioAnalysisResult(
-        filename="bachata.wav", bpm=128.0, duration=180.0, peaks=[], sections=[]
+        filename="bachata.wav",
+        bpm=128.0,
+        duration=180.0,
+        peaks=[],
+        sections=[]
     )
 
     video_data = [
@@ -29,7 +33,7 @@ def test_generate_report_with_thumbnails(tmp_path):
             path="/videos/clip2.mp4",
             intensity_score=0.4,
             duration=15.0,
-            thumbnail_data=None # Test missing image
+            thumbnail_data=None  # Test missing image
         )
     ]
 
@@ -52,5 +56,6 @@ def test_generate_report_with_thumbnails(tmp_path):
     # Row 2 (with image) should have height 60
     assert ws.row_dimensions[2].height == 60
 
-    # Row 3 (no image) should not have modified height (default is usually None or ~15)
+    # Row 3 (no image) should not have modified height
+    # (default is usually None or ~15)
     assert ws.row_dimensions[3].height != 60
