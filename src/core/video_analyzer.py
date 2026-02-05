@@ -78,25 +78,11 @@ class VideoAnalyzer:
     def _extract_thumbnail(self, cap: cv2.VideoCapture) -> Optional[bytes]:
         """Extracts a thumbnail from the middle of the video."""
         try:
-            frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-            if frame_count <= 0:
+            frame = self._get_middle_frame(cap)
+            if frame is None:
                 return None
 
-            middle_frame = frame_count // 2
-            cap.set(cv2.CAP_PROP_POS_FRAMES, middle_frame)
-
-            ret, frame = cap.read()
-            if not ret:
-                return None
-
-            # Resize while preserving aspect ratio
-            height, width = frame.shape[:2]
-            max_width = 160
-            if width > max_width:
-                scale_ratio = max_width / width
-                new_width = max_width
-                new_height = int(height * scale_ratio)
-                frame = cv2.resize(frame, (new_width, new_height))
+            frame = self._resize_frame(frame)
 
             success, buffer = cv2.imencode(".png", frame)
             if not success:
@@ -106,6 +92,29 @@ class VideoAnalyzer:
         except Exception as e:
             logger.warning(f"Failed to extract thumbnail: {e}")
             return None
+
+    def _get_middle_frame(self, cap: cv2.VideoCapture) -> Optional[np.ndarray]:
+        """Retrieves the frame at the middle of the video."""
+        frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        if frame_count <= 0:
+            return None
+
+        middle_frame = frame_count // 2
+        cap.set(cv2.CAP_PROP_POS_FRAMES, middle_frame)
+
+        ret, frame = cap.read()
+        return frame if ret else None
+
+    def _resize_frame(self, frame: np.ndarray, max_width: int = 160) -> np.ndarray:
+        """Resizes the frame while preserving aspect ratio."""
+        height, width = frame.shape[:2]
+        if width <= max_width:
+            return frame
+
+        scale_ratio = max_width / width
+        new_width = max_width
+        new_height = int(height * scale_ratio)
+        return cv2.resize(frame, (new_width, new_height))
 
     def _validate_video_properties(self, cap: cv2.VideoCapture) -> float:
         """
