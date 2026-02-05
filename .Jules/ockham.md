@@ -17,3 +17,5 @@
 ## 2026-02-04 - [Separating Discovery from Processing] **Observation:** `scan_video_library` mixed file system traversal with processing logic and progress reporting. **Action:** Extracted `_collect_video_files` to handle discovery, simplifying the main loop and enabling cleaner path handling.
 
 ## 2026-02-04 - [Simplifying Excel Sheet Initialization] **Observation:** `ExcelReportGenerator.generate_report` contained duplicated logic for initializing and naming the summary sheet in an `if/else` block. **Action:** Simplified to a single line using `wb.active or wb.create_sheet()` and unified configuration logic.
+
+## 2026-02-04 - [Simplifying Thumbnail Extraction] **Observation:** `VideoAnalyzer._extract_thumbnail` had high cyclomatic complexity (6) due to mixing frame retrieval, error handling, and resizing logic. **Action:** Extracted `_get_middle_frame` and `_resize_frame` methods to separate concerns, reducing complexity to 4.
