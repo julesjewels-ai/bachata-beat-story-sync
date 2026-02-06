@@ -10,6 +10,7 @@ from src.services.reporting.formatting import ReportFormatter
 def test_apply_header_style():
     wb = openpyxl.Workbook()
     ws = wb.active
+    assert ws is not None
     cell = ws.cell(row=1, column=1, value="Header")
 
     formatter = ReportFormatter()
@@ -22,6 +23,7 @@ def test_apply_header_style():
 def test_adjust_column_widths():
     wb = openpyxl.Workbook()
     ws = wb.active
+    assert ws is not None
     ws.cell(row=1, column=1, value="Short")
     ws.cell(row=2, column=1, value="A very long string that should determine width")
 
@@ -37,6 +39,7 @@ def test_adjust_column_widths():
 def test_apply_intensity_conditional_formatting():
     wb = openpyxl.Workbook()
     ws = wb.active
+    assert ws is not None
     formatter = ReportFormatter()
 
     # Apply to Column C (3), Rows 2 to 5
@@ -59,6 +62,7 @@ def test_apply_intensity_conditional_formatting():
 
     # Verify colors
     cs = found_rule.colorScale
+    assert cs is not None
     # cfvo (Conditional Formatting Value Objects) should be 3 (min, mid, max)
     assert len(cs.cfvo) == 3
     # Colors should be 3

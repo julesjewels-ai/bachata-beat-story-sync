@@ -16,6 +16,7 @@ def test_excel_report_includes_chart(tmp_path):
 
     # Mock Data
     audio_data = AudioAnalysisResult(
+        file_path="mock/test_audio.wav",
         filename="test_audio.wav",
         bpm=120,
         duration=60,
@@ -24,9 +25,15 @@ def test_excel_report_includes_chart(tmp_path):
     )
 
     video_data = [
-        VideoAnalysisResult(path="v1.mp4", intensity_score=0.1, duration=5),
-        VideoAnalysisResult(path="v2.mp4", intensity_score=0.5, duration=5),
-        VideoAnalysisResult(path="v3.mp4", intensity_score=0.9, duration=5),
+        VideoAnalysisResult(
+            path="v1.mp4", intensity_score=0.1, duration=5, thumbnail_data=None
+        ),
+        VideoAnalysisResult(
+            path="v2.mp4", intensity_score=0.5, duration=5, thumbnail_data=None
+        ),
+        VideoAnalysisResult(
+            path="v3.mp4", intensity_score=0.9, duration=5, thumbnail_data=None
+        ),
     ]
 
     # Generate

@@ -10,6 +10,7 @@ class AudioAnalysisResult(BaseModel):
     """
     Result model for audio analysis.
     """
+    file_path: str = Field(..., description="Absolute path to the audio file")
     filename: str = Field(..., description="Name of the audio file")
     bpm: float = Field(..., description="Beats per minute of the track")
     duration: float = Field(

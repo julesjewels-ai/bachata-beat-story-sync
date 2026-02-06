@@ -9,6 +9,7 @@ from pydantic import ValidationError
 from src.core.video_analyzer import (
     VideoAnalyzer, VideoAnalysisInput, SUPPORTED_VIDEO_EXTENSIONS
 )
+from src.core.montage import MontageGenerator
 from src.core.models import AudioAnalysisResult, VideoAnalysisResult
 from src.core.interfaces import ProgressObserver
 
@@ -22,6 +23,7 @@ class BachataSyncEngine:
 
     def __init__(self) -> None:
         self.video_analyzer = VideoAnalyzer()
+        self.montage_generator = MontageGenerator()
 
     def scan_video_library(
         self, directory: str, observer: Optional[ProgressObserver] = None
@@ -90,8 +92,6 @@ class BachataSyncEngine:
             f"{audio_data.bpm} BPM audio..."
         )
 
-        # Mock export process
-        with open(output_path, 'w') as f:
-            f.write("Mock Video Content")
-
-        return output_path
+        return self.montage_generator.generate(
+            audio_data, video_clips, output_path
+        )
