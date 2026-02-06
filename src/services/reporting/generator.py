@@ -56,6 +56,12 @@ class ExcelReportGenerator:
         logger.info(f"Report generated at: {output_path}")
         return output_path
 
+    def _write_headers(self, ws, headers: List[str], center: bool = False) -> None:
+        """Helper to write and format table headers."""
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col, value=header)
+            self.formatter.apply_header_style(cell, center=center)
+
     def _build_summary_sheet(self, ws, audio_data: AudioAnalysisResult,
                              video_count: int) -> None:
         """Constructs the summary sheet."""
@@ -69,10 +75,7 @@ class ExcelReportGenerator:
             ("Total Videos Scanned", video_count)
         ]
 
-        # Write Headers
-        for col, header in enumerate(headers, 1):
-            cell = ws.cell(row=1, column=col, value=header)
-            self.formatter.apply_header_style(cell, center=True)
+        self._write_headers(ws, headers, center=True)
 
         # Write Data
         for r, (metric, val) in enumerate(data, 2):
@@ -88,10 +91,7 @@ class ExcelReportGenerator:
         """Constructs the video details sheet."""
         headers = ["File Path", "Duration (s)", "Intensity Score", "Thumbnail"]
 
-        # Write Headers
-        for col, header in enumerate(headers, 1):
-            cell = ws.cell(row=1, column=col, value=header)
-            self.formatter.apply_header_style(cell)
+        self._write_headers(ws, headers)
 
         # Write Rows
         for r, video in enumerate(video_data, 2):
@@ -100,14 +100,12 @@ class ExcelReportGenerator:
             ws.cell(row=r, column=3, value=video.intensity_score)
 
             # Embed Thumbnail
-            if video.thumbnail_data:
-                success = self.thumbnail_embedder.embed_thumbnail(
-                    ws, r, 4, video.thumbnail_data
-                )
-                if not success:
-                    ws.cell(row=r, column=4, value="[Error]")
-            else:
+            if not video.thumbnail_data:
                 ws.cell(row=r, column=4, value="[No Image]")
+                continue
+
+            if not self.thumbnail_embedder.embed_thumbnail(ws, r, 4, video.thumbnail_data):
+                ws.cell(row=r, column=4, value="[Error]")
 
         # Auto-size columns
         self.formatter.adjust_column_widths(ws)
