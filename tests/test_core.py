@@ -2,7 +2,6 @@
 Unit tests for the core logic.
 """
 import pytest
-import os
 from unittest.mock import MagicMock
 from typing import List
 from src.core.app import BachataSyncEngine

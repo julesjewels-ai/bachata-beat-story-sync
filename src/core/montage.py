@@ -5,7 +5,7 @@ Handles the synchronization of video clips to audio.
 import logging
 import random
 import os
-from typing import List
+from typing import List, Optional
 from moviepy import VideoFileClip, AudioFileClip, concatenate_videoclips
 from src.core.models import AudioAnalysisResult, VideoAnalysisResult
 
@@ -79,38 +79,12 @@ class MontageGenerator:
                 video_data = video_queue.pop()
                 attempts += 1
 
-                if not os.path.exists(video_data.path):
-                    logger.warning(f"Video file not found: {video_data.path}")
-                    continue
+                clip = self._create_video_segment(video_data, seg_duration)
 
-                try:
-                    video_clip = VideoFileClip(video_data.path)
-
-                    # Handle short videos
-                    if video_clip.duration < seg_duration:
-                        # Skip short videos for now
-                        video_clip.close()
-                        continue
-
-                    # Extract subclip
-                    max_start = max(0, video_clip.duration - seg_duration)
-                    start_t = random.uniform(0, max_start)
-                    sub = video_clip.subclipped(
-                        start_t, start_t + seg_duration
-                    )
-
-                    # Standardize resolution (HD 720p height)
-                    sub = sub.resized(height=720)
-
-                    clips.append(sub)
+                if clip:
+                    clips.append(clip)
                     current_time += seg_duration
                     attempts = 0  # Reset attempts on success
-
-                except Exception as e:
-                    logger.warning(
-                        f"Error processing clip {video_data.path}: {e}"
-                    )
-                    continue
 
             if not clips:
                 raise RuntimeError("No valid video clips could be generated.")
@@ -144,3 +118,39 @@ class MontageGenerator:
         except Exception as e:
             logger.error(f"Error generating montage: {e}")
             raise e
+
+    def _create_video_segment(
+        self, video_data: VideoAnalysisResult, segment_duration: float
+    ) -> Optional[VideoFileClip]:
+        """
+        Creates a video segment from a video file.
+        """
+        if not os.path.exists(video_data.path):
+            logger.warning(f"Video file not found: {video_data.path}")
+            return None
+
+        try:
+            video_clip = VideoFileClip(video_data.path)
+
+            if video_clip.duration < segment_duration:
+                logger.warning(
+                    f"Video {video_data.path} is too short "
+                    f"({video_clip.duration}s < {segment_duration}s)"
+                )
+                video_clip.close()
+                return None
+
+            max_start = max(0, video_clip.duration - segment_duration)
+            start_t = random.uniform(0, max_start)
+
+            # Use subclipped (v2)
+            sub = video_clip.subclipped(start_t, start_t + segment_duration)
+
+            # Standardize resolution
+            sub = sub.resized(height=720)
+
+            return sub
+
+        except Exception as e:
+            logger.warning(f"Error processing clip {video_data.path}: {e}")
+            return None
