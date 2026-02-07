@@ -21,3 +21,5 @@
 ## 2026-02-04 - [Simplifying Thumbnail Extraction] **Observation:** `VideoAnalyzer._extract_thumbnail` had high cyclomatic complexity (6) due to mixing frame retrieval, error handling, and resizing logic. **Action:** Extracted `_get_middle_frame` and `_resize_frame` methods to separate concerns, reducing complexity to 4.
 
 ## 2026-02-06 - [DRYing Report Generation] **Observation:** `ExcelReportGenerator` had duplicate header writing logic in `_build_summary_sheet` and `_build_video_sheet`. **Action:** Extracted `_write_headers` helper and simplified thumbnail logic with guard clauses.
+
+## 2026-02-07 - [Decomposing Video Montage Logic] **Observation:** `MontageGenerator.generate` had high cyclomatic complexity (13) due to mixing orchestration, clip processing, validation, and error handling in a single loop. **Action:** Extracted `_create_video_segment` helper method to encapsulate video clip creation, sub-clipping, resizing, and validation, reducing the main method's complexity to 11.
