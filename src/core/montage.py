@@ -54,6 +54,45 @@ class MontageGenerator:
             )
             return None
 
+    def _create_clip_sequence(
+        self,
+        video_results: List[VideoAnalysisResult],
+        total_duration: float,
+        bar_duration: float
+    ) -> List[VideoFileClip]:
+        """
+        Generates a sequence of video clips to fill the total duration.
+        """
+        clips: List[VideoFileClip] = []
+        current_time = 0.0
+        attempts = 0
+        max_attempts = len(video_results) * 2
+
+        # Use a queue to ensure variety
+        video_queue = list(video_results)
+        random.shuffle(video_queue)
+
+        while current_time < total_duration and attempts < max_attempts:
+            remaining = total_duration - current_time
+            seg_duration = min(bar_duration, remaining)
+
+            # Refill queue if empty
+            if not video_queue:
+                video_queue = list(video_results)
+                random.shuffle(video_queue)
+
+            # Select a video clip
+            video_data = video_queue.pop()
+            attempts += 1
+
+            segment = self._create_video_segment(video_data, seg_duration)
+            if segment:
+                clips.append(segment)
+                current_time += seg_duration
+                attempts = 0  # Reset attempts on success
+
+        return clips
+
     def generate(
         self,
         audio_result: AudioAnalysisResult,
@@ -94,33 +133,7 @@ class MontageGenerator:
             audio_clip = AudioFileClip(audio_result.file_path)
             duration = audio_clip.duration
 
-            clips: List[VideoFileClip] = []
-            current_time = 0.0
-            attempts = 0
-            max_attempts = len(video_results) * 2
-
-            # Use a queue to ensure variety
-            video_queue = list(video_results)
-            random.shuffle(video_queue)
-
-            while current_time < duration and attempts < max_attempts:
-                remaining = duration - current_time
-                seg_duration = min(bar_duration, remaining)
-
-                # Refill queue if empty
-                if not video_queue:
-                    video_queue = list(video_results)
-                    random.shuffle(video_queue)
-
-                # Select a video clip
-                video_data = video_queue.pop()
-                attempts += 1
-
-                segment = self._create_video_segment(video_data, seg_duration)
-                if segment:
-                    clips.append(segment)
-                    current_time += seg_duration
-                    attempts = 0  # Reset attempts on success
+            clips = self._create_clip_sequence(video_results, duration, bar_duration)
 
             if not clips:
                 raise RuntimeError("No valid video clips could be generated.")
