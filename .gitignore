@@ -14,4 +14,4 @@ venv/
 # Media Output
 *.mp4
 *.wav
-*.mov
+*.mov.coverage
