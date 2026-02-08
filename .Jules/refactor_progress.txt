@@ -1,0 +1,1 @@
+src/core/montage.py:MontageGenerator.generate
