@@ -2,8 +2,9 @@
 Data Transfer Objects (DTOs) for Bachata Beat-Story Sync.
 These models define the strict contracts for data exchange between layers.
 """
-from typing import List, Optional
-from pydantic import BaseModel, Field
+import base64
+from typing import List, Optional, Any
+from pydantic import BaseModel, Field, field_serializer, field_validator
 
 
 class AudioAnalysisResult(BaseModel):
@@ -38,3 +39,16 @@ class VideoAnalysisResult(BaseModel):
     thumbnail_data: Optional[bytes] = Field(
         None, description="Binary data of the video thumbnail (PNG format)"
     )
+
+    @field_serializer('thumbnail_data')
+    def serialize_thumbnail(self, v: Optional[bytes], _info: Any) -> Optional[str]:
+        if v is None:
+            return None
+        return base64.b64encode(v).decode('utf-8')
+
+    @field_validator('thumbnail_data', mode='before')
+    @classmethod
+    def validate_thumbnail(cls, v: Any) -> Optional[bytes]:
+        if isinstance(v, str):
+            return base64.b64decode(v)
+        return v

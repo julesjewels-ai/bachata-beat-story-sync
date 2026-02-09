@@ -11,7 +11,7 @@ from src.core.video_analyzer import (
 )
 from src.core.montage import MontageGenerator
 from src.core.models import AudioAnalysisResult, VideoAnalysisResult
-from src.core.interfaces import ProgressObserver
+from src.core.interfaces import ProgressObserver, IVideoAnalyzer
 
 logger = logging.getLogger(__name__)
 
@@ -21,8 +21,32 @@ class BachataSyncEngine:
     The main engine responsible for syncing video segments to audio.
     """
 
-    def __init__(self) -> None:
-        self.video_analyzer = VideoAnalyzer()
+    def __init__(
+        self,
+        video_analyzer: Optional[IVideoAnalyzer] = None,
+        use_cache: bool = True
+    ) -> None:
+        if video_analyzer:
+            self.video_analyzer: IVideoAnalyzer = video_analyzer
+        else:
+            base_analyzer = VideoAnalyzer()
+            if use_cache:
+                try:
+                    from src.services.caching import JsonFileCache
+                    from src.services.analyzers import CachedVideoAnalyzer
+                    # Default cache path in current directory
+                    cache_path = ".bachata_cache.json"
+                    cache = JsonFileCache(cache_path)
+                    self.video_analyzer = CachedVideoAnalyzer(base_analyzer, cache)
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to initialize caching: {e}. "
+                        "Falling back to basic analyzer."
+                    )
+                    self.video_analyzer = base_analyzer
+            else:
+                self.video_analyzer = base_analyzer
+
         self.montage_generator = MontageGenerator()
 
     def scan_video_library(
