@@ -5,7 +5,7 @@ Handles the synchronization of video clips to audio.
 import logging
 import random
 import os
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from moviepy import VideoFileClip, AudioFileClip, concatenate_videoclips
 from src.core.models import AudioAnalysisResult, VideoAnalysisResult
 
@@ -21,9 +21,12 @@ class MontageGenerator:
         self,
         video_data: VideoAnalysisResult,
         target_duration: float
-    ) -> Optional[VideoFileClip]:
+    ) -> Optional[Tuple[VideoFileClip, VideoFileClip]]:
         """
         Creates a video segment of the specified duration from the given video data.
+        Returns:
+            Tuple[VideoFileClip, VideoFileClip]: (processed_segment, source_clip)
+            The source_clip must be kept open while the segment is used.
         """
         if not os.path.exists(video_data.path):
             logger.warning(f"Video file not found: {video_data.path}")
@@ -46,7 +49,8 @@ class MontageGenerator:
             )
 
             # Standardize resolution (HD 720p height)
-            return sub.resized(height=720)
+            processed = sub.resized(height=720)
+            return processed, video_clip
 
         except Exception as e:
             logger.warning(
@@ -85,6 +89,11 @@ class MontageGenerator:
         beat_duration = 60.0 / bpm
         bar_duration = beat_duration * 4  # Change clip every 4 beats
 
+        audio_clip = None
+        final_video = None
+        clips: List[VideoFileClip] = []
+        source_clips: List[VideoFileClip] = []
+
         try:
             if not os.path.exists(audio_result.file_path):
                 raise FileNotFoundError(
@@ -94,7 +103,6 @@ class MontageGenerator:
             audio_clip = AudioFileClip(audio_result.file_path)
             duration = audio_clip.duration
 
-            clips: List[VideoFileClip] = []
             current_time = 0.0
             attempts = 0
             max_attempts = len(video_results) * 2
@@ -116,9 +124,11 @@ class MontageGenerator:
                 video_data = video_queue.pop()
                 attempts += 1
 
-                segment = self._create_video_segment(video_data, seg_duration)
-                if segment:
+                result = self._create_video_segment(video_data, seg_duration)
+                if result:
+                    segment, source = result
                     clips.append(segment)
+                    source_clips.append(source)
                     current_time += seg_duration
                     attempts = 0  # Reset attempts on success
 
@@ -143,14 +153,24 @@ class MontageGenerator:
                 preset='ultrafast'
             )
 
-            # Cleanup
-            audio_clip.close()
-            final_video.close()
-            for clip in clips:
-                clip.close()
-
             return output_path
 
         except Exception as e:
             logger.error(f"Error generating montage: {e}")
             raise e
+        finally:
+            # Cleanup
+            if audio_clip:
+                audio_clip.close()
+            if final_video:
+                final_video.close()
+            for clip in clips:
+                try:
+                    clip.close()
+                except Exception:
+                    pass
+            for source in source_clips:
+                try:
+                    source.close()
+                except Exception:
+                    pass
