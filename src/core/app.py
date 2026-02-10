@@ -6,12 +6,18 @@ import logging
 import os
 from typing import List, Optional
 from pydantic import ValidationError
-from src.core.video_analyzer import (
-    VideoAnalyzer, VideoAnalysisInput, SUPPORTED_VIDEO_EXTENSIONS
-)
+
+from src.core.interfaces import ProgressObserver, IVideoAnalyzer
+from src.core.video_analyzer import VideoAnalyzer
 from src.core.montage import MontageGenerator
-from src.core.models import AudioAnalysisResult, VideoAnalysisResult
-from src.core.interfaces import ProgressObserver
+from src.core.models import (
+    AudioAnalysisResult,
+    VideoAnalysisResult,
+    VideoAnalysisInput,
+    SUPPORTED_VIDEO_EXTENSIONS
+)
+from src.services.caching.backend import JsonFileCache
+from src.services.analyzers.cached_video_analyzer import CachedVideoAnalyzer
 
 logger = logging.getLogger(__name__)
 
@@ -21,9 +27,16 @@ class BachataSyncEngine:
     The main engine responsible for syncing video segments to audio.
     """
 
-    def __init__(self) -> None:
-        self.video_analyzer = VideoAnalyzer()
+    def __init__(self, video_analyzer: Optional[IVideoAnalyzer] = None) -> None:
         self.montage_generator = MontageGenerator()
+
+        if video_analyzer:
+            self.video_analyzer = video_analyzer
+        else:
+            # Default to CachedVideoAnalyzer wrapping the standard VideoAnalyzer
+            base_analyzer = VideoAnalyzer()
+            cache = JsonFileCache()
+            self.video_analyzer = CachedVideoAnalyzer(base_analyzer, cache)
 
     def scan_video_library(
         self, directory: str, observer: Optional[ProgressObserver] = None

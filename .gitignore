@@ -15,3 +15,4 @@ venv/
 *.mp4
 *.wav
 *.mov
+.mypy_cache/
