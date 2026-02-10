@@ -138,7 +138,9 @@ def test_generate_cleanup_on_error(
 @patch("src.core.montage.AudioFileClip")
 @patch("src.core.montage.VideoFileClip")
 @patch("src.core.montage.concatenate_videoclips")
+@patch("src.core.montage.random.shuffle")
 def test_generate_skips_short_videos(
+    mock_shuffle,
     mock_concatenate,
     mock_video_clip_cls,
     mock_audio_clip_cls,
@@ -149,6 +151,9 @@ def test_generate_skips_short_videos(
 ):
     # Setup mocks
     mock_exists.return_value = True
+
+    # Reverse list so mock_video_0 (short) is at the end and popped first
+    mock_shuffle.side_effect = lambda x: x.reverse()
 
     mock_audio_clip = MagicMock()
     mock_audio_clip.duration = 4.0 # short audio
