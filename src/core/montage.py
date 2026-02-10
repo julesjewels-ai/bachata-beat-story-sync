@@ -5,7 +5,7 @@ Handles the synchronization of video clips to audio.
 import logging
 import random
 import os
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict
 from moviepy import VideoFileClip, AudioFileClip, concatenate_videoclips
 from src.core.models import AudioAnalysisResult, VideoAnalysisResult
 
@@ -16,6 +16,58 @@ class MontageGenerator:
     """
     Generates a video montage by syncing video clips to audio beats.
     """
+
+    def _get_audio_segment_intensity(
+        self,
+        start_time: float,
+        end_time: float,
+        peaks: List[float],
+        avg_density: float
+    ) -> str:
+        """
+        Determines intensity level ('low', 'medium', 'high') for a time segment.
+        Based on peak density relative to the track's average density.
+        """
+        duration = end_time - start_time
+        if duration <= 0:
+            return 'low'
+
+        segment_peaks = [p for p in peaks if start_time <= p < end_time]
+        local_density = len(segment_peaks) / duration
+
+        if avg_density <= 0:
+            return 'medium'
+
+        ratio = local_density / avg_density
+
+        if ratio > 1.2:
+            return 'high'
+        elif ratio < 0.8:
+            return 'low'
+        else:
+            return 'medium'
+
+    def _categorize_videos(
+        self, video_results: List[VideoAnalysisResult]
+    ) -> Dict[str, List[VideoAnalysisResult]]:
+        """
+        Splits videos into intensity buckets (low, medium, high).
+        """
+        if not video_results:
+            return {'low': [], 'medium': [], 'high': []}
+
+        sorted_videos = sorted(video_results, key=lambda x: x.intensity_score)
+        n = len(sorted_videos)
+
+        # Simple thirds split
+        low_idx = n // 3
+        high_idx = (2 * n) // 3
+
+        return {
+            'low': sorted_videos[:low_idx],
+            'medium': sorted_videos[low_idx:high_idx],
+            'high': sorted_videos[high_idx:]
+        }
 
     def _create_video_segment(
         self,
@@ -58,6 +110,39 @@ class MontageGenerator:
             )
             return None
 
+    def _get_next_video(
+        self,
+        intensity: str,
+        video_buckets: Dict[str, List[VideoAnalysisResult]],
+        used_queue: Dict[str, List[VideoAnalysisResult]]
+    ) -> Optional[VideoAnalysisResult]:
+        """
+        Selects a video from the appropriate bucket, handling fallback and refill.
+        """
+        # Fallback order
+        preferences = [intensity]
+        if intensity == 'high':
+            preferences.extend(['medium', 'low'])
+        elif intensity == 'medium':
+            preferences.extend(['high', 'low'])
+        else:  # low
+            preferences.extend(['medium', 'high'])
+
+        for pref in preferences:
+            bucket = used_queue[pref]
+            if not bucket:
+                # Refill from source if empty
+                source = video_buckets[pref]
+                if source:
+                    bucket = list(source)
+                    random.shuffle(bucket)
+                    used_queue[pref] = bucket
+
+            if bucket:
+                return bucket.pop()
+
+        return None
+
     def generate(
         self,
         audio_result: AudioAnalysisResult,
@@ -89,6 +174,29 @@ class MontageGenerator:
         beat_duration = 60.0 / bpm
         bar_duration = beat_duration * 4  # Change clip every 4 beats
 
+        # Filter out videos that are too short for the target bar duration
+        # This prevents infinite loops and ensures quality
+        valid_videos = [
+            v for v in video_results if v.duration >= bar_duration
+        ]
+
+        if not valid_videos:
+            logger.warning("No videos found with sufficient duration.")
+            # If no videos are long enough, we can't generate a proper montage.
+            # We could fallback to using whatever we have, but it's risky.
+            raise ValueError(
+                f"All videos are shorter than the required bar duration ({bar_duration:.2f}s)"
+            )
+
+        # Categorize videos
+        video_buckets = self._categorize_videos(valid_videos)
+        # Create working queues
+        queues = {
+            k: list(v) for k, v in video_buckets.items()
+        }
+        for k in queues:
+            random.shuffle(queues[k])
+
         audio_clip = None
         final_video = None
         clips: List[VideoFileClip] = []
@@ -103,26 +211,35 @@ class MontageGenerator:
             audio_clip = AudioFileClip(audio_result.file_path)
             duration = audio_clip.duration
 
+            # Calculate average peak density
+            total_peaks = len(audio_result.peaks)
+            avg_density = total_peaks / duration if duration > 0 else 0
+
             current_time = 0.0
             attempts = 0
-            max_attempts = len(video_results) * 2
-
-            # Use a queue to ensure variety
-            video_queue = list(video_results)
-            random.shuffle(video_queue)
+            # Rough safety break to prevent infinite loops
+            max_attempts = int((duration / bar_duration) * 10) + len(video_results)
 
             while current_time < duration and attempts < max_attempts:
                 remaining = duration - current_time
                 seg_duration = min(bar_duration, remaining)
 
-                # Refill queue if empty
-                if not video_queue:
-                    video_queue = list(video_results)
-                    random.shuffle(video_queue)
+                # Determine Audio Intensity
+                intensity = self._get_audio_segment_intensity(
+                    current_time,
+                    current_time + seg_duration,
+                    audio_result.peaks,
+                    avg_density
+                )
 
-                # Select a video clip
-                video_data = video_queue.pop()
-                attempts += 1
+                # Get Video
+                video_data = self._get_next_video(
+                    intensity, video_buckets, queues
+                )
+
+                if not video_data:
+                    logger.error("Could not find any video clip.")
+                    break
 
                 result = self._create_video_segment(video_data, seg_duration)
                 if result:
@@ -130,7 +247,11 @@ class MontageGenerator:
                     clips.append(segment)
                     source_clips.append(source)
                     current_time += seg_duration
-                    attempts = 0  # Reset attempts on success
+                else:
+                    # Failed to process this specific video, loop continues
+                    pass
+
+                attempts += 1
 
             if not clips:
                 raise RuntimeError("No valid video clips could be generated.")
