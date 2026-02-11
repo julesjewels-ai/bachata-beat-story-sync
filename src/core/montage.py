@@ -5,7 +5,7 @@ Handles the synchronization of video clips to audio.
 import logging
 import random
 import os
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 from moviepy import VideoFileClip, AudioFileClip, concatenate_videoclips
 from src.core.models import AudioAnalysisResult, VideoAnalysisResult
 
@@ -16,6 +16,61 @@ class MontageGenerator:
     """
     Generates a video montage by syncing video clips to audio beats.
     """
+
+    def _categorize_videos(
+        self, video_results: List[VideoAnalysisResult]
+    ) -> Dict[str, List[VideoAnalysisResult]]:
+        """Categorizes videos into intensity buckets."""
+        buckets: Dict[str, List[VideoAnalysisResult]] = {
+            "low": [],
+            "medium": [],
+            "high": []
+        }
+        for video in video_results:
+            if video.intensity_score > 0.7:
+                buckets["high"].append(video)
+            elif video.intensity_score < 0.3:
+                buckets["low"].append(video)
+            else:
+                buckets["medium"].append(video)
+
+        # Shuffle buckets for randomness
+        for key in buckets:
+            random.shuffle(buckets[key])
+
+        return buckets
+
+    def _get_next_video(
+        self,
+        target_intensity: str,
+        active_buckets: Dict[str, List[VideoAnalysisResult]],
+        master_buckets: Dict[str, List[VideoAnalysisResult]]
+    ) -> Optional[VideoAnalysisResult]:
+        """
+        Selects the next video based on target intensity with fallback logic.
+        """
+        # Define fallback priorities
+        priorities = {
+            "high": ["high", "medium", "low"],
+            "medium": ["medium", "low", "high"],
+            "low": ["low", "medium", "high"]
+        }
+
+        search_order = priorities.get(target_intensity, ["medium", "low", "high"])
+
+        for intensity in search_order:
+            bucket = active_buckets[intensity]
+
+            # Refill if empty
+            if not bucket:
+                if master_buckets[intensity]:
+                    bucket.extend(master_buckets[intensity])
+                    random.shuffle(bucket)
+
+            if bucket:
+                return bucket.pop()
+
+        return None
 
     def _create_video_segment(
         self,
@@ -105,23 +160,35 @@ class MontageGenerator:
 
             current_time = 0.0
             attempts = 0
-            max_attempts = len(video_results) * 2
+            max_attempts = len(video_results) * 5  # Increase allowance
 
-            # Use a queue to ensure variety
-            video_queue = list(video_results)
-            random.shuffle(video_queue)
+            # Initialize buckets
+            master_buckets = self._categorize_videos(video_results)
+            active_buckets: Dict[str, List[VideoAnalysisResult]] = {
+                k: list(v) for k, v in master_buckets.items()
+            }
 
             while current_time < duration and attempts < max_attempts:
                 remaining = duration - current_time
                 seg_duration = min(bar_duration, remaining)
 
-                # Refill queue if empty
-                if not video_queue:
-                    video_queue = list(video_results)
-                    random.shuffle(video_queue)
+                # Determine intensity based on peaks
+                # Check if current time is near a peak
+                is_high_intensity = any(
+                    abs(peak - current_time) < (bar_duration / 2)
+                    for peak in audio_result.peaks
+                )
+                target_intensity = "high" if is_high_intensity else "medium"
 
                 # Select a video clip
-                video_data = video_queue.pop()
+                video_data = self._get_next_video(
+                    target_intensity, active_buckets, master_buckets
+                )
+
+                if not video_data:
+                    logger.warning("No video available despite fallback.")
+                    break
+
                 attempts += 1
 
                 result = self._create_video_segment(video_data, seg_duration)
