@@ -10,7 +10,7 @@ install:
 	$(BIN)/pip install -r requirements.txt
 
 run:
-	$(BIN)/python main.py
+	$(BIN)/python main.py --audio "$(AUDIO)" --video-dir "$(VIDEO_DIR)"
 
 test:
 	$(BIN)/pytest
