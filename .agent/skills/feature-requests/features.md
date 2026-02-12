@@ -8,7 +8,7 @@
 
 | Field       | Value                                |
 |-------------|--------------------------------------|
-| **Status**  | `PROPOSED`                           |
+| **Status**  | `IMPLEMENTED`                        |
 | **Priority**| 🔴 High                              |
 | **Effort**  | Medium                               |
 | **Impact**  | High — biggest single improvement    |

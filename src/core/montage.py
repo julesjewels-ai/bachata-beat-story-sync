@@ -106,6 +106,19 @@ class MontageGenerator:
         else:
             return 'high'
 
+    def _get_segment_duration(
+        self, intensity: str, beat_duration: float
+    ) -> float:
+        """
+        Returns the segment duration in seconds based on audio intensity.
+
+        High intensity  → 2-beat cuts  (fast, energetic)
+        Medium intensity → 4-beat bars  (standard)
+        Low intensity   → 8-beat holds (breathing room)
+        """
+        multipliers = {'high': 2, 'medium': 4, 'low': 8}
+        return beat_duration * multipliers.get(intensity, 4)
+
     def _calculate_peak_percentiles(
         self, duration: float, bar_duration: float, peaks: List[float]
     ) -> Tuple[float, float]:
@@ -183,12 +196,13 @@ class MontageGenerator:
             logger.warning("Invalid BPM detected, using fallback 120 BPM.")
 
         beat_duration = 60.0 / bpm
-        bar_duration = beat_duration * 4  # Change clip every 4 beats
+        # Reference bar (4 beats) used for consistent percentile calculation
+        reference_bar = beat_duration * 4
 
         # Prepare buckets and audio analysis
         buckets = self._bucket_videos(video_results)
         peak_percentiles = self._calculate_peak_percentiles(
-            audio_result.duration, bar_duration, audio_result.peaks
+            audio_result.duration, reference_bar, audio_result.peaks
         )
 
         audio_clip = None
@@ -207,19 +221,26 @@ class MontageGenerator:
 
             current_time = 0.0
             attempts = 0
-            # Safety break to avoid infinite loops if something goes wrong
-            max_segments = int(duration / bar_duration) + 10
+            # Safety cap uses smallest possible segment (2 beats)
+            min_seg = beat_duration * 2
+            max_segments = int(duration / min_seg) + 10 if min_seg > 0 else 1000
 
             while current_time < duration and len(clips) < max_segments:
                 remaining = duration - current_time
-                seg_duration = min(bar_duration, remaining)
 
-                # Determine audio intensity
+                # Peek at intensity using the reference bar window
+                peek_end = min(current_time + reference_bar, duration)
                 audio_intensity = self._get_audio_intensity(
                     current_time,
-                    current_time + seg_duration,
+                    peek_end,
                     audio_result.peaks,
                     peak_percentiles
+                )
+
+                # Variable segment duration based on intensity
+                seg_duration = min(
+                    self._get_segment_duration(audio_intensity, beat_duration),
+                    remaining
                 )
 
                 # Select video
