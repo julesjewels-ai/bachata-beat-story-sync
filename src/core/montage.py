@@ -5,7 +5,8 @@ Handles the synchronization of video clips to audio.
 import logging
 import random
 import os
-from typing import List, Optional, Tuple
+import numpy as np
+from typing import List, Optional, Tuple, Dict
 from moviepy import VideoFileClip, AudioFileClip, concatenate_videoclips
 from src.core.models import AudioAnalysisResult, VideoAnalysisResult
 
@@ -58,6 +59,101 @@ class MontageGenerator:
             )
             return None
 
+    def _bucket_videos(
+        self, video_results: List[VideoAnalysisResult]
+    ) -> Dict[str, List[VideoAnalysisResult]]:
+        """
+        Classifies videos into intensity buckets.
+        """
+        buckets: Dict[str, List[VideoAnalysisResult]] = {
+            'low': [],
+            'medium': [],
+            'high': []
+        }
+
+        for v in video_results:
+            if v.intensity_score < 0.3:
+                buckets['low'].append(v)
+            elif v.intensity_score < 0.7:
+                buckets['medium'].append(v)
+            else:
+                buckets['high'].append(v)
+
+        # Shuffle for randomness
+        for key in buckets:
+            random.shuffle(buckets[key])
+
+        return buckets
+
+    def _get_audio_intensity(
+        self,
+        start_time: float,
+        end_time: float,
+        peaks: List[float],
+        percentiles: Tuple[float, float]
+    ) -> str:
+        """
+        Determines audio intensity for a time segment based on peak density.
+        """
+        # Count peaks in the segment
+        peak_count = sum(1 for p in peaks if start_time <= p < end_time)
+
+        p33, p66 = percentiles
+        if peak_count <= p33:
+            return 'low'
+        elif peak_count <= p66:
+            return 'medium'
+        else:
+            return 'high'
+
+    def _calculate_peak_percentiles(
+        self, duration: float, bar_duration: float, peaks: List[float]
+    ) -> Tuple[float, float]:
+        """
+        Calculates the 33rd and 66th percentiles of peaks per bar.
+        """
+        peak_counts = []
+        t = 0.0
+        while t < duration:
+            count = sum(1 for p in peaks if t <= p < t + bar_duration)
+            peak_counts.append(count)
+            t += bar_duration
+
+        if not peak_counts:
+            return 0.0, 0.0
+
+        return (
+            float(np.percentile(peak_counts, 33)),
+            float(np.percentile(peak_counts, 66))
+        )
+
+    def _get_next_video(
+        self,
+        intensity: str,
+        buckets: Dict[str, List[VideoAnalysisResult]]
+    ) -> Optional[VideoAnalysisResult]:
+        """
+        Selects a video from the requested intensity bucket with fallback.
+        Priority: Match -> Adjacent -> Any
+        """
+        # Define fallback priorities
+        priorities = {
+            'low': ['low', 'medium', 'high'],
+            'medium': ['medium', 'high', 'low'],
+            'high': ['high', 'medium', 'low']
+        }
+
+        check_order = priorities.get(intensity, ['medium', 'low', 'high'])
+
+        for bucket_name in check_order:
+            if buckets[bucket_name]:
+                # Rotate the list to avoid reuse immediately if possible
+                video = buckets[bucket_name].pop(0)
+                buckets[bucket_name].append(video)  # Re-add to end for recycling
+                return video
+
+        return None
+
     def generate(
         self,
         audio_result: AudioAnalysisResult,
@@ -89,6 +185,12 @@ class MontageGenerator:
         beat_duration = 60.0 / bpm
         bar_duration = beat_duration * 4  # Change clip every 4 beats
 
+        # Prepare buckets and audio analysis
+        buckets = self._bucket_videos(video_results)
+        peak_percentiles = self._calculate_peak_percentiles(
+            audio_result.duration, bar_duration, audio_result.peaks
+        )
+
         audio_clip = None
         final_video = None
         clips: List[VideoFileClip] = []
@@ -105,32 +207,44 @@ class MontageGenerator:
 
             current_time = 0.0
             attempts = 0
-            max_attempts = len(video_results) * 2
+            # Safety break to avoid infinite loops if something goes wrong
+            max_segments = int(duration / bar_duration) + 10
 
-            # Use a queue to ensure variety
-            video_queue = list(video_results)
-            random.shuffle(video_queue)
-
-            while current_time < duration and attempts < max_attempts:
+            while current_time < duration and len(clips) < max_segments:
                 remaining = duration - current_time
                 seg_duration = min(bar_duration, remaining)
 
-                # Refill queue if empty
-                if not video_queue:
-                    video_queue = list(video_results)
-                    random.shuffle(video_queue)
+                # Determine audio intensity
+                audio_intensity = self._get_audio_intensity(
+                    current_time,
+                    current_time + seg_duration,
+                    audio_result.peaks,
+                    peak_percentiles
+                )
 
-                # Select a video clip
-                video_data = video_queue.pop()
-                attempts += 1
+                # Select video
+                video_data = self._get_next_video(audio_intensity, buckets)
+
+                if not video_data:
+                    # This should theoretically not happen due to fallbacks unless ALL buckets empty
+                    logger.error("No videos available in any bucket.")
+                    break
 
                 result = self._create_video_segment(video_data, seg_duration)
+
                 if result:
                     segment, source = result
                     clips.append(segment)
                     source_clips.append(source)
                     current_time += seg_duration
-                    attempts = 0  # Reset attempts on success
+                    attempts = 0
+                else:
+                    attempts += 1
+                    # If we fail to create a segment multiple times, we might need to skip or force something
+                    # But for now, just continue loop, _get_next_video rotates so we get a different one
+                    if attempts > 10:
+                        logger.warning("Failed to create segment after multiple attempts. Advancing time.")
+                        current_time += seg_duration  # Skip this segment to avoid infinite loop
 
             if not clips:
                 raise RuntimeError("No valid video clips could be generated.")
@@ -160,17 +274,33 @@ class MontageGenerator:
             raise e
         finally:
             # Cleanup
-            if audio_clip:
+            self._cleanup_resources(audio_clip, final_video, clips, source_clips)
+
+    def _cleanup_resources(
+        self,
+        audio_clip: Optional[AudioFileClip],
+        final_video: Optional[VideoFileClip],
+        clips: List[VideoFileClip],
+        source_clips: List[VideoFileClip]
+    ) -> None:
+        """Helper to clean up resources."""
+        if audio_clip:
+            try:
                 audio_clip.close()
-            if final_video:
+            except Exception:
+                pass
+        if final_video:
+            try:
                 final_video.close()
-            for clip in clips:
-                try:
-                    clip.close()
-                except Exception:
-                    pass
-            for source in source_clips:
-                try:
-                    source.close()
-                except Exception:
-                    pass
+            except Exception:
+                pass
+        for clip in clips:
+            try:
+                clip.close()
+            except Exception:
+                pass
+        for source in source_clips:
+            try:
+                source.close()
+            except Exception:
+                pass
