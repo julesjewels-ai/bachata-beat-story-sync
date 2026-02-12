@@ -1,0 +1,2 @@
+# Processed Modules
+src/core/montage.py:MontageGenerator.generate

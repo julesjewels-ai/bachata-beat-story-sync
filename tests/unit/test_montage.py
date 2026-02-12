@@ -36,6 +36,7 @@ def mock_video_results():
     ]
 
 
+@patch("src.core.montage.random.shuffle")
 @patch("src.core.montage.os.path.exists")
 @patch("src.core.montage.AudioFileClip")
 @patch("src.core.montage.VideoFileClip")
@@ -45,11 +46,14 @@ def test_generate_success(
     mock_video_clip_cls,
     mock_audio_clip_cls,
     mock_exists,
+    mock_shuffle,
     montage_generator,
     mock_audio_result,
     mock_video_results
 ):
     # Setup mocks
+    # Reverse the list so popping from the end yields the first element (mock_video_0)
+    mock_shuffle.side_effect = lambda x: x.reverse()
     mock_exists.return_value = True
 
     mock_audio_clip = MagicMock()
@@ -90,6 +94,7 @@ def test_generate_success(
     assert mock_video_clip.close.called
 
 
+@patch("src.core.montage.random.shuffle")
 @patch("src.core.montage.os.path.exists")
 @patch("src.core.montage.AudioFileClip")
 @patch("src.core.montage.VideoFileClip")
@@ -99,11 +104,13 @@ def test_generate_cleanup_on_error(
     mock_video_clip_cls,
     mock_audio_clip_cls,
     mock_exists,
+    mock_shuffle,
     montage_generator,
     mock_audio_result,
     mock_video_results
 ):
     # Setup mocks
+    mock_shuffle.side_effect = lambda x: x.reverse()
     mock_exists.return_value = True
 
     mock_audio_clip = MagicMock()
@@ -134,6 +141,7 @@ def test_generate_cleanup_on_error(
     assert mock_video_clip.close.called
 
 
+@patch("src.core.montage.random.shuffle")
 @patch("src.core.montage.os.path.exists")
 @patch("src.core.montage.AudioFileClip")
 @patch("src.core.montage.VideoFileClip")
@@ -143,11 +151,13 @@ def test_generate_skips_short_videos(
     mock_video_clip_cls,
     mock_audio_clip_cls,
     mock_exists,
+    mock_shuffle,
     montage_generator,
     mock_audio_result,
     mock_video_results
 ):
     # Setup mocks
+    mock_shuffle.side_effect = lambda x: x.reverse()
     mock_exists.return_value = True
 
     mock_audio_clip = MagicMock()
