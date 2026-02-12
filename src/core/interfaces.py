@@ -1,7 +1,8 @@
 """
 Core interfaces and protocols for Bachata Beat-Story Sync.
 """
-from typing import Protocol
+from typing import Protocol, Optional
+from src.core.models import VideoAnalysisInput, VideoAnalysisResult
 
 
 class ProgressObserver(Protocol):
@@ -17,4 +18,24 @@ class ProgressObserver(Protocol):
             total: The total number of items to process.
             message: A descriptive message about the current operation.
         """
+        ...
+
+
+class IVideoAnalyzer(Protocol):
+    """Protocol for video analysis services."""
+    def analyze(self, input_data: VideoAnalysisInput) -> VideoAnalysisResult:
+        """
+        Analyzes a video file to calculate a visual intensity score.
+        """
+        ...
+
+
+class CacheBackend(Protocol):
+    """Protocol for caching backends."""
+    def get(self, key: str) -> Optional[str]:
+        """Retrieve a value from the cache."""
+        ...
+
+    def set(self, key: str, value: str) -> None:
+        """Store a value in the cache."""
         ...

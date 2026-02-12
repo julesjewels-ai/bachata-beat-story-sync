@@ -5,9 +5,7 @@ import cv2
 import numpy as np
 import logging
 from typing import Iterator, Optional
-from pydantic import BaseModel, Field, field_validator
-from src.core.validation import validate_file_path
-from src.core.models import VideoAnalysisResult
+from src.core.models import VideoAnalysisResult, VideoAnalysisInput
 
 logger = logging.getLogger(__name__)
 
@@ -15,21 +13,8 @@ logger = logging.getLogger(__name__)
 MAX_VIDEO_FRAMES = 100_000  # Approx 1 hour at 30 FPS
 MAX_VIDEO_DURATION_SECONDS = 3600  # 1 hour
 
-SUPPORTED_VIDEO_EXTENSIONS = {'.mp4', '.mov', '.avi', '.mkv'}
 BLUR_KERNEL_SIZE = (21, 21)
 NORMALIZATION_FACTOR = 100
-
-
-class VideoAnalysisInput(BaseModel):
-    """
-    Input model for video analysis validation.
-    """
-    file_path: str = Field(..., description="Path to the video file")
-
-    @field_validator('file_path')
-    @classmethod
-    def validate_path(cls, v: str) -> str:
-        return validate_file_path(v, SUPPORTED_VIDEO_EXTENSIONS)
 
 
 class VideoAnalyzer:
