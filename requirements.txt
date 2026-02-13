@@ -21,7 +21,7 @@ cffi==2.0.0
     # via soundfile
 charset-normalizer==3.4.4
     # via requests
-decorator==5.2.1
+decorator==4.4.2
     # via
     #   librosa
     #   moviepy
@@ -75,7 +75,7 @@ ml-dtypes==0.4.1
     # via
     #   keras
     #   tensorflow
-moviepy==2.2.1
+moviepy==2.0.0.dev1
     # via -r requirements.in
 msgpack==1.1.2
     # via librosa
@@ -121,11 +121,10 @@ packaging==26.0
     #   tensorboard
     #   tensorflow
     #   wheel
-pillow==10.4.0
+pillow==12.1.1
     # via
     #   -r requirements.in
     #   imageio
-    #   moviepy
 platformdirs==4.7.0
     # via pooch
 pluggy==1.6.0
@@ -134,8 +133,9 @@ pooch==1.9.0
     # via librosa
 proglog==0.1.12
     # via moviepy
-protobuf==4.25.8
+protobuf==5.29.6
     # via
+    #   -r requirements.in
     #   tensorboard
     #   tensorflow
 pycparser==3.0
@@ -150,10 +150,9 @@ pygments==2.19.2
     #   rich
 pytest==8.4.2
     # via -r requirements.in
-python-dotenv==1.2.1
-    # via moviepy
 requests==2.32.5
     # via
+    #   moviepy
     #   pooch
     #   tensorflow
 rich==13.9.4
@@ -176,11 +175,11 @@ soundfile==0.13.1
     # via librosa
 soxr==1.0.0
     # via librosa
-tensorboard==2.17.1
+tensorboard==2.18.0
     # via tensorflow
 tensorboard-data-server==0.7.2
     # via tensorboard
-tensorflow==2.17.1
+tensorflow==2.18.0
     # via -r requirements.in
 termcolor==3.3.0
     # via tensorflow

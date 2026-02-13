@@ -118,7 +118,7 @@ def test_generate_success(
 
     mock_video.subclipped.return_value = mock_sub
     mock_sub.resized.return_value = mock_processed
-    mock_processed.with_effects.return_value = mock_processed
+    mock_processed.fx.return_value = mock_processed
 
     mock_video_cls.return_value = mock_video
 
@@ -260,7 +260,7 @@ def test_create_segment_applies_speed(mock_exists, mock_video_cls, mock_vfx, mon
 
     mock_video.subclipped.return_value = mock_sub
     mock_sub.resized.return_value = mock_processed
-    mock_processed.with_effects.return_value = mock_speed_applied
+    mock_processed.fx.return_value = mock_speed_applied
     mock_video_cls.return_value = mock_video
 
     video_data = VideoAnalysisResult(
@@ -271,7 +271,7 @@ def test_create_segment_applies_speed(mock_exists, mock_video_cls, mock_vfx, mon
 
     assert result is not None
     # with_effects should have been called for non-medium intensity
-    mock_processed.with_effects.assert_called_once()
+    mock_processed.fx.assert_called_once()
     # The returned segment should be the speed-applied version
     assert result[0] == mock_speed_applied
 

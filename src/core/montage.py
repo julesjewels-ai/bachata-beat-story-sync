@@ -7,7 +7,7 @@ import random
 import os
 import numpy as np
 from typing import List, Optional, Tuple, Dict
-from moviepy import VideoFileClip, AudioFileClip, concatenate_videoclips, vfx
+from moviepy.editor import VideoFileClip, AudioFileClip, concatenate_videoclips, vfx
 from src.core.models import AudioAnalysisResult, VideoAnalysisResult
 
 logger = logging.getLogger(__name__)
@@ -71,8 +71,8 @@ class MontageGenerator:
 
             # Apply speed ramping (only if not normal speed)
             if speed_factor != 1.0:
-                processed = processed.with_effects(
-                    [vfx.MultiplySpeed(factor=speed_factor)]
+                processed = processed.fx(
+                    vfx.speedx, speed_factor
                 )
                 logger.debug(
                     f"Applied {speed_factor}x speed to segment "
