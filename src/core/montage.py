@@ -7,7 +7,7 @@ import random
 import os
 import numpy as np
 from typing import List, Optional, Tuple, Dict
-from moviepy import VideoFileClip, AudioFileClip, concatenate_videoclips
+from moviepy import VideoFileClip, AudioFileClip, concatenate_videoclips, vfx
 from src.core.models import AudioAnalysisResult, VideoAnalysisResult
 
 logger = logging.getLogger(__name__)
@@ -18,13 +18,26 @@ class MontageGenerator:
     Generates a video montage by syncing video clips to audio beats.
     """
 
+    def _get_speed_factor(self, intensity: str) -> float:
+        """
+        Returns a playback speed multiplier based on audio intensity.
+
+        Low intensity  → 0.7x  (slow-motion, emotional/breakdown)
+        Medium intensity → 1.0x (normal speed)
+        High intensity → 1.2x  (slight speed-up, energetic)
+        """
+        factors = {'low': 0.7, 'medium': 1.0, 'high': 1.2}
+        return factors.get(intensity, 1.0)
+
     def _create_video_segment(
         self,
         video_data: VideoAnalysisResult,
-        target_duration: float
+        target_duration: float,
+        intensity: str = 'medium'
     ) -> Optional[Tuple[VideoFileClip, VideoFileClip]]:
         """
         Creates a video segment of the specified duration from the given video data.
+        Applies speed ramping based on audio intensity.
         Returns:
             Tuple[VideoFileClip, VideoFileClip]: (processed_segment, source_clip)
             The source_clip must be kept open while the segment is used.
@@ -34,23 +47,38 @@ class MontageGenerator:
             return None
 
         try:
+            speed_factor = self._get_speed_factor(intensity)
+            # Slow-mo needs more source footage; speed-up needs less
+            source_duration = target_duration / speed_factor
+
             video_clip = VideoFileClip(video_data.path)
 
-            # Handle short videos
-            if video_clip.duration < target_duration:
+            # Handle short videos (check against source_duration)
+            if video_clip.duration < source_duration:
                 # Skip short videos for now
                 video_clip.close()
                 return None
 
-            # Extract subclip
-            max_start = max(0, video_clip.duration - target_duration)
+            # Extract subclip (using source_duration for raw footage)
+            max_start = max(0, video_clip.duration - source_duration)
             start_t = random.uniform(0, max_start)
             sub = video_clip.subclipped(
-                start_t, start_t + target_duration
+                start_t, start_t + source_duration
             )
 
             # Standardize resolution (HD 720p height)
             processed = sub.resized(height=720)
+
+            # Apply speed ramping (only if not normal speed)
+            if speed_factor != 1.0:
+                processed = processed.with_effects(
+                    [vfx.MultiplySpeed(factor=speed_factor)]
+                )
+                logger.debug(
+                    f"Applied {speed_factor}x speed to segment "
+                    f"(intensity={intensity})"
+                )
+
             return processed, video_clip
 
         except Exception as e:
@@ -251,7 +279,9 @@ class MontageGenerator:
                     logger.error("No videos available in any bucket.")
                     break
 
-                result = self._create_video_segment(video_data, seg_duration)
+                result = self._create_video_segment(
+                    video_data, seg_duration, audio_intensity
+                )
 
                 if result:
                     segment, source = result

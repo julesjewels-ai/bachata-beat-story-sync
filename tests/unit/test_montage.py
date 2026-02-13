@@ -118,6 +118,7 @@ def test_generate_success(
 
     mock_video.subclipped.return_value = mock_sub
     mock_sub.resized.return_value = mock_processed
+    mock_processed.with_effects.return_value = mock_processed
 
     mock_video_cls.return_value = mock_video
 
@@ -135,9 +136,6 @@ def test_generate_success(
     assert mock_audio.close.called
     assert mock_final.close.called
     assert mock_video.close.called
-    # mock_processed should also be closed if added to clips list?
-    # Actually the code closes items in `clips` list. `clips` contains `processed` segments.
-    # So `mock_processed.close()` should be called.
     assert mock_processed.close.called
 
 def test_generate_empty_videos(montage_generator, mock_audio_result):
@@ -210,6 +208,7 @@ def test_generate_variable_segments(
     mock_processed = MagicMock()
     mock_video.subclipped.return_value = mock_sub
     mock_sub.resized.return_value = mock_processed
+    mock_processed.with_effects.return_value = mock_processed
     mock_video_cls.return_value = mock_video
 
     mock_final = MagicMock()
@@ -226,3 +225,84 @@ def test_generate_variable_segments(
     # At minimum, confirm we got multiple clips (more than using fixed 4-beat bars = 4 clips)
     assert len(durations) >= 1
     assert mock_concat.called
+
+
+# -- FEAT-002: Speed Ramping Tests --
+
+def test_get_speed_factor_low(montage_generator):
+    """Low intensity should return 0.7x (slow-motion)."""
+    assert montage_generator._get_speed_factor('low') == pytest.approx(0.7)
+
+def test_get_speed_factor_medium(montage_generator):
+    """Medium intensity should return 1.0x (normal speed)."""
+    assert montage_generator._get_speed_factor('medium') == pytest.approx(1.0)
+
+def test_get_speed_factor_high(montage_generator):
+    """High intensity should return 1.2x (speed-up)."""
+    assert montage_generator._get_speed_factor('high') == pytest.approx(1.2)
+
+def test_get_speed_factor_unknown(montage_generator):
+    """Unknown intensity should fall back to 1.0x."""
+    assert montage_generator._get_speed_factor('unknown') == pytest.approx(1.0)
+
+@patch('src.core.montage.vfx')
+@patch('src.core.montage.VideoFileClip')
+@patch('os.path.exists')
+def test_create_segment_applies_speed(mock_exists, mock_video_cls, mock_vfx, montage_generator):
+    """with_effects should be called with MultiplySpeed when intensity is not medium."""
+    mock_exists.return_value = True
+
+    mock_video = MagicMock()
+    mock_video.duration = 20.0
+    mock_sub = MagicMock()
+    mock_processed = MagicMock()
+    mock_speed_applied = MagicMock()
+
+    mock_video.subclipped.return_value = mock_sub
+    mock_sub.resized.return_value = mock_processed
+    mock_processed.with_effects.return_value = mock_speed_applied
+    mock_video_cls.return_value = mock_video
+
+    video_data = VideoAnalysisResult(
+        path="clip.mp4", intensity_score=0.5, duration=20.0, thumbnail_data=None
+    )
+
+    result = montage_generator._create_video_segment(video_data, 2.0, 'low')
+
+    assert result is not None
+    # with_effects should have been called for non-medium intensity
+    mock_processed.with_effects.assert_called_once()
+    # The returned segment should be the speed-applied version
+    assert result[0] == mock_speed_applied
+
+@patch('src.core.montage.VideoFileClip')
+@patch('os.path.exists')
+def test_create_segment_source_duration_adjusted(mock_exists, mock_video_cls, montage_generator):
+    """Slow-mo segments should extract more source footage (target / 0.7)."""
+    mock_exists.return_value = True
+
+    mock_video = MagicMock()
+    mock_video.duration = 20.0
+    mock_sub = MagicMock()
+    mock_processed = MagicMock()
+    mock_processed.with_effects.return_value = mock_processed
+
+    mock_video.subclipped.return_value = mock_sub
+    mock_sub.resized.return_value = mock_processed
+    mock_video_cls.return_value = mock_video
+
+    video_data = VideoAnalysisResult(
+        path="clip.mp4", intensity_score=0.5, duration=20.0, thumbnail_data=None
+    )
+
+    target = 2.0
+    montage_generator._create_video_segment(video_data, target, 'low')
+
+    # source_duration = target / 0.7 ≈ 2.857
+    expected_source = target / 0.7
+    call_args = mock_video.subclipped.call_args
+    start_t = call_args[0][0]
+    end_t = call_args[0][1]
+    actual_source = end_t - start_t
+    assert actual_source == pytest.approx(expected_source, rel=1e-3)
+

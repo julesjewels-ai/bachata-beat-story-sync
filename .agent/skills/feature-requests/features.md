@@ -37,7 +37,7 @@ Currently every clip segment is a fixed 4-beat bar (`bar_duration = beat_duratio
 
 | Field       | Value                                |
 |-------------|--------------------------------------|
-| **Status**  | `PROPOSED`                           |
+| **Status**  | `VERIFIED`                           |
 | **Priority**| 🟡 Medium                            |
 | **Effort**  | Medium                               |
 | **Impact**  | High — cinematic and professional    |
