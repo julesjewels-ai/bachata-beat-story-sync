@@ -195,6 +195,83 @@ class MontageGenerator:
 
         return None
 
+    def _calculate_timing(self, audio_result: AudioAnalysisResult) -> Tuple[float, float, float]:
+        """Calculates BPM, beat duration, and reference bar duration."""
+        bpm = audio_result.bpm
+        if bpm <= 0:
+            bpm = 120  # Fallback
+            logger.warning("Invalid BPM detected, using fallback 120 BPM.")
+
+        beat_duration = 60.0 / bpm
+        # Reference bar (4 beats) used for consistent percentile calculation
+        reference_bar = beat_duration * 4
+        return bpm, beat_duration, reference_bar
+
+    def _collect_video_segments(
+        self,
+        duration: float,
+        beat_duration: float,
+        reference_bar: float,
+        buckets: Dict[str, List[VideoAnalysisResult]],
+        peak_percentiles: Tuple[float, float],
+        audio_peaks: List[float],
+        clips: List[VideoFileClip],
+        source_clips: List[VideoFileClip]
+    ) -> None:
+        """
+        Collects video segments for the montage loop.
+        Modifies clips and source_clips in-place.
+        """
+        current_time = 0.0
+        attempts = 0
+        # Safety cap uses smallest possible segment (2 beats)
+        min_seg = beat_duration * 2
+        max_segments = int(duration / min_seg) + 10 if min_seg > 0 else 1000
+
+        while current_time < duration and len(clips) < max_segments:
+            remaining = duration - current_time
+
+            # Peek at intensity using the reference bar window
+            peek_end = min(current_time + reference_bar, duration)
+            audio_intensity = self._get_audio_intensity(
+                current_time,
+                peek_end,
+                audio_peaks,
+                peak_percentiles
+            )
+
+            # Variable segment duration based on intensity
+            seg_duration = min(
+                self._get_segment_duration(audio_intensity, beat_duration),
+                remaining
+            )
+
+            # Select video
+            video_data = self._get_next_video(audio_intensity, buckets)
+
+            if not video_data:
+                # This should theoretically not happen due to fallbacks unless ALL buckets empty
+                logger.error("No videos available in any bucket.")
+                break
+
+            result = self._create_video_segment(
+                video_data, seg_duration, audio_intensity
+            )
+
+            if result:
+                segment, source = result
+                clips.append(segment)
+                source_clips.append(source)
+                current_time += seg_duration
+                attempts = 0
+            else:
+                attempts += 1
+                # If we fail to create a segment multiple times, we might need to skip or force something
+                # But for now, just continue loop, _get_next_video rotates so we get a different one
+                if attempts > 10:
+                    logger.warning("Failed to create segment after multiple attempts. Advancing time.")
+                    current_time += seg_duration  # Skip this segment to avoid infinite loop
+
     def generate(
         self,
         audio_result: AudioAnalysisResult,
@@ -218,14 +295,7 @@ class MontageGenerator:
         logger.info(f"Generating montage for {audio_result.filename}...")
 
         # Calculate timing
-        bpm = audio_result.bpm
-        if bpm <= 0:
-            bpm = 120  # Fallback
-            logger.warning("Invalid BPM detected, using fallback 120 BPM.")
-
-        beat_duration = 60.0 / bpm
-        # Reference bar (4 beats) used for consistent percentile calculation
-        reference_bar = beat_duration * 4
+        bpm, beat_duration, reference_bar = self._calculate_timing(audio_result)
 
         # Prepare buckets and audio analysis
         buckets = self._bucket_videos(video_results)
@@ -247,55 +317,16 @@ class MontageGenerator:
             audio_clip = AudioFileClip(audio_result.file_path)
             duration = audio_clip.duration
 
-            current_time = 0.0
-            attempts = 0
-            # Safety cap uses smallest possible segment (2 beats)
-            min_seg = beat_duration * 2
-            max_segments = int(duration / min_seg) + 10 if min_seg > 0 else 1000
-
-            while current_time < duration and len(clips) < max_segments:
-                remaining = duration - current_time
-
-                # Peek at intensity using the reference bar window
-                peek_end = min(current_time + reference_bar, duration)
-                audio_intensity = self._get_audio_intensity(
-                    current_time,
-                    peek_end,
-                    audio_result.peaks,
-                    peak_percentiles
-                )
-
-                # Variable segment duration based on intensity
-                seg_duration = min(
-                    self._get_segment_duration(audio_intensity, beat_duration),
-                    remaining
-                )
-
-                # Select video
-                video_data = self._get_next_video(audio_intensity, buckets)
-
-                if not video_data:
-                    # This should theoretically not happen due to fallbacks unless ALL buckets empty
-                    logger.error("No videos available in any bucket.")
-                    break
-
-                result = self._create_video_segment(
-                    video_data, seg_duration, audio_intensity
-                )
-
-                if result:
-                    segment, source = result
-                    clips.append(segment)
-                    source_clips.append(source)
-                    current_time += seg_duration
-                    attempts = 0
-                else:
-                    attempts += 1
-                    # If we fail to create a segment multiple times, we might need to skip or force something
-                    # But for now, just continue loop, _get_next_video rotates so we get a different one
-                    if attempts > 10:
-                        logger.warning("Failed to create segment after multiple attempts. Advancing time.")
-                        current_time += seg_duration  # Skip this segment to avoid infinite loop
+            self._collect_video_segments(
+                duration,
+                beat_duration,
+                reference_bar,
+                buckets,
+                peak_percentiles,
+                audio_result.peaks,
+                clips,
+                source_clips
+            )
 
             if not clips:
                 raise RuntimeError("No valid video clips could be generated.")
