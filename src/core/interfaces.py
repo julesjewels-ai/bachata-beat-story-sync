@@ -2,6 +2,18 @@
 Core interfaces and protocols for Bachata Beat-Story Sync.
 """
 from typing import Protocol
+from src.core.models import VideoAnalysisInput, VideoAnalysisResult
+
+
+class IVideoAnalyzer(Protocol):
+    """
+    Protocol for video analysis services.
+    """
+    def analyze(self, input_data: VideoAnalysisInput) -> VideoAnalysisResult:
+        """
+        Analyzes a video file to calculate a visual intensity score.
+        """
+        ...
 
 
 class ProgressObserver(Protocol):
