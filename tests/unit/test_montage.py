@@ -5,6 +5,7 @@ from src.core.models import AudioAnalysisResult, VideoAnalysisResult
 
 @pytest.fixture
 def montage_generator():
+    """Fixture to provide a clean MontageGenerator instance."""
     return MontageGenerator()
 
 @pytest.fixture

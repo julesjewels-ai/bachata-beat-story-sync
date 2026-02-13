@@ -85,6 +85,7 @@ class BachataSyncEngine:
                        output_path: str) -> str:
         """
         Syncs clips to audio data and exports the timeline.
+        Delegates the montage generation to MontageGenerator.
         """
         # Logic to match audio.peaks with video.intensity_score
         logger.info(

@@ -16,6 +16,10 @@ logger = logging.getLogger(__name__)
 class MontageGenerator:
     """
     Generates a video montage by syncing video clips to audio beats.
+    It handles:
+    - Speed ramping based on intensity (slow-mo for low intensity).
+    - Variable clip durations (shorter clips for high intensity).
+    - Resource management and cleanup.
     """
 
     def _get_speed_factor(self, intensity: str) -> float:
