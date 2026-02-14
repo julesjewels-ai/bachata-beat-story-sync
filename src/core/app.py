@@ -10,6 +10,7 @@ from src.core.video_analyzer import (
     VideoAnalyzer, VideoAnalysisInput, SUPPORTED_VIDEO_EXTENSIONS
 )
 from src.core.models import AudioAnalysisResult, VideoAnalysisResult
+from src.core.montage import MontageGenerator
 from src.core.interfaces import ProgressObserver
 
 logger = logging.getLogger(__name__)
@@ -22,6 +23,7 @@ class BachataSyncEngine:
 
     def __init__(self) -> None:
         self.video_analyzer = VideoAnalyzer()
+        self.montage_generator = MontageGenerator()
 
     def scan_video_library(
         self, directory: str, observer: Optional[ProgressObserver] = None
@@ -78,20 +80,30 @@ class BachataSyncEngine:
 
         return None
 
-    def generate_story(self, audio_data: AudioAnalysisResult,
-                       video_clips: List[VideoAnalysisResult],
-                       output_path: str) -> str:
+    def generate_story(
+        self,
+        audio_data: AudioAnalysisResult,
+        video_clips: List[VideoAnalysisResult],
+        output_path: str,
+        audio_path: Optional[str] = None,
+    ) -> str:
         """
-        Syncs clips to audio data and exports the timeline.
+        Syncs clips to audio data and generates a montage video.
+
+        Args:
+            audio_data: Analyzed audio features.
+            video_clips: Analyzed video clips with intensity scores.
+            output_path: Path for the final output video.
+            audio_path: Optional path to audio file to overlay.
+
+        Returns:
+            Path to the generated output video.
         """
-        # Logic to match audio.peaks with video.intensity_score
         logger.info(
             f"Synthesizing {len(video_clips)} clips against "
             f"{audio_data.bpm} BPM audio..."
         )
 
-        # Mock export process
-        with open(output_path, 'w') as f:
-            f.write("Mock Video Content")
-
-        return output_path
+        return self.montage_generator.generate(
+            audio_data, video_clips, output_path, audio_path
+        )

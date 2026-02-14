@@ -82,7 +82,8 @@ def main() -> None:
         # 3. Sync and Generate
         logger.info("Syncing visual narrative to musical dynamics...")
         result_path = engine.generate_story(
-            audio_meta, video_clips, args.output
+            audio_meta, video_clips, args.output,
+            audio_path=args.audio
         )
         logger.info(f"Process complete. Output saved to: {result_path}")
 

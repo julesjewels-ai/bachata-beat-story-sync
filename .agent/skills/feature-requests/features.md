@@ -8,7 +8,7 @@
 
 | Field       | Value                                |
 |-------------|--------------------------------------|
-| **Status**  | `REVERTED`                           |
+| **Status**  | `IMPLEMENTED`                        |
 | **Priority**| 🔴 High                              |
 | **Effort**  | Medium                               |
 | **Impact**  | High — biggest single improvement    |
@@ -16,8 +16,12 @@
 ### Description
 Vary clip segment duration based on audio intensity instead of fixed 4-beat bars.
 
-### Revert Reason
-Depended on `MontageGenerator` which caused memory leaks via unmanaged FFmpeg processes.
+- **High intensity** (≥0.65) → 2-beat cuts (fast, energetic)
+- **Medium intensity** (0.35–0.65) → 4-beat bars (standard)
+- **Low intensity** (<0.35) → 8-beat holds (breathing room)
+
+### Architecture
+Memory-safe open-close-per-clip pattern: only 1 `VideoFileClip` open at a time. Each segment rendered to temp file, clip closed immediately. Final concatenation via FFmpeg concat demuxer.
 
 ---
 

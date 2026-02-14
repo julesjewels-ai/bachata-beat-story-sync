@@ -4,6 +4,7 @@ Unit tests for the core logic.
 import pytest
 import os
 from typing import List
+from unittest.mock import patch, MagicMock
 from src.core.app import BachataSyncEngine
 from src.core.models import AudioAnalysisResult, VideoAnalysisResult
 
@@ -15,11 +16,16 @@ def engine():
 
 def test_engine_initialization(engine):
     assert engine is not None
-    # engine.supported_audio_ext is removed
+    assert engine.montage_generator is not None
 
 
-def test_generate_story_mock(engine, tmp_path):
-    """Test the generation logic with mock data."""
+def test_generate_story_delegates_to_montage():
+    """Test that generate_story delegates to MontageGenerator."""
+    engine = BachataSyncEngine()
+    mock_montage_gen = MagicMock()
+    mock_montage_gen.generate.return_value = "/tmp/output.mp4"
+    engine.montage_generator = mock_montage_gen
+
     mock_audio = AudioAnalysisResult(
         bpm=120,
         peaks=[],
@@ -28,9 +34,12 @@ def test_generate_story_mock(engine, tmp_path):
         sections=[]
     )
     mock_video: List[VideoAnalysisResult] = []
-    output_file = tmp_path / "test_output.mp4"
 
-    result = engine.generate_story(mock_audio, mock_video, str(output_file))
+    result = engine.generate_story(
+        mock_audio, mock_video, "/tmp/output.mp4"
+    )
 
-    assert result == str(output_file)
-    assert os.path.exists(result)
+    mock_montage_gen.generate.assert_called_once_with(
+        mock_audio, mock_video, "/tmp/output.mp4", None
+    )
+    assert result == "/tmp/output.mp4"
