@@ -6,6 +6,16 @@ from typing import List, Optional
 from pydantic import BaseModel, Field
 
 
+class AudioSection(BaseModel):
+    """
+    Represents a detected musical section within the track.
+    """
+    start_time: float = Field(..., description="Start time of the section in seconds")
+    end_time: float = Field(..., description="End time of the section in seconds")
+    duration: float = Field(..., description="Duration of the section in seconds")
+    label: str = Field(..., description="Descriptive label (e.g., 'verse', 'chorus')")
+
+
 class AudioAnalysisResult(BaseModel):
     """
     Result model for audio analysis.
@@ -18,7 +28,7 @@ class AudioAnalysisResult(BaseModel):
     peaks: List[float] = Field(
         ..., description="Timestamps of high intensity peaks"
     )
-    sections: List[str] = Field(
+    sections: List[AudioSection] = Field(
         ..., description="Identified musical sections (e.g., intro, verse)"
     )
     beat_times: List[float] = Field(

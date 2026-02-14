@@ -16,7 +16,7 @@ from src.core.montage import (
     HIGH_INTENSITY_THRESHOLD,
     LOW_INTENSITY_THRESHOLD,
 )
-from src.core.models import AudioAnalysisResult, VideoAnalysisResult
+from src.core.models import AudioAnalysisResult, VideoAnalysisResult, AudioSection
 
 
 @pytest.fixture
@@ -32,7 +32,9 @@ def audio_data():
         bpm=120.0,
         duration=30.0,
         peaks=[0.5, 1.0, 2.0],
-        sections=["full_track"],
+        sections=[
+            AudioSection(start_time=0.0, end_time=30.0, duration=30.0, label="full_track")
+        ],
         beat_times=[0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0],
         intensity_curve=[0.8, 0.9, 0.7, 0.5, 0.4, 0.3, 0.2, 0.1],
     )
@@ -46,7 +48,9 @@ def audio_data_empty_beats():
         bpm=0.0,
         duration=10.0,
         peaks=[],
-        sections=["full_track"],
+        sections=[
+            AudioSection(start_time=0.0, end_time=10.0, duration=10.0, label="full_track")
+        ],
         beat_times=[],
         intensity_curve=[],
     )
@@ -101,7 +105,9 @@ class TestBuildSegmentPlan:
             bpm=120.0,
             duration=10.0,
             peaks=[],
-            sections=["full_track"],
+            sections=[
+                AudioSection(start_time=0.0, end_time=10.0, duration=10.0, label="full_track")
+            ],
             beat_times=[0.5, 1.0, 1.5, 2.0],
             intensity_curve=[0.9, 0.8, 0.7, 0.9],
         )
@@ -120,7 +126,9 @@ class TestBuildSegmentPlan:
             bpm=120.0,
             duration=20.0,
             peaks=[],
-            sections=["full_track"],
+            sections=[
+                AudioSection(start_time=0.0, end_time=20.0, duration=20.0, label="full_track")
+            ],
             beat_times=[float(i) * 0.5 for i in range(16)],
             intensity_curve=[0.1] * 16,
         )
@@ -160,7 +168,9 @@ class TestBuildSegmentPlan:
             bpm=120.0,
             duration=1.0,
             peaks=[],
-            sections=["full_track"],
+            sections=[
+                AudioSection(start_time=0.0, end_time=1.0, duration=1.0, label="full_track")
+            ],
             beat_times=[0.5],
             intensity_curve=[0.5],
         )
@@ -186,7 +196,9 @@ class TestBuildSegmentPlan:
             bpm=120.0,
             duration=10.0,
             peaks=[],
-            sections=["full_track"],
+            sections=[
+                AudioSection(start_time=0.0, end_time=10.0, duration=10.0, label="full_track")
+            ],
             beat_times=[0.5, 1.0, 1.5, 2.0, 2.5, 3.0],
             intensity_curve=[0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
         )
@@ -207,8 +219,9 @@ class TestGenerateValidation:
         with pytest.raises(ValueError, match="No video clips"):
             generator.generate(audio_data, [], "/tmp/out.mp4")
 
+    @patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")
     def test_raises_on_no_beats(
-        self, generator, audio_data_empty_beats, video_clips
+        self, mock_which, generator, audio_data_empty_beats, video_clips
     ):
         """No beats in audio raises ValueError."""
         with pytest.raises(ValueError, match="segment plan"):

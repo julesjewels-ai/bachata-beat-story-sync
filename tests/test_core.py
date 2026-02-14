@@ -3,8 +3,9 @@ Unit tests for the core logic.
 """
 import pytest
 import os
+from unittest.mock import patch
 from src.core.app import BachataSyncEngine
-from src.core.models import AudioAnalysisResult, VideoAnalysisResult
+from src.core.models import AudioAnalysisResult, VideoAnalysisResult, AudioSection
 
 
 @pytest.fixture
@@ -17,7 +18,8 @@ def test_engine_initialization(engine):
     assert engine.montage_generator is not None
 
 
-def test_generate_story_delegates_to_montage():
+@patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")
+def test_generate_story_delegates_to_montage(mock_which):
     """Test that generate_story delegates to MontageGenerator."""
     engine = BachataSyncEngine()
 
@@ -26,7 +28,9 @@ def test_generate_story_delegates_to_montage():
         peaks=[],
         filename="test.wav",
         duration=100,
-        sections=[],
+        sections=[
+            AudioSection(start_time=0.0, end_time=100.0, duration=100.0, label="full_track")
+        ],
         beat_times=[],
         intensity_curve=[],
     )

@@ -6,6 +6,7 @@ import numpy as np
 from unittest.mock import patch
 from pydantic import ValidationError
 from src.core.audio_analyzer import AudioAnalyzer, AudioAnalysisInput
+from src.core.models import AudioSection
 
 
 class TestAudioAnalyzer:
@@ -47,11 +48,32 @@ class TestAudioAnalyzer:
             128.0, np.array([10, 20, 30])
         )
         mock_librosa.onset.onset_detect.return_value = np.array([10, 20])
-        mock_librosa.frames_to_time.side_effect = [
-            np.array([0.5, 1.0, 1.5]),     # beat_times
-            np.array([0.5, 1.0]),           # onset_times
-            np.array([0.0, 0.5, 1.0, 1.5, 2.0]),  # rms_times
-        ]
+
+        # Mocks for segmentation
+        mock_librosa.feature.chroma_cqt.return_value = np.zeros((12, 100))
+        mock_librosa.feature.mfcc.return_value = np.zeros((20, 100))
+        mock_librosa.segment.recurrence_matrix.return_value = np.zeros((100, 100))
+
+        # Mock agglomerative clustering labels (3 sections)
+        # 0 for first 30 frames, 1 for next 30, 2 for last 40
+        labels = np.array([0]*30 + [1]*30 + [2]*40)
+        mock_librosa.segment.agglomerative.return_value = labels
+
+        # Configure frames_to_time side effects
+        def frames_to_time_side_effect(frames, sr=22050, hop_length=512):
+            # If frames is a scalar or small array, return specific values
+            if np.array_equal(frames, np.array([10, 20, 30])): # beat_frames
+                return np.array([0.5, 1.0, 1.5])
+            if np.array_equal(frames, np.array([10, 20])): # onset_frames
+                return np.array([0.5, 1.0])
+            if len(frames) == 5: # rms_times (len(rms) is 5 in mock below)
+                return np.array([0.0, 0.5, 1.0, 1.5, 2.0])
+            if len(frames) == 100: # sections (len(labels) is 100)
+                return np.linspace(0, 180, 100)
+            return np.zeros_like(frames, dtype=float)
+
+        mock_librosa.frames_to_time.side_effect = frames_to_time_side_effect
+
         mock_librosa.feature.rms.return_value = np.array(
             [[0.2, 0.5, 0.8, 0.3, 0.1]]
         )
@@ -64,20 +86,24 @@ class TestAudioAnalyzer:
         assert result.bpm == 128.0
         assert result.duration == 180.0
         assert result.peaks == [0.5, 1.0]
-        assert result.sections == ["full_track"]
-
-        # New fields
         assert result.beat_times == [0.5, 1.0, 1.5]
-        assert len(result.intensity_curve) == 3
-        # Intensity values should be normalised 0.0-1.0
-        for val in result.intensity_curve:
-            assert 0.0 <= val <= 1.0
+
+        # Verify sections
+        assert len(result.sections) == 3
+        assert isinstance(result.sections[0], AudioSection)
+        assert result.sections[0].label == "Section 1"
+        assert result.sections[0].start_time == 0.0
+        # Check end time of first section (index 30 -> 30/100 * 180 = 54.0 roughly)
+        # Since we used linspace(0, 180, 100), index 30 corresponds to 30 * (180/99) approx 54.54
+        expected_end_1 = 30 * (180.0 / 99.0)
+        assert abs(result.sections[0].end_time - expected_end_1) < 0.001
 
         # Verify librosa calls
         mock_librosa.load.assert_called_once()
         mock_librosa.beat.beat_track.assert_called_once()
         mock_librosa.onset.onset_detect.assert_called_once()
         mock_librosa.feature.rms.assert_called_once()
+        mock_librosa.segment.agglomerative.assert_called_once()
 
     @patch("src.core.audio_analyzer.librosa")
     @patch("src.core.validation.os.path.exists", return_value=True)

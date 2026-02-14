@@ -5,9 +5,12 @@ import logging
 import os
 import numpy as np
 import librosa
+import librosa.feature
+import librosa.segment
+from typing import List
 from pydantic import BaseModel, Field, field_validator
 from src.core.validation import validate_file_path
-from src.core.models import AudioAnalysisResult
+from src.core.models import AudioAnalysisResult, AudioSection
 
 logger = logging.getLogger(__name__)
 
@@ -79,8 +82,8 @@ class AudioAnalyzer:
             bpm_val = float(tempo) if np.ndim(tempo) == 0 else float(tempo[0])
             peaks_list = [float(t) for t in onset_times]
 
-            # Placeholder for segmentation (requires more complex analysis)
-            sections = ["full_track"]
+            # Detect musical sections
+            sections = self._detect_sections(y, sr, duration)
 
             return AudioAnalysisResult(
                 filename=os.path.basename(file_path),
@@ -95,3 +98,85 @@ class AudioAnalyzer:
         except Exception as e:
             logger.error(f"Failed to analyze audio file {file_path}: {e}")
             raise RuntimeError(f"Audio analysis failed: {e}") from e
+
+    def _detect_sections(self, y: np.ndarray, sr: int, duration: float) -> List[AudioSection]:
+        """
+        Detects musical structure (sections) using recurrence analysis.
+        """
+        try:
+            # 1. Compute features (Chromagram + MFCC) for structure analysis
+            hop_length = 512
+            # Use chroma_cqt for better musical structure detection
+            # Note: chroma_cqt can be slow, but it's more accurate.
+            # Fallback to chroma_stft if cqt fails or for speed?
+            # Let's use chroma_cqt.
+            chroma = librosa.feature.chroma_cqt(y=y, sr=sr, hop_length=hop_length)
+
+            # Stack MFCCs to capture timbre
+            mfcc = librosa.feature.mfcc(y=y, sr=sr, hop_length=hop_length)
+
+            # Ensure they have same number of frames
+            min_frames = min(chroma.shape[1], mfcc.shape[1])
+            chroma = chroma[:, :min_frames]
+            mfcc = mfcc[:, :min_frames]
+
+            features = np.vstack([chroma, mfcc])
+
+            # 2. Compute recurrence matrix
+            # Use 'affinity' mode for clustering
+            R = librosa.segment.recurrence_matrix(features, mode='affinity', sym=True)
+
+            # 3. Agglomerative clustering
+            # Estimate number of sections: ~1 section per 30s, capped at 8
+            n_sections = max(2, int(duration / 30))
+            n_sections = min(n_sections, 8)
+
+            # Use librosa's wrapper for agglomerative clustering
+            labels = librosa.segment.agglomerative(R, k=n_sections)
+
+            # 4. Convert frame labels to time intervals
+            sections: List[AudioSection] = []
+            frames = librosa.frames_to_time(np.arange(len(labels)), sr=sr, hop_length=hop_length)
+
+            if len(labels) == 0:
+                 return [AudioSection(
+                    start_time=0.0,
+                    end_time=duration,
+                    duration=duration,
+                    label="Full Track"
+                )]
+
+            current_label = labels[0]
+            start_time = 0.0
+
+            for i, label in enumerate(labels):
+                if label != current_label:
+                    end_time = float(frames[i])
+                    sections.append(AudioSection(
+                        start_time=start_time,
+                        end_time=end_time,
+                        duration=end_time - start_time,
+                        label=f"Section {len(sections) + 1}"
+                    ))
+                    start_time = end_time
+                    current_label = label
+
+            # Add the last section
+            end_time = duration
+            sections.append(AudioSection(
+                start_time=start_time,
+                end_time=end_time,
+                duration=end_time - start_time,
+                label=f"Section {len(sections) + 1}"
+            ))
+
+            return sections
+
+        except Exception as e:
+            logger.warning(f"Structural segmentation failed: {e}. Fallback to full track.")
+            return [AudioSection(
+                start_time=0.0,
+                end_time=duration,
+                duration=duration,
+                label="Full Track"
+            )]
