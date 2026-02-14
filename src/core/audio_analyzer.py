@@ -46,11 +46,34 @@ class AudioAnalyzer:
             duration = float(librosa.get_duration(y=y, sr=sr))
 
             # beat_track returns tempo (float) and beat_frames (ndarray)
-            tempo, _ = librosa.beat.beat_track(y=y, sr=sr)
+            tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr)
+
+            # Convert beat frames to precise timestamps
+            beat_times_arr = librosa.frames_to_time(beat_frames, sr=sr)
+            beat_times_list = [float(t) for t in beat_times_arr]
 
             # onset_detect returns onset_frames (ndarray)
             onset_frames = librosa.onset.onset_detect(y=y, sr=sr)
             onset_times = librosa.frames_to_time(onset_frames, sr=sr)
+
+            # Compute per-beat intensity (RMS energy at each beat position)
+            rms = librosa.feature.rms(y=y)[0]
+            rms_times = librosa.frames_to_time(
+                np.arange(len(rms)), sr=sr
+            )
+
+            # Normalise RMS to 0.0-1.0
+            rms_max = float(np.max(rms)) if len(rms) > 0 else 1.0
+            if rms_max == 0.0:
+                rms_max = 1.0
+
+            intensity_curve = []
+            for bt in beat_times_arr:
+                # Find closest RMS frame to this beat
+                idx = int(np.argmin(np.abs(rms_times - bt)))
+                intensity_curve.append(
+                    float(rms[idx] / rms_max)
+                )
 
             # Convert numpy types to python types for Pydantic
             bpm_val = float(tempo) if np.ndim(tempo) == 0 else float(tempo[0])
@@ -64,7 +87,9 @@ class AudioAnalyzer:
                 bpm=bpm_val,
                 duration=duration,
                 peaks=peaks_list,
-                sections=sections
+                sections=sections,
+                beat_times=beat_times_list,
+                intensity_curve=intensity_curve,
             )
 
         except Exception as e:

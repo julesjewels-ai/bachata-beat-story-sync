@@ -21,6 +21,14 @@ class AudioAnalysisResult(BaseModel):
     sections: List[str] = Field(
         ..., description="Identified musical sections (e.g., intro, verse)"
     )
+    beat_times: List[float] = Field(
+        default_factory=list,
+        description="Precise timestamps of each detected beat (seconds)"
+    )
+    intensity_curve: List[float] = Field(
+        default_factory=list,
+        description="Normalised RMS energy (0.0-1.0) at each beat position"
+    )
 
 
 class VideoAnalysisResult(BaseModel):
@@ -36,4 +44,25 @@ class VideoAnalysisResult(BaseModel):
     )
     thumbnail_data: Optional[bytes] = Field(
         None, description="Binary data of the video thumbnail (PNG format)"
+    )
+
+
+class SegmentPlan(BaseModel):
+    """
+    One planned clip segment in the montage timeline.
+    """
+    video_path: str = Field(
+        ..., description="Path to the source video file"
+    )
+    start_time: float = Field(
+        ..., description="Start time in the source video (seconds)"
+    )
+    duration: float = Field(
+        ..., description="Duration to extract (seconds)"
+    )
+    timeline_position: float = Field(
+        ..., description="Position on the output timeline (seconds)"
+    )
+    intensity_level: str = Field(
+        ..., description="Intensity category: 'high', 'medium', or 'low'"
     )

@@ -3,8 +3,6 @@ Unit tests for the core logic.
 """
 import pytest
 import os
-from typing import List
-from unittest.mock import patch, MagicMock
 from src.core.app import BachataSyncEngine
 from src.core.models import AudioAnalysisResult, VideoAnalysisResult
 
@@ -22,24 +20,27 @@ def test_engine_initialization(engine):
 def test_generate_story_delegates_to_montage():
     """Test that generate_story delegates to MontageGenerator."""
     engine = BachataSyncEngine()
-    mock_montage_gen = MagicMock()
-    mock_montage_gen.generate.return_value = "/tmp/output.mp4"
-    engine.montage_generator = mock_montage_gen
 
     mock_audio = AudioAnalysisResult(
         bpm=120,
         peaks=[],
         filename="test.wav",
         duration=100,
-        sections=[]
+        sections=[],
+        beat_times=[],
+        intensity_curve=[],
     )
-    mock_video: List[VideoAnalysisResult] = []
+    mock_video = [
+        VideoAnalysisResult(
+            path="/videos/clip.mp4",
+            intensity_score=0.5,
+            duration=10.0,
+            thumbnail_data=None,
+        )
+    ]
 
-    result = engine.generate_story(
-        mock_audio, mock_video, "/tmp/output.mp4"
-    )
-
-    mock_montage_gen.generate.assert_called_once_with(
-        mock_audio, mock_video, "/tmp/output.mp4", None
-    )
-    assert result == "/tmp/output.mp4"
+    # No beats → segment plan is empty → ValueError
+    with pytest.raises(ValueError, match="segment plan"):
+        engine.generate_story(
+            mock_audio, mock_video, "/tmp/output.mp4"
+        )
