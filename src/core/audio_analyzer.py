@@ -53,14 +53,13 @@ class AudioAnalyzer:
             onset_times = librosa.frames_to_time(onset_frames, sr=sr)
 
             # Convert numpy types to python types for Pydantic
-            bpm_val = float(tempo) if np.ndim(tempo) == 0 else float(tempo[0])  # type: ignore
+            bpm_val = float(tempo) if np.ndim(tempo) == 0 else float(tempo[0])
             peaks_list = [float(t) for t in onset_times]
 
             # Placeholder for segmentation (requires more complex analysis)
             sections = ["full_track"]
 
             return AudioAnalysisResult(
-                file_path=file_path,
                 filename=os.path.basename(file_path),
                 bpm=bpm_val,
                 duration=duration,
