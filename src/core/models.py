@@ -66,3 +66,33 @@ class SegmentPlan(BaseModel):
     intensity_level: str = Field(
         ..., description="Intensity category: 'high', 'medium', or 'low'"
     )
+
+
+class PacingConfig(BaseModel):
+    """
+    Configuration for montage clip pacing.
+
+    Controls how long clips last at each intensity level, the minimum
+    clip duration, and whether durations snap to beat boundaries.
+    """
+    min_clip_seconds: float = Field(
+        1.5, description="Hard floor — no clip shorter than this (seconds)"
+    )
+    high_intensity_seconds: float = Field(
+        2.5, description="Target duration for high-intensity clips (seconds)"
+    )
+    medium_intensity_seconds: float = Field(
+        4.0, description="Target duration for medium-intensity clips (seconds)"
+    )
+    low_intensity_seconds: float = Field(
+        6.0, description="Target duration for low-intensity clips (seconds)"
+    )
+    snap_to_beats: bool = Field(
+        True, description="Round durations to nearest beat boundary"
+    )
+    high_intensity_threshold: float = Field(
+        0.65, description="Intensity >= this is 'high'"
+    )
+    low_intensity_threshold: float = Field(
+        0.35, description="Intensity < this is 'low'"
+    )

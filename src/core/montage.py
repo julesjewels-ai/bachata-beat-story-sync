@@ -5,27 +5,64 @@ Uses direct FFmpeg subprocess calls for memory-safe video processing.
 Only one FFmpeg process runs at a time — no memory leaks.
 """
 import logging
+import math
 import os
 import shutil
 import subprocess
 import tempfile
+from pathlib import Path
 from typing import List, Optional
+
+import yaml
 
 from src.core.interfaces import ProgressObserver
 from src.core.models import (
     AudioAnalysisResult,
+    PacingConfig,
     SegmentPlan,
     VideoAnalysisResult,
 )
 
 logger = logging.getLogger(__name__)
 
-# Intensity thresholds for variable clip duration (FEAT-001)
-HIGH_INTENSITY_THRESHOLD = 0.65
-LOW_INTENSITY_THRESHOLD = 0.35
-
 # Timeout per FFmpeg subprocess call (seconds)
 FFMPEG_TIMEOUT = 60
+
+# Default config file location (project root)
+DEFAULT_CONFIG_PATH = Path(__file__).resolve().parents[2] / "montage_config.yaml"
+
+
+def load_pacing_config(
+    config_path: Optional[str] = None,
+) -> PacingConfig:
+    """
+    Load pacing configuration from YAML file.
+
+    Falls back to PacingConfig defaults if the file is missing or invalid.
+
+    Args:
+        config_path: Optional explicit path to YAML config file.
+
+    Returns:
+        A validated PacingConfig instance.
+    """
+    path = Path(config_path) if config_path else DEFAULT_CONFIG_PATH
+
+    if path.exists():
+        try:
+            with open(path, "r") as f:
+                raw = yaml.safe_load(f) or {}
+            pacing_data = raw.get("pacing", {})
+            config = PacingConfig(**pacing_data)
+            logger.info(f"Loaded pacing config from {path}")
+            return config
+        except Exception as e:
+            logger.warning(
+                f"Failed to load pacing config from {path}: {e}. "
+                "Using defaults."
+            )
+
+    return PacingConfig()
 
 
 class MontageGenerator:
@@ -43,18 +80,18 @@ class MontageGenerator:
         self,
         audio_data: AudioAnalysisResult,
         video_clips: List[VideoAnalysisResult],
+        pacing: Optional[PacingConfig] = None,
     ) -> List[SegmentPlan]:
         """
         Build a timeline of clip segments from audio beat/intensity data.
 
-        Clip duration varies by intensity:
-            - High (>=0.65): 2-beat duration (fast, energetic cuts)
-            - Medium (0.35-0.65): 4-beat duration (standard)
-            - Low (<0.35): 8-beat duration (breathing room)
+        Clip duration is time-based (not beat-count) and snaps to beat
+        boundaries so cuts feel musical. A hard minimum floor is enforced.
 
         Args:
             audio_data: Analysed audio with beat_times and intensity_curve.
             video_clips: Available video clips sorted by intensity.
+            pacing: Optional pacing configuration. Uses defaults if None.
 
         Returns:
             Ordered list of SegmentPlan objects covering the audio duration.
@@ -68,8 +105,13 @@ class MontageGenerator:
         if not beat_times:
             return []
 
+        config = pacing or PacingConfig()
+
         # Calculate seconds-per-beat from BPM
         spb = 60.0 / audio_data.bpm if audio_data.bpm > 0 else 0.5
+
+        # Minimum beats to satisfy the floor
+        min_beats = max(1, math.ceil(config.min_clip_seconds / spb))
 
         # Sort clips by intensity score (highest first) for matching
         sorted_clips = sorted(
@@ -89,19 +131,25 @@ class MontageGenerator:
                 else 0.5
             )
 
-            # Variable duration based on intensity
-            if intensity >= HIGH_INTENSITY_THRESHOLD:
-                beat_count = 2
+            # Pick target duration based on intensity level
+            if intensity >= config.high_intensity_threshold:
+                target_seconds = config.high_intensity_seconds
                 level = "high"
-            elif intensity < LOW_INTENSITY_THRESHOLD:
-                beat_count = 8
+            elif intensity < config.low_intensity_threshold:
+                target_seconds = config.low_intensity_seconds
                 level = "low"
             else:
-                beat_count = 4
+                target_seconds = config.medium_intensity_seconds
                 level = "medium"
 
+            # Convert target to beats, then enforce minimum
+            if config.snap_to_beats:
+                target_beats = max(min_beats, round(target_seconds / spb))
+            else:
+                target_beats = max(min_beats, math.ceil(target_seconds / spb))
+
             # Don't exceed available beats
-            beat_count = min(beat_count, len(beat_times) - beat_idx)
+            beat_count = min(target_beats, len(beat_times) - beat_idx)
             segment_duration = beat_count * spb
 
             # Pick clip (round-robin)
@@ -138,6 +186,7 @@ class MontageGenerator:
         output_path: str,
         audio_path: Optional[str] = None,
         observer: Optional[ProgressObserver] = None,
+        pacing: Optional[PacingConfig] = None,
     ) -> str:
         """
         Generate a montage video synchronized to the audio.
@@ -154,6 +203,7 @@ class MontageGenerator:
             output_path: Path for the final output video.
             audio_path: Optional path to audio file to overlay.
             observer: Optional progress observer for status updates.
+            pacing: Optional pacing configuration. Loaded from file if None.
 
         Returns:
             Path to the generated output video.
@@ -172,8 +222,11 @@ class MontageGenerator:
                 "Install it with: brew install ffmpeg"
             )
 
+        # Load pacing config (explicit > file > defaults)
+        config = pacing or load_pacing_config()
+
         # 1. Build segment plan
-        segments = self.build_segment_plan(audio_data, video_clips)
+        segments = self.build_segment_plan(audio_data, video_clips, config)
         if not segments:
             raise ValueError(
                 "Could not build a segment plan — no beats detected "

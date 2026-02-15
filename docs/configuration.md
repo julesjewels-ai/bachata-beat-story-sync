@@ -18,6 +18,24 @@ The tool is invoked via `python main.py` with the following arguments:
 
 ---
 
+## Pacing Configuration (`montage_config.yaml`)
+
+A YAML file in the project root that controls clip pacing — no code changes needed.
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `min_clip_seconds` | `1.5` | Hard floor — no clip shorter than this |
+| `high_intensity_seconds` | `2.5` | Target duration for energetic moments |
+| `medium_intensity_seconds` | `4.0` | Target for standard pacing |
+| `low_intensity_seconds` | `6.0` | Target for breathing room |
+| `snap_to_beats` | `true` | Snap durations to beat boundaries |
+| `high_intensity_threshold` | `0.65` | Intensity ≥ this is "high" |
+| `low_intensity_threshold` | `0.35` | Intensity < this is "low" |
+
+> If `montage_config.yaml` is missing, defaults above are used automatically.
+
+---
+
 ## Environment Variables
 
 Configured via a `.env` file in the project root. Copy `.env.example` to get started:
@@ -76,7 +94,7 @@ The generated montage video uses these encoding settings (defined in `src/core/m
 | **Video codec** | `libx264` | H.264 encoding |
 | **Audio codec** | `aac` | AAC encoding |
 | **Preset** | `ultrafast` | Favors speed over compression |
-| **Segment timing** | 4 beats per clip | Derived from detected BPM |
+| **Segment timing** | Time-based | Configurable via `montage_config.yaml` |
 
 ---
 

@@ -14,14 +14,17 @@
 | **Impact**  | High — biggest single improvement    |
 
 ### Description
-Vary clip segment duration based on audio intensity instead of fixed 4-beat bars.
+Vary clip segment duration based on audio intensity using time-based targets (not raw beat counts). Pacing is fully configurable via `montage_config.yaml`.
 
-- **High intensity** (≥0.65) → 2-beat cuts (fast, energetic)
-- **Medium intensity** (0.35–0.65) → 4-beat bars (standard)
-- **Low intensity** (<0.35) → 8-beat holds (breathing room)
+- **High intensity** (≥0.65) → ~2.5s clips (energetic but watchable)
+- **Medium intensity** (0.35–0.65) → ~4.0s clips (standard pacing)
+- **Low intensity** (<0.35) → ~6.0s clips (breathing room)
+- **Minimum floor** → 1.5s (no flicker cuts)
+
+All durations snap to beat boundaries so cuts feel musical.
 
 ### Architecture
-Must use a memory-safe pattern: avoid holding multiple video clips in memory simultaneously. Prefer FFmpeg subprocess calls over MoviePy for segment extraction and concatenation.
+Uses a memory-safe pattern: FFmpeg subprocess calls for segment extraction and concatenation. Pacing parameters loaded from `montage_config.yaml` (falls back to defaults if missing).
 
 ---
 

@@ -3,20 +3,21 @@ Unit tests for the MontageGenerator.
 
 Tests cover:
     - Segment plan building logic (pure Python, no FFmpeg)
+    - Time-based pacing with PacingConfig
+    - Minimum clip duration enforcement
     - Input validation
     - FFmpeg call orchestration (mocked subprocess.run)
 """
 import os
 import pytest
-from typing import List
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import patch, MagicMock
 
-from src.core.montage import (
-    MontageGenerator,
-    HIGH_INTENSITY_THRESHOLD,
-    LOW_INTENSITY_THRESHOLD,
+from src.core.montage import MontageGenerator, load_pacing_config
+from src.core.models import (
+    AudioAnalysisResult,
+    PacingConfig,
+    VideoAnalysisResult,
 )
-from src.core.models import AudioAnalysisResult, VideoAnalysisResult
 
 
 @pytest.fixture
@@ -25,16 +26,25 @@ def generator():
 
 
 @pytest.fixture
+def default_pacing():
+    """Default pacing config (explicit for test clarity)."""
+    return PacingConfig()
+
+
+@pytest.fixture
 def audio_data():
-    """Audio data with 8 beats and varying intensity."""
+    """Audio data with 16 beats at 120 BPM and varying intensity."""
     return AudioAnalysisResult(
         filename="test_track.wav",
         bpm=120.0,
         duration=30.0,
         peaks=[0.5, 1.0, 2.0],
         sections=["full_track"],
-        beat_times=[0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0],
-        intensity_curve=[0.8, 0.9, 0.7, 0.5, 0.4, 0.3, 0.2, 0.1],
+        beat_times=[float(i) * 0.5 for i in range(16)],
+        intensity_curve=[
+            0.8, 0.9, 0.7, 0.5, 0.4, 0.3, 0.2, 0.1,
+            0.8, 0.9, 0.7, 0.5, 0.4, 0.3, 0.2, 0.1,
+        ],
     )
 
 
@@ -58,13 +68,13 @@ def video_clips():
         VideoAnalysisResult(
             path="/videos/clip1.mp4",
             intensity_score=0.8,
-            duration=10.0,
+            duration=30.0,
             thumbnail_data=None,
         ),
         VideoAnalysisResult(
             path="/videos/clip2.mp4",
             intensity_score=0.3,
-            duration=15.0,
+            duration=30.0,
             thumbnail_data=None,
         ),
     ]
@@ -76,7 +86,7 @@ def single_clip():
         VideoAnalysisResult(
             path="/videos/only_clip.mp4",
             intensity_score=0.5,
-            duration=10.0,
+            duration=30.0,
             thumbnail_data=None,
         ),
     ]
@@ -86,39 +96,40 @@ class TestBuildSegmentPlan:
     """Tests for the pure-Python segment planning logic."""
 
     def test_returns_segments_for_valid_input(
-        self, generator, audio_data, video_clips
+        self, generator, audio_data, video_clips, default_pacing
     ):
         """Valid audio + clips produces a non-empty segment plan."""
-        segments = generator.build_segment_plan(audio_data, video_clips)
+        segments = generator.build_segment_plan(
+            audio_data, video_clips, default_pacing
+        )
         assert len(segments) > 0
 
-    def test_high_intensity_produces_short_segments(
+    def test_high_intensity_produces_shorter_segments(
         self, generator, video_clips
     ):
-        """All high-intensity beats should produce 2-beat segments."""
+        """All high-intensity beats should produce 'high' level segments."""
         audio = AudioAnalysisResult(
             filename="high.wav",
             bpm=120.0,
-            duration=10.0,
+            duration=30.0,
             peaks=[],
             sections=["full_track"],
-            beat_times=[0.5, 1.0, 1.5, 2.0],
-            intensity_curve=[0.9, 0.8, 0.7, 0.9],
+            beat_times=[float(i) * 0.5 for i in range(16)],
+            intensity_curve=[0.9] * 16,
         )
         segments = generator.build_segment_plan(audio, video_clips)
 
-        # All segments should be "high" intensity
         for seg in segments:
             assert seg.intensity_level == "high"
 
-    def test_low_intensity_produces_long_segments(
+    def test_low_intensity_produces_longer_segments(
         self, generator, video_clips
     ):
-        """All low-intensity beats should produce 8-beat segments."""
+        """All low-intensity beats should produce 'low' level segments."""
         audio = AudioAnalysisResult(
             filename="low.wav",
             bpm=120.0,
-            duration=20.0,
+            duration=30.0,
             peaks=[],
             sections=["full_track"],
             beat_times=[float(i) * 0.5 for i in range(16)],
@@ -129,6 +140,38 @@ class TestBuildSegmentPlan:
         for seg in segments:
             assert seg.intensity_level == "low"
 
+    def test_low_segments_longer_than_high(
+        self, generator, video_clips
+    ):
+        """Low-intensity segments should be longer than high-intensity."""
+        config = PacingConfig()
+
+        audio_high = AudioAnalysisResult(
+            filename="high.wav",
+            bpm=120.0,
+            duration=30.0,
+            peaks=[],
+            sections=["full_track"],
+            beat_times=[float(i) * 0.5 for i in range(16)],
+            intensity_curve=[0.9] * 16,
+        )
+        audio_low = AudioAnalysisResult(
+            filename="low.wav",
+            bpm=120.0,
+            duration=30.0,
+            peaks=[],
+            sections=["full_track"],
+            beat_times=[float(i) * 0.5 for i in range(16)],
+            intensity_curve=[0.1] * 16,
+        )
+
+        high_segs = generator.build_segment_plan(audio_high, video_clips, config)
+        low_segs = generator.build_segment_plan(audio_low, video_clips, config)
+
+        avg_high = sum(s.duration for s in high_segs) / len(high_segs)
+        avg_low = sum(s.duration for s in low_segs) / len(low_segs)
+        assert avg_low > avg_high
+
     def test_mixed_intensity_varies_duration(
         self, generator, audio_data, video_clips
     ):
@@ -136,7 +179,6 @@ class TestBuildSegmentPlan:
         segments = generator.build_segment_plan(audio_data, video_clips)
 
         levels = {seg.intensity_level for seg in segments}
-        # Our fixture has high (0.8, 0.9, 0.7) and medium/low values
         assert len(levels) > 1, "Expected varying intensity levels"
 
     def test_empty_clips_returns_empty(self, generator, audio_data):
@@ -184,19 +226,127 @@ class TestBuildSegmentPlan:
         audio = AudioAnalysisResult(
             filename="rr.wav",
             bpm=120.0,
-            duration=10.0,
+            duration=30.0,
             peaks=[],
             sections=["full_track"],
-            beat_times=[0.5, 1.0, 1.5, 2.0, 2.5, 3.0],
-            intensity_curve=[0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
+            beat_times=[float(i) * 0.5 for i in range(32)],
+            intensity_curve=[0.5] * 32,
         )
         segments = generator.build_segment_plan(audio, video_clips)
 
-        # With medium intensity (4-beat segments), we expect segments
-        # to alternate between the two clips (sorted by intensity)
+        # With round-robin, consecutive segments should alternate clips
         if len(segments) >= 2:
-            # First two segments should use different clips
             assert segments[0].video_path != segments[1].video_path
+
+
+class TestMinimumClipDuration:
+    """Tests that the minimum clip duration floor is enforced."""
+
+    def test_all_segments_meet_minimum(
+        self, generator, audio_data, video_clips
+    ):
+        """Every segment should be >= min_clip_seconds."""
+        config = PacingConfig(min_clip_seconds=1.5)
+        segments = generator.build_segment_plan(
+            audio_data, video_clips, config
+        )
+
+        for seg in segments:
+            assert seg.duration >= config.min_clip_seconds, (
+                f"Segment duration {seg.duration:.2f}s is below "
+                f"minimum {config.min_clip_seconds}s"
+            )
+
+    def test_high_bpm_still_respects_minimum(self, generator, video_clips):
+        """Even at very high BPMs, the minimum floor holds."""
+        audio = AudioAnalysisResult(
+            filename="fast.wav",
+            bpm=180.0,   # Very fast — spb = 0.333s
+            duration=30.0,
+            peaks=[],
+            sections=["full_track"],
+            beat_times=[float(i) * 0.333 for i in range(30)],
+            intensity_curve=[0.9] * 30,  # All high intensity
+        )
+        config = PacingConfig(min_clip_seconds=1.5)
+        segments = generator.build_segment_plan(audio, video_clips, config)
+
+        for seg in segments:
+            assert seg.duration >= config.min_clip_seconds
+
+    def test_custom_minimum_is_respected(self, generator, video_clips):
+        """Custom min_clip_seconds value is enforced (except final segment)."""
+        audio = AudioAnalysisResult(
+            filename="custom.wav",
+            bpm=120.0,
+            duration=60.0,
+            peaks=[],
+            sections=["full_track"],
+            beat_times=[float(i) * 0.5 for i in range(60)],
+            intensity_curve=[0.9] * 60,
+        )
+        config = PacingConfig(min_clip_seconds=3.0)
+        segments = generator.build_segment_plan(audio, video_clips, config)
+
+        # All segments except the last one must meet the minimum
+        # (the last segment may have fewer remaining beats)
+        for seg in segments[:-1]:
+            assert seg.duration >= 3.0
+
+
+class TestPacingConfig:
+    """Tests for PacingConfig loading and overrides."""
+
+    def test_default_pacing_config_values(self):
+        """Default PacingConfig has sensible values."""
+        config = PacingConfig()
+        assert config.min_clip_seconds == 1.5
+        assert config.high_intensity_seconds == 2.5
+        assert config.medium_intensity_seconds == 4.0
+        assert config.low_intensity_seconds == 6.0
+        assert config.snap_to_beats is True
+
+    def test_custom_pacing_overrides(self, generator, video_clips):
+        """Custom pacing values produce expected durations."""
+        # Use 36 beats (divisible by 6) so all segments are full-length
+        audio = AudioAnalysisResult(
+            filename="custom.wav",
+            bpm=120.0,      # spb = 0.5s
+            duration=30.0,
+            peaks=[],
+            sections=["full_track"],
+            beat_times=[float(i) * 0.5 for i in range(36)],
+            intensity_curve=[0.5] * 36,  # All medium
+        )
+
+        # Set medium to 3.0s → should produce 6-beat segments at 120 BPM
+        config = PacingConfig(medium_intensity_seconds=3.0)
+        segments = generator.build_segment_plan(audio, video_clips, config)
+
+        for seg in segments:
+            assert seg.intensity_level == "medium"
+            # 3.0s / 0.5 spb = 6 beats → 3.0s duration
+            assert abs(seg.duration - 3.0) < 0.01
+
+    def test_load_pacing_config_returns_defaults_for_missing_file(self):
+        """Loading from a non-existent path returns defaults."""
+        config = load_pacing_config("/nonexistent/path.yaml")
+        assert config == PacingConfig()
+
+    def test_load_pacing_config_reads_yaml(self, tmp_path):
+        """Loading from a valid YAML file returns correct values."""
+        config_file = tmp_path / "test_config.yaml"
+        config_file.write_text(
+            "pacing:\n"
+            "  min_clip_seconds: 2.0\n"
+            "  high_intensity_seconds: 3.0\n"
+        )
+
+        config = load_pacing_config(str(config_file))
+        assert config.min_clip_seconds == 2.0
+        assert config.high_intensity_seconds == 3.0
+        # Other values should be defaults
+        assert config.medium_intensity_seconds == 4.0
 
 
 class TestGenerateValidation:

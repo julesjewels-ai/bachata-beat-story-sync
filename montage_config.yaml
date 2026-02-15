@@ -1,0 +1,19 @@
+# Montage Pacing Configuration
+# Adjust these values to control the feel of the video montage.
+# All durations are in seconds.
+
+pacing:
+  # Hard floor — no clip will ever be shorter than this
+  min_clip_seconds: 1.5
+
+  # Target durations per intensity level
+  high_intensity_seconds: 2.5    # Energetic moments — quick but watchable
+  medium_intensity_seconds: 4.0  # Standard pacing — the backbone
+  low_intensity_seconds: 6.0     # Breathing room — let the viewer absorb
+
+  # Snap clip durations to the nearest beat boundary so cuts feel musical
+  snap_to_beats: true
+
+  # Intensity thresholds (0.0 – 1.0)
+  high_intensity_threshold: 0.65
+  low_intensity_threshold: 0.35
