@@ -16,7 +16,6 @@ def test_excel_report_includes_chart(tmp_path):
 
     # Mock Data
     audio_data = AudioAnalysisResult(
-        file_path="mock/test_audio.wav",
         filename="test_audio.wav",
         bpm=120,
         duration=60,

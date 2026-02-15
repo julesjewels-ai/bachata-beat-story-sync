@@ -76,7 +76,7 @@ class AudioAnalyzer:
                 )
 
             # Convert numpy types to python types for Pydantic
-            bpm_val = float(tempo) if np.ndim(tempo) == 0 else float(tempo[0])
+            bpm_val = float(np.asarray(tempo).flat[0])
             peaks_list = [float(t) for t in onset_times]
 
             # Placeholder for segmentation (requires more complex analysis)
@@ -93,5 +93,5 @@ class AudioAnalyzer:
             )
 
         except Exception as e:
-            logger.error(f"Failed to analyze audio file {file_path}: {e}")
+            logger.error("Failed to analyze audio file %s: %s", file_path, e)
             raise RuntimeError(f"Audio analysis failed: {e}") from e

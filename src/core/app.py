@@ -74,9 +74,9 @@ class BachataSyncEngine:
             input_data = VideoAnalysisInput(file_path=video_path)
             return self.video_analyzer.analyze(input_data)
         except (ValidationError, ValueError) as e:
-            logger.warning(f"Skipping invalid video {video_path}: {e}")
+            logger.warning("Skipping invalid video %s: %s", video_path, e)
         except Exception as e:
-            logger.error(f"Error processing {video_path}: {e}")
+            logger.error("Error processing %s: %s", video_path, e)
 
         return None
 
@@ -100,8 +100,8 @@ class BachataSyncEngine:
             Path to the generated output video.
         """
         logger.info(
-            f"Synthesizing {len(video_clips)} clips against "
-            f"{audio_data.bpm} BPM audio..."
+            "Synthesizing %d clips against %s BPM audio...",
+            len(video_clips), audio_data.bpm
         )
 
         return self.montage_generator.generate(

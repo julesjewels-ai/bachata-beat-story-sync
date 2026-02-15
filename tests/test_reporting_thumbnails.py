@@ -15,7 +15,6 @@ def test_generate_report_with_thumbnails(tmp_path):
     img_bytes = img_byte_arr.getvalue()
 
     audio_data = AudioAnalysisResult(
-        file_path="mock/bachata.wav",
         filename="bachata.wav", bpm=128.0, duration=180.0, peaks=[], sections=[]
     )
 

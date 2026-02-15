@@ -53,7 +53,7 @@ class ExcelReportGenerator:
         self._build_visualization_sheet(wb, "Video Library", len(video_data))
 
         wb.save(output_path)
-        logger.info(f"Report generated at: {output_path}")
+        logger.info("Report generated at: %s", output_path)
         return output_path
 
     def _write_headers(self, ws, headers: List[str], center: bool = False) -> None:

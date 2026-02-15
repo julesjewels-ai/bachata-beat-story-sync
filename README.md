@@ -8,7 +8,7 @@ An automated video editing tool that analyzes Bachata audio tracks (`.wav` / `.m
 |---------|--------|
 | Audio Beat & Onset Detection (Librosa) | ✅ |
 | Video Motion-Intensity Scoring (OpenCV) | ✅ |
-| Automated Video Montage Generation (MoviePy) | ✅ |
+| Automated Video Montage Generation (FFmpeg) | ✅ |
 | Excel Analysis Reports with Charts & Thumbnails | ✅ |
 | Rich Console Progress Feedback | ✅ |
 | Musical Section Segmentation | 🔜 Planned |
@@ -66,7 +66,7 @@ make clean    # Remove venv, caches, and output files
 | Python 3.9+ | Core runtime |
 | Librosa | Audio analysis |
 | OpenCV | Video frame analysis |
-| MoviePy | Video editing & export |
+| FFmpeg | Video segment extraction & assembly |
 | Pydantic | Input validation & DTOs |
 | openpyxl | Excel report generation |
 | Rich | Console progress bars |

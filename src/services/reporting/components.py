@@ -90,6 +90,6 @@ class ThumbnailEmbedder:
 
         except Exception as e:
             logger.warning(
-                f"Could not embed image at {row},{col}: {e}"
+                "Could not embed image at %d,%d: %s", row, col, e
             )
             return False

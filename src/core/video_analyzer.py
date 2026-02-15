@@ -61,7 +61,7 @@ class VideoAnalyzer:
             # Reset frame position for intensity calculation
             if not cap.set(cv2.CAP_PROP_POS_FRAMES, 0):
                 logger.warning(
-                    f"Could not reset frame position for {file_path}"
+                    "Could not reset frame position for %s", file_path
                 )
 
             intensity_score = self._calculate_intensity(cap)
@@ -90,7 +90,7 @@ class VideoAnalyzer:
 
             return buffer.tobytes()
         except Exception as e:
-            logger.warning(f"Failed to extract thumbnail: {e}")
+            logger.warning("Failed to extract thumbnail: %s", e)
             return None
 
     def _get_middle_frame(self, cap: cv2.VideoCapture) -> Optional[np.ndarray]:

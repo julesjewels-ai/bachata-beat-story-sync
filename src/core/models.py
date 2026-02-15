@@ -3,13 +3,15 @@ Data Transfer Objects (DTOs) for Bachata Beat-Story Sync.
 These models define the strict contracts for data exchange between layers.
 """
 from typing import List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class AudioAnalysisResult(BaseModel):
     """
     Result model for audio analysis.
     """
+    model_config = ConfigDict(extra="forbid")
+
     filename: str = Field(..., description="Name of the audio file")
     bpm: float = Field(..., description="Beats per minute of the track")
     duration: float = Field(
@@ -35,6 +37,8 @@ class VideoAnalysisResult(BaseModel):
     """
     Result model for video analysis.
     """
+    model_config = ConfigDict(extra="forbid")
+
     path: str = Field(..., description="Absolute path to the video file")
     intensity_score: float = Field(
         ..., description="Visual intensity score (0.0 to 1.0)"
@@ -51,6 +55,8 @@ class SegmentPlan(BaseModel):
     """
     One planned clip segment in the montage timeline.
     """
+    model_config = ConfigDict(extra="forbid")
+
     video_path: str = Field(
         ..., description="Path to the source video file"
     )
@@ -75,6 +81,8 @@ class PacingConfig(BaseModel):
     Controls how long clips last at each intensity level, the minimum
     clip duration, and whether durations snap to beat boundaries.
     """
+    model_config = ConfigDict(extra="forbid")
+
     min_clip_seconds: float = Field(
         1.5, description="Hard floor — no clip shorter than this (seconds)"
     )

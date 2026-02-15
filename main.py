@@ -62,22 +62,22 @@ def main() -> None:
 
     try:
         # 1. Analyze Audio
-        logger.info(f"Analyzing audio track: {args.audio}")
+        logger.info("Analyzing audio track: %s", args.audio)
         audio_input = AudioAnalysisInput(file_path=args.audio)
         audio_meta = audio_analyzer.analyze(audio_input)
         logger.info(
-            f"Detected BPM: {audio_meta.bpm} | "
-            f"Emotional Peaks: {len(audio_meta.peaks)}"
+            "Detected BPM: %s | Emotional Peaks: %d",
+            audio_meta.bpm, len(audio_meta.peaks)
         )
 
         # 2. Scan Videos
-        logger.info(f"Scanning video library in: {args.video_dir}")
+        logger.info("Scanning video library in: %s", args.video_dir)
         # Use RichProgressObserver for visual feedback
         observer = RichProgressObserver()
         video_clips = engine.scan_video_library(
             args.video_dir, observer=observer
         )
-        logger.info(f"Found {len(video_clips)} suitable clips.")
+        logger.info("Found %d suitable clips.", len(video_clips))
 
         # 3. Sync and Generate
         logger.info("Syncing visual narrative to musical dynamics...")
@@ -85,12 +85,13 @@ def main() -> None:
             audio_meta, video_clips, args.output,
             audio_path=args.audio
         )
-        logger.info(f"Process complete. Output saved to: {result_path}")
+        logger.info("Process complete. Output saved to: %s", result_path)
 
         # 4. Generate Report
         if args.export_report:
             logger.info(
-                f"Generating analysis report to {args.export_report}..."
+                "Generating analysis report to %s...",
+                args.export_report
             )
             report_gen = ExcelReportGenerator()
             report_gen.generate_report(
@@ -98,10 +99,10 @@ def main() -> None:
             )
 
     except ValidationError as e:
-        logger.error(f"Input validation error: {e}")
+        logger.error("Input validation error: %s", e)
         sys.exit(1)
     except Exception as e:
-        logger.error(f"An error occurred during processing: {e}")
+        logger.error("An error occurred during processing: %s", e)
         sys.exit(1)
 
 

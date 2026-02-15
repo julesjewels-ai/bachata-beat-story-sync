@@ -1,0 +1,3 @@
+"""
+Console UI package.
+"""

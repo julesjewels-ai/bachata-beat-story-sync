@@ -54,12 +54,13 @@ def load_pacing_config(
                 raw = yaml.safe_load(f) or {}
             pacing_data = raw.get("pacing", {})
             config = PacingConfig(**pacing_data)
-            logger.info(f"Loaded pacing config from {path}")
+            logger.info("Loaded pacing config from %s", path)
             return config
         except Exception as e:
             logger.warning(
-                f"Failed to load pacing config from {path}: {e}. "
-                "Using defaults."
+                "Failed to load pacing config from %s: %s. "
+                "Using defaults.",
+                path, e
             )
 
     return PacingConfig()
@@ -234,8 +235,9 @@ class MontageGenerator:
             )
 
         logger.info(
-            f"Built segment plan: {len(segments)} segments, "
-            f"total duration: {segments[-1].timeline_position + segments[-1].duration:.1f}s"
+            "Built segment plan: %d segments, total duration: %.1fs",
+            len(segments),
+            segments[-1].timeline_position + segments[-1].duration
         )
 
         # Create temp directory for intermediate files
@@ -257,7 +259,7 @@ class MontageGenerator:
             else:
                 shutil.move(concat_path, output_path)
 
-            logger.info(f"Montage complete: {output_path}")
+            logger.info("Montage complete: %s", output_path)
             return output_path
 
         finally:
@@ -377,7 +379,7 @@ class MontageGenerator:
         Raises:
             RuntimeError: If FFmpeg exits with non-zero or times out.
         """
-        logger.debug(f"FFmpeg [{stage_name}]: {' '.join(cmd)}")
+        logger.debug("FFmpeg [%s]: %s", stage_name, ' '.join(cmd))
 
         try:
             result = subprocess.run(

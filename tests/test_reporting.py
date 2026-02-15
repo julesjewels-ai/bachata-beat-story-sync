@@ -11,7 +11,6 @@ def test_generate_report(tmp_path):
     output_path = tmp_path / "test_report.xlsx"
 
     audio_data = AudioAnalysisResult(
-        file_path="mock/path/to/bachata.wav",
         filename="bachata.wav",
         bpm=128.0,
         duration=180.0,
