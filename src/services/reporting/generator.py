@@ -66,12 +66,18 @@ class ExcelReportGenerator:
                              video_count: int) -> None:
         """Constructs the summary sheet."""
         headers = ["Metric", "Value"]
+        # Format sections
+        section_str = ", ".join([
+            f"{s.label} ({s.start_time:.1f}-{s.end_time:.1f}s)"
+            for s in audio_data.sections
+        ])
+
         data = [
             ("Audio File", audio_data.filename),
             ("BPM", audio_data.bpm),
             ("Duration (s)", audio_data.duration),
             ("Peak Count", len(audio_data.peaks)),
-            ("Sections", ", ".join(audio_data.sections)),
+            ("Sections", section_str),
             ("Total Videos Scanned", video_count)
         ]
 

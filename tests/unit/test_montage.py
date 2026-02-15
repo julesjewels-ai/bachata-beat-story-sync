@@ -17,6 +17,7 @@ from src.core.models import (
     AudioAnalysisResult,
     PacingConfig,
     VideoAnalysisResult,
+    AudioSection,
 )
 
 
@@ -39,7 +40,14 @@ def audio_data():
         bpm=120.0,
         duration=30.0,
         peaks=[0.5, 1.0, 2.0],
-        sections=["full_track"],
+        sections=[
+            AudioSection(
+                start_time=0.0,
+                end_time=30.0,
+                duration=30.0,
+                label="full_track"
+            )
+        ],
         beat_times=[float(i) * 0.5 for i in range(16)],
         intensity_curve=[
             0.8, 0.9, 0.7, 0.5, 0.4, 0.3, 0.2, 0.1,
@@ -56,7 +64,14 @@ def audio_data_empty_beats():
         bpm=0.0,
         duration=10.0,
         peaks=[],
-        sections=["full_track"],
+        sections=[
+            AudioSection(
+                start_time=0.0,
+                end_time=10.0,
+                duration=10.0,
+                label="full_track"
+            )
+        ],
         beat_times=[],
         intensity_curve=[],
     )
@@ -113,7 +128,14 @@ class TestBuildSegmentPlan:
             bpm=120.0,
             duration=30.0,
             peaks=[],
-            sections=["full_track"],
+            sections=[
+                AudioSection(
+                    start_time=0.0,
+                    end_time=30.0,
+                    duration=30.0,
+                    label="full_track"
+                )
+            ],
             beat_times=[float(i) * 0.5 for i in range(16)],
             intensity_curve=[0.9] * 16,
         )
@@ -131,7 +153,14 @@ class TestBuildSegmentPlan:
             bpm=120.0,
             duration=30.0,
             peaks=[],
-            sections=["full_track"],
+            sections=[
+                AudioSection(
+                    start_time=0.0,
+                    end_time=30.0,
+                    duration=30.0,
+                    label="full_track"
+                )
+            ],
             beat_times=[float(i) * 0.5 for i in range(16)],
             intensity_curve=[0.1] * 16,
         )
@@ -151,7 +180,14 @@ class TestBuildSegmentPlan:
             bpm=120.0,
             duration=30.0,
             peaks=[],
-            sections=["full_track"],
+            sections=[
+                AudioSection(
+                    start_time=0.0,
+                    end_time=30.0,
+                    duration=30.0,
+                    label="full_track"
+                )
+            ],
             beat_times=[float(i) * 0.5 for i in range(16)],
             intensity_curve=[0.9] * 16,
         )
@@ -160,7 +196,14 @@ class TestBuildSegmentPlan:
             bpm=120.0,
             duration=30.0,
             peaks=[],
-            sections=["full_track"],
+            sections=[
+                AudioSection(
+                    start_time=0.0,
+                    end_time=30.0,
+                    duration=30.0,
+                    label="full_track"
+                )
+            ],
             beat_times=[float(i) * 0.5 for i in range(16)],
             intensity_curve=[0.1] * 16,
         )
@@ -202,7 +245,14 @@ class TestBuildSegmentPlan:
             bpm=120.0,
             duration=1.0,
             peaks=[],
-            sections=["full_track"],
+            sections=[
+                AudioSection(
+                    start_time=0.0,
+                    end_time=1.0,
+                    duration=1.0,
+                    label="full_track"
+                )
+            ],
             beat_times=[0.5],
             intensity_curve=[0.5],
         )
@@ -228,7 +278,14 @@ class TestBuildSegmentPlan:
             bpm=120.0,
             duration=30.0,
             peaks=[],
-            sections=["full_track"],
+            sections=[
+                AudioSection(
+                    start_time=0.0,
+                    end_time=30.0,
+                    duration=30.0,
+                    label="full_track"
+                )
+            ],
             beat_times=[float(i) * 0.5 for i in range(32)],
             intensity_curve=[0.5] * 32,
         )
@@ -264,7 +321,14 @@ class TestMinimumClipDuration:
             bpm=180.0,   # Very fast — spb = 0.333s
             duration=30.0,
             peaks=[],
-            sections=["full_track"],
+            sections=[
+                AudioSection(
+                    start_time=0.0,
+                    end_time=30.0,
+                    duration=30.0,
+                    label="full_track"
+                )
+            ],
             beat_times=[float(i) * 0.333 for i in range(30)],
             intensity_curve=[0.9] * 30,  # All high intensity
         )
@@ -281,7 +345,14 @@ class TestMinimumClipDuration:
             bpm=120.0,
             duration=60.0,
             peaks=[],
-            sections=["full_track"],
+            sections=[
+                AudioSection(
+                    start_time=0.0,
+                    end_time=60.0,
+                    duration=60.0,
+                    label="full_track"
+                )
+            ],
             beat_times=[float(i) * 0.5 for i in range(60)],
             intensity_curve=[0.9] * 60,
         )
@@ -314,7 +385,14 @@ class TestPacingConfig:
             bpm=120.0,      # spb = 0.5s
             duration=30.0,
             peaks=[],
-            sections=["full_track"],
+            sections=[
+                AudioSection(
+                    start_time=0.0,
+                    end_time=30.0,
+                    duration=30.0,
+                    label="full_track"
+                )
+            ],
             beat_times=[float(i) * 0.5 for i in range(36)],
             intensity_curve=[0.5] * 36,  # All medium
         )
@@ -357,8 +435,9 @@ class TestGenerateValidation:
         with pytest.raises(ValueError, match="No video clips"):
             generator.generate(audio_data, [], "/tmp/out.mp4")
 
+    @patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")
     def test_raises_on_no_beats(
-        self, generator, audio_data_empty_beats, video_clips
+        self, mock_which, generator, audio_data_empty_beats, video_clips
     ):
         """No beats in audio raises ValueError."""
         with pytest.raises(ValueError, match="segment plan"):

@@ -5,6 +5,7 @@ import pytest
 import numpy as np
 from unittest.mock import patch
 from pydantic import ValidationError
+from src.core.models import AudioSection
 from src.core.audio_analyzer import AudioAnalyzer, AudioAnalysisInput
 
 
@@ -48,12 +49,23 @@ class TestAudioAnalyzer:
         )
         mock_librosa.onset.onset_detect.return_value = np.array([10, 20])
         mock_librosa.frames_to_time.side_effect = [
-            np.array([0.5, 1.0, 1.5]),     # beat_times
-            np.array([0.5, 1.0]),           # onset_times
+            np.array([0.5, 1.0, 1.5]),  # beat_times
+            np.array([0.5, 1.0]),  # onset_times
             np.array([0.0, 0.5, 1.0, 1.5, 2.0]),  # rms_times
+            np.array([0.0, 90.0, 180.0]),  # segment_times
         ]
         mock_librosa.feature.rms.return_value = np.array(
             [[0.2, 0.5, 0.8, 0.3, 0.1]]
+        )
+
+        # Setup mocks for segmentation
+        # Mock Chroma and MFCC extraction
+        mock_librosa.feature.chroma_cqt.return_value = np.zeros((12, 100))
+        mock_librosa.feature.mfcc.return_value = np.zeros((20, 100))
+        # Mock agglomerative clustering (returns segment labels for each frame)
+        # 50 frames of label 0, 50 frames of label 1
+        mock_librosa.segment.agglomerative.return_value = np.array(
+            [0]*50 + [1]*50
         )
 
         input_data = AudioAnalysisInput(file_path="song.mp3")
@@ -64,7 +76,20 @@ class TestAudioAnalyzer:
         assert result.bpm == 128.0
         assert result.duration == 180.0
         assert result.peaks == [0.5, 1.0]
-        assert result.sections == ["full_track"]
+
+        # Verify sections
+        assert len(result.sections) == 2
+        assert isinstance(result.sections[0], AudioSection)
+        assert result.sections[0].label == "Section 1"
+        assert result.sections[0].start_time == 0.0
+        assert result.sections[0].end_time == 90.0
+        assert result.sections[0].duration == 90.0
+
+        assert isinstance(result.sections[1], AudioSection)
+        assert result.sections[1].label == "Section 2"
+        assert result.sections[1].start_time == 90.0
+        assert result.sections[1].end_time == 180.0
+        assert result.sections[1].duration == 90.0
 
         # New fields
         assert result.beat_times == [0.5, 1.0, 1.5]
@@ -91,3 +116,38 @@ class TestAudioAnalyzer:
             self.analyzer.analyze(input_data)
 
         assert "Audio analysis failed" in str(excinfo.value)
+
+    @patch("src.core.audio_analyzer.librosa")
+    @patch("src.core.validation.os.path.exists", return_value=True)
+    def test_analyze_fallback_on_segmentation_failure(
+        self, mock_exists, mock_librosa
+    ):
+        """Test that analyze falls back to full_track if segmentation fails."""
+        # Setup mocks for successful basic analysis
+        mock_librosa.load.return_value = (np.zeros(100), 22050)
+        mock_librosa.get_duration.return_value = 180.0
+        mock_librosa.beat.beat_track.return_value = (128.0, np.array([10]))
+
+        # Configure frames_to_time to handle multiple calls without running out
+        # of side_effect.
+        # beat_times, onset_times, rms_times
+        mock_librosa.frames_to_time.side_effect = [
+            np.array([0.5]),
+            np.array([0.5]),
+            np.array([0.0])
+        ]
+
+        mock_librosa.onset.onset_detect.return_value = np.array([10])
+        mock_librosa.feature.rms.return_value = np.array([[0.5]])
+
+        # Mock segmentation failure (e.g. chroma extraction fails)
+        mock_librosa.feature.chroma_cqt.side_effect = Exception(
+            "Chroma failed"
+        )
+
+        input_data = AudioAnalysisInput(file_path="song.mp3")
+        result = self.analyzer.analyze(input_data)
+
+        assert len(result.sections) == 1
+        assert result.sections[0].label == "full_track"
+        assert result.sections[0].duration == 180.0

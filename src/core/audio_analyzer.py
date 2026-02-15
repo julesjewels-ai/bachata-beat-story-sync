@@ -3,11 +3,12 @@ Audio analysis module for Bachata Beat-Story Sync.
 """
 import logging
 import os
+from typing import List
 import numpy as np
 import librosa
 from pydantic import BaseModel, Field, field_validator
 from src.core.validation import validate_file_path
-from src.core.models import AudioAnalysisResult
+from src.core.models import AudioAnalysisResult, AudioSection
 
 logger = logging.getLogger(__name__)
 
@@ -79,8 +80,8 @@ class AudioAnalyzer:
             bpm_val = float(np.asarray(tempo).flat[0])
             peaks_list = [float(t) for t in onset_times]
 
-            # Placeholder for segmentation (requires more complex analysis)
-            sections = ["full_track"]
+            # Perform structural segmentation
+            sections = self._detect_sections(y, int(sr), duration)
 
             return AudioAnalysisResult(
                 filename=os.path.basename(file_path),
@@ -95,3 +96,92 @@ class AudioAnalyzer:
         except Exception as e:
             logger.error("Failed to analyze audio file %s: %s", file_path, e)
             raise RuntimeError(f"Audio analysis failed: {e}") from e
+
+    def _detect_sections(
+        self, y: np.ndarray, sr: int, duration: float
+    ) -> List[AudioSection]:
+        """
+        Detects musical sections using structural segmentation.
+        """
+        try:
+            # Compute features for segmentation
+            # 1. Chroma (harmonic content)
+            chroma = librosa.feature.chroma_cqt(y=y, sr=sr)
+            # 2. MFCC (timbral content)
+            mfcc = librosa.feature.mfcc(y=y, sr=sr)
+
+            # Synchronize features to the shorter length
+            min_frames = min(chroma.shape[1], mfcc.shape[1])
+            chroma = chroma[:, :min_frames]
+            mfcc = mfcc[:, :min_frames]
+
+            # Stack vertically
+            data = np.vstack([chroma, mfcc])
+
+            # Use librosa's agglomerative clustering
+            # k=8 assumes roughly 8 distinct structural components
+            labels = librosa.segment.agglomerative(data, k=8)
+
+            # Find boundaries where the label changes
+            boundary_frames = [0]
+            for i in range(1, len(labels)):
+                if labels[i] != labels[i - 1]:
+                    boundary_frames.append(i)
+            # Add the final frame
+            boundary_frames.append(len(labels))
+
+            # Convert frame indices to time
+            boundary_times = librosa.frames_to_time(boundary_frames, sr=sr)
+
+            sections: List[AudioSection] = []
+
+            for i in range(len(boundary_times) - 1):
+                start_time = float(boundary_times[i])
+                end_time = float(boundary_times[i + 1])
+
+                # Clamp end_time to duration
+                if end_time > duration:
+                    end_time = duration
+
+                if start_time >= duration:
+                    break
+
+                section_dur = end_time - start_time
+
+                # Filter out very short segments (< 4s)
+                if section_dur < 4.0 and sections:
+                    # Merge with previous section
+                    prev = sections[-1]
+                    prev.end_time = end_time
+                    prev.duration += section_dur
+                else:
+                    sections.append(
+                        AudioSection(
+                            start_time=start_time,
+                            end_time=end_time,
+                            duration=section_dur,
+                            label=f"Section {len(sections) + 1}"
+                        )
+                    )
+
+            # Fallback if no valid sections found
+            if not sections:
+                return [AudioSection(
+                    start_time=0.0,
+                    end_time=duration,
+                    duration=duration,
+                    label="full_track"
+                )]
+
+            return sections
+
+        except Exception as e:
+            logger.warning(
+                "Segmentation failed: %s. Fallback to full track.", e
+            )
+            return [AudioSection(
+                start_time=0.0,
+                end_time=duration,
+                duration=duration,
+                label="full_track"
+            )]

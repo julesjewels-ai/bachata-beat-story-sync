@@ -4,18 +4,31 @@ Tests for the ExcelReportGenerator.
 import os
 import openpyxl
 from src.services.reporting import ExcelReportGenerator
-from src.core.models import AudioAnalysisResult, VideoAnalysisResult
+from src.core.models import (
+    AudioAnalysisResult,
+    VideoAnalysisResult,
+    AudioSection
+)
 
 
 def test_generate_report(tmp_path):
     output_path = tmp_path / "test_report.xlsx"
+
+    sections = [
+        AudioSection(
+            start_time=0.0, end_time=30.0, duration=30.0, label="intro"
+        ),
+        AudioSection(
+            start_time=30.0, end_time=60.0, duration=30.0, label="verse"
+        ),
+    ]
 
     audio_data = AudioAnalysisResult(
         filename="bachata.wav",
         bpm=128.0,
         duration=180.0,
         peaks=[10.5, 20.0],
-        sections=["intro", "verse"]
+        sections=sections
     )
 
     video_data = [
