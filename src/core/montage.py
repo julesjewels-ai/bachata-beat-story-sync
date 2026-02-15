@@ -9,7 +9,7 @@ import os
 import shutil
 import subprocess
 import tempfile
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from src.core.interfaces import ProgressObserver
 from src.core.models import (
@@ -82,23 +82,9 @@ class MontageGenerator:
         clip_idx = 0
 
         while beat_idx < len(beat_times):
-            # Determine intensity at this beat
-            intensity = (
-                intensity_curve[beat_idx]
-                if beat_idx < len(intensity_curve)
-                else 0.5
-            )
-
-            # Variable duration based on intensity
-            if intensity >= HIGH_INTENSITY_THRESHOLD:
-                beat_count = 2
-                level = "high"
-            elif intensity < LOW_INTENSITY_THRESHOLD:
-                beat_count = 8
-                level = "low"
-            else:
-                beat_count = 4
-                level = "medium"
+            # Determine intensity and segment properties
+            intensity = self._get_intensity_at_beat(intensity_curve, beat_idx)
+            beat_count, level = self._determine_segment_properties(intensity)
 
             # Don't exceed available beats
             beat_count = min(beat_count, len(beat_times) - beat_idx)
@@ -130,6 +116,32 @@ class MontageGenerator:
             beat_idx += beat_count
 
         return segments
+
+    def _get_intensity_at_beat(
+        self, intensity_curve: List[float], beat_idx: int
+    ) -> float:
+        """Retrieve intensity at specific beat index safely."""
+        return (
+            intensity_curve[beat_idx]
+            if beat_idx < len(intensity_curve)
+            else 0.5
+        )
+
+    def _determine_segment_properties(
+        self, intensity: float
+    ) -> Tuple[int, str]:
+        """
+        Determine beat count and intensity level based on score.
+
+        Returns:
+            Tuple of (beat_count, intensity_level)
+        """
+        if intensity >= HIGH_INTENSITY_THRESHOLD:
+            return 2, "high"
+        elif intensity < LOW_INTENSITY_THRESHOLD:
+            return 8, "low"
+        else:
+            return 4, "medium"
 
     def generate(
         self,
