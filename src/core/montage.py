@@ -147,19 +147,9 @@ class MontageGenerator:
                 else 0.5
             )
 
-            # Pick target duration and speed based on intensity level
-            if intensity >= config.high_intensity_threshold:
-                target_seconds = config.high_intensity_seconds
-                level = "high"
-                speed = config.high_intensity_speed if config.speed_ramp_enabled else 1.0
-            elif intensity < config.low_intensity_threshold:
-                target_seconds = config.low_intensity_seconds
-                level = "low"
-                speed = config.low_intensity_speed if config.speed_ramp_enabled else 1.0
-            else:
-                target_seconds = config.medium_intensity_seconds
-                level = "medium"
-                speed = config.medium_intensity_speed if config.speed_ramp_enabled else 1.0
+            target_seconds, level, speed = self._determine_segment_properties(
+                intensity, config
+            )
 
             # Convert target to beats, then enforce minimum
             if config.snap_to_beats:
@@ -212,6 +202,32 @@ class MontageGenerator:
             beat_idx += beat_count
 
         return segments
+
+    def _determine_segment_properties(
+        self, intensity: float, config: PacingConfig
+    ) -> tuple[float, str, float]:
+        """
+        Determine target duration, intensity level, and speed factor based on intensity score.
+        """
+        if intensity >= config.high_intensity_threshold:
+            target_seconds = config.high_intensity_seconds
+            level = "high"
+            speed = (
+                config.high_intensity_speed if config.speed_ramp_enabled else 1.0
+            )
+        elif intensity < config.low_intensity_threshold:
+            target_seconds = config.low_intensity_seconds
+            level = "low"
+            speed = (
+                config.low_intensity_speed if config.speed_ramp_enabled else 1.0
+            )
+        else:
+            target_seconds = config.medium_intensity_seconds
+            level = "medium"
+            speed = (
+                config.medium_intensity_speed if config.speed_ramp_enabled else 1.0
+            )
+        return target_seconds, level, speed
 
     def generate(
         self,
