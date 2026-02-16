@@ -17,7 +17,10 @@ def test_engine_initialization(engine):
     assert engine.montage_generator is not None
 
 
-def test_generate_story_delegates_to_montage():
+from unittest.mock import patch
+
+@patch("shutil.which", return_value="/usr/bin/ffmpeg")
+def test_generate_story_delegates_to_montage(mock_which):
     """Test that generate_story delegates to MontageGenerator."""
     engine = BachataSyncEngine()
 

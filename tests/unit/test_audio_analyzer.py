@@ -5,7 +5,8 @@ import pytest
 import numpy as np
 from unittest.mock import patch
 from pydantic import ValidationError
-from src.core.audio_analyzer import AudioAnalyzer, AudioAnalysisInput
+from src.core.audio_analyzer import AudioAnalyzer
+from src.core.models import AudioAnalysisInput
 
 
 class TestAudioAnalyzer:

@@ -5,25 +5,11 @@ import logging
 import os
 import numpy as np
 import librosa
-from pydantic import BaseModel, Field, field_validator
-from src.core.validation import validate_file_path
-from src.core.models import AudioAnalysisResult
+from src.core.models import (
+    AudioAnalysisResult, AudioAnalysisInput
+)
 
 logger = logging.getLogger(__name__)
-
-SUPPORTED_AUDIO_EXTENSIONS = {'.wav', '.mp3'}
-
-
-class AudioAnalysisInput(BaseModel):
-    """
-    Input model for audio analysis validation.
-    """
-    file_path: str = Field(..., description="Path to the audio file")
-
-    @field_validator('file_path')
-    @classmethod
-    def validate_path(cls, v: str) -> str:
-        return validate_file_path(v, SUPPORTED_AUDIO_EXTENSIONS)
 
 
 class AudioAnalyzer:

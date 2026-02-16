@@ -5,7 +5,8 @@ import pytest
 from unittest.mock import patch, MagicMock
 import numpy as np
 from pydantic import ValidationError
-from src.core.video_analyzer import VideoAnalyzer, VideoAnalysisInput
+from src.core.video_analyzer import VideoAnalyzer
+from src.core.models import VideoAnalysisInput
 
 
 @pytest.fixture

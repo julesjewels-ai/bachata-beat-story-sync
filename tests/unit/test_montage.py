@@ -357,8 +357,9 @@ class TestGenerateValidation:
         with pytest.raises(ValueError, match="No video clips"):
             generator.generate(audio_data, [], "/tmp/out.mp4")
 
+    @patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")
     def test_raises_on_no_beats(
-        self, generator, audio_data_empty_beats, video_clips
+        self, mock_which, generator, audio_data_empty_beats, video_clips
     ):
         """No beats in audio raises ValueError."""
         with pytest.raises(ValueError, match="segment plan"):
