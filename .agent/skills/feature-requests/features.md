@@ -60,9 +60,9 @@ Detect musical sections (intro, verse, chorus, breakdown, outro) from audio anal
 
 | Field       | Value                                |
 |-------------|--------------------------------------|
-| **Status**  | `PROPOSED`                           |
+| **Status**  | `IMPLEMENTED`                        |
 | **Priority**| 🟢 Low                               |
-| **Effort**  | Low–Medium                           |
+| **Effort**  | Low–Medium (Approach C — hybrid concat + selective xfade) |
 | **Impact**  | Medium — polish and professionalism  |
 
 ### Description
@@ -81,3 +81,21 @@ Align transition effects precisely to beat timestamps instead of hard-cutting.
 
 ### Description
 Caps montage generation to a maximum of 4 clip segments and 10 seconds of music. Activated via `--test-mode` CLI flag or by setting `max_clips` / `max_duration_seconds` in `montage_config.yaml`.
+
+---
+
+## FEAT-006: Clip Variety & Start Offset
+
+| Field       | Value                                |
+|-------------|--------------------------------------|
+| **Status**  | `PROPOSED`                           |
+| **Priority**| 🔴 High                              |
+| **Effort**  | Low–Medium                           |
+| **Impact**  | High — eliminates repetitive feel    |
+
+### Description
+When a clip is reused across multiple segments, the current code always extracts from `start_time=0.0`, making repeated clips look identical. This feature should:
+
+- **Randomise or offset the start position** within each clip so repeated clips show different parts of the footage
+- Optionally **match clip intensity to audio intensity** instead of pure round-robin selection
+- Ensure the selected start offset never exceeds `clip.duration - segment_duration`

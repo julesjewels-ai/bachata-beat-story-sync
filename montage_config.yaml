@@ -32,3 +32,9 @@ pacing:
   section_detection_enabled: true
   section_smoothing_window: 8     # Beats to smooth over (higher = fewer sections)
   section_change_threshold: 0.15  # Intensity change to trigger a boundary (0.0-1.0)
+
+  # Beat-snap transitions — applied at musical section boundaries
+  # Set to 'none' to keep hard cuts (default/current behaviour)
+  # Options: 'fade', 'wipeleft', 'wiperight', 'slideup', 'slidedown', etc.
+  transition_type: fade
+  transition_duration: 0.5        # Duration of each transition (seconds)

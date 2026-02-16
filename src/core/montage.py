@@ -288,9 +288,61 @@ class MontageGenerator:
                 segments, temp_dir, observer
             )
 
-            # 3. Concatenate segments
-            concat_path = os.path.join(temp_dir, "concat_output.mp4")
-            self._concatenate_segments(segment_files, concat_path)
+            # 3. Group-and-transition or simple concat
+            transitions_enabled = (
+                config.transition_type
+                and config.transition_type.lower() != "none"
+            )
+
+            if transitions_enabled:
+                # Group segments by musical section
+                groups = self._group_segments_by_section(segments)
+
+                if len(groups) > 1:
+                    # Concat within each group, then xfade between groups
+                    group_files = []
+                    file_idx = 0
+                    for g_idx, group in enumerate(groups):
+                        group_seg_files = segment_files[
+                            file_idx:file_idx + len(group)
+                        ]
+                        file_idx += len(group)
+
+                        if len(group_seg_files) == 1:
+                            group_files.append(group_seg_files[0])
+                        else:
+                            group_out = os.path.join(
+                                temp_dir, f"group_{g_idx:04d}.mp4"
+                            )
+                            self._concatenate_segments(
+                                group_seg_files, group_out
+                            )
+                            group_files.append(group_out)
+
+                    # Apply xfade transitions between groups
+                    concat_path = os.path.join(
+                        temp_dir, "concat_output.mp4"
+                    )
+                    self._apply_transitions(
+                        group_files,
+                        concat_path,
+                        config.transition_type,
+                        config.transition_duration,
+                    )
+                else:
+                    # Only one section — fall back to simple concat
+                    concat_path = os.path.join(
+                        temp_dir, "concat_output.mp4"
+                    )
+                    self._concatenate_segments(
+                        segment_files, concat_path
+                    )
+            else:
+                # No transitions — simple concat (current behaviour)
+                concat_path = os.path.join(
+                    temp_dir, "concat_output.mp4"
+                )
+                self._concatenate_segments(segment_files, concat_path)
 
             # 4. Overlay audio (or just copy if no audio)
             if audio_path and os.path.exists(audio_path):
@@ -369,6 +421,33 @@ class MontageGenerator:
 
         return segment_files
 
+    @staticmethod
+    def _group_segments_by_section(
+        segments: List[SegmentPlan],
+    ) -> List[List[SegmentPlan]]:
+        """
+        Group consecutive segments that share the same section_label.
+
+        Returns a list of groups, where each group is a list of
+        SegmentPlan objects with the same musical section label.
+        Adjacent segments with matching labels are merged into one group.
+        """
+        if not segments:
+            return []
+
+        groups: List[List[SegmentPlan]] = []
+        current_group: List[SegmentPlan] = [segments[0]]
+
+        for seg in segments[1:]:
+            if seg.section_label == current_group[-1].section_label:
+                current_group.append(seg)
+            else:
+                groups.append(current_group)
+                current_group = [seg]
+
+        groups.append(current_group)
+        return groups
+
     def _concatenate_segments(
         self, segment_files: List[str], output_path: str
     ) -> None:
@@ -400,6 +479,110 @@ class MontageGenerator:
         finally:
             if os.path.exists(concat_list_path):
                 os.remove(concat_list_path)
+
+    def _apply_transitions(
+        self,
+        group_files: List[str],
+        output_path: str,
+        transition_type: str,
+        transition_duration: float,
+    ) -> None:
+        """
+        Apply xfade transitions between group files.
+
+        Uses FFmpeg's xfade filter to blend between section groups.
+        Only processes pairs of files sequentially to keep memory bounded.
+
+        Args:
+            group_files: Ordered list of group video files.
+            transition_type: FFmpeg xfade transition name (e.g. 'fade').
+            transition_duration: Duration of each transition in seconds.
+            output_path: Path for the final transitioned output.
+        """
+        if len(group_files) < 2:
+            # Single group — just copy to output
+            if group_files:
+                shutil.copy2(group_files[0], output_path)
+            return
+
+        # Process transitions pairwise: A+B → AB, AB+C → ABC, etc.
+        # Each step only buffers 2 streams = bounded memory.
+        current_input = group_files[0]
+        temp_dir = os.path.dirname(output_path)
+
+        # Get duration of the first input for offset calculation
+        current_duration = self._get_video_duration(current_input)
+
+        for i in range(1, len(group_files)):
+            next_input = group_files[i]
+            is_last = (i == len(group_files) - 1)
+
+            # Offset = current duration minus transition overlap
+            offset = max(0.0, current_duration - transition_duration)
+
+            if is_last:
+                step_output = output_path
+            else:
+                step_output = os.path.join(
+                    temp_dir, f"xfade_step_{i:04d}.mp4"
+                )
+
+            cmd = [
+                "ffmpeg",
+                "-y",
+                "-i", current_input,
+                "-i", next_input,
+                "-filter_complex",
+                f"[0:v][1:v]xfade=transition={transition_type}"
+                f":duration={transition_duration:.3f}"
+                f":offset={offset:.3f}[v]",
+                "-map", "[v]",
+                "-c:v", "libx264",
+                "-preset", "fast",
+                "-crf", "23",
+                "-pix_fmt", "yuv420p",
+                "-an",
+                step_output,
+            ]
+
+            self._run_ffmpeg(cmd, f"transition {i}/{len(group_files) - 1}")
+
+            # Update for next iteration
+            next_duration = self._get_video_duration(next_input)
+            # New duration = old + new - overlap
+            current_duration = (
+                current_duration + next_duration - transition_duration
+            )
+            current_input = step_output
+
+    @staticmethod
+    def _get_video_duration(video_path: str) -> float:
+        """
+        Get the duration of a video file using ffprobe.
+
+        Returns:
+            Duration in seconds, or 0.0 if probe fails.
+        """
+        try:
+            result = subprocess.run(
+                [
+                    "ffprobe",
+                    "-v", "error",
+                    "-show_entries", "format=duration",
+                    "-of", "csv=p=0",
+                    video_path,
+                ],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            return float(result.stdout.strip())
+        except (ValueError, subprocess.TimeoutExpired, OSError):
+            logger.warning(
+                "Could not probe duration for %s, estimating.",
+                video_path,
+            )
+            return 0.0
 
     def _overlay_audio(
         self, video_path: str, audio_path: str, output_path: str

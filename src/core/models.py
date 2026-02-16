@@ -161,3 +161,12 @@ class PacingConfig(BaseModel):
     section_change_threshold: float = Field(
         0.15, description="Minimum intensity change to trigger a section boundary"
     )
+
+    # Transition configuration
+    transition_type: str = Field(
+        "none", description="FFmpeg xfade transition type: "
+        "'none', 'fade', 'wipeleft', 'wiperight', 'slideup', etc."
+    )
+    transition_duration: float = Field(
+        0.5, description="Duration of each transition in seconds"
+    )

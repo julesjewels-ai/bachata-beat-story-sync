@@ -64,7 +64,8 @@ class TestAudioAnalyzer:
         assert result.bpm == 128.0
         assert result.duration == 180.0
         assert result.peaks == [0.5, 1.0]
-        assert result.sections == ["full_track"]
+        assert len(result.sections) >= 1
+        assert result.sections[0].start_time >= 0.0
 
         # New fields
         assert result.beat_times == [0.5, 1.0, 1.5]

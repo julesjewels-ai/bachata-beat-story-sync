@@ -15,6 +15,7 @@ from unittest.mock import patch, MagicMock
 from src.core.montage import MontageGenerator, load_pacing_config
 from src.core.models import (
     AudioAnalysisResult,
+    MusicalSection,
     PacingConfig,
     VideoAnalysisResult,
 )
@@ -39,7 +40,7 @@ def audio_data():
         bpm=120.0,
         duration=30.0,
         peaks=[0.5, 1.0, 2.0],
-        sections=["full_track"],
+        sections=[],
         beat_times=[float(i) * 0.5 for i in range(16)],
         intensity_curve=[
             0.8, 0.9, 0.7, 0.5, 0.4, 0.3, 0.2, 0.1,
@@ -56,7 +57,7 @@ def audio_data_empty_beats():
         bpm=0.0,
         duration=10.0,
         peaks=[],
-        sections=["full_track"],
+        sections=[],
         beat_times=[],
         intensity_curve=[],
     )
@@ -113,7 +114,7 @@ class TestBuildSegmentPlan:
             bpm=120.0,
             duration=30.0,
             peaks=[],
-            sections=["full_track"],
+            sections=[],
             beat_times=[float(i) * 0.5 for i in range(16)],
             intensity_curve=[0.9] * 16,
         )
@@ -131,7 +132,7 @@ class TestBuildSegmentPlan:
             bpm=120.0,
             duration=30.0,
             peaks=[],
-            sections=["full_track"],
+            sections=[],
             beat_times=[float(i) * 0.5 for i in range(16)],
             intensity_curve=[0.1] * 16,
         )
@@ -151,7 +152,7 @@ class TestBuildSegmentPlan:
             bpm=120.0,
             duration=30.0,
             peaks=[],
-            sections=["full_track"],
+            sections=[],
             beat_times=[float(i) * 0.5 for i in range(16)],
             intensity_curve=[0.9] * 16,
         )
@@ -160,7 +161,7 @@ class TestBuildSegmentPlan:
             bpm=120.0,
             duration=30.0,
             peaks=[],
-            sections=["full_track"],
+            sections=[],
             beat_times=[float(i) * 0.5 for i in range(16)],
             intensity_curve=[0.1] * 16,
         )
@@ -202,7 +203,7 @@ class TestBuildSegmentPlan:
             bpm=120.0,
             duration=1.0,
             peaks=[],
-            sections=["full_track"],
+            sections=[],
             beat_times=[0.5],
             intensity_curve=[0.5],
         )
@@ -228,7 +229,7 @@ class TestBuildSegmentPlan:
             bpm=120.0,
             duration=30.0,
             peaks=[],
-            sections=["full_track"],
+            sections=[],
             beat_times=[float(i) * 0.5 for i in range(32)],
             intensity_curve=[0.5] * 32,
         )
@@ -264,7 +265,7 @@ class TestMinimumClipDuration:
             bpm=180.0,   # Very fast — spb = 0.333s
             duration=30.0,
             peaks=[],
-            sections=["full_track"],
+            sections=[],
             beat_times=[float(i) * 0.333 for i in range(30)],
             intensity_curve=[0.9] * 30,  # All high intensity
         )
@@ -281,7 +282,7 @@ class TestMinimumClipDuration:
             bpm=120.0,
             duration=60.0,
             peaks=[],
-            sections=["full_track"],
+            sections=[],
             beat_times=[float(i) * 0.5 for i in range(60)],
             intensity_curve=[0.9] * 60,
         )
@@ -314,7 +315,7 @@ class TestPacingConfig:
             bpm=120.0,      # spb = 0.5s
             duration=30.0,
             peaks=[],
-            sections=["full_track"],
+            sections=[],
             beat_times=[float(i) * 0.5 for i in range(36)],
             intensity_curve=[0.5] * 36,  # All medium
         )
@@ -357,8 +358,9 @@ class TestGenerateValidation:
         with pytest.raises(ValueError, match="No video clips"):
             generator.generate(audio_data, [], "/tmp/out.mp4")
 
+    @patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")
     def test_raises_on_no_beats(
-        self, generator, audio_data_empty_beats, video_clips
+        self, mock_which, generator, audio_data_empty_beats, video_clips
     ):
         """No beats in audio raises ValueError."""
         with pytest.raises(ValueError, match="segment plan"):
@@ -442,3 +444,230 @@ class TestFFmpegOrchestration:
 
         # Cleanup MUST still happen
         mock_rmtree.assert_called_once_with(temp_dir, ignore_errors=True)
+
+
+class TestGroupSegmentsBySection:
+    """Tests for _group_segments_by_section (pure Python, no FFmpeg)."""
+
+    def test_groups_consecutive_same_section(self, generator):
+        """Consecutive segments with the same section_label are grouped."""
+        from src.core.models import SegmentPlan
+
+        segments = [
+            SegmentPlan(
+                video_path="/v/a.mp4", start_time=0, duration=2,
+                timeline_position=0, intensity_level="high",
+                section_label="intro",
+            ),
+            SegmentPlan(
+                video_path="/v/b.mp4", start_time=0, duration=2,
+                timeline_position=2, intensity_level="high",
+                section_label="intro",
+            ),
+            SegmentPlan(
+                video_path="/v/c.mp4", start_time=0, duration=3,
+                timeline_position=4, intensity_level="medium",
+                section_label="high_energy",
+            ),
+        ]
+
+        groups = MontageGenerator._group_segments_by_section(segments)
+        assert len(groups) == 2
+        assert len(groups[0]) == 2  # two intro segments
+        assert len(groups[1]) == 1  # one high_energy segment
+
+    def test_all_same_section_returns_one_group(self, generator):
+        """All segments with the same label → single group."""
+        from src.core.models import SegmentPlan
+
+        segments = [
+            SegmentPlan(
+                video_path="/v/a.mp4", start_time=0, duration=2,
+                timeline_position=i * 2, intensity_level="medium",
+                section_label="high_energy",
+            )
+            for i in range(5)
+        ]
+
+        groups = MontageGenerator._group_segments_by_section(segments)
+        assert len(groups) == 1
+        assert len(groups[0]) == 5
+
+    def test_alternating_sections(self, generator):
+        """Alternating labels create separate groups."""
+        from src.core.models import SegmentPlan
+
+        segments = [
+            SegmentPlan(
+                video_path="/v/a.mp4", start_time=0, duration=2,
+                timeline_position=i * 2, intensity_level="medium",
+                section_label="A" if i % 2 == 0 else "B",
+            )
+            for i in range(4)
+        ]
+
+        groups = MontageGenerator._group_segments_by_section(segments)
+        assert len(groups) == 4
+
+    def test_empty_segments_returns_empty(self, generator):
+        """Empty input → empty output."""
+        groups = MontageGenerator._group_segments_by_section([])
+        assert groups == []
+
+    def test_none_section_labels_grouped(self, generator):
+        """Segments with None section_label are grouped together."""
+        from src.core.models import SegmentPlan
+
+        segments = [
+            SegmentPlan(
+                video_path="/v/a.mp4", start_time=0, duration=2,
+                timeline_position=i * 2, intensity_level="medium",
+                section_label=None,
+            )
+            for i in range(3)
+        ]
+
+        groups = MontageGenerator._group_segments_by_section(segments)
+        assert len(groups) == 1
+
+
+class TestTransitionConfig:
+    """Tests for transition-related PacingConfig fields."""
+
+    def test_default_transition_is_none(self):
+        """Default transition type disables transitions."""
+        config = PacingConfig()
+        assert config.transition_type == "none"
+        assert config.transition_duration == 0.5
+
+    def test_custom_transition_config(self):
+        """Custom transition values are accepted."""
+        config = PacingConfig(
+            transition_type="fade",
+            transition_duration=0.8,
+        )
+        assert config.transition_type == "fade"
+        assert config.transition_duration == 0.8
+
+    def test_load_transition_config_from_yaml(self, tmp_path):
+        """Transition config is loaded from YAML file."""
+        config_file = tmp_path / "test_config.yaml"
+        config_file.write_text(
+            "pacing:\n"
+            "  transition_type: wipeleft\n"
+            "  transition_duration: 0.3\n"
+        )
+        config = load_pacing_config(str(config_file))
+        assert config.transition_type == "wipeleft"
+        assert config.transition_duration == 0.3
+
+
+class TestTransitionPipeline:
+    """Tests for the transition pipeline in generate() (mocked FFmpeg)."""
+
+    @patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")
+    @patch("src.core.montage.subprocess.run")
+    @patch("src.core.montage.tempfile.mkdtemp")
+    @patch("src.core.montage.shutil.rmtree")
+    @patch("src.core.montage.os.path.exists", return_value=True)
+    def test_transitions_disabled_uses_simple_concat(
+        self, mock_exists, mock_rmtree, mock_mkdtemp, mock_run, mock_which,
+        generator, audio_data, video_clips, tmp_path
+    ):
+        """When transition_type='none', uses simple concat (no xfade)."""
+        temp_dir = str(tmp_path / "montage_temp")
+        os.makedirs(temp_dir, exist_ok=True)
+        mock_mkdtemp.return_value = temp_dir
+        mock_run.return_value = MagicMock(returncode=0, stderr="")
+
+        concat_path = os.path.join(temp_dir, "concat_output.mp4")
+        with open(concat_path, "w") as f:
+            f.write("fake")
+
+        config = PacingConfig(transition_type="none")
+        generator.generate(
+            audio_data, video_clips,
+            str(tmp_path / "output.mp4"),
+            audio_path="/audio/song.wav",
+            pacing=config,
+        )
+
+        # Verify no xfade filter was used
+        for call_args in mock_run.call_args_list:
+            cmd = call_args[0][0] if call_args[0] else call_args[1].get("cmd", [])
+            cmd_str = " ".join(str(c) for c in cmd)
+            assert "xfade" not in cmd_str
+
+    @patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")
+    @patch("src.core.montage.subprocess.run")
+    @patch("src.core.montage.tempfile.mkdtemp")
+    @patch("src.core.montage.shutil.rmtree")
+    @patch("src.core.montage.os.path.exists", return_value=True)
+    def test_transitions_enabled_calls_xfade(
+        self, mock_exists, mock_rmtree, mock_mkdtemp, mock_run, mock_which,
+        generator, video_clips, tmp_path
+    ):
+        """When transitions enabled with multiple sections, xfade is called."""
+        from src.core.models import MusicalSection
+
+        temp_dir = str(tmp_path / "montage_temp")
+        os.makedirs(temp_dir, exist_ok=True)
+        mock_mkdtemp.return_value = temp_dir
+
+        # Mock FFmpeg: return success and fake duration from ffprobe
+        def side_effect(cmd, **kwargs):
+            mock_result = MagicMock(returncode=0, stderr="")
+            # If this is an ffprobe call, return a duration
+            if cmd[0] == "ffprobe":
+                mock_result.stdout = "5.0\n"
+            else:
+                mock_result.stdout = ""
+            return mock_result
+
+        mock_run.side_effect = side_effect
+
+        concat_path = os.path.join(temp_dir, "concat_output.mp4")
+        with open(concat_path, "w") as f:
+            f.write("fake")
+
+        # Audio with two distinct sections
+        audio = AudioAnalysisResult(
+            filename="sections.wav",
+            bpm=120.0,
+            duration=30.0,
+            peaks=[],
+            sections=[
+                MusicalSection(
+                    label="intro", start_time=0.0,
+                    end_time=4.0, avg_intensity=0.3,
+                ),
+                MusicalSection(
+                    label="high_energy", start_time=4.0,
+                    end_time=30.0, avg_intensity=0.8,
+                ),
+            ],
+            beat_times=[float(i) * 0.5 for i in range(16)],
+            intensity_curve=[0.2, 0.2, 0.2, 0.2, 0.3, 0.3, 0.3, 0.3,
+                             0.8, 0.9, 0.8, 0.9, 0.8, 0.9, 0.8, 0.9],
+        )
+
+        config = PacingConfig(transition_type="fade", transition_duration=0.5)
+        generator.generate(
+            audio, video_clips,
+            str(tmp_path / "output.mp4"),
+            audio_path="/audio/song.wav",
+            pacing=config,
+        )
+
+        # Check that at least one FFmpeg call used xfade
+        xfade_calls = [
+            call_args for call_args in mock_run.call_args_list
+            if "xfade" in " ".join(
+                str(c) for c in (
+                    call_args[0][0] if call_args[0]
+                    else call_args[1].get("cmd", [])
+                )
+            )
+        ]
+        assert len(xfade_calls) >= 1, "Expected at least one xfade FFmpeg call"
+

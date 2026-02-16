@@ -4,7 +4,7 @@ Tests for the ExcelReportGenerator.
 import os
 import openpyxl
 from src.services.reporting import ExcelReportGenerator
-from src.core.models import AudioAnalysisResult, VideoAnalysisResult
+from src.core.models import AudioAnalysisResult, MusicalSection, VideoAnalysisResult
 
 
 def test_generate_report(tmp_path):
@@ -15,7 +15,16 @@ def test_generate_report(tmp_path):
         bpm=128.0,
         duration=180.0,
         peaks=[10.5, 20.0],
-        sections=["intro", "verse"]
+        sections=[
+            MusicalSection(
+                label="intro", start_time=0.0,
+                end_time=60.0, avg_intensity=0.3,
+            ),
+            MusicalSection(
+                label="high_energy", start_time=60.0,
+                end_time=180.0, avg_intensity=0.7,
+            ),
+        ]
     )
 
     video_data = [
