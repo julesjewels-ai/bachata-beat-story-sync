@@ -18,6 +18,7 @@ import yaml
 from src.core.interfaces import ProgressObserver
 from src.core.models import (
     AudioAnalysisResult,
+    MusicalSection,
     PacingConfig,
     SegmentPlan,
     VideoAnalysisResult,
@@ -124,6 +125,9 @@ class MontageGenerator:
         beat_idx = 0
         clip_idx = 0
 
+        # Pre-compute section lookup from audio sections
+        sections = audio_data.sections or []
+
         while beat_idx < len(beat_times):
             # Test mode: stop if we've hit the clip limit
             if config.max_clips is not None and len(segments) >= config.max_clips:
@@ -183,6 +187,14 @@ class MontageGenerator:
             # Clamp segment duration to clip length
             actual_duration = min(segment_duration, clip.duration)
 
+            # Look up musical section for this beat position
+            current_time = beat_times[beat_idx] if beat_idx < len(beat_times) else timeline_pos
+            section_label = None
+            for sec in sections:
+                if sec.start_time <= current_time < sec.end_time:
+                    section_label = sec.label
+                    break
+
             if actual_duration > 0:
                 segments.append(
                     SegmentPlan(
@@ -192,6 +204,7 @@ class MontageGenerator:
                         timeline_position=timeline_pos,
                         intensity_level=level,
                         speed_factor=speed,
+                        section_label=section_label,
                     )
                 )
                 timeline_pos += actual_duration

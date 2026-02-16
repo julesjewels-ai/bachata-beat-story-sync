@@ -46,9 +46,9 @@ Apply speed effects to clips based on their matched audio intensity.
 
 | Field       | Value                                |
 |-------------|--------------------------------------|
-| **Status**  | `PROPOSED`                           |
+| **Status**  | `IMPLEMENTED`                        |
 | **Priority**| 🟡 Medium                            |
-| **Effort**  | High                                 |
+| **Effort**  | Medium (Approach C — intensity heuristic) |
 | **Impact**  | Medium — improves narrative structure|
 
 ### Description

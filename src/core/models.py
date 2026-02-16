@@ -6,6 +6,27 @@ from typing import List, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class MusicalSection(BaseModel):
+    """
+    A detected musical section within a track.
+    """
+    model_config = ConfigDict(extra="forbid")
+
+    label: str = Field(
+        ..., description="Section label: 'intro', 'high_energy', "
+        "'low_energy', 'buildup', 'breakdown', 'outro'"
+    )
+    start_time: float = Field(
+        ..., description="Start timestamp in seconds"
+    )
+    end_time: float = Field(
+        ..., description="End timestamp in seconds"
+    )
+    avg_intensity: float = Field(
+        ..., description="Average normalised intensity (0.0-1.0)"
+    )
+
+
 class AudioAnalysisResult(BaseModel):
     """
     Result model for audio analysis.
@@ -20,8 +41,9 @@ class AudioAnalysisResult(BaseModel):
     peaks: List[float] = Field(
         ..., description="Timestamps of high intensity peaks"
     )
-    sections: List[str] = Field(
-        ..., description="Identified musical sections (e.g., intro, verse)"
+    sections: List[MusicalSection] = Field(
+        default_factory=list,
+        description="Detected musical sections with timestamps and labels"
     )
     beat_times: List[float] = Field(
         default_factory=list,
@@ -75,6 +97,9 @@ class SegmentPlan(BaseModel):
     speed_factor: float = Field(
         1.0, description="Playback speed multiplier (>1 = fast, <1 = slow-mo)"
     )
+    section_label: Optional[str] = Field(
+        None, description="Musical section this segment belongs to (e.g. 'intro', 'high_energy')"
+    )
 
 
 class PacingConfig(BaseModel):
@@ -124,4 +149,15 @@ class PacingConfig(BaseModel):
     )
     max_duration_seconds: Optional[float] = Field(
         None, description="Maximum total montage duration in seconds (None = unlimited)"
+    )
+
+    # Section detection configuration
+    section_detection_enabled: bool = Field(
+        True, description="Enable musical section detection"
+    )
+    section_smoothing_window: int = Field(
+        8, description="Number of beats to smooth intensity over for section detection"
+    )
+    section_change_threshold: float = Field(
+        0.15, description="Minimum intensity change to trigger a section boundary"
     )

@@ -27,3 +27,8 @@ pacing:
   # Test mode — uncomment or use --test-mode CLI flag for fast iteration
   # max_clips: 4                 # Maximum number of clip segments
   # max_duration_seconds: 10.0   # Maximum montage duration (seconds)
+
+  # Section detection — intensity-envelope based musical section awareness
+  section_detection_enabled: true
+  section_smoothing_window: 8     # Beats to smooth over (higher = fewer sections)
+  section_change_threshold: 0.15  # Intensity change to trigger a boundary (0.0-1.0)

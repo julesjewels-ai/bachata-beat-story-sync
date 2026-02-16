@@ -71,7 +71,7 @@ class ExcelReportGenerator:
             ("BPM", audio_data.bpm),
             ("Duration (s)", audio_data.duration),
             ("Peak Count", len(audio_data.peaks)),
-            ("Sections", ", ".join(audio_data.sections)),
+            ("Sections", ", ".join(s.label for s in audio_data.sections)),
             ("Total Videos Scanned", video_count)
         ]
 
