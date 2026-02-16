@@ -32,7 +32,7 @@ Uses a memory-safe pattern: FFmpeg subprocess calls for segment extraction and c
 
 | Field       | Value                                |
 |-------------|--------------------------------------|
-| **Status**  | `PROPOSED`                           |
+| **Status**  | `IMPLEMENTED`                        |
 | **Priority**| 🟡 Medium                            |
 | **Effort**  | Medium                               |
 | **Impact**  | High — cinematic and professional    |
@@ -67,3 +67,17 @@ Detect musical sections (intro, verse, chorus, breakdown, outro) from audio anal
 
 ### Description
 Align transition effects precisely to beat timestamps instead of hard-cutting.
+
+---
+
+## FEAT-005: Test Mode (Quick Iteration)
+
+| Field       | Value                                |
+|-------------|--------------------------------------|
+| **Status**  | `IMPLEMENTED`                        |
+| **Priority**| 🟡 Medium                            |
+| **Effort**  | Low                                  |
+| **Impact**  | High — enables fast dev iteration    |
+
+### Description
+Caps montage generation to a maximum of 4 clip segments and 10 seconds of music. Activated via `--test-mode` CLI flag or by setting `max_clips` / `max_duration_seconds` in `montage_config.yaml`.

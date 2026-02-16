@@ -6,6 +6,7 @@ import sys
 import logging
 from src.core.app import BachataSyncEngine
 from src.core.audio_analyzer import AudioAnalyzer, AudioAnalysisInput
+from src.core.models import PacingConfig
 from src.services.reporting import ExcelReportGenerator
 from src.ui.console import RichProgressObserver
 from pydantic import ValidationError
@@ -38,6 +39,24 @@ def parse_args() -> argparse.Namespace:
         type=str,
         help="Path to export the analysis report (e.g., report.xlsx)",
         default=None
+    )
+    parser.add_argument(
+        "--test-mode",
+        action="store_true",
+        default=False,
+        help="Run in test mode (max 4 clips, 10 seconds of music)"
+    )
+    parser.add_argument(
+        "--max-clips",
+        type=int,
+        default=None,
+        help="Maximum number of clip segments (overrides test-mode default)"
+    )
+    parser.add_argument(
+        "--max-duration",
+        type=float,
+        default=None,
+        help="Maximum montage duration in seconds (overrides test-mode default)"
     )
     parser.add_argument(
         "--version",
@@ -80,10 +99,26 @@ def main() -> None:
         logger.info("Found %d suitable clips.", len(video_clips))
 
         # 3. Sync and Generate
+        pacing = None
+        max_clips = args.max_clips
+        max_duration = args.max_duration
+        if args.test_mode:
+            max_clips = max_clips or 4
+            max_duration = max_duration or 10.0
+        if max_clips or max_duration:
+            pacing = PacingConfig(
+                max_clips=max_clips,
+                max_duration_seconds=max_duration,
+            )
+            logger.info(
+                "Pacing limits: max_clips=%s, max_duration=%ss",
+                max_clips or "unlimited",
+                max_duration or "unlimited",
+            )
         logger.info("Syncing visual narrative to musical dynamics...")
         result_path = engine.generate_story(
             audio_meta, video_clips, args.output,
-            audio_path=args.audio
+            audio_path=args.audio, pacing=pacing,
         )
         logger.info("Process complete. Output saved to: %s", result_path)
 

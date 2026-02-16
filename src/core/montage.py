@@ -125,6 +125,17 @@ class MontageGenerator:
         clip_idx = 0
 
         while beat_idx < len(beat_times):
+            # Test mode: stop if we've hit the clip limit
+            if config.max_clips is not None and len(segments) >= config.max_clips:
+                break
+
+            # Test mode: stop if we've hit the duration limit
+            if (
+                config.max_duration_seconds is not None
+                and timeline_pos >= config.max_duration_seconds
+            ):
+                break
+
             # Determine intensity at this beat
             intensity = (
                 intensity_curve[beat_idx]
@@ -132,16 +143,19 @@ class MontageGenerator:
                 else 0.5
             )
 
-            # Pick target duration based on intensity level
+            # Pick target duration and speed based on intensity level
             if intensity >= config.high_intensity_threshold:
                 target_seconds = config.high_intensity_seconds
                 level = "high"
+                speed = config.high_intensity_speed if config.speed_ramp_enabled else 1.0
             elif intensity < config.low_intensity_threshold:
                 target_seconds = config.low_intensity_seconds
                 level = "low"
+                speed = config.low_intensity_speed if config.speed_ramp_enabled else 1.0
             else:
                 target_seconds = config.medium_intensity_seconds
                 level = "medium"
+                speed = config.medium_intensity_speed if config.speed_ramp_enabled else 1.0
 
             # Convert target to beats, then enforce minimum
             if config.snap_to_beats:
@@ -152,6 +166,11 @@ class MontageGenerator:
             # Don't exceed available beats
             beat_count = min(target_beats, len(beat_times) - beat_idx)
             segment_duration = beat_count * spb
+
+            # Test mode: trim segment if it would exceed duration limit
+            if config.max_duration_seconds is not None:
+                remaining = config.max_duration_seconds - timeline_pos
+                segment_duration = min(segment_duration, remaining)
 
             # Pick clip (round-robin)
             clip = sorted_clips[clip_idx % len(sorted_clips)]
@@ -172,6 +191,7 @@ class MontageGenerator:
                         duration=actual_duration,
                         timeline_position=timeline_pos,
                         intensity_level=level,
+                        speed_factor=speed,
                     )
                 )
                 timeline_pos += actual_duration
@@ -234,11 +254,17 @@ class MontageGenerator:
                 "in the audio analysis."
             )
 
+        total_dur = segments[-1].timeline_position + segments[-1].duration
         logger.info(
             "Built segment plan: %d segments, total duration: %.1fs",
-            len(segments),
-            segments[-1].timeline_position + segments[-1].duration
+            len(segments), total_dur,
         )
+        if config.max_clips or config.max_duration_seconds:
+            logger.info(
+                "Test mode active — limits: max_clips=%s, max_duration=%.1fs",
+                config.max_clips,
+                config.max_duration_seconds or total_dur,
+            )
 
         # Create temp directory for intermediate files
         temp_dir = tempfile.mkdtemp(prefix="montage_")
@@ -282,6 +308,13 @@ class MontageGenerator:
         total = len(segments)
 
         for i, seg in enumerate(segments):
+            if not os.path.exists(seg.video_path):
+                logger.warning(
+                    "Skipping segment %d/%d: source file missing: %s",
+                    i + 1, total, seg.video_path,
+                )
+                continue
+
             if observer:
                 observer.on_progress(
                     i, total, f"Extracting segment {i + 1}/{total}..."
@@ -289,12 +322,23 @@ class MontageGenerator:
 
             output_file = os.path.join(temp_dir, f"seg_{i:04d}.mp4")
 
+            # When speed-ramped, extract more (slow-mo) or less (fast)
+            # source material so the output fills the planned duration.
+            extract_duration = seg.duration * seg.speed_factor
+
             cmd = [
                 "ffmpeg",
                 "-y",                       # Overwrite output
                 "-ss", f"{seg.start_time:.3f}",  # Seek to start
                 "-i", seg.video_path,       # Input file
-                "-t", f"{seg.duration:.3f}",  # Duration
+                "-t", f"{extract_duration:.3f}",  # Duration (adjusted for speed)
+            ]
+
+            # Apply speed ramp via setpts filter
+            if seg.speed_factor != 1.0:
+                cmd.extend(["-vf", f"setpts=PTS/{seg.speed_factor}"])
+
+            cmd.extend([
                 "-c:v", "libx264",          # Re-encode for consistent format
                 "-preset", "fast",          # Fast encoding
                 "-crf", "23",               # Good quality
@@ -302,7 +346,7 @@ class MontageGenerator:
                 "-pix_fmt", "yuv420p",      # Compatibility
                 "-movflags", "+faststart",  # Web-friendly
                 output_file,
-            ]
+            ])
 
             self._run_ffmpeg(cmd, f"segment extraction {i + 1}")
             segment_files.append(output_file)

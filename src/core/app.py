@@ -5,11 +5,12 @@ Handles audio analysis logic and video synchronization algorithms.
 import logging
 import os
 from typing import List, Optional
+from src.core.models import AudioAnalysisResult, PacingConfig, VideoAnalysisResult
 from pydantic import ValidationError
 from src.core.video_analyzer import (
     VideoAnalyzer, VideoAnalysisInput, SUPPORTED_VIDEO_EXTENSIONS
 )
-from src.core.models import AudioAnalysisResult, VideoAnalysisResult
+
 from src.core.montage import MontageGenerator
 from src.core.interfaces import ProgressObserver
 
@@ -86,6 +87,7 @@ class BachataSyncEngine:
         video_clips: List[VideoAnalysisResult],
         output_path: str,
         audio_path: Optional[str] = None,
+        pacing: Optional[PacingConfig] = None,
     ) -> str:
         """
         Syncs clips to audio data and generates a montage video.
@@ -95,6 +97,7 @@ class BachataSyncEngine:
             video_clips: Analyzed video clips with intensity scores.
             output_path: Path for the final output video.
             audio_path: Optional path to audio file to overlay.
+            pacing: Optional pacing configuration (e.g. test mode limits).
 
         Returns:
             Path to the generated output video.
@@ -105,5 +108,5 @@ class BachataSyncEngine:
         )
 
         return self.montage_generator.generate(
-            audio_data, video_clips, output_path, audio_path
+            audio_data, video_clips, output_path, audio_path, pacing=pacing
         )

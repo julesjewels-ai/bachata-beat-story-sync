@@ -72,6 +72,9 @@ class SegmentPlan(BaseModel):
     intensity_level: str = Field(
         ..., description="Intensity category: 'high', 'medium', or 'low'"
     )
+    speed_factor: float = Field(
+        1.0, description="Playback speed multiplier (>1 = fast, <1 = slow-mo)"
+    )
 
 
 class PacingConfig(BaseModel):
@@ -103,4 +106,22 @@ class PacingConfig(BaseModel):
     )
     low_intensity_threshold: float = Field(
         0.35, description="Intensity < this is 'low'"
+    )
+    speed_ramp_enabled: bool = Field(
+        True, description="Enable speed ramping per intensity level"
+    )
+    high_intensity_speed: float = Field(
+        1.2, description="Speed multiplier for high-intensity clips (>1 = fast)"
+    )
+    medium_intensity_speed: float = Field(
+        1.0, description="Speed multiplier for medium-intensity clips"
+    )
+    low_intensity_speed: float = Field(
+        0.7, description="Speed multiplier for low-intensity clips (<1 = slow-mo)"
+    )
+    max_clips: Optional[int] = Field(
+        None, description="Maximum number of clip segments (None = unlimited)"
+    )
+    max_duration_seconds: Optional[float] = Field(
+        None, description="Maximum total montage duration in seconds (None = unlimited)"
     )

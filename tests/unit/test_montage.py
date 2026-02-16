@@ -384,8 +384,9 @@ class TestFFmpegOrchestration:
     @patch("src.core.montage.subprocess.run")
     @patch("src.core.montage.tempfile.mkdtemp")
     @patch("src.core.montage.shutil.rmtree")
+    @patch("src.core.montage.os.path.exists", return_value=True)
     def test_generate_calls_ffmpeg_stages(
-        self, mock_rmtree, mock_mkdtemp, mock_run, mock_which,
+        self, mock_exists, mock_rmtree, mock_mkdtemp, mock_run, mock_which,
         generator, audio_data, video_clips, tmp_path
     ):
         """Generate calls FFmpeg for extraction, concat, and audio overlay."""
@@ -409,6 +410,7 @@ class TestFFmpegOrchestration:
         )
 
         # Verify FFmpeg was called multiple times
+        # (extraction × N segments + concat + audio overlay)
         assert mock_run.call_count > 1, "Expected multiple FFmpeg calls"
 
         # Verify temp dir cleanup
