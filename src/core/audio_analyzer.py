@@ -5,6 +5,7 @@ import logging
 import os
 import numpy as np
 import librosa
+import sklearn.cluster  # type: ignore
 from pydantic import BaseModel, Field, field_validator
 from src.core.validation import validate_file_path
 from src.core.models import AudioAnalysisResult, MusicalSection
@@ -27,26 +28,24 @@ class AudioAnalysisInput(BaseModel):
 
 
 def detect_sections(
+    y: np.ndarray,
+    sr: int,
     beat_times: list[float],
     intensity_curve: list[float],
     duration: float,
-    smoothing_window: int = 8,
-    change_threshold: float = 0.15,
 ) -> list[MusicalSection]:
     """
-    Detect musical sections from the intensity envelope.
+    Detect musical sections using structural analysis (Chroma + MFCC).
 
-    Smooths the per-beat intensity curve, finds change-points where the
-    smoothed gradient exceeds a threshold, and labels each resulting
-    section by its average energy level.
+    Uses recurrence and agglomerative clustering to find structural boundaries,
+    then labels each section based on its average intensity.
 
     Args:
+        y: Audio time series.
+        sr: Sampling rate.
         beat_times: Precise beat timestamps (seconds).
         intensity_curve: Normalised RMS energy (0.0-1.0) per beat.
         duration: Total track duration in seconds.
-        smoothing_window: Number of beats for the moving-average kernel.
-        change_threshold: Minimum absolute change in smoothed intensity
-            to trigger a section boundary.
 
     Returns:
         List of MusicalSection objects covering the full track.
@@ -60,74 +59,130 @@ def detect_sections(
             avg_intensity=avg,
         )]
 
-    curve = np.array(intensity_curve, dtype=np.float64)
+    try:
+        # 1. Feature Extraction
+        # Chroma (harmonic content)
+        chroma = librosa.feature.chroma_cqt(y=y, sr=sr, bins_per_octave=12)
+        # MFCC (timbral content)
+        mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
 
-    # Smooth the curve with a simple moving average
-    kernel_size = max(1, min(smoothing_window, len(curve)))
-    kernel = np.ones(kernel_size) / kernel_size
-    smoothed = np.convolve(curve, kernel, mode="same")
+        # 2. Sync features to beats
+        # Convert beat times to frames
+        beat_frames = librosa.time_to_frames(beat_times, sr=sr)
 
-    # Compute absolute gradient of the smoothed curve
-    gradient = np.abs(np.diff(smoothed))
+        # Ensure beat_frames is not empty and within bounds
+        if len(beat_frames) == 0:
+            raise ValueError("No beat frames detected")
 
-    # Find change-point indices where gradient exceeds threshold
-    change_points = list(np.where(gradient >= change_threshold)[0] + 1)
+        # Cast to list of ints for compatibility with librosa.util.sync
+        beat_frames_idx = [int(f) for f in beat_frames]
 
-    # Build boundary indices: [0, cp1, cp2, ..., len(curve)]
-    boundaries = [0] + change_points + [len(curve)]
-    # Remove duplicates and sort
-    boundaries = sorted(set(boundaries))
+        chroma_sync = librosa.util.sync(chroma, beat_frames_idx, aggregate=np.median)
+        mfcc_sync = librosa.util.sync(mfcc, beat_frames_idx, aggregate=np.median)
 
-    # Merge very short sections (fewer than 3 beats) into their neighbour
-    merged: list[int] = [boundaries[0]]
-    for b in boundaries[1:]:
-        if b - merged[-1] < 3 and b != boundaries[-1]:
-            continue  # skip this boundary — section too short
-        merged.append(b)
-    boundaries = merged
+        # 3. Stack features
+        features = np.vstack([chroma_sync, mfcc_sync])
 
-    sections: list[MusicalSection] = []
-    for i in range(len(boundaries) - 1):
-        start_idx = boundaries[i]
-        end_idx = boundaries[i + 1]
+        # 4. Structural Segmentation using Agglomerative Clustering
+        # Determine number of segments (k).
+        # Heuristic: duration / 15 seconds, clamped between 4 and 16
+        k = max(4, min(16, int(duration / 15)))
 
-        start_time = beat_times[start_idx] if start_idx < len(beat_times) else duration
-        end_time = beat_times[end_idx] if end_idx < len(beat_times) else duration
-        avg_intensity = float(np.mean(curve[start_idx:end_idx]))
+        # Build recurrence matrix for connectivity
+        # Use mode='affinity' for similarity, self=True to ensure diagonal
+        rec = librosa.segment.recurrence_matrix(features, mode='affinity', self=True, sym=True)
 
-        # Label based on position and intensity
-        if i == 0 and avg_intensity < 0.5:
-            label = "intro"
-        elif i == len(boundaries) - 2 and avg_intensity < 0.5:
-            label = "outro"
-        elif avg_intensity >= 0.65:
-            label = "high_energy"
-        elif avg_intensity < 0.35:
-            label = "low_energy"
-        else:
-            # Check if this is a transition (rising or falling)
-            if end_idx < len(smoothed) and start_idx < len(smoothed):
-                delta = smoothed[min(end_idx - 1, len(smoothed) - 1)] - smoothed[start_idx]
-                if delta > 0.1:
-                    label = "buildup"
-                elif delta < -0.1:
-                    label = "breakdown"
-                else:
-                    label = "mid_energy"
+        # Use sklearn's AgglomerativeClustering
+        # Transpose features to (n_samples, n_features) as expected by sklearn
+        agg = sklearn.cluster.AgglomerativeClustering(n_clusters=k, connectivity=rec, linkage='ward')
+        agg.fit(features.T)
+
+        labels = agg.labels_
+
+        # Find boundaries where labels change
+        # Boundary indices refer to beat indices
+        boundaries_frames = [0]
+        for i in range(1, len(labels)):
+            if labels[i] != labels[i-1]:
+                boundaries_frames.append(i)
+
+        # Convert boundary indices (which are beat indices) back to beat times
+        boundary_times = [0.0]  # Start at 0
+        for b_idx in boundaries_frames:
+             if 0 <= b_idx < len(beat_times):
+                 boundary_times.append(beat_times[b_idx])
+        boundary_times.append(duration) # End at duration
+
+        # Remove duplicates and sort
+        boundary_times = sorted(list(set(boundary_times)))
+
+        # 5. Create Sections and Label
+        sections: list[MusicalSection] = []
+        curve = np.array(intensity_curve, dtype=np.float64)
+
+        for i in range(len(boundary_times) - 1):
+            start_time = boundary_times[i]
+            end_time = boundary_times[i + 1]
+
+            # Find intensity indices corresponding to this time range
+            # We use beat indices because intensity_curve is per-beat
+            start_beat_idx = 0
+            end_beat_idx = len(beat_times)
+
+            for b_i, t in enumerate(beat_times):
+                if t >= start_time:
+                    start_beat_idx = b_i
+                    break
+
+            for b_i, t in enumerate(beat_times):
+                if t >= end_time:
+                    end_beat_idx = b_i
+                    break
+
+            # Clamp indices
+            start_beat_idx = max(0, min(start_beat_idx, len(curve) - 1))
+            end_beat_idx = max(start_beat_idx + 1, min(end_beat_idx, len(curve)))
+
+            # Compute average intensity
+            if start_beat_idx < end_beat_idx:
+                segment_intensity = curve[start_beat_idx:end_beat_idx]
+                avg_intensity = float(np.mean(segment_intensity))
             else:
-                label = "mid_energy"
+                avg_intensity = 0.5 # Default if no beats found in segment
 
-        sections.append(MusicalSection(
-            label=label,
-            start_time=round(start_time, 3),
-            end_time=round(end_time, 3),
-            avg_intensity=round(avg_intensity, 3),
-        ))
+            # Labeling Logic (adapted from original)
+            label = "mid_energy"
+            if i == 0 and avg_intensity < 0.5:
+                label = "intro"
+            elif i == len(boundary_times) - 2 and avg_intensity < 0.5:
+                label = "outro"
+            elif avg_intensity >= 0.65:
+                label = "high_energy"
+            elif avg_intensity < 0.35:
+                label = "low_energy"
+            else:
+                 # Check for transitions if we have enough context
+                 pass # Could check slope here if needed, but structure implies sections are somewhat homogeneous
 
-    return sections if sections else [MusicalSection(
-        label="full_track", start_time=0.0, end_time=duration,
-        avg_intensity=float(np.mean(curve)),
-    )]
+            sections.append(MusicalSection(
+                label=label,
+                start_time=round(start_time, 3),
+                end_time=round(end_time, 3),
+                avg_intensity=round(avg_intensity, 3),
+            ))
+
+        return sections if sections else [MusicalSection(
+            label="full_track", start_time=0.0, end_time=duration,
+            avg_intensity=float(np.mean(curve)),
+        )]
+
+    except Exception as e:
+        logger.warning(f"Structural segmentation failed: {e}. Falling back to single section.")
+        avg = float(np.mean(intensity_curve)) if intensity_curve else 0.5
+        return [MusicalSection(
+            label="full_track", start_time=0.0, end_time=duration,
+            avg_intensity=avg,
+        )]
 
 
 class AudioAnalyzer:
@@ -183,8 +238,10 @@ class AudioAnalyzer:
             bpm_val = float(np.asarray(tempo).flat[0])
             peaks_list = [float(t) for t in onset_times]
 
-            # Detect musical sections from intensity envelope
+            # Detect musical sections
             sections = detect_sections(
+                y=y,
+                sr=int(sr),  # Cast to int for type safety
                 beat_times=beat_times_list,
                 intensity_curve=intensity_curve,
                 duration=duration,
