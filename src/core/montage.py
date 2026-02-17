@@ -11,7 +11,7 @@ import shutil
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import yaml
 
@@ -140,26 +140,11 @@ class MontageGenerator:
             ):
                 break
 
-            # Determine intensity at this beat
-            intensity = (
-                intensity_curve[beat_idx]
-                if beat_idx < len(intensity_curve)
-                else 0.5
+            # Determine intensity and segment properties
+            intensity = self._get_intensity_at_beat(beat_idx, intensity_curve)
+            target_seconds, level, speed = self._determine_segment_properties(
+                intensity, config
             )
-
-            # Pick target duration and speed based on intensity level
-            if intensity >= config.high_intensity_threshold:
-                target_seconds = config.high_intensity_seconds
-                level = "high"
-                speed = config.high_intensity_speed if config.speed_ramp_enabled else 1.0
-            elif intensity < config.low_intensity_threshold:
-                target_seconds = config.low_intensity_seconds
-                level = "low"
-                speed = config.low_intensity_speed if config.speed_ramp_enabled else 1.0
-            else:
-                target_seconds = config.medium_intensity_seconds
-                level = "medium"
-                speed = config.medium_intensity_speed if config.speed_ramp_enabled else 1.0
 
             # Convert target to beats, then enforce minimum
             if config.snap_to_beats:
@@ -356,6 +341,56 @@ class MontageGenerator:
         finally:
             # Clean up temp directory (memory safety guarantee)
             shutil.rmtree(temp_dir, ignore_errors=True)
+
+    def _get_intensity_at_beat(
+        self, beat_idx: int, intensity_curve: List[float]
+    ) -> float:
+        """
+        Get the intensity value at a specific beat index.
+
+        Args:
+            beat_idx: The index of the beat.
+            intensity_curve: List of intensity values aligned with beats.
+
+        Returns:
+            The intensity value (0.0 to 1.0) or default 0.5 if out of bounds.
+        """
+        if 0 <= beat_idx < len(intensity_curve):
+            return intensity_curve[beat_idx]
+        return 0.5
+
+    def _determine_segment_properties(
+        self, intensity: float, config: PacingConfig
+    ) -> Tuple[float, str, float]:
+        """
+        Determine segment duration, intensity level, and playback speed based on intensity.
+
+        Args:
+            intensity: The intensity score (0.0 to 1.0).
+            config: The pacing configuration.
+
+        Returns:
+            Tuple containing:
+                - target_seconds (float): Desired duration in seconds.
+                - level (str): Intensity label ("low", "medium", "high").
+                - speed (float): Playback speed factor.
+        """
+        speed_ramp = config.speed_ramp_enabled
+
+        if intensity >= config.high_intensity_threshold:
+            target = config.high_intensity_seconds
+            level = "high"
+            speed = config.high_intensity_speed if speed_ramp else 1.0
+        elif intensity < config.low_intensity_threshold:
+            target = config.low_intensity_seconds
+            level = "low"
+            speed = config.low_intensity_speed if speed_ramp else 1.0
+        else:
+            target = config.medium_intensity_seconds
+            level = "medium"
+            speed = config.medium_intensity_speed if speed_ramp else 1.0
+
+        return target, level, speed
 
     def _extract_segments(
         self,
