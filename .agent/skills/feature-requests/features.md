@@ -88,7 +88,7 @@ Caps montage generation to a maximum of 4 clip segments and 10 seconds of music.
 
 | Field       | Value                                |
 |-------------|--------------------------------------|
-| **Status**  | `PROPOSED`                           |
+| **Status**  | `IMPLEMENTED`                        |
 | **Priority**| 🔴 High                              |
 | **Effort**  | Low–Medium                           |
 | **Impact**  | High — eliminates repetitive feel    |

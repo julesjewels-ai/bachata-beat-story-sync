@@ -151,6 +151,11 @@ class PacingConfig(BaseModel):
         None, description="Maximum total montage duration in seconds (None = unlimited)"
     )
 
+    # Clip variety — randomise start offset within reused clips
+    clip_variety_enabled: bool = Field(
+        True, description="Randomise start offset within clips to avoid repetition"
+    )
+
     # Section detection configuration
     section_detection_enabled: bool = Field(
         True, description="Enable musical section detection"

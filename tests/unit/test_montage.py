@@ -671,3 +671,112 @@ class TestTransitionPipeline:
         ]
         assert len(xfade_calls) >= 1, "Expected at least one xfade FFmpeg call"
 
+
+class TestClipVariety:
+    """Tests for FEAT-006: Clip Variety & Start Offset."""
+
+    @pytest.fixture
+    def gen(self):
+        return MontageGenerator()
+
+    @pytest.fixture
+    def single_clip_30s(self):
+        """One 30-second clip used for all segments (forces reuse)."""
+        return [
+            VideoAnalysisResult(
+                path="/videos/only.mp4",
+                intensity_score=0.5,
+                duration=30.0,
+                thumbnail_data=None,
+            ),
+        ]
+
+    @pytest.fixture
+    def medium_audio(self):
+        """16 medium-intensity beats at 120 BPM."""
+        return AudioAnalysisResult(
+            filename="med.wav",
+            bpm=120.0,
+            duration=30.0,
+            peaks=[],
+            sections=[],
+            beat_times=[float(i) * 0.5 for i in range(16)],
+            intensity_curve=[0.5] * 16,
+        )
+
+    def test_clip_variety_offsets_vary(
+        self, gen, medium_audio, single_clip_30s
+    ):
+        """Reused clips should have different start_time values."""
+        config = PacingConfig(clip_variety_enabled=True)
+        segments = gen.build_segment_plan(
+            medium_audio, single_clip_30s, config
+        )
+        start_times = [s.start_time for s in segments]
+        # With a single reused clip, not all start times should be 0.0
+        assert len(set(start_times)) > 1, (
+            "Expected varied start offsets but all were identical"
+        )
+
+    def test_clip_variety_offsets_within_bounds(
+        self, gen, medium_audio, single_clip_30s
+    ):
+        """All start_times must satisfy 0 <= start <= clip.duration - seg.duration."""
+        config = PacingConfig(clip_variety_enabled=True)
+        segments = gen.build_segment_plan(
+            medium_audio, single_clip_30s, config
+        )
+        clip_dur = single_clip_30s[0].duration
+        for seg in segments:
+            assert seg.start_time >= 0.0
+            assert seg.start_time <= clip_dur - seg.duration + 0.001
+
+    def test_clip_variety_deterministic(
+        self, gen, medium_audio, single_clip_30s
+    ):
+        """Same inputs produce identical segment plans (reproducible)."""
+        config = PacingConfig(clip_variety_enabled=True)
+        plan_a = gen.build_segment_plan(
+            medium_audio, single_clip_30s, config
+        )
+        plan_b = gen.build_segment_plan(
+            medium_audio, single_clip_30s, config
+        )
+        for a, b in zip(plan_a, plan_b):
+            assert a.start_time == b.start_time
+
+    def test_clip_variety_disabled_uses_zero(
+        self, gen, medium_audio, single_clip_30s
+    ):
+        """When disabled, all start_time values are 0.0."""
+        config = PacingConfig(clip_variety_enabled=False)
+        segments = gen.build_segment_plan(
+            medium_audio, single_clip_30s, config
+        )
+        for seg in segments:
+            assert seg.start_time == 0.0
+
+    def test_clip_variety_short_clip_stays_zero(self, gen):
+        """When clip.duration <= segment_duration, start_time stays 0.0."""
+        short_clip = [
+            VideoAnalysisResult(
+                path="/videos/short.mp4",
+                intensity_score=0.5,
+                duration=2.0,  # Very short clip
+                thumbnail_data=None,
+            ),
+        ]
+        audio = AudioAnalysisResult(
+            filename="test.wav",
+            bpm=120.0,
+            duration=10.0,
+            peaks=[],
+            sections=[],
+            beat_times=[float(i) * 0.5 for i in range(8)],
+            intensity_curve=[0.5] * 8,
+        )
+        config = PacingConfig(clip_variety_enabled=True)
+        segments = gen.build_segment_plan(audio, short_clip, config)
+        for seg in segments:
+            assert seg.start_time == 0.0
+

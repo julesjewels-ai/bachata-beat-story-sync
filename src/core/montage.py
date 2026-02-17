@@ -4,6 +4,7 @@ Montage generator for Bachata Beat-Story Sync.
 Uses direct FFmpeg subprocess calls for memory-safe video processing.
 Only one FFmpeg process runs at a time — no memory leaks.
 """
+import hashlib
 import logging
 import math
 import os
@@ -180,9 +181,19 @@ class MontageGenerator:
             clip = sorted_clips[clip_idx % len(sorted_clips)]
             clip_idx += 1
 
-            # Clamp start_time within clip bounds
+            # Compute start offset within clip
             max_start = max(0.0, clip.duration - segment_duration)
-            start_time = min(max_start, 0.0)
+            if config.clip_variety_enabled and max_start > 0:
+                # Deterministic per-segment offset using clip path + usage index
+                seed = int(
+                    hashlib.md5(
+                        f"{clip.path}:{clip_idx}".encode()
+                    ).hexdigest()[:8],
+                    16,
+                )
+                start_time = (seed % int(max_start * 1000)) / 1000.0
+            else:
+                start_time = 0.0
 
             # Clamp segment duration to clip length
             actual_duration = min(segment_duration, clip.duration)

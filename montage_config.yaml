@@ -28,6 +28,9 @@ pacing:
   # max_clips: 4                 # Maximum number of clip segments
   # max_duration_seconds: 10.0   # Maximum montage duration (seconds)
 
+  # Clip variety — vary start position within clips each time they're reused
+  clip_variety_enabled: true
+
   # Section detection — intensity-envelope based musical section awareness
   section_detection_enabled: true
   section_smoothing_window: 8     # Beats to smooth over (higher = fewer sections)
