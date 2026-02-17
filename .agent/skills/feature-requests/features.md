@@ -99,3 +99,25 @@ When a clip is reused across multiple segments, the current code always extracts
 - **Randomise or offset the start position** within each clip so repeated clips show different parts of the footage
 - Optionally **match clip intensity to audio intensity** instead of pure round-robin selection
 - Ensure the selected start offset never exceeds `clip.duration - segment_duration`
+
+---
+
+## FEAT-007: Multi-Track Folder Input (Mix Creation)
+
+| Field       | Value                                |
+|-------------|--------------------------------------|
+| **Status**  | `PROPOSED`                           |
+| **Priority**| 🟡 Medium                            |
+| **Effort**  | Medium                               |
+| **Impact**  | High — enables full DJ-style mixes   |
+
+### Description
+Instead of supplying a single audio file, allow the user to specify a **folder** containing multiple audio tracks. The system should:
+
+- Accept a folder path (via CLI arg or config) as an alternative to a single audio file
+- **Discover** all supported audio files in the folder (e.g. `.mp3`, `.wav`, `.flac`, `.aac`)
+- **Concatenate / join** the tracks in alphanumeric filename order into a single continuous mix
+- Use the resulting combined audio as the input for beat analysis and montage generation
+- Optionally support a **tracklist manifest** (e.g. `tracklist.txt` or `tracklist.yaml`) to control order, per-track trim points, and crossfade durations between tracks
+- Apply a configurable **crossfade** between consecutive tracks (default ~2s) so the mix sounds seamless
+- Store the joined mix as a cached intermediate file to avoid re-joining on subsequent runs
