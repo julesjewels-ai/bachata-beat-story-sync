@@ -6,7 +6,10 @@ import sys
 import logging
 from src.core.app import BachataSyncEngine
 from src.core.audio_analyzer import AudioAnalyzer, AudioAnalysisInput
+from src.core.video_analyzer import VideoAnalyzer
 from src.core.models import PacingConfig
+from src.services.caching.backend import JsonFileCache
+from src.services.caching.service import CachedVideoAnalyzer
 from src.services.reporting import ExcelReportGenerator
 from src.ui.console import RichProgressObserver
 from pydantic import ValidationError
@@ -76,7 +79,16 @@ def main() -> None:
     logger = logging.getLogger(__name__)
     logger.info("Starting Bachata Beat-Story Sync...")
 
-    engine = BachataSyncEngine()
+    # Initialize Services with Dependency Injection
+    # Setup caching for video analysis to speed up subsequent runs
+    video_cache = JsonFileCache(".bachata_video_cache.json")
+    base_video_analyzer = VideoAnalyzer()
+    cached_video_analyzer = CachedVideoAnalyzer(
+        analyzer=base_video_analyzer,
+        cache=video_cache
+    )
+
+    engine = BachataSyncEngine(video_analyzer=cached_video_analyzer)
     audio_analyzer = AudioAnalyzer()
 
     try:
