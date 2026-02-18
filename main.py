@@ -92,10 +92,10 @@ def main() -> None:
         # 2. Scan Videos
         logger.info("Scanning video library in: %s", args.video_dir)
         # Use RichProgressObserver for visual feedback
-        observer = RichProgressObserver()
-        video_clips = engine.scan_video_library(
-            args.video_dir, observer=observer
-        )
+        with RichProgressObserver() as observer:
+            video_clips = engine.scan_video_library(
+                args.video_dir, observer=observer
+            )
         logger.info("Found %d suitable clips.", len(video_clips))
 
         # 3. Sync and Generate
@@ -116,10 +116,18 @@ def main() -> None:
                 max_duration or "unlimited",
             )
         logger.info("Syncing visual narrative to musical dynamics...")
+
+        # Strip thumbnail data before montage — it's only needed for
+        # the Excel report and would pin MBs of RAM during FFmpeg.
+        montage_clips = [
+            clip.model_copy(update={"thumbnail_data": None})
+            for clip in video_clips
+        ]
         result_path = engine.generate_story(
-            audio_meta, video_clips, args.output,
+            audio_meta, montage_clips, args.output,
             audio_path=args.audio, pacing=pacing,
         )
+        del montage_clips  # free immediately
         logger.info("Process complete. Output saved to: %s", result_path)
 
         # 4. Generate Report

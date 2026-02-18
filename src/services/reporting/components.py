@@ -7,7 +7,6 @@ import logging
 from typing import Optional
 from openpyxl.chart import BarChart, Reference
 from openpyxl.drawing.image import Image as OpenpyxlImage
-from PIL import Image as PILImage
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 
@@ -75,9 +74,10 @@ class ThumbnailEmbedder:
             True if successful, False otherwise.
         """
         try:
+            # Pass a fresh BytesIO directly to openpyxl so it owns the
+            # stream and can re-read at save time (no stale-fp issue).
             img_stream = io.BytesIO(image_data)
-            pil_img = PILImage.open(img_stream)
-            img = OpenpyxlImage(pil_img)
+            img = OpenpyxlImage(img_stream)
 
             col_letter = get_column_letter(col)
             cell_address = f"{col_letter}{row}"

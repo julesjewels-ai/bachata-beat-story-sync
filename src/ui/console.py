@@ -10,6 +10,11 @@ from rich.progress import (
 class RichProgressObserver:
     """
     Implementation of ProgressObserver using the Rich library.
+
+    Supports context manager usage to guarantee cleanup on error::
+
+        with RichProgressObserver() as observer:
+            engine.scan_video_library(directory, observer=observer)
     """
     def __init__(self) -> None:
         self.progress = Progress(
@@ -20,6 +25,23 @@ class RichProgressObserver:
         )
         self.task_id: Optional[TaskID] = None
         self.started = False
+
+    # --- Context manager protocol ---
+
+    def __enter__(self) -> "RichProgressObserver":
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:  # type: ignore[override]
+        self.close()
+        return None
+
+    def close(self) -> None:
+        """Stop the progress bar if it is still running."""
+        if self.started:
+            self.progress.stop()
+            self.started = False
+
+    # --- ProgressObserver protocol ---
 
     def on_progress(self, current: int, total: int, message: str = "") -> None:
         """
@@ -37,5 +59,5 @@ class RichProgressObserver:
             )
 
         if current >= total and self.started:
-            self.progress.stop()
-            self.started = False
+            self.close()
+

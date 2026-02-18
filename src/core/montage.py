@@ -195,8 +195,8 @@ class MontageGenerator:
             else:
                 start_time = 0.0
 
-            # Clamp segment duration to clip length
-            actual_duration = min(segment_duration, clip.duration)
+            # Clamp segment duration to remaining clip after start offset
+            actual_duration = min(segment_duration, clip.duration - start_time)
 
             # Look up musical section for this beat position
             current_time = beat_times[beat_idx] if beat_idx < len(beat_times) else timeline_pos
@@ -558,6 +558,13 @@ class MontageGenerator:
 
             self._run_ffmpeg(cmd, f"transition {i}/{len(group_files) - 1}")
 
+            # Eagerly clean up previous intermediate file (not a source group)
+            if (
+                current_input != group_files[0]
+                and os.path.exists(current_input)
+            ):
+                os.remove(current_input)
+
             # Update for next iteration
             next_duration = self._get_video_duration(next_input)
             # New duration = old + new - overlap
@@ -635,7 +642,8 @@ class MontageGenerator:
         try:
             result = subprocess.run(
                 cmd,
-                capture_output=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
                 text=True,
                 timeout=FFMPEG_TIMEOUT,
             )

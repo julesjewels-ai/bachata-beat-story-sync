@@ -19,6 +19,11 @@ SUPPORTED_VIDEO_EXTENSIONS = {'.mp4', '.mov', '.avi', '.mkv'}
 BLUR_KERNEL_SIZE = (21, 21)
 NORMALIZATION_FACTOR = 100
 
+# Performance: sample at this FPS for intensity analysis (saves ~90% memory)
+ANALYSIS_FPS = 3.0
+# Performance: downscale frames to this resolution for analysis
+ANALYSIS_RESOLUTION = (320, 180)
+
 
 class VideoAnalysisInput(BaseModel):
     """
@@ -140,18 +145,33 @@ class VideoAnalyzer:
         return duration
 
     def _calculate_intensity(self, cap: cv2.VideoCapture) -> float:
-        """Calculates the average motion intensity of the video."""
+        """Calculates the average motion intensity of the video.
+
+        Samples frames at ANALYSIS_FPS and downscales to
+        ANALYSIS_RESOLUTION to minimise memory usage.
+        """
+        video_fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+        skip = max(1, int(video_fps / ANALYSIS_FPS))
+
         prev_frame = None
         motion_scores = []
+        frame_idx = 0
 
         for frame in self._yield_frames(cap):
-            processed_frame = self._preprocess_frame(frame)
+            if frame_idx % skip != 0:
+                frame_idx += 1
+                continue
+
+            # Downscale to small resolution before processing
+            small = cv2.resize(frame, ANALYSIS_RESOLUTION)
+            processed_frame = self._preprocess_frame(small)
 
             if prev_frame is not None:
                 frame_delta = cv2.absdiff(prev_frame, processed_frame)
                 motion_scores.append(np.mean(frame_delta))
 
             prev_frame = processed_frame
+            frame_idx += 1
 
         return np.mean(motion_scores) if motion_scores else 0.0
 

@@ -1,6 +1,7 @@
 """
 Audio analysis module for Bachata Beat-Story Sync.
 """
+import gc
 import logging
 import os
 import numpy as np
@@ -142,9 +143,9 @@ class AudioAnalyzer:
         file_path = input_data.file_path
 
         try:
-            # Load audio file
-            # sr=None preserves the native sampling rate
-            y, sr = librosa.load(file_path, sr=None)
+            # Load audio file — downsample to 22050 Hz to halve memory
+            # (beat/onset detection works well at this rate)
+            y, sr = librosa.load(file_path, sr=22050)
 
             # Extract features
             duration = float(librosa.get_duration(y=y, sr=sr))
@@ -162,8 +163,9 @@ class AudioAnalyzer:
 
             # Compute per-beat intensity (RMS energy at each beat position)
             rms = librosa.feature.rms(y=y)[0]
+            curve_buffer = np.arange(len(rms))
             rms_times = librosa.frames_to_time(
-                np.arange(len(rms)), sr=sr
+                curve_buffer, sr=sr
             )
 
             # Normalise RMS to 0.0-1.0
@@ -190,7 +192,7 @@ class AudioAnalyzer:
                 duration=duration,
             )
 
-            return AudioAnalysisResult(
+            result = AudioAnalysisResult(
                 filename=os.path.basename(file_path),
                 bpm=bpm_val,
                 duration=duration,
@@ -199,6 +201,13 @@ class AudioAnalyzer:
                 beat_times=beat_times_list,
                 intensity_curve=intensity_curve,
             )
+
+            # Eagerly release large NumPy arrays
+            del y, rms, rms_times, onset_frames, onset_times
+            del beat_frames, beat_times_arr, curve_buffer
+            gc.collect()
+
+            return result
 
         except Exception as e:
             logger.error("Failed to analyze audio file %s: %s", file_path, e)
