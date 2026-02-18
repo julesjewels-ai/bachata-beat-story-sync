@@ -28,7 +28,11 @@ from src.core.models import (
 logger = logging.getLogger(__name__)
 
 # Timeout per FFmpeg subprocess call (seconds)
-FFMPEG_TIMEOUT = 60
+FFMPEG_TIMEOUT = 600
+
+# Target resolution for all extracted segments (ensures xfade compatibility)
+TARGET_WIDTH = 1920
+TARGET_HEIGHT = 1080
 
 # Default config file location (project root)
 DEFAULT_CONFIG_PATH = Path(__file__).resolve().parents[2] / "montage_config.yaml"
@@ -410,9 +414,17 @@ class MontageGenerator:
                 "-t", f"{extract_duration:.3f}",  # Duration (adjusted for speed)
             ]
 
-            # Apply speed ramp via setpts filter
+            # Build video filter chain:
+            # 1. Resolution normalization (all segments → same size for xfade)
+            # 2. Speed ramp via setpts (if needed)
+            vf_parts = [
+                f"scale={TARGET_WIDTH}:{TARGET_HEIGHT}"
+                f":force_original_aspect_ratio=decrease",
+                f"pad={TARGET_WIDTH}:{TARGET_HEIGHT}:(ow-iw)/2:(oh-ih)/2",
+            ]
             if seg.speed_factor != 1.0:
-                cmd.extend(["-vf", f"setpts=PTS/{seg.speed_factor}"])
+                vf_parts.append(f"setpts=PTS/{seg.speed_factor}")
+            cmd.extend(["-vf", ",".join(vf_parts)])
 
             cmd.extend([
                 "-c:v", "libx264",          # Re-encode for consistent format
@@ -556,7 +568,17 @@ class MontageGenerator:
                 step_output,
             ]
 
-            self._run_ffmpeg(cmd, f"transition {i}/{len(group_files) - 1}")
+            try:
+                self._run_ffmpeg(cmd, f"transition {i}/{len(group_files) - 1}")
+            except RuntimeError as e:
+                logger.warning(
+                    "xfade transition %d failed, falling back to concat: %s",
+                    i, e,
+                )
+                # Fallback: just concatenate without transition
+                self._concatenate_segments(
+                    [current_input, next_input], step_output
+                )
 
             # Eagerly clean up previous intermediate file (not a source group)
             if (
