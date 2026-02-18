@@ -4,9 +4,13 @@ Entry point for the Bachata Beat-Story Sync application.
 import argparse
 import sys
 import logging
+from pathlib import Path
 from src.core.app import BachataSyncEngine
 from src.core.audio_analyzer import AudioAnalyzer, AudioAnalysisInput
 from src.core.models import PacingConfig
+from src.core.video_analyzer import VideoAnalyzer
+from src.services.caching.backend import JsonFileCache
+from src.services.caching.video_analyzer import CachedVideoAnalyzer
 from src.services.reporting import ExcelReportGenerator
 from src.ui.console import RichProgressObserver
 from pydantic import ValidationError
@@ -76,7 +80,13 @@ def main() -> None:
     logger = logging.getLogger(__name__)
     logger.info("Starting Bachata Beat-Story Sync...")
 
-    engine = BachataSyncEngine()
+    # Initialize Caching Layer
+    cache_dir = Path.home() / ".cache" / "bachata_sync"
+    cache = JsonFileCache(str(cache_dir))
+    video_analyzer = CachedVideoAnalyzer(VideoAnalyzer(), cache)
+    logger.info("Video analysis cache initialized at: %s", cache_dir)
+
+    engine = BachataSyncEngine(video_analyzer=video_analyzer)
     audio_analyzer = AudioAnalyzer()
 
     try:

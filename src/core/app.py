@@ -12,7 +12,7 @@ from src.core.video_analyzer import (
 )
 
 from src.core.montage import MontageGenerator
-from src.core.interfaces import ProgressObserver
+from src.core.interfaces import ProgressObserver, IVideoAnalyzer
 
 logger = logging.getLogger(__name__)
 
@@ -22,8 +22,8 @@ class BachataSyncEngine:
     The main engine responsible for syncing video segments to audio.
     """
 
-    def __init__(self) -> None:
-        self.video_analyzer = VideoAnalyzer()
+    def __init__(self, video_analyzer: Optional[IVideoAnalyzer] = None) -> None:
+        self.video_analyzer = video_analyzer or VideoAnalyzer()
         self.montage_generator = MontageGenerator()
 
     def scan_video_library(
