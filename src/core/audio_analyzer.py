@@ -106,14 +106,15 @@ def detect_sections(
             label = "low_energy"
         else:
             # Check if this is a transition (rising or falling)
-            if end_idx < len(smoothed) and start_idx < len(smoothed):
-                delta = smoothed[min(end_idx - 1, len(smoothed) - 1)] - smoothed[start_idx]
-                if delta > 0.1:
-                    label = "buildup"
-                elif delta < -0.1:
-                    label = "breakdown"
-                else:
-                    label = "mid_energy"
+            # Use clamped indices to safely access smoothed curve even for the last section
+            safe_end = min(end_idx - 1, len(smoothed) - 1)
+            safe_start = min(start_idx, len(smoothed) - 1)
+
+            delta = smoothed[safe_end] - smoothed[safe_start]
+            if delta > 0.1:
+                label = "buildup"
+            elif delta < -0.1:
+                label = "breakdown"
             else:
                 label = "mid_energy"
 
