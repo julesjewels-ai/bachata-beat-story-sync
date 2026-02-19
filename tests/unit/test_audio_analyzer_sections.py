@@ -1,5 +1,6 @@
 import pytest
 import numpy as np
+from unittest.mock import patch
 from src.core.audio_analyzer import detect_sections
 from src.core.models import MusicalSection
 
@@ -144,3 +145,37 @@ def test_detect_sections_scenarios(
         assert isinstance(section, MusicalSection)
         if i < len(expected_labels):
             assert section.label == expected_labels[i], f"Section {i} label mismatch. Expected {expected_labels[i]}, got {section.label}"
+
+
+@patch("src.core.audio_analyzer.segment_structure")
+def test_detect_sections_uses_structure(mock_segment_structure):
+    """
+    Test that detect_sections uses structural boundaries when available.
+    """
+    # Setup: Return boundaries at index 3 and 6
+    mock_segment_structure.return_value = [3, 6]
+
+    beat_times = [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0]
+    # Constant intensity so gradient logic wouldn't find anything
+    intensity_curve = [0.5] * 8
+    duration = 8.0
+
+    # Call with dummy features
+    sections = detect_sections(
+        beat_times=beat_times,
+        intensity_curve=intensity_curve,
+        duration=duration,
+        chroma=np.zeros((12, 8)),
+        mfcc=np.zeros((20, 8)),
+        beat_frames=np.arange(8),
+        sr=22050
+    )
+
+    # Verify
+    mock_segment_structure.assert_called_once()
+
+    # Expect 3 sections: [0, 3], [3, 6], [6, 8]
+    assert len(sections) == 3
+    assert sections[0].end_time == 3.0
+    assert sections[1].end_time == 6.0
+    assert sections[2].end_time == 8.0

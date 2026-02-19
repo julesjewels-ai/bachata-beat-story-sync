@@ -6,6 +6,7 @@ import logging
 import os
 import numpy as np
 import librosa
+import sklearn.cluster  # type: ignore
 from pydantic import BaseModel, Field, field_validator
 from src.core.validation import validate_file_path
 from src.core.models import AudioAnalysisResult, MusicalSection
@@ -27,19 +28,86 @@ class AudioAnalysisInput(BaseModel):
         return validate_file_path(v, SUPPORTED_AUDIO_EXTENSIONS)
 
 
+def segment_structure(
+    chroma: np.ndarray,
+    mfcc: np.ndarray,
+    beat_frames: np.ndarray,
+    sr: int,
+    n_segments: int = 8,
+) -> list[int]:
+    """
+    Segment audio structure using recurrence matrix and clustering.
+
+    Uses Chroma (pitch) and MFCC (timbre) features synced to beats,
+    computes a recurrence matrix, and applies Agglomerative Clustering
+    to find structural boundaries (Verse/Chorus/etc.).
+
+    Args:
+        chroma: Chroma features (n_chroma, n_frames).
+        mfcc: MFCC features (n_mfcc, n_frames).
+        beat_frames: Frame indices of detected beats.
+        sr: Sample rate.
+        n_segments: Target number of structural segments to find.
+
+    Returns:
+        List of beat indices marking section boundaries.
+    """
+    try:
+        # 1. Sync features to beats (median aggregation)
+        beat_chroma = librosa.util.sync(chroma, beat_frames, aggregate=np.median)
+        beat_mfcc = librosa.util.sync(mfcc, beat_frames, aggregate=np.median)
+
+        # Stack features: Pitch + Timbre
+        beat_features = np.vstack([beat_chroma, beat_mfcc])
+
+        # 2. Compute recurrence matrix (connectivity)
+        # Using a width of 3 beats for recurrence check, sparse for connectivity
+        rec = librosa.segment.recurrence_matrix(
+            beat_features, width=3, mode='connectivity', metric='cosine', sym=True, sparse=True
+        )
+
+        # 3. Cluster using Agglomerative Clustering
+        # We use the recurrence matrix as a connectivity constraint.
+        # This allows merging detected similar segments even if they are far apart in time,
+        # while respecting the structure encoded in the recurrence matrix.
+        model = sklearn.cluster.AgglomerativeClustering(
+            n_clusters=n_segments, metric='euclidean', linkage='ward', connectivity=rec
+        )
+        labels = model.fit_predict(beat_features.T)
+
+        # 4. Find boundaries where labels change
+        boundaries = [0]
+        for i in range(1, len(labels)):
+            if labels[i] != labels[i - 1]:
+                boundaries.append(i)
+        boundaries.append(len(labels))
+
+        # Sort and remove duplicates
+        return sorted(list(set(boundaries)))
+
+    except Exception as e:
+        logger.warning("Structural segmentation failed: %s", e)
+        return []
+
+
 def detect_sections(
     beat_times: list[float],
     intensity_curve: list[float],
     duration: float,
     smoothing_window: int = 8,
     change_threshold: float = 0.15,
+    chroma: np.ndarray = None,
+    mfcc: np.ndarray = None,
+    beat_frames: np.ndarray = None,
+    sr: int = 22050,
 ) -> list[MusicalSection]:
     """
-    Detect musical sections from the intensity envelope.
+    Detect musical sections using structural analysis (if features provided)
+    or intensity envelope (fallback).
 
-    Smooths the per-beat intensity curve, finds change-points where the
-    smoothed gradient exceeds a threshold, and labels each resulting
-    section by its average energy level.
+    If chroma/mfcc features are provided, uses structural segmentation to find
+    boundaries (Verse/Chorus/etc.), then labels sections by average energy.
+    Otherwise, falls back to intensity-based gradient detection.
 
     Args:
         beat_times: Precise beat timestamps (seconds).
@@ -48,6 +116,10 @@ def detect_sections(
         smoothing_window: Number of beats for the moving-average kernel.
         change_threshold: Minimum absolute change in smoothed intensity
             to trigger a section boundary.
+        chroma: Optional Chroma features for structural segmentation.
+        mfcc: Optional MFCC features for structural segmentation.
+        beat_frames: Optional beat frame indices.
+        sr: Sample rate.
 
     Returns:
         List of MusicalSection objects covering the full track.
@@ -62,20 +134,36 @@ def detect_sections(
         )]
 
     curve = np.array(intensity_curve, dtype=np.float64)
+    boundaries = []
 
-    # Smooth the curve with a simple moving average
+    # Try structural segmentation first
+    if chroma is not None and mfcc is not None and beat_frames is not None:
+        structural_boundaries = segment_structure(
+            chroma, mfcc, beat_frames, sr
+        )
+        if structural_boundaries:
+            boundaries = [b for b in structural_boundaries if 0 <= b <= len(curve)]
+
+    # Smooth the curve with a simple moving average (needed for labeling or fallback)
     kernel_size = max(1, min(smoothing_window, len(curve)))
     kernel = np.ones(kernel_size) / kernel_size
     smoothed = np.convolve(curve, kernel, mode="same")
 
-    # Compute absolute gradient of the smoothed curve
-    gradient = np.abs(np.diff(smoothed))
+    # If no structural boundaries found, use intensity gradient
+    if not boundaries:
+        # Compute absolute gradient of the smoothed curve
+        gradient = np.abs(np.diff(smoothed))
 
-    # Find change-point indices where gradient exceeds threshold
-    change_points = list(np.where(gradient >= change_threshold)[0] + 1)
+        # Find change-point indices where gradient exceeds threshold
+        change_points = list(np.where(gradient >= change_threshold)[0] + 1)
+        boundaries = [0] + change_points + [len(curve)]
 
-    # Build boundary indices: [0, cp1, cp2, ..., len(curve)]
-    boundaries = [0] + change_points + [len(curve)]
+    # Ensure start/end are included
+    if 0 not in boundaries:
+        boundaries.insert(0, 0)
+    if len(curve) not in boundaries:
+        boundaries.append(len(curve))
+
     # Remove duplicates and sort
     boundaries = sorted(set(boundaries))
 
@@ -163,6 +251,11 @@ class AudioAnalyzer:
 
             # Compute per-beat intensity (RMS energy at each beat position)
             rms = librosa.feature.rms(y=y)[0]
+
+            # Compute structural features
+            chroma = librosa.feature.chroma_cqt(y=y, sr=sr)
+            mfcc = librosa.feature.mfcc(y=y, sr=sr)
+
             curve_buffer = np.arange(len(rms))
             rms_times = librosa.frames_to_time(
                 curve_buffer, sr=sr
@@ -190,6 +283,10 @@ class AudioAnalyzer:
                 beat_times=beat_times_list,
                 intensity_curve=intensity_curve,
                 duration=duration,
+                chroma=chroma,
+                mfcc=mfcc,
+                beat_frames=beat_frames,
+                sr=sr,
             )
 
             result = AudioAnalysisResult(

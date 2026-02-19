@@ -55,6 +55,8 @@ class TestAudioAnalyzer:
         mock_librosa.feature.rms.return_value = np.array(
             [[0.2, 0.5, 0.8, 0.3, 0.1]]
         )
+        mock_librosa.feature.chroma_cqt.return_value = np.zeros((12, 100))
+        mock_librosa.feature.mfcc.return_value = np.zeros((20, 100))
 
         input_data = AudioAnalysisInput(file_path="song.mp3")
         result = self.analyzer.analyze(input_data)
@@ -79,6 +81,8 @@ class TestAudioAnalyzer:
         mock_librosa.beat.beat_track.assert_called_once()
         mock_librosa.onset.onset_detect.assert_called_once()
         mock_librosa.feature.rms.assert_called_once()
+        mock_librosa.feature.chroma_cqt.assert_called_once()
+        mock_librosa.feature.mfcc.assert_called_once()
 
     @patch("src.core.audio_analyzer.librosa")
     @patch("src.core.validation.os.path.exists", return_value=True)

@@ -1,0 +1,2 @@
+2024-05-24 Initialized progress.txt.
+2024-05-24 Implemented Musical Section Segmentation (Structural) using scikit-learn AgglomerativeClustering on recurrence matrix. Updated AudioAnalyzer and tests.

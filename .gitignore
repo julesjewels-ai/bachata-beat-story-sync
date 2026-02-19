@@ -16,4 +16,4 @@ venv/
 *.wav
 *.mov
 
-.DS_Store
+.DS_Store.mypy_cache/
