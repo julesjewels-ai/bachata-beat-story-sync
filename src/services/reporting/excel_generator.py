@@ -6,6 +6,7 @@ import logging
 import openpyxl
 from typing import List
 from src.core.models import AudioAnalysisResult, VideoAnalysisResult
+from src.services.reporting.exceptions import ReportingError
 from .formatting import ReportFormatter
 from .components import ChartBuilder, ThumbnailEmbedder
 
@@ -23,10 +24,10 @@ class ExcelReportGenerator:
         self.chart_builder = ChartBuilder()
         self.thumbnail_embedder = ThumbnailEmbedder()
 
-    def generate_report(self,
-                        audio_data: AudioAnalysisResult,
-                        video_data: List[VideoAnalysisResult],
-                        output_path: str) -> str:
+    def generate(self,
+                 audio_data: AudioAnalysisResult,
+                 video_data: List[VideoAnalysisResult],
+                 output_path: str) -> str:
         """
         Creates an Excel file with analysis details.
 
@@ -37,6 +38,9 @@ class ExcelReportGenerator:
 
         Returns:
             The path to the generated file.
+
+        Raises:
+            ReportingError: If the report cannot be saved.
         """
         wb = openpyxl.Workbook()
 
@@ -52,9 +56,12 @@ class ExcelReportGenerator:
         # Sheet 3: Visualizations
         self._build_visualization_sheet(wb, "Video Library", len(video_data))
 
-        wb.save(output_path)
-        logger.info("Report generated at: %s", output_path)
-        return output_path
+        try:
+            wb.save(output_path)
+            logger.info("Report generated at: %s", output_path)
+            return output_path
+        except IOError as e:
+            raise ReportingError(f"Failed to save report to {output_path}: {e}")
 
     def _write_headers(self, ws, headers: List[str], center: bool = False) -> None:
         """Helper to write and format table headers."""

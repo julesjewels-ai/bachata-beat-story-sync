@@ -7,7 +7,7 @@ import logging
 from src.core.app import BachataSyncEngine
 from src.core.audio_analyzer import AudioAnalyzer, AudioAnalysisInput
 from src.core.models import PacingConfig
-from src.services.reporting import ExcelReportGenerator
+from src.services.reporting import ReportFactory, ReportingError
 from src.ui.console import RichProgressObserver
 from pydantic import ValidationError
 
@@ -136,10 +136,13 @@ def main() -> None:
                 "Generating analysis report to %s...",
                 args.export_report
             )
-            report_gen = ExcelReportGenerator()
-            report_gen.generate_report(
-                audio_meta, video_clips, args.export_report
-            )
+            try:
+                report_gen = ReportFactory.get_generator(args.export_report)
+                report_gen.generate(
+                    audio_meta, video_clips, args.export_report
+                )
+            except ReportingError as e:
+                logger.error("Failed to generate report: %s", e)
 
     except ValidationError as e:
         logger.error("Input validation error: %s", e)
