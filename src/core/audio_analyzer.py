@@ -27,6 +27,40 @@ class AudioAnalysisInput(BaseModel):
         return validate_file_path(v, SUPPORTED_AUDIO_EXTENSIONS)
 
 
+def _determine_section_label(
+    index: int,
+    num_sections: int,
+    avg_intensity: float,
+    smoothed_curve: np.ndarray,
+    start_idx: int,
+    end_idx: int,
+) -> str:
+    """
+    Determines the label of a musical section based on its position and intensity.
+    """
+    if index == 0 and avg_intensity < 0.5:
+        return "intro"
+
+    if index == num_sections - 1 and avg_intensity < 0.5:
+        return "outro"
+
+    if avg_intensity >= 0.65:
+        return "high_energy"
+
+    if avg_intensity < 0.35:
+        return "low_energy"
+
+    # Check if this is a transition (rising or falling)
+    if end_idx < len(smoothed_curve) and start_idx < len(smoothed_curve):
+        delta = smoothed_curve[min(end_idx - 1, len(smoothed_curve) - 1)] - smoothed_curve[start_idx]
+        if delta > 0.1:
+            return "buildup"
+        if delta < -0.1:
+            return "breakdown"
+
+    return "mid_energy"
+
+
 def detect_sections(
     beat_times: list[float],
     intensity_curve: list[float],
@@ -96,27 +130,14 @@ def detect_sections(
         end_time = beat_times[end_idx] if end_idx < len(beat_times) else duration
         avg_intensity = float(np.mean(curve[start_idx:end_idx]))
 
-        # Label based on position and intensity
-        if i == 0 and avg_intensity < 0.5:
-            label = "intro"
-        elif i == len(boundaries) - 2 and avg_intensity < 0.5:
-            label = "outro"
-        elif avg_intensity >= 0.65:
-            label = "high_energy"
-        elif avg_intensity < 0.35:
-            label = "low_energy"
-        else:
-            # Check if this is a transition (rising or falling)
-            if end_idx < len(smoothed) and start_idx < len(smoothed):
-                delta = smoothed[min(end_idx - 1, len(smoothed) - 1)] - smoothed[start_idx]
-                if delta > 0.1:
-                    label = "buildup"
-                elif delta < -0.1:
-                    label = "breakdown"
-                else:
-                    label = "mid_energy"
-            else:
-                label = "mid_energy"
+        label = _determine_section_label(
+            index=i,
+            num_sections=len(boundaries) - 1,
+            avg_intensity=avg_intensity,
+            smoothed_curve=smoothed,
+            start_idx=start_idx,
+            end_idx=end_idx,
+        )
 
         sections.append(MusicalSection(
             label=label,
