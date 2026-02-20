@@ -2,7 +2,6 @@
 Unit tests for the core logic.
 """
 import pytest
-import os
 from unittest.mock import patch
 from src.core.app import BachataSyncEngine
 from src.core.models import AudioAnalysisResult, VideoAnalysisResult

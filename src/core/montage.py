@@ -19,7 +19,6 @@ import yaml
 from src.core.interfaces import ProgressObserver
 from src.core.models import (
     AudioAnalysisResult,
-    MusicalSection,
     PacingConfig,
     SegmentPlan,
     VideoAnalysisResult,

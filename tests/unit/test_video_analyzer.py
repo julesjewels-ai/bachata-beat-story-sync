@@ -20,8 +20,9 @@ def test_analyze_video(mock_video_capture, mock_exists, analyzer):
     # Mock the video capture object
     mock_cap = MagicMock()
     mock_cap.isOpened.return_value = True
-    mock_cap.get.side_effect = [30.0, 300]  # FPS, Frame Count
+    mock_cap.get.side_effect = [3.0, 30, 30, 3.0]  # FPS, Count, Count, FPS
     mock_cap.read.side_effect = [
+        (True, np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)),
         (True, np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)),
         (True, np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)),
         (False, None)
