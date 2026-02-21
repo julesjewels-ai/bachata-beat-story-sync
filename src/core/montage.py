@@ -12,7 +12,7 @@ import shutil
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import yaml
 
@@ -152,25 +152,10 @@ class MontageGenerator:
                 else 0.5
             )
 
-            # Pick target duration and speed based on intensity level
-            if intensity >= config.high_intensity_threshold:
-                target_seconds = config.high_intensity_seconds
-                level = "high"
-                speed = config.high_intensity_speed if config.speed_ramp_enabled else 1.0
-            elif intensity < config.low_intensity_threshold:
-                target_seconds = config.low_intensity_seconds
-                level = "low"
-                speed = config.low_intensity_speed if config.speed_ramp_enabled else 1.0
-            else:
-                target_seconds = config.medium_intensity_seconds
-                level = "medium"
-                speed = config.medium_intensity_speed if config.speed_ramp_enabled else 1.0
-
-            # Convert target to beats, then enforce minimum
-            if config.snap_to_beats:
-                target_beats = max(min_beats, round(target_seconds / spb))
-            else:
-                target_beats = max(min_beats, math.ceil(target_seconds / spb))
+            # 1. Determine properties (duration, speed, level)
+            target_beats, level, speed = self._determine_segment_properties(
+                intensity, config, spb, min_beats
+            )
 
             # Don't exceed available beats
             beat_count = min(target_beats, len(beat_times) - beat_idx)
@@ -181,34 +166,21 @@ class MontageGenerator:
                 remaining = config.max_duration_seconds - timeline_pos
                 segment_duration = min(segment_duration, remaining)
 
-            # Pick clip (round-robin)
-            clip = sorted_clips[clip_idx % len(sorted_clips)]
-            clip_idx += 1
-
-            # Compute start offset within clip
-            max_start = max(0.0, clip.duration - segment_duration)
-            if config.clip_variety_enabled and max_start > 0:
-                # Deterministic per-segment offset using clip path + usage index
-                seed = int(
-                    hashlib.md5(
-                        f"{clip.path}:{clip_idx}".encode()
-                    ).hexdigest()[:8],
-                    16,
-                )
-                start_time = (seed % int(max_start * 1000)) / 1000.0
-            else:
-                start_time = 0.0
+            # 2. Select clip and calculate offset
+            clip, start_time, clip_idx = self._select_clip_for_segment(
+                sorted_clips, clip_idx, segment_duration, config
+            )
 
             # Clamp segment duration to remaining clip after start offset
             actual_duration = min(segment_duration, clip.duration - start_time)
 
-            # Look up musical section for this beat position
-            current_time = beat_times[beat_idx] if beat_idx < len(beat_times) else timeline_pos
-            section_label = None
-            for sec in sections:
-                if sec.start_time <= current_time < sec.end_time:
-                    section_label = sec.label
-                    break
+            # 3. Find section label
+            current_time = (
+                beat_times[beat_idx]
+                if beat_idx < len(beat_times)
+                else timeline_pos
+            )
+            section_label = self._find_section_label(sections, current_time)
 
             if actual_duration > 0:
                 segments.append(
@@ -227,6 +199,80 @@ class MontageGenerator:
             beat_idx += beat_count
 
         return segments
+
+    def _determine_segment_properties(
+        self,
+        intensity: float,
+        config: PacingConfig,
+        spb: float,
+        min_beats: int,
+    ) -> Tuple[int, str, float]:
+        """Determine target beats, intensity level, and playback speed."""
+        if intensity >= config.high_intensity_threshold:
+            target_seconds = config.high_intensity_seconds
+            level = "high"
+            speed = (
+                config.high_intensity_speed if config.speed_ramp_enabled else 1.0
+            )
+        elif intensity < config.low_intensity_threshold:
+            target_seconds = config.low_intensity_seconds
+            level = "low"
+            speed = (
+                config.low_intensity_speed if config.speed_ramp_enabled else 1.0
+            )
+        else:
+            target_seconds = config.medium_intensity_seconds
+            level = "medium"
+            speed = (
+                config.medium_intensity_speed
+                if config.speed_ramp_enabled
+                else 1.0
+            )
+
+        if config.snap_to_beats:
+            target_beats = max(min_beats, round(target_seconds / spb))
+        else:
+            target_beats = max(min_beats, math.ceil(target_seconds / spb))
+
+        return target_beats, level, speed
+
+    def _select_clip_for_segment(
+        self,
+        sorted_clips: List[VideoAnalysisResult],
+        clip_idx: int,
+        segment_duration: float,
+        config: PacingConfig,
+    ) -> Tuple[VideoAnalysisResult, float, int]:
+        """Select a clip, calculate start offset, and return next index."""
+        clip = sorted_clips[clip_idx % len(sorted_clips)]
+
+        # Increment index *before* seed generation (legacy compatibility)
+        next_clip_idx = clip_idx + 1
+
+        max_start = max(0.0, clip.duration - segment_duration)
+        if config.clip_variety_enabled and max_start > 0:
+            seed = int(
+                hashlib.md5(
+                    f"{clip.path}:{next_clip_idx}".encode()
+                ).hexdigest()[:8],
+                16,
+            )
+            start_time = (seed % int(max_start * 1000)) / 1000.0
+        else:
+            start_time = 0.0
+
+        return clip, start_time, next_clip_idx
+
+    def _find_section_label(
+        self,
+        sections: List[MusicalSection],
+        current_time: float,
+    ) -> Optional[str]:
+        """Find the musical section label for the current time."""
+        for sec in sections:
+            if sec.start_time <= current_time < sec.end_time:
+                return sec.label
+        return None
 
     def generate(
         self,
