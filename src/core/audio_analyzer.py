@@ -6,6 +6,10 @@ import logging
 import os
 import numpy as np
 import librosa
+import librosa.feature
+import librosa.segment
+import sklearn.cluster  # type: ignore
+from typing import Optional
 from pydantic import BaseModel, Field, field_validator
 from src.core.validation import validate_file_path
 from src.core.models import AudioAnalysisResult, MusicalSection
@@ -27,27 +31,108 @@ class AudioAnalysisInput(BaseModel):
         return validate_file_path(v, SUPPORTED_AUDIO_EXTENSIONS)
 
 
+def _determine_section_label(
+    avg_intensity: float,
+    start_idx: int,
+    end_idx: int,
+    smoothed_curve: np.ndarray,
+    is_first: bool = False,
+    is_last: bool = False
+) -> str:
+    """
+    Determine the label for a section based on intensity and position.
+    """
+    if is_first and avg_intensity < 0.5:
+        return "intro"
+    if is_last and avg_intensity < 0.5:
+        return "outro"
+
+    if avg_intensity >= 0.65:
+        return "high_energy"
+    if avg_intensity < 0.35:
+        return "low_energy"
+
+    # Check for transition
+    if end_idx < len(smoothed_curve) and start_idx < len(smoothed_curve):
+        # Use safe indices for delta calculation
+        safe_end = min(end_idx - 1, len(smoothed_curve) - 1)
+        safe_start = start_idx
+        delta = smoothed_curve[safe_end] - smoothed_curve[safe_start]
+
+        if delta > 0.1:
+            return "buildup"
+        if delta < -0.1:
+            return "breakdown"
+
+    return "mid_energy"
+
+
+def segment_structure(
+    y: np.ndarray,
+    sr: int,
+    beat_frames: np.ndarray,
+    n_segments: int = 8
+) -> list[int]:
+    """
+    Perform structural segmentation using recurrence matrix and clustering.
+
+    Args:
+        y: Audio time series.
+        sr: Sampling rate.
+        beat_frames: Beat locations in frames.
+        n_segments: Target number of segments for clustering.
+
+    Returns:
+        List of beat indices where structural changes occur.
+    """
+    try:
+        # Compute chroma features synchronized to beats
+        chroma = librosa.feature.chroma_cqt(y=y, sr=sr)
+        chroma_sync = librosa.util.sync(chroma, beat_frames, aggregate=np.median)  # type: ignore
+
+        # Compute recurrence matrix
+        rec = librosa.segment.recurrence_matrix(
+            chroma_sync, mode='connectivity', metric='cosine', sparse=True
+        )
+
+        # Cluster segments
+        clustering = sklearn.cluster.AgglomerativeClustering(
+            n_clusters=n_segments, connectivity=rec
+        )
+        labels = clustering.fit_predict(chroma_sync.T)
+
+        # Find boundaries where labels change
+        boundaries = [0]
+        for i in range(1, len(labels)):
+            if labels[i] != labels[i-1]:
+                boundaries.append(i)
+        boundaries.append(len(labels))
+
+        return sorted(list(set(boundaries)))
+
+    except Exception as e:
+        logger.warning(f"Structural segmentation failed: {e}. Falling back to intensity only.")
+        return []
+
+
 def detect_sections(
     beat_times: list[float],
     intensity_curve: list[float],
     duration: float,
     smoothing_window: int = 8,
     change_threshold: float = 0.15,
+    structural_boundaries: Optional[list[int]] = None
 ) -> list[MusicalSection]:
     """
-    Detect musical sections from the intensity envelope.
-
-    Smooths the per-beat intensity curve, finds change-points where the
-    smoothed gradient exceeds a threshold, and labels each resulting
-    section by its average energy level.
+    Detect musical sections from intensity envelope and structural boundaries.
 
     Args:
         beat_times: Precise beat timestamps (seconds).
         intensity_curve: Normalised RMS energy (0.0-1.0) per beat.
         duration: Total track duration in seconds.
         smoothing_window: Number of beats for the moving-average kernel.
-        change_threshold: Minimum absolute change in smoothed intensity
-            to trigger a section boundary.
+        change_threshold: Minimum absolute change in smoothed intensity.
+        structural_boundaries: Optional list of beat indices from structural analysis.
 
     Returns:
         List of MusicalSection objects covering the full track.
@@ -63,21 +148,23 @@ def detect_sections(
 
     curve = np.array(intensity_curve, dtype=np.float64)
 
-    # Smooth the curve with a simple moving average
+    # Smooth the curve
     kernel_size = max(1, min(smoothing_window, len(curve)))
     kernel = np.ones(kernel_size) / kernel_size
     smoothed = np.convolve(curve, kernel, mode="same")
 
-    # Compute absolute gradient of the smoothed curve
+    # Compute intensity change points
     gradient = np.abs(np.diff(smoothed))
-
-    # Find change-point indices where gradient exceeds threshold
     change_points = list(np.where(gradient >= change_threshold)[0] + 1)
 
-    # Build boundary indices: [0, cp1, cp2, ..., len(curve)]
-    boundaries = [0] + change_points + [len(curve)]
+    # Combine with structural boundaries if provided
+    boundaries = [0] + change_points
+    if structural_boundaries:
+        boundaries.extend(structural_boundaries)
+    boundaries.append(len(curve))
+
     # Remove duplicates and sort
-    boundaries = sorted(set(boundaries))
+    boundaries = sorted(list(set(boundaries)))
 
     # Merge very short sections (fewer than 3 beats) into their neighbour
     merged: list[int] = [boundaries[0]]
@@ -96,27 +183,14 @@ def detect_sections(
         end_time = beat_times[end_idx] if end_idx < len(beat_times) else duration
         avg_intensity = float(np.mean(curve[start_idx:end_idx]))
 
-        # Label based on position and intensity
-        if i == 0 and avg_intensity < 0.5:
-            label = "intro"
-        elif i == len(boundaries) - 2 and avg_intensity < 0.5:
-            label = "outro"
-        elif avg_intensity >= 0.65:
-            label = "high_energy"
-        elif avg_intensity < 0.35:
-            label = "low_energy"
-        else:
-            # Check if this is a transition (rising or falling)
-            if end_idx < len(smoothed) and start_idx < len(smoothed):
-                delta = smoothed[min(end_idx - 1, len(smoothed) - 1)] - smoothed[start_idx]
-                if delta > 0.1:
-                    label = "buildup"
-                elif delta < -0.1:
-                    label = "breakdown"
-                else:
-                    label = "mid_energy"
-            else:
-                label = "mid_energy"
+        label = _determine_section_label(
+            avg_intensity=avg_intensity,
+            start_idx=start_idx,
+            end_idx=end_idx,
+            smoothed_curve=smoothed,
+            is_first=(i == 0),
+            is_last=(i == len(boundaries) - 2)
+        )
 
         sections.append(MusicalSection(
             label=label,
@@ -144,7 +218,6 @@ class AudioAnalyzer:
 
         try:
             # Load audio file — downsample to 22050 Hz to halve memory
-            # (beat/onset detection works well at this rate)
             y, sr = librosa.load(file_path, sr=22050)
 
             # Extract features
@@ -156,6 +229,9 @@ class AudioAnalyzer:
             # Convert beat frames to precise timestamps
             beat_times_arr = librosa.frames_to_time(beat_frames, sr=sr)
             beat_times_list = [float(t) for t in beat_times_arr]
+
+            # Structural segmentation
+            structural_boundaries = segment_structure(y, int(sr), beat_frames)
 
             # onset_detect returns onset_frames (ndarray)
             onset_frames = librosa.onset.onset_detect(y=y, sr=sr)
@@ -185,11 +261,12 @@ class AudioAnalyzer:
             bpm_val = float(np.asarray(tempo).flat[0])
             peaks_list = [float(t) for t in onset_times]
 
-            # Detect musical sections from intensity envelope
+            # Detect musical sections from intensity envelope and structural boundaries
             sections = detect_sections(
                 beat_times=beat_times_list,
                 intensity_curve=intensity_curve,
                 duration=duration,
+                structural_boundaries=structural_boundaries
             )
 
             result = AudioAnalysisResult(
