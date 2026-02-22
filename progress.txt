@@ -1,0 +1,12 @@
+# Progress Log
+
+## Current Status
+- [x] Implement Structural Segmentation (Music Structure Analysis)
+
+## History
+- **[2024-05-24]** Implemented structural segmentation using `librosa` chroma features and `sklearn` AgglomerativeClustering.
+    - Updated `requirements.txt` to include `scikit-learn`.
+    - Created `tests/unit/test_structural_segmentation.py`.
+    - Integrated structural boundaries into `detect_sections` and `AudioAnalyzer.analyze`.
+    - Fixed logic error in clustering (switched from recurrence matrix to direct feature clustering).
+    - Fixed flaky test `tests/unit/test_video_analyzer.py`.

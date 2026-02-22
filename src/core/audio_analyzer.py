@@ -4,8 +4,13 @@ Audio analysis module for Bachata Beat-Story Sync.
 import gc
 import logging
 import os
+from typing import List, Optional
+
 import numpy as np
 import librosa
+import librosa.feature
+import librosa.segment
+import sklearn.cluster  # type: ignore
 from pydantic import BaseModel, Field, field_validator
 from src.core.validation import validate_file_path
 from src.core.models import AudioAnalysisResult, MusicalSection
@@ -27,15 +32,68 @@ class AudioAnalysisInput(BaseModel):
         return validate_file_path(v, SUPPORTED_AUDIO_EXTENSIONS)
 
 
+def segment_structure(
+    y: np.ndarray, sr: int, beat_frames: Optional[np.ndarray] = None
+) -> List[int]:
+    """
+    Detect structural boundaries (e.g., Verse/Chorus) using recurrence matrix and clustering.
+
+    Args:
+        y: Audio time series.
+        sr: Sampling rate.
+        beat_frames: Optional beat event frame indices. If provided, features
+            will be synchronized to beats, and returned boundaries will be
+            beat indices. If None, boundaries will be frame indices (less useful).
+
+    Returns:
+        List of boundary indices (integers).
+    """
+    try:
+        # Compute Chroma Features
+        chroma = librosa.feature.chroma_cqt(y=y, sr=sr)
+
+        # If beats are provided, sync features to beats
+        if beat_frames is not None and len(beat_frames) > 0:
+            chroma = librosa.util.sync(chroma, beat_frames, aggregate=np.median)  # type: ignore
+
+        # Transpose to (n_samples, n_features) for sklearn
+        features = chroma.T
+
+        # Cluster using Agglomerative Clustering
+        # We cluster the chroma features directly to find structural segments.
+        # linkage='ward' minimizes variance within clusters.
+        clustering = sklearn.cluster.AgglomerativeClustering(
+            n_clusters=8, linkage='ward'
+        )
+        labels = clustering.fit_predict(features)
+
+        # Find boundaries where labels change
+        boundaries = [0]
+        for i in range(1, len(labels)):
+            if labels[i] != labels[i-1]:
+                boundaries.append(i)
+
+        # Ensure the last index is included conceptually, but we usually return start indices of segments.
+        # Or cut points.
+        boundaries.append(len(labels))
+
+        return sorted(list(set(boundaries)))
+
+    except Exception as e:
+        logger.warning(f"Structural segmentation failed: {e}")
+        return []
+
+
 def detect_sections(
     beat_times: list[float],
     intensity_curve: list[float],
     duration: float,
     smoothing_window: int = 8,
     change_threshold: float = 0.15,
+    structural_boundaries: Optional[list[int]] = None,
 ) -> list[MusicalSection]:
     """
-    Detect musical sections from the intensity envelope.
+    Detect musical sections from the intensity envelope and structural boundaries.
 
     Smooths the per-beat intensity curve, finds change-points where the
     smoothed gradient exceeds a threshold, and labels each resulting
@@ -48,6 +106,8 @@ def detect_sections(
         smoothing_window: Number of beats for the moving-average kernel.
         change_threshold: Minimum absolute change in smoothed intensity
             to trigger a section boundary.
+        structural_boundaries: Optional list of beat indices indicating
+            structural changes (Verse/Chorus) detected via clustering.
 
     Returns:
         List of MusicalSection objects covering the full track.
@@ -68,24 +128,34 @@ def detect_sections(
     kernel = np.ones(kernel_size) / kernel_size
     smoothed = np.convolve(curve, kernel, mode="same")
 
-    # Compute absolute gradient of the smoothed curve
-    gradient = np.abs(np.diff(smoothed))
+    # Calculate boundaries
+    if structural_boundaries:
+        # Use provided structural boundaries
+        # Ensure boundaries are within range [0, len(curve)]
+        boundaries = [0] + [b for b in structural_boundaries if 0 < b < len(curve)] + [len(curve)]
+        boundaries = sorted(set(boundaries))
 
-    # Find change-point indices where gradient exceeds threshold
-    change_points = list(np.where(gradient >= change_threshold)[0] + 1)
+        # If we have very few boundaries (e.g. just start/end), maybe fallback or refine?
+        # But let's trust the structure for now.
+    else:
+        # Compute absolute gradient of the smoothed curve
+        gradient = np.abs(np.diff(smoothed))
 
-    # Build boundary indices: [0, cp1, cp2, ..., len(curve)]
-    boundaries = [0] + change_points + [len(curve)]
-    # Remove duplicates and sort
-    boundaries = sorted(set(boundaries))
+        # Find change-point indices where gradient exceeds threshold
+        change_points = list(np.where(gradient >= change_threshold)[0] + 1)
 
-    # Merge very short sections (fewer than 3 beats) into their neighbour
-    merged: list[int] = [boundaries[0]]
-    for b in boundaries[1:]:
-        if b - merged[-1] < 3 and b != boundaries[-1]:
-            continue  # skip this boundary — section too short
-        merged.append(b)
-    boundaries = merged
+        # Build boundary indices: [0, cp1, cp2, ..., len(curve)]
+        boundaries = [0] + change_points + [len(curve)]
+        # Remove duplicates and sort
+        boundaries = sorted(set(boundaries))
+
+        # Merge very short sections (fewer than 3 beats) into their neighbour
+        merged: list[int] = [boundaries[0]]
+        for b in boundaries[1:]:
+            if b - merged[-1] < 3 and b != boundaries[-1]:
+                continue  # skip this boundary — section too short
+            merged.append(b)
+        boundaries = merged
 
     sections: list[MusicalSection] = []
     for i in range(len(boundaries) - 1):
@@ -94,9 +164,19 @@ def detect_sections(
 
         start_time = beat_times[start_idx] if start_idx < len(beat_times) else duration
         end_time = beat_times[end_idx] if end_idx < len(beat_times) else duration
-        avg_intensity = float(np.mean(curve[start_idx:end_idx]))
+
+        # Calculate average intensity for this section
+        # Handle empty slice edge case
+        if start_idx < end_idx:
+            avg_intensity = float(np.mean(curve[start_idx:end_idx]))
+        else:
+            avg_intensity = 0.0
 
         # Label based on position and intensity
+        # TODO: Improved labelling for structural segments (Verse, Chorus) would require
+        # looking at the cluster labels themselves, which we don't have here.
+        # For now, we reuse the intensity-based labelling logic.
+
         if i == 0 and avg_intensity < 0.5:
             label = "intro"
         elif i == len(boundaries) - 2 and avg_intensity < 0.5:
@@ -185,11 +265,16 @@ class AudioAnalyzer:
             bpm_val = float(np.asarray(tempo).flat[0])
             peaks_list = [float(t) for t in onset_times]
 
-            # Detect musical sections from intensity envelope
+            # Perform structural segmentation
+            # This returns beat indices
+            structural_boundaries = segment_structure(y, int(sr), beat_frames=beat_frames)
+
+            # Detect musical sections from intensity envelope and structural boundaries
             sections = detect_sections(
                 beat_times=beat_times_list,
                 intensity_curve=intensity_curve,
                 duration=duration,
+                structural_boundaries=structural_boundaries,
             )
 
             result = AudioAnalysisResult(
