@@ -87,6 +87,7 @@ class BachataSyncEngine:
         video_clips: List[VideoAnalysisResult],
         output_path: str,
         audio_path: Optional[str] = None,
+        observer: Optional[ProgressObserver] = None,
         pacing: Optional[PacingConfig] = None,
     ) -> str:
         """
@@ -97,6 +98,7 @@ class BachataSyncEngine:
             video_clips: Analyzed video clips with intensity scores.
             output_path: Path for the final output video.
             audio_path: Optional path to audio file to overlay.
+            observer: Optional progress observer for status updates.
             pacing: Optional pacing configuration (e.g. test mode limits).
 
         Returns:
@@ -108,5 +110,5 @@ class BachataSyncEngine:
         )
 
         return self.montage_generator.generate(
-            audio_data, video_clips, output_path, audio_path, pacing=pacing
+            audio_data, video_clips, output_path, audio_path, observer=observer, pacing=pacing
         )

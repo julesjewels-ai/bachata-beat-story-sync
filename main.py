@@ -144,10 +144,11 @@ def main() -> None:
             clip.model_copy(update={"thumbnail_data": None})
             for clip in video_clips
         ]
-        result_path = engine.generate_story(
-            audio_meta, montage_clips, args.output,
-            audio_path=audio_input.file_path, pacing=pacing,
-        )
+        with RichProgressObserver() as observer:
+            result_path = engine.generate_story(
+                audio_meta, montage_clips, args.output,
+                audio_path=audio_input.file_path, observer=observer, pacing=pacing,
+            )
         del montage_clips  # free immediately
         logger.info("Process complete. Output saved to: %s", result_path)
 

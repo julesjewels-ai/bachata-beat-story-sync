@@ -106,7 +106,7 @@ When a clip is reused across multiple segments, the current code always extracts
 
 | Field       | Value                                |
 |-------------|--------------------------------------|
-| **Status**  | `PROPOSED`                           |
+| **Status**  | `IMPLEMENTED`                        |
 | **Priority**| 🟡 Medium                            |
 | **Effort**  | Medium                               |
 | **Impact**  | High — enables full DJ-style mixes   |
@@ -148,3 +148,23 @@ Currently, video clips are selected sequentially (round-robin style), meaning hi
 ### Concerns & Considerations
 - **Pool Starvation/Repetition Indexing**: If a user provides mostly low-energy clips, but the song is predominantly high-energy, the few high-energy clips will be repeated constantly. The system needs to intelligently balance matching intensity vs. maintaining `clip_variety_enabled` (FEAT-006). If a pool is too small, the system should deliberately borrow from adjacent pools to keep the visual feed fresh.
 - **Score Calibration**: The threshold values for 'high', 'medium', and 'low' (e.g., `0.65` and `0.35` in `PacingConfig`) need to be reliable for both audio RMS and video motion/brightness analysis. If the video analyzer generally scores too low, the 'high' pool might remain permanently bare. We may need to investigate categorizing video clips using dynamic percentiles (e.g., the top 30% most intense clips are "high") rather than strictly hardcoded `<0.35` and `>0.65` thresholds.
+
+---
+
+## FEAT-009: Specific Clip Prefix Ordering
+
+| Field       | Value                                |
+|-------------|--------------------------------------|
+| **Status**  | `PROPOSED`                           |
+| **Priority**| 🔴 High                              |
+| **Effort**  | Low                                  |
+| **Impact**  | High — allows editorial control over intos |
+
+### Description
+Allows the user to force specific clips to appear at the very beginning of the montage by prefixing their filenames with a number and an underscore (e.g., `1_intro.mp4`, `2_lead.mp4`).
+
+### Implementation Details
+- The system will detect clips with a numbering prefix in their filename.
+- These clips will be sorted numerically (e.g. `1_` before `2_`) and used in that exact order for the first available beat segments.
+- After all prefix forced clips are exhausted, the system returns to its normal intensity-driven, round-robin selection logic for the remainder of the montage.
+- Because the forced clips still map directly to the calculated beat segments, they will inherently "match the song" (pacing, cuts, and transitions will trigger on the beats).
