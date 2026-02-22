@@ -25,8 +25,8 @@ pacing:
   low_intensity_speed: 0.7     # Slow-motion for dreamy feel
 
   # Test mode — uncomment or use --test-mode CLI flag for fast iteration
-  # max_clips: 4                 # Maximum number of clip segments
-  # max_duration_seconds: 10.0   # Maximum montage duration (seconds)
+  # max_clips: 5                 # Maximum number of clip segments
+  # max_duration_seconds: 30.0   # Maximum montage duration (seconds)
 
   # Clip variety — vary start position within clips each time they're reused
   clip_variety_enabled: true

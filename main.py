@@ -10,6 +10,10 @@ from src.core.models import PacingConfig
 from src.services.reporting import ExcelReportGenerator
 from src.ui.console import RichProgressObserver
 from pydantic import ValidationError
+import os
+from src.core.audio_mixer import AudioMixer, SUPPORTED_AUDIO_EXTENSIONS as MIX_EXTS
+
+from src.core.audio_mixer import AudioMixer, SUPPORTED_AUDIO_EXTENSIONS as MIX_EXTS
 
 
 def parse_args() -> argparse.Namespace:
@@ -80,9 +84,26 @@ def main() -> None:
     audio_analyzer = AudioAnalyzer()
 
     try:
+        audio_path = args.audio
+        if os.path.isdir(audio_path):
+            valid_files = [
+                f for f in os.listdir(audio_path) 
+                if os.path.isfile(os.path.join(audio_path, f)) 
+                and any(f.lower().endswith(ext.lower()) for ext in MIX_EXTS)
+                and f != "_mixed_audio.wav"
+            ]
+            
+            if len(valid_files) > 1:
+                logger.info("Multiple audio files detected. Mixing tracks...")
+                mixed_output = os.path.join(audio_path, "_mixed_audio.wav")
+                mixer = AudioMixer()
+                with RichProgressObserver() as mix_observer:
+                    audio_path = mixer.mix_audio_folder(audio_path, mixed_output, observer=mix_observer)
+                logger.info("Mixed audio saved to: %s", audio_path)
+
         # 1. Analyze Audio
-        logger.info("Analyzing audio track: %s", args.audio)
-        audio_input = AudioAnalysisInput(file_path=args.audio)
+        logger.info("Analyzing audio track: %s", audio_path)
+        audio_input = AudioAnalysisInput(file_path=audio_path)
         audio_meta = audio_analyzer.analyze(audio_input)
         logger.info(
             "Detected BPM: %s | Emotional Peaks: %d",
@@ -125,7 +146,7 @@ def main() -> None:
         ]
         result_path = engine.generate_story(
             audio_meta, montage_clips, args.output,
-            audio_path=args.audio, pacing=pacing,
+            audio_path=audio_input.file_path, pacing=pacing,
         )
         del montage_clips  # free immediately
         logger.info("Process complete. Output saved to: %s", result_path)

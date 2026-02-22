@@ -175,3 +175,14 @@ class PacingConfig(BaseModel):
     transition_duration: float = Field(
         0.5, description="Duration of each transition in seconds"
     )
+
+class AudioMixConfig(BaseModel):
+    """
+    Configuration for mixing multiple audio tracks.
+    """
+    model_config = ConfigDict(extra="forbid")
+
+    crossfade_duration_seconds: float = Field(
+        2.0, description="Duration in seconds for the crossfades between tracks"
+    )
+

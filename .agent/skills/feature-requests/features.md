@@ -121,3 +121,30 @@ Instead of supplying a single audio file, allow the user to specify a **folder**
 - Optionally support a **tracklist manifest** (e.g. `tracklist.txt` or `tracklist.yaml`) to control order, per-track trim points, and crossfade durations between tracks
 - Apply a configurable **crossfade** between consecutive tracks (default ~2s) so the mix sounds seamless
 - Store the joined mix as a cached intermediate file to avoid re-joining on subsequent runs
+
+---
+
+## FEAT-008: Visual Intensity Matching
+
+| Field       | Value                                |
+|-------------|--------------------------------------|
+| **Status**  | `PROPOSED`                           |
+| **Priority**| 🔴 High                              |
+| **Effort**  | Medium                               |
+| **Impact**  | High — makes the montage feel cohesive and responsive|
+
+### Description
+Currently, video clips are selected sequentially (round-robin style), meaning high-energy music can easily pair with low-energy clips, and vice versa. This feature will update the clip selection logic so that the visual intensity of the chosen clip matches the current audio intensity classification.
+
+### Implementation Details
+- In `MontageGenerator.build_segment_plan`, when deciding which clip to use for a particular musical section or beat segment:
+  - Check the current audio `intensity_level` ('high', 'medium', 'low', derived from `intensity >= high_intensity_threshold`, etc.).
+  - Distribute the available `video_clips` into buckets or pools based on their visual `intensity_score` (e.g., > 0.65 for high, < 0.35 for low).
+  - Select clips from the pool that matches the current audio intensity, rather than uniformly iterating over `sorted_clips`.
+- To prevent exhausting clips in a pool or excessive repetition:
+  - Maintain a separate round-robin tracking index per intensity pool, rather than a single global `clip_idx`.
+  - Implement **fallback logic**: If a pool is empty (e.g., no 'high' intensity clips exist), fallback to the next closest pool (e.g., 'medium') to prevent crashes and dead loops.
+
+### Concerns & Considerations
+- **Pool Starvation/Repetition Indexing**: If a user provides mostly low-energy clips, but the song is predominantly high-energy, the few high-energy clips will be repeated constantly. The system needs to intelligently balance matching intensity vs. maintaining `clip_variety_enabled` (FEAT-006). If a pool is too small, the system should deliberately borrow from adjacent pools to keep the visual feed fresh.
+- **Score Calibration**: The threshold values for 'high', 'medium', and 'low' (e.g., `0.65` and `0.35` in `PacingConfig`) need to be reliable for both audio RMS and video motion/brightness analysis. If the video analyzer generally scores too low, the 'high' pool might remain permanently bare. We may need to investigate categorizing video clips using dynamic percentiles (e.g., the top 30% most intense clips are "high") rather than strictly hardcoded `<0.35` and `>0.65` thresholds.
