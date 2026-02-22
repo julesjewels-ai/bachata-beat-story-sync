@@ -2,8 +2,28 @@
 Data Transfer Objects (DTOs) for Bachata Beat-Story Sync.
 These models define the strict contracts for data exchange between layers.
 """
+from enum import Enum
 from typing import List, Optional
 from pydantic import BaseModel, ConfigDict, Field
+
+
+class DiagnosticStatus(str, Enum):
+    """Status of a diagnostic check."""
+    PASS = "PASS"
+    WARN = "WARN"
+    FAIL = "FAIL"
+
+
+class DiagnosticResult(BaseModel):
+    """
+    Result of a system diagnostic check.
+    """
+    model_config = ConfigDict(extra="forbid")
+
+    check_name: str = Field(..., description="Name of the check performed")
+    status: DiagnosticStatus = Field(..., description="Result status")
+    message: str = Field(..., description="Short result message")
+    details: Optional[str] = Field(None, description="Detailed error info or context")
 
 
 class MusicalSection(BaseModel):

@@ -6,8 +6,11 @@ import sys
 import logging
 from src.core.app import BachataSyncEngine
 from src.core.audio_analyzer import AudioAnalyzer, AudioAnalysisInput
-from src.core.models import PacingConfig
+from src.core.models import PacingConfig, DiagnosticStatus
 from src.services.reporting import ExcelReportGenerator
+from src.services.diagnostics import (
+    SystemDiagnosticManager, FFmpegCheck, DiskSpaceCheck
+)
 from src.ui.console import RichProgressObserver
 from pydantic import ValidationError
 
@@ -75,6 +78,31 @@ def main() -> None:
 
     logger = logging.getLogger(__name__)
     logger.info("Starting Bachata Beat-Story Sync...")
+
+    # --- System Diagnostics ---
+    logger.info("Running pre-flight diagnostics...")
+    diag_manager = SystemDiagnosticManager()
+    diag_manager.register_check(FFmpegCheck())
+    diag_manager.register_check(
+        DiskSpaceCheck(min_gb=1.0, paths=[".", args.video_dir])
+    )
+
+    results = diag_manager.run_diagnostics()
+    failed_checks = [r for r in results if r.status == DiagnosticStatus.FAIL]
+
+    if failed_checks:
+        logger.critical("System diagnostics FAILED. Please fix the following issues:")
+        for r in failed_checks:
+            logger.error("FAIL [%s]: %s (%s)", r.check_name, r.message, r.details)
+        sys.exit(1)
+
+    # Log warnings but proceed
+    warn_checks = [r for r in results if r.status == DiagnosticStatus.WARN]
+    for r in warn_checks:
+        logger.warning("WARN [%s]: %s", r.check_name, r.message)
+
+    logger.info("System diagnostics passed.")
+    # --------------------------
 
     engine = BachataSyncEngine()
     audio_analyzer = AudioAnalyzer()
