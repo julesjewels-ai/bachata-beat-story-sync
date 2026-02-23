@@ -61,6 +61,12 @@ class VideoAnalyzer:
 
         try:
             duration = self._validate_video_properties(cap)
+            
+            # Check aspect ratio for vertical shorts (9:16)
+            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            is_vertical = height > width
+
             thumbnail_data = self._extract_thumbnail(cap)
 
             # Reset frame position for intensity calculation
@@ -75,6 +81,7 @@ class VideoAnalyzer:
                 path=file_path,
                 intensity_score=intensity_score / NORMALIZATION_FACTOR,
                 duration=duration,
+                is_vertical=is_vertical,
                 thumbnail_data=thumbnail_data
             )
         finally:

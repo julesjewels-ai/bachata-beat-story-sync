@@ -11,6 +11,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+import random
 from pathlib import Path
 from typing import List, Optional
 
@@ -120,10 +121,25 @@ class MontageGenerator:
         # Minimum beats to satisfy the floor
         min_beats = max(1, math.ceil(config.min_clip_seconds / spb))
 
+        # Deduplicate identical clips (e.g. same footage in multiple folders)
+        unique_clips = []
+        seen = set()
+        for c in video_clips:
+            key = (round(c.duration, 1), round(c.intensity_score, 3), c.is_vertical)
+            if key not in seen:
+                seen.add(key)
+                unique_clips.append(c)
+        
         # Sort clips by intensity score (highest first) for matching
-        sorted_clips = sorted(
-            video_clips, key=lambda c: c.intensity_score, reverse=True
-        )
+        if config.is_shorts:
+            # Prioritise vertical clips first
+            sorted_clips = sorted(
+                unique_clips, key=lambda c: (c.is_vertical, c.intensity_score), reverse=True
+            )
+        else:
+            sorted_clips = sorted(
+                unique_clips, key=lambda c: c.intensity_score, reverse=True
+            )
 
         segments: List[SegmentPlan] = []
         timeline_pos = 0.0
@@ -145,6 +161,10 @@ class MontageGenerator:
             ):
                 break
 
+            # Calculate progress ratio for dynamic pacing and cliffhanger
+            total_dur = config.max_duration_seconds or audio_data.duration
+            progress = min(1.0, timeline_pos / total_dur) if total_dur > 0 else 0.0
+
             # Determine intensity at this beat
             intensity = (
                 intensity_curve[beat_idx]
@@ -165,6 +185,16 @@ class MontageGenerator:
                 target_seconds = config.medium_intensity_seconds
                 level = "medium"
                 speed = config.medium_intensity_speed if config.speed_ramp_enabled else 1.0
+
+            # Dynamic Flow: accelerate pacing towards the end (reduce duration by up to 40%)
+            if config.accelerate_pacing:
+                target_seconds *= (1.0 - (0.4 * progress))
+
+            # Human Touch: randomize speed ramps slightly (+/- 10%)
+            if config.randomize_speed_ramps and config.speed_ramp_enabled:
+                seed_val = f"{config.seed}_{clip_idx}_{beat_idx}"
+                rng = random.Random(seed_val)
+                speed *= rng.uniform(0.9, 1.1)
 
             # Convert target to beats, then enforce minimum
             if config.snap_to_beats:
@@ -188,10 +218,11 @@ class MontageGenerator:
             # Compute start offset within clip
             max_start = max(0.0, clip.duration - segment_duration)
             if config.clip_variety_enabled and max_start > 0:
-                # Deterministic per-segment offset using clip path + usage index
+                # Deterministic per-segment offset using clip path + usage index + seed
+                seed_str = f"{config.seed}:{clip.path}:{clip_idx}"
                 seed = int(
                     hashlib.md5(
-                        f"{clip.path}:{clip_idx}".encode()
+                        seed_str.encode()
                     ).hexdigest()[:8],
                     16,
                 )
@@ -300,7 +331,7 @@ class MontageGenerator:
         try:
             # 2. Extract segments (one FFmpeg process at a time)
             segment_files = self._extract_segments(
-                segments, temp_dir, observer
+                segments, temp_dir, config, observer
             )
 
             # 3. Group-and-transition or simple concat
@@ -376,6 +407,7 @@ class MontageGenerator:
         self,
         segments: List[SegmentPlan],
         temp_dir: str,
+        config: PacingConfig,
         observer: Optional[ProgressObserver] = None,
     ) -> List[str]:
         """
@@ -417,11 +449,22 @@ class MontageGenerator:
             # Build video filter chain:
             # 1. Resolution normalization (all segments → same size for xfade)
             # 2. Speed ramp via setpts (if needed)
-            vf_parts = [
-                f"scale={TARGET_WIDTH}:{TARGET_HEIGHT}"
-                f":force_original_aspect_ratio=decrease",
-                f"pad={TARGET_WIDTH}:{TARGET_HEIGHT}:(ow-iw)/2:(oh-ih)/2",
-            ]
+            t_width = 1080 if config.is_shorts else TARGET_WIDTH
+            t_height = 1920 if config.is_shorts else TARGET_HEIGHT
+
+            if config.is_shorts:
+                # Crop center to 9:16 aspect ratio (safe for both horizontal drop-ins and slight vertical variances)
+                vf_parts = [
+                    f"crop='min(iw,ih*9/16)':'min(ih,iw*16/9)'",
+                    f"scale={t_width}:{t_height}",
+                ]
+            else:
+                vf_parts = [
+                    f"scale={t_width}:{t_height}"
+                    f":force_original_aspect_ratio=decrease",
+                    f"pad={t_width}:{t_height}:(ow-iw)/2:(oh-ih)/2",
+                ]
+
             if seg.speed_factor != 1.0:
                 vf_parts.append(f"setpts=PTS/{seg.speed_factor}")
             cmd.extend(["-vf", ",".join(vf_parts)])

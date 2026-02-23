@@ -68,6 +68,9 @@ class VideoAnalysisResult(BaseModel):
     duration: float = Field(
         ..., description="Duration of the video clip in seconds"
     )
+    is_vertical: bool = Field(
+        False, description="Whether the video is vertical (height > width)"
+    )
     thumbnail_data: Optional[bytes] = Field(
         None, description="Binary data of the video thumbnail (PNG format)"
     )
@@ -142,7 +145,7 @@ class PacingConfig(BaseModel):
         1.0, description="Speed multiplier for medium-intensity clips"
     )
     low_intensity_speed: float = Field(
-        0.7, description="Speed multiplier for low-intensity clips (<1 = slow-mo)"
+        0.9, description="Speed multiplier for low-intensity clips (<1 = slow-mo)"
     )
     max_clips: Optional[int] = Field(
         None, description="Maximum number of clip segments (None = unlimited)"
@@ -154,6 +157,23 @@ class PacingConfig(BaseModel):
     # Clip variety — randomise start offset within reused clips
     clip_variety_enabled: bool = Field(
         True, description="Randomise start offset within clips to avoid repetition"
+    )
+
+    # Shorts Generator Configs
+    is_shorts: bool = Field(
+        False, description="Generate a vertical 9:16 short"
+    )
+    seed: str = Field(
+        "", description="Seed for deterministic stochasticity in unique generation"
+    )
+    accelerate_pacing: bool = Field(
+        False, description="Gradually decrease clip durations towards the end (Dynamic Flow)"
+    )
+    randomize_speed_ramps: bool = Field(
+        False, description="Apply random variance to speed ramps for a human touch"
+    )
+    abrupt_ending: bool = Field(
+        False, description="End sharply to create a cliffhanger effect"
     )
 
     # Section detection configuration
