@@ -126,7 +126,7 @@ Instead of supplying a single audio file, allow the user to specify a **folder**
 
 ---
 
-## FEAT-009: Specific Clip Prefix Ordering
+## FEAT-008: Specific Clip Prefix Ordering
 
 | Field       | Value                                |
 |-------------|--------------------------------------|
@@ -153,7 +153,7 @@ Allows the user to force specific clips to appear at the very beginning of the m
 
 ---
 
-## FEAT-008: Visual Intensity Matching
+## FEAT-009: Visual Intensity Matching
 
 | Field       | Value                                |
 |-------------|--------------------------------------|
@@ -191,15 +191,3 @@ Replace round-robin clip selection with intensity-matched pools so that high-ene
 - **In scope:** Pool bucketing, per-pool round-robin, fallback logic, FEAT-009 integration.
 - **Out of scope:** AI-based semantic matching (e.g., "this clip shows spinning"), multi-dimensional clip scoring.
 
----
-
-## Removed Features
-
-### ~~FEAT-010: Structural Segmentation~~ — REMOVED
-
-| Reason | Detail |
-|--------|--------|
-| **Low end-user impact** | The existing intensity-based `detect_sections` already segments tracks well. Structural segmentation only affects where transitions (fade/wipe) are placed — a difference most viewers won't notice. |
-| **Heavy dependency** | Adds `scikit-learn` (~30 MB install) for a single function. |
-| **Complexity cost** | O(n² log n) clustering, memory cleanup concerns, risk of over-segmentation on long DJ mixes (FEAT-007). |
-| **Reconsider when** | If the tool evolves to support AI-driven narrative arcs or scene-level storytelling where knowing "this is a verse" vs "this is a chorus" matters beyond just transition placement. |
