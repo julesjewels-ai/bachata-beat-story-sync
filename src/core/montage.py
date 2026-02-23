@@ -264,13 +264,6 @@ class MontageGenerator:
         if not video_clips:
             raise ValueError("No video clips provided for montage.")
 
-        # Verify ffmpeg is available
-        if not shutil.which("ffmpeg"):
-            raise RuntimeError(
-                "FFmpeg is not installed or not on PATH. "
-                "Install it with: brew install ffmpeg"
-            )
-
         # Load pacing config (explicit > file > defaults)
         config = pacing or load_pacing_config()
 
@@ -282,9 +275,50 @@ class MontageGenerator:
                 "in the audio analysis."
             )
 
+        # 2. Render plan
+        return self.render_plan(
+            segments, output_path, audio_path, observer, config
+        )
+
+    def render_plan(
+        self,
+        segments: List[SegmentPlan],
+        output_path: str,
+        audio_path: Optional[str] = None,
+        observer: Optional[ProgressObserver] = None,
+        pacing: Optional[PacingConfig] = None,
+    ) -> str:
+        """
+        Render a pre-built segment plan to a video file.
+
+        Args:
+            segments: The list of segments to render.
+            output_path: Path for the final output video.
+            audio_path: Optional path to audio file to overlay.
+            observer: Optional progress observer for status updates.
+            pacing: Optional pacing configuration.
+
+        Returns:
+            Path to the generated output video.
+
+        Raises:
+            RuntimeError: If FFmpeg fails or is missing.
+        """
+        if not segments:
+            raise ValueError("Cannot render an empty segment plan.")
+
+        # Verify ffmpeg is available
+        if not shutil.which("ffmpeg"):
+            raise RuntimeError(
+                "FFmpeg is not installed or not on PATH. "
+                "Install it with: brew install ffmpeg"
+            )
+
+        config = pacing or load_pacing_config()
+
         total_dur = segments[-1].timeline_position + segments[-1].duration
         logger.info(
-            "Built segment plan: %d segments, total duration: %.1fs",
+            "Rendering segment plan: %d segments, total duration: %.1fs",
             len(segments), total_dur,
         )
         if config.max_clips or config.max_duration_seconds:

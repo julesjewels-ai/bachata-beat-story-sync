@@ -5,7 +5,9 @@ Handles audio analysis logic and video synchronization algorithms.
 import logging
 import os
 from typing import List, Optional
-from src.core.models import AudioAnalysisResult, PacingConfig, VideoAnalysisResult
+from src.core.models import (
+    AudioAnalysisResult, PacingConfig, VideoAnalysisResult, SegmentPlan
+)
 from pydantic import ValidationError
 from src.core.video_analyzer import (
     VideoAnalyzer, VideoAnalysisInput, SUPPORTED_VIDEO_EXTENSIONS
@@ -111,4 +113,54 @@ class BachataSyncEngine:
 
         return self.montage_generator.generate(
             audio_data, video_clips, output_path, audio_path, observer=observer, pacing=pacing
+        )
+
+    def create_plan(
+        self,
+        audio_data: AudioAnalysisResult,
+        video_clips: List[VideoAnalysisResult],
+        pacing: Optional[PacingConfig] = None,
+    ) -> List[SegmentPlan]:
+        """
+        Builds the montage segment plan without rendering video.
+
+        Args:
+            audio_data: Analyzed audio features.
+            video_clips: Analyzed video clips with intensity scores.
+            pacing: Optional pacing configuration.
+
+        Returns:
+            Ordered list of planned segments.
+        """
+        return self.montage_generator.build_segment_plan(
+            audio_data, video_clips, pacing
+        )
+
+    def render_story_from_plan(
+        self,
+        plan: List[SegmentPlan],
+        output_path: str,
+        audio_path: Optional[str] = None,
+        observer: Optional[ProgressObserver] = None,
+        pacing: Optional[PacingConfig] = None,
+    ) -> str:
+        """
+        Renders a pre-built segment plan to a video file.
+
+        Args:
+            plan: The list of segments to render.
+            output_path: Path for the final output video.
+            audio_path: Optional path to audio file to overlay.
+            observer: Optional progress observer for status updates.
+            pacing: Optional pacing configuration.
+
+        Returns:
+            Path to the generated output video.
+        """
+        logger.info(
+            "Rendering %d segments from plan to %s...",
+            len(plan), output_path
+        )
+        return self.montage_generator.render_plan(
+            plan, output_path, audio_path, observer=observer, pacing=pacing
         )

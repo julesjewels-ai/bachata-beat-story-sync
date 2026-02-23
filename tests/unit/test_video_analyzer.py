@@ -20,12 +20,14 @@ def test_analyze_video(mock_video_capture, mock_exists, analyzer):
     # Mock the video capture object
     mock_cap = MagicMock()
     mock_cap.isOpened.return_value = True
-    mock_cap.get.side_effect = [30.0, 300]  # FPS, Frame Count
-    mock_cap.read.side_effect = [
-        (True, np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)),
-        (True, np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)),
-        (False, None)
-    ]
+    # FPS, Frame Count, Frame Count (again), Intensity FPS
+    mock_cap.get.side_effect = [30.0, 300, 300, 3.0]
+
+    # Generate enough frames to trigger motion calculation with skip_rate=10
+    # We need at least frame 0 and frame 10 (11 frames) to get one motion vector.
+    frames = [(True, np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)) for _ in range(12)]
+    frames.append((False, None))
+    mock_cap.read.side_effect = frames
     mock_video_capture.return_value = mock_cap
 
     input_data = VideoAnalysisInput(file_path='dummy_path.mp4')

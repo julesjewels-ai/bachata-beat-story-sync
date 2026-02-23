@@ -45,6 +45,12 @@ def parse_args() -> argparse.Namespace:
         default=None
     )
     parser.add_argument(
+        "--export-edl",
+        type=str,
+        help="Path to export the montage as an EDL timeline (e.g., project.edl)",
+        default=None
+    )
+    parser.add_argument(
         "--test-mode",
         action="store_true",
         default=False,
@@ -144,10 +150,26 @@ def main() -> None:
             clip.model_copy(update={"thumbnail_data": None})
             for clip in video_clips
         ]
+
+        # 1. Create Plan
+        plan = engine.create_plan(audio_meta, montage_clips, pacing=pacing)
+        logger.info("Generated segment plan with %d segments.", len(plan))
+
+        # 2. Export EDL (if requested)
+        if args.export_edl:
+            logger.info("Exporting EDL to %s...", args.export_edl)
+            from src.services.export.edl import EdlTimelineExporter
+            exporter = EdlTimelineExporter()
+            exporter.export(plan, args.export_edl)
+            logger.info("EDL export complete.")
+
+        # 3. Render
         with RichProgressObserver() as observer:
-            result_path = engine.generate_story(
-                audio_meta, montage_clips, args.output,
-                audio_path=audio_input.file_path, observer=observer, pacing=pacing,
+            result_path = engine.render_story_from_plan(
+                plan, args.output,
+                audio_path=audio_input.file_path,
+                observer=observer,
+                pacing=pacing
             )
         del montage_clips  # free immediately
         logger.info("Process complete. Output saved to: %s", result_path)
