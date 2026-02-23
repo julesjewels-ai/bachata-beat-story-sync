@@ -168,3 +168,41 @@ Allows the user to force specific clips to appear at the very beginning of the m
 - These clips will be sorted numerically (e.g. `1_` before `2_`) and used in that exact order for the first available beat segments.
 - After all prefix forced clips are exhausted, the system returns to its normal intensity-driven, round-robin selection logic for the remainder of the montage.
 - Because the forced clips still map directly to the calculated beat segments, they will inherently "match the song" (pacing, cuts, and transitions will trigger on the beats).
+
+---
+
+## FEAT-010: Structural Segmentation
+
+| Field       | Value                                |
+|-------------|--------------------------------------|
+| **Status**  | `PLANNED`                            |
+| **Priority**| 🔴 High                              |
+| **Effort**  | Medium                               |
+| **Impact**  | High — enables musically meaningful section cuts |
+
+### Description
+Add harmonic structure detection to `AudioAnalyzer` to complement the existing intensity-based section detection. Uses Chroma features and Agglomerative Clustering (with temporal contiguity constraints) to identify structurally distinct regions of a track (e.g. verse vs. chorus boundaries), even when both sections are equally loud.
+
+### Implementation Details
+
+#### `segment_structure(y, sr, beat_frames, n_segments=4)` — new function in `audio_analyzer.py`
+- Use `librosa.feature.chroma_stft` (not `chroma_cqt`) for speed and memory efficiency.
+- Synchronize chroma features to beat intervals via `librosa.util.sync`.
+- Build a temporal `kneighbors_graph` connectivity matrix using `sklearn.neighbors.kneighbors_graph(X, n_neighbors=3, mode='connectivity')` so that only temporally adjacent beats can be grouped — this prevents the "every chord change = boundary" bug from PR #134.
+- Pass `connectivity` to `sklearn.cluster.AgglomerativeClustering(n_clusters=n_segments, linkage='ward', connectivity=conn)`.
+- **Explicit memory cleanup**: after clustering, `del chroma, chroma_sync, X` and call `gc.collect()`.
+- Return `[]` on any exception, logging a warning with the error reason.
+
+#### `detect_sections(...)` — modified in `audio_analyzer.py`
+- Add `structural_boundaries: Optional[list[int]] = None` parameter.
+- When merging with intensity change-points, deduplicate boundaries within **4 beats** of each other before the union to avoid near-coincident double-cuts.
+- Raise the short-section merge filter from `< 3` beats to `< 8` beats (one musical bar at ~120 BPM).
+
+#### `AudioAnalyzer.analyze()` — modified
+- Call `segment_structure(y=y, sr=sr, beat_frames=beat_frames)` and pass the result as `structural_boundaries` to `detect_sections`.
+- Call site placed **before** the `del` block.
+
+### Concerns & Considerations
+- **`n_segments` is configurable** (default 4). Short tracks (<90s) should use a lower value — consider dynamically scaling it by `int(duration / 45)`.
+- **scikit-learn dependency**: `scikit-learn>=1.3.0` must be added to `requirements.txt`. It's a substantial install (~30 MB); consider a lazy import with a clear warning if not installed.
+- **CPU spike**: `AgglomerativeClustering` with Ward linkage is `O(n² log n)`. For typical 3–5 min tracks at ~120 BPM (~360–600 beat frames), this is fast enough, but it should be confirmed on longer DJ mixes (FEAT-007).
