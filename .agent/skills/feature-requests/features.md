@@ -1,6 +1,8 @@
 # Feature Backlog — Bachata Beat-Story Sync
 
 > **🧹 Reset (2026-02-14):** Codebase stripped back to a clean, minimal foundation. All features reset to `PROPOSED` for re-implementation on solid ground. The core analysis engine (audio + video) remains stable and fully tested.
+>
+> **📋 Review (2026-02-23):** Backlog critically reviewed for end-user value. FEAT-010 (Structural Segmentation) removed — marginal visual impact vs. high complexity/dependency cost. Remaining features re-ordered by dependency and value.
 
 ---
 
@@ -124,33 +126,6 @@ Instead of supplying a single audio file, allow the user to specify a **folder**
 
 ---
 
-## FEAT-008: Visual Intensity Matching
-
-| Field       | Value                                |
-|-------------|--------------------------------------|
-| **Status**  | `PROPOSED`                           |
-| **Priority**| 🔴 High                              |
-| **Effort**  | Medium                               |
-| **Impact**  | High — makes the montage feel cohesive and responsive|
-
-### Description
-Currently, video clips are selected sequentially (round-robin style), meaning high-energy music can easily pair with low-energy clips, and vice versa. This feature will update the clip selection logic so that the visual intensity of the chosen clip matches the current audio intensity classification.
-
-### Implementation Details
-- In `MontageGenerator.build_segment_plan`, when deciding which clip to use for a particular musical section or beat segment:
-  - Check the current audio `intensity_level` ('high', 'medium', 'low', derived from `intensity >= high_intensity_threshold`, etc.).
-  - Distribute the available `video_clips` into buckets or pools based on their visual `intensity_score` (e.g., > 0.65 for high, < 0.35 for low).
-  - Select clips from the pool that matches the current audio intensity, rather than uniformly iterating over `sorted_clips`.
-- To prevent exhausting clips in a pool or excessive repetition:
-  - Maintain a separate round-robin tracking index per intensity pool, rather than a single global `clip_idx`.
-  - Implement **fallback logic**: If a pool is empty (e.g., no 'high' intensity clips exist), fallback to the next closest pool (e.g., 'medium') to prevent crashes and dead loops.
-
-### Concerns & Considerations
-- **Pool Starvation/Repetition Indexing**: If a user provides mostly low-energy clips, but the song is predominantly high-energy, the few high-energy clips will be repeated constantly. The system needs to intelligently balance matching intensity vs. maintaining `clip_variety_enabled` (FEAT-006). If a pool is too small, the system should deliberately borrow from adjacent pools to keep the visual feed fresh.
-- **Score Calibration**: The threshold values for 'high', 'medium', and 'low' (e.g., `0.65` and `0.35` in `PacingConfig`) need to be reliable for both audio RMS and video motion/brightness analysis. If the video analyzer generally scores too low, the 'high' pool might remain permanently bare. We may need to investigate categorizing video clips using dynamic percentiles (e.g., the top 30% most intense clips are "high") rather than strictly hardcoded `<0.35` and `>0.65` thresholds.
-
----
-
 ## FEAT-009: Specific Clip Prefix Ordering
 
 | Field       | Value                                |
@@ -158,51 +133,73 @@ Currently, video clips are selected sequentially (round-robin style), meaning hi
 | **Status**  | `PROPOSED`                           |
 | **Priority**| 🔴 High                              |
 | **Effort**  | Low                                  |
-| **Impact**  | High — allows editorial control over intos |
+| **Impact**  | High — gives editorial control over the most important moment (the intro) |
+
+### Why this matters
+The intro is the single most critical moment in any social video — viewers decide within 1–2 seconds whether to keep watching. Currently, the first clip is chosen by round-robin based on intensity sort order, giving the user **zero control** over what appears first.
 
 ### Description
 Allows the user to force specific clips to appear at the very beginning of the montage by prefixing their filenames with a number and an underscore (e.g., `1_intro.mp4`, `2_lead.mp4`).
 
 ### Implementation Details
-- The system will detect clips with a numbering prefix in their filename.
-- These clips will be sorted numerically (e.g. `1_` before `2_`) and used in that exact order for the first available beat segments.
-- After all prefix forced clips are exhausted, the system returns to its normal intensity-driven, round-robin selection logic for the remainder of the montage.
-- Because the forced clips still map directly to the calculated beat segments, they will inherently "match the song" (pacing, cuts, and transitions will trigger on the beats).
+- Detect clips with a numbering prefix (`^\d+_`) in their filename.
+- Sort these numerically (`1_` before `2_`) and use them in that exact order for the first available beat segments.
+- After all prefix-forced clips are exhausted, return to the normal selection logic for the remainder.
+- Forced clips still map to calculated beat segments, so pacing, cuts, and transitions stay musical.
+
+### Scope
+- **In scope:** Prefix detection, forced ordering, graceful fallback.
+- **Out of scope:** Per-clip configuration files, drag-and-drop reordering.
 
 ---
 
-## FEAT-010: Structural Segmentation
+## FEAT-008: Visual Intensity Matching
 
 | Field       | Value                                |
 |-------------|--------------------------------------|
-| **Status**  | `PLANNED`                            |
+| **Status**  | `PROPOSED`                           |
 | **Priority**| 🔴 High                              |
 | **Effort**  | Medium                               |
-| **Impact**  | High — enables musically meaningful section cuts |
+| **Impact**  | High — the most noticeable remaining gap in montage quality |
+
+### Why this matters
+Right now, clip *pacing* responds to the music (fast cuts for high-energy sections) but the *visual content* does not. A calm, slow clip can appear during an explosive chorus, and an action-packed clip can appear during a gentle intro. This mismatch is the most obvious "something feels off" moment for an end viewer.
 
 ### Description
-Add harmonic structure detection to `AudioAnalyzer` to complement the existing intensity-based section detection. Uses Chroma features and Agglomerative Clustering (with temporal contiguity constraints) to identify structurally distinct regions of a track (e.g. verse vs. chorus boundaries), even when both sections are equally loud.
+Replace round-robin clip selection with intensity-matched pools so that high-energy music pairs with high-motion clips, and low-energy sections get calmer footage.
 
 ### Implementation Details
 
-#### `segment_structure(y, sr, beat_frames, n_segments=4)` — new function in `audio_analyzer.py`
-- Use `librosa.feature.chroma_stft` (not `chroma_cqt`) for speed and memory efficiency.
-- Synchronize chroma features to beat intervals via `librosa.util.sync`.
-- Build a temporal `kneighbors_graph` connectivity matrix using `sklearn.neighbors.kneighbors_graph(X, n_neighbors=3, mode='connectivity')` so that only temporally adjacent beats can be grouped — this prevents the "every chord change = boundary" bug from PR #134.
-- Pass `connectivity` to `sklearn.cluster.AgglomerativeClustering(n_clusters=n_segments, linkage='ward', connectivity=conn)`.
-- **Explicit memory cleanup**: after clustering, `del chroma, chroma_sync, X` and call `gc.collect()`.
-- Return `[]` on any exception, logging a warning with the error reason.
+#### Stage A — Pool-based selection (core value)
+- Bucket available clips into `high` / `medium` / `low` pools based on their `intensity_score` using the same thresholds as audio (`PacingConfig.high_intensity_threshold`, `low_intensity_threshold`).
+- When selecting a clip for a segment, draw from the matching pool.
+- Maintain a per-pool round-robin index for variety.
+- **Fallback:** If a pool is empty or exhausted, borrow from the nearest adjacent pool (high → medium → low), not crash.
+- Must integrate with FEAT-009: prefix-forced clips are used first regardless of pool.
 
-#### `detect_sections(...)` — modified in `audio_analyzer.py`
-- Add `structural_boundaries: Optional[list[int]] = None` parameter.
-- When merging with intensity change-points, deduplicate boundaries within **4 beats** of each other before the union to avoid near-coincident double-cuts.
-- Raise the short-section merge filter from `< 3` beats to `< 8` beats (one musical bar at ~120 BPM).
-
-#### `AudioAnalyzer.analyze()` — modified
-- Call `segment_structure(y=y, sr=sr, beat_frames=beat_frames)` and pass the result as `structural_boundaries` to `detect_sections`.
-- Call site placed **before** the `del` block.
+#### Stage B — Dynamic thresholds (enhancement, only if pool starvation is a real problem)
+- If a user provides mostly low-motion clips, the `high` pool will be permanently empty.
+- Replace hardcoded 0.35/0.65 thresholds with **percentile-based bucketing** (top 30% = high, bottom 30% = low) so pools are always roughly balanced.
+- Only implement this if Stage A reveals pool starvation in real-world use.
 
 ### Concerns & Considerations
-- **`n_segments` is configurable** (default 4). Short tracks (<90s) should use a lower value — consider dynamically scaling it by `int(duration / 45)`.
-- **scikit-learn dependency**: `scikit-learn>=1.3.0` must be added to `requirements.txt`. It's a substantial install (~30 MB); consider a lazy import with a clear warning if not installed.
-- **CPU spike**: `AgglomerativeClustering` with Ward linkage is `O(n² log n)`. For typical 3–5 min tracks at ~120 BPM (~360–600 beat frames), this is fast enough, but it should be confirmed on longer DJ mixes (FEAT-007).
+- **Pool starvation** is the main risk — mitigated by adjacent-pool fallback in Stage A and percentile bucketing in Stage B.
+- **Score calibration**: Video intensity scores (motion-based) and audio intensity scores (RMS-based) use different scales. The thresholds may need tuning.
+- The existing `test_round_robin_clip_assignment` test will intentionally break and must be replaced with pool-based assertions.
+
+### Scope
+- **In scope:** Pool bucketing, per-pool round-robin, fallback logic, FEAT-009 integration.
+- **Out of scope:** AI-based semantic matching (e.g., "this clip shows spinning"), multi-dimensional clip scoring.
+
+---
+
+## Removed Features
+
+### ~~FEAT-010: Structural Segmentation~~ — REMOVED
+
+| Reason | Detail |
+|--------|--------|
+| **Low end-user impact** | The existing intensity-based `detect_sections` already segments tracks well. Structural segmentation only affects where transitions (fade/wipe) are placed — a difference most viewers won't notice. |
+| **Heavy dependency** | Adds `scikit-learn` (~30 MB install) for a single function. |
+| **Complexity cost** | O(n² log n) clustering, memory cleanup concerns, risk of over-segmentation on long DJ mixes (FEAT-007). |
+| **Reconsider when** | If the tool evolves to support AI-driven narrative arcs or scene-level storytelling where knowing "this is a verse" vs "this is a chorus" matters beyond just transition placement. |
