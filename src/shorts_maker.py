@@ -16,6 +16,7 @@ from src.core.audio_analyzer import AudioAnalyzer, AudioAnalysisInput
 from src.core.models import PacingConfig
 from src.ui.console import RichProgressObserver
 from src.core.audio_mixer import AudioMixer, SUPPORTED_AUDIO_EXTENSIONS as MIX_EXTS
+from src.services.reporting import ReportFactory, UnsupportedReportFormatError
 
 logger = logging.getLogger(__name__)
 
@@ -91,6 +92,13 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="End abruptly for a cliffhanger effect"
     )
+    parser.add_argument(
+        "--report-format",
+        type=str,
+        default=None,
+        choices=["excel", "json"],
+        help="Generate an analysis report in the specified format (e.g. 'excel' or 'json')"
+    )
 
     return parser.parse_args()
 
@@ -149,6 +157,22 @@ def main() -> None:
             len(video_clips), vertical_count, len(video_clips) - vertical_count
         )
         
+        # 2b. Generate Report (Optional)
+        if args.report_format:
+            try:
+                logger.info("Generating %s report...", args.report_format)
+                generator = ReportFactory.get_generator(args.report_format)
+                report_filename = f"analysis_report.{'xlsx' if args.report_format == 'excel' else 'json'}"
+                report_path = os.path.join(args.output_dir, report_filename)
+
+                # Use video_clips which has thumbnails (Excel needs them)
+                # JsonReportGenerator handles exclusion internally
+                generator.generate_report(audio_meta, video_clips, report_path)
+            except UnsupportedReportFormatError as e:
+                logger.error("Report generation failed: %s", e)
+            except Exception as e:
+                logger.error("An unexpected error occurred generating the report: %s", e)
+
         # Free memory from thumbnails
         montage_clips = [
             clip.model_copy(update={"thumbnail_data": None})

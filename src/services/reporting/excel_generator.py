@@ -5,6 +5,7 @@ Orchestrates the report creation using specialized components.
 import logging
 import openpyxl
 from typing import List
+from src.core.interfaces import ReportGenerator
 from src.core.models import AudioAnalysisResult, VideoAnalysisResult
 from .formatting import ReportFormatter
 from .components import ChartBuilder, ThumbnailEmbedder
