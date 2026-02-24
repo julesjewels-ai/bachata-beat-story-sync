@@ -13,7 +13,7 @@ import subprocess
 import tempfile
 import random
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import yaml
 
@@ -165,36 +165,9 @@ class MontageGenerator:
             total_dur = config.max_duration_seconds or audio_data.duration
             progress = min(1.0, timeline_pos / total_dur) if total_dur > 0 else 0.0
 
-            # Determine intensity at this beat
-            intensity = (
-                intensity_curve[beat_idx]
-                if beat_idx < len(intensity_curve)
-                else 0.5
+            target_seconds, speed, level = self._calculate_segment_target(
+                beat_idx, intensity_curve, config, progress, clip_idx
             )
-
-            # Pick target duration and speed based on intensity level
-            if intensity >= config.high_intensity_threshold:
-                target_seconds = config.high_intensity_seconds
-                level = "high"
-                speed = config.high_intensity_speed if config.speed_ramp_enabled else 1.0
-            elif intensity < config.low_intensity_threshold:
-                target_seconds = config.low_intensity_seconds
-                level = "low"
-                speed = config.low_intensity_speed if config.speed_ramp_enabled else 1.0
-            else:
-                target_seconds = config.medium_intensity_seconds
-                level = "medium"
-                speed = config.medium_intensity_speed if config.speed_ramp_enabled else 1.0
-
-            # Dynamic Flow: accelerate pacing towards the end (reduce duration by up to 40%)
-            if config.accelerate_pacing:
-                target_seconds *= (1.0 - (0.4 * progress))
-
-            # Human Touch: randomize speed ramps slightly (+/- 10%)
-            if config.randomize_speed_ramps and config.speed_ramp_enabled:
-                seed_val = f"{config.seed}_{clip_idx}_{beat_idx}"
-                rng = random.Random(seed_val)
-                speed *= rng.uniform(0.9, 1.1)
 
             # Convert target to beats, then enforce minimum
             if config.snap_to_beats:
@@ -258,6 +231,62 @@ class MontageGenerator:
             beat_idx += beat_count
 
         return segments
+
+    def _calculate_segment_target(
+        self,
+        beat_idx: int,
+        intensity_curve: List[float],
+        config: PacingConfig,
+        progress: float,
+        clip_idx: int,
+    ) -> Tuple[float, float, str]:
+        """
+        Calculate target duration (seconds), speed factor, and intensity level.
+        """
+        # Determine intensity at this beat
+        intensity = (
+            intensity_curve[beat_idx]
+            if beat_idx < len(intensity_curve)
+            else 0.5
+        )
+
+        # Pick target duration and speed based on intensity level
+        if intensity >= config.high_intensity_threshold:
+            target_seconds = config.high_intensity_seconds
+            level = "high"
+            speed = (
+                config.high_intensity_speed
+                if config.speed_ramp_enabled
+                else 1.0
+            )
+        elif intensity < config.low_intensity_threshold:
+            target_seconds = config.low_intensity_seconds
+            level = "low"
+            speed = (
+                config.low_intensity_speed
+                if config.speed_ramp_enabled
+                else 1.0
+            )
+        else:
+            target_seconds = config.medium_intensity_seconds
+            level = "medium"
+            speed = (
+                config.medium_intensity_speed
+                if config.speed_ramp_enabled
+                else 1.0
+            )
+
+        # Dynamic Flow: accelerate pacing towards the end
+        if config.accelerate_pacing:
+            target_seconds *= 1.0 - (0.4 * progress)
+
+        # Human Touch: randomize speed ramps slightly (+/- 10%)
+        if config.randomize_speed_ramps and config.speed_ramp_enabled:
+            seed_val = f"{config.seed}_{clip_idx}_{beat_idx}"
+            rng = random.Random(seed_val)
+            speed *= rng.uniform(0.9, 1.1)
+
+        return target_seconds, speed, level
 
     def generate(
         self,
