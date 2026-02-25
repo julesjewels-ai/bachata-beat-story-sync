@@ -14,6 +14,9 @@ from pydantic import ValidationError
 from src.core.app import BachataSyncEngine
 from src.core.audio_analyzer import AudioAnalyzer, AudioAnalysisInput
 from src.core.models import PacingConfig
+from src.core.video_analyzer import VideoAnalyzer
+from src.services.caching.backend import JsonFileCache
+from src.services.caching.service import CachedVideoAnalyzer
 from src.ui.console import RichProgressObserver
 from src.core.audio_mixer import AudioMixer, SUPPORTED_AUDIO_EXTENSIONS as MIX_EXTS
 
@@ -106,7 +109,16 @@ def main() -> None:
     
     os.makedirs(args.output_dir, exist_ok=True)
 
-    engine = BachataSyncEngine()
+    # Initialize Caching Layer
+    cache_dir = os.path.join(os.getcwd(), ".cache", "video_analysis")
+    json_cache = JsonFileCache(cache_dir=cache_dir)
+    base_video_analyzer = VideoAnalyzer()
+    cached_video_analyzer = CachedVideoAnalyzer(
+        delegate=base_video_analyzer,
+        cache=json_cache
+    )
+
+    engine = BachataSyncEngine(video_analyzer=cached_video_analyzer)
     audio_analyzer = AudioAnalyzer()
 
     try:
