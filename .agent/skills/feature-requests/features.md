@@ -130,7 +130,7 @@ Instead of supplying a single audio file, allow the user to specify a **folder**
 
 | Field       | Value                                |
 |-------------|--------------------------------------|
-| **Status**  | `PROPOSED`                           |
+| **Status**  | `VERIFIED`                           |
 | **Priority**| 🔴 High                              |
 | **Effort**  | Low                                  |
 | **Impact**  | High — gives editorial control over the most important moment (the intro) |

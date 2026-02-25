@@ -239,6 +239,45 @@ class TestBuildSegmentPlan:
         if len(segments) >= 2:
             assert segments[0].video_path != segments[1].video_path
 
+    def test_build_segment_plan_with_prefix_ordering(
+        self, generator, video_clips
+    ):
+        """Pre-fixed clips are forced to the front of the segment plan in numeric order."""
+        prefixed_clips = [
+            VideoAnalysisResult(
+                path="/videos/2_clip.mp4",
+                intensity_score=0.1,  # Low intensity
+                duration=30.0,
+                thumbnail_data=None,
+                is_vertical=False,
+            ),
+            VideoAnalysisResult(
+                path="/videos/1_clip.mp4",
+                intensity_score=0.2,
+                duration=30.0,
+                thumbnail_data=None,
+                is_vertical=False,
+            ),
+        ]
+        all_clips = video_clips + prefixed_clips
+
+        audio = AudioAnalysisResult(
+            filename="prefix.wav",
+            bpm=120.0,
+            duration=30.0,
+            peaks=[],
+            sections=[],
+            beat_times=[float(i) * 0.5 for i in range(16)],
+            intensity_curve=[0.5] * 16,
+        )
+
+        segments = generator.build_segment_plan(audio, all_clips)
+
+        assert len(segments) >= 2
+        # Expected order: 1_clip.mp4, 2_clip.mp4, then regular round robin
+        assert segments[0].video_path == "/videos/1_clip.mp4"
+        assert segments[1].video_path == "/videos/2_clip.mp4"
+
 
 class TestMinimumClipDuration:
     """Tests that the minimum clip duration floor is enforced."""

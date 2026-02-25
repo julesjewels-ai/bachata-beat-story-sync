@@ -12,11 +12,10 @@ import shutil
 import subprocess
 import tempfile
 import random
+import re
+import yaml
 from pathlib import Path
 from typing import List, Optional
-
-import yaml
-
 from src.core.interfaces import ProgressObserver
 from src.core.models import (
     AudioAnalysisResult,
@@ -129,7 +128,19 @@ class MontageGenerator:
             if key not in seen:
                 seen.add(key)
                 unique_clips.append(c)
-        
+                
+
+        forced_clips_tuple = []
+        for c in unique_clips:
+            basename = os.path.basename(c.path)
+            match = re.match(r'^(\d+)_', basename)
+            if match:
+                prefix = int(match.group(1))
+                forced_clips_tuple.append((prefix, c))
+                
+        forced_clips_tuple.sort(key=lambda x: x[0])
+        forced_clips = [fc[1] for fc in forced_clips_tuple]
+
         # Sort clips by intensity score (highest first) for matching
         if config.is_shorts:
             # Prioritise vertical clips first
@@ -145,6 +156,7 @@ class MontageGenerator:
         timeline_pos = 0.0
         beat_idx = 0
         clip_idx = 0
+        forced_clip_idx = 0
 
         # Pre-compute section lookup from audio sections
         sections = audio_data.sections or []
@@ -211,9 +223,13 @@ class MontageGenerator:
                 remaining = config.max_duration_seconds - timeline_pos
                 segment_duration = min(segment_duration, remaining)
 
-            # Pick clip (round-robin)
-            clip = sorted_clips[clip_idx % len(sorted_clips)]
-            clip_idx += 1
+            # Pick clip (forced prefix followed by round-robin)
+            if forced_clip_idx < len(forced_clips):
+                clip = forced_clips[forced_clip_idx]
+                forced_clip_idx += 1
+            else:
+                clip = sorted_clips[clip_idx % len(sorted_clips)]
+                clip_idx += 1
 
             # Compute start offset within clip
             max_start = max(0.0, clip.duration - segment_duration)
