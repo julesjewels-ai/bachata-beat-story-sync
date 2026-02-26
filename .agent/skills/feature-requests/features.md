@@ -191,3 +191,30 @@ Replace round-robin clip selection with intensity-matched pools so that high-ene
 - **In scope:** Pool bucketing, per-pool round-robin, fallback logic, FEAT-009 integration.
 - **Out of scope:** AI-based semantic matching (e.g., "this clip shows spinning"), multi-dimensional clip scoring.
 
+---
+
+## FEAT-010: Smooth Slow Motion Interpolation
+
+| Field       | Value                                |
+|-------------|--------------------------------------|
+| **Status**  | `IMPLEMENTED`                        |
+| **Priority**| 🟡 Medium                            |
+| **Effort**  | Low–Medium                           |
+| **Impact**  | High — makes slow-motion professional and smooth |
+
+### Why this matters
+Currently, when clips are slowed down (speed ramping, `seg.speed_factor < 1.0`), the video stutters because standard timestamp manipulation (`setpts`) simply stretches the existing frames further apart in time. This lowers the effective framerate (e.g., a 30fps clip slowed to 50% plays like a choppy 15fps clip). To fix this and maintain a fluid, cinematic look, the video needs new frames generated between the existing ones.
+
+### Description
+Implement frame interpolation (optical flow or frame blending) during the FFmpeg segment extraction phase whenever a clip's speed factor is reduced below 1.0.
+
+### Implementation Details
+- During segment extraction in `montage.py`, detect if `seg.speed_factor < 1.0`.
+- If true, append an interpolation filter to the video filter (`-vf`) chain in the FFmpeg command.
+- **Option A (High Quality, Slower):** Motion-compensated interpolation using FFmpeg's `minterpolate=mi_mode=mci` (optical flow).
+- **Option B (Faster, Acceptable):** Frame blending using `minterpolate=mi_mode=blend` or the `framerate` filter.
+- Expose the interpolation method as a configurable option in `PacingConfig`, so users can opt for faster renders (blending) or higher cinematic quality (mci) based on their machine's capabilities.
+
+### Scope
+- **In scope:** Adding interpolation filters to the FFmpeg filter chain for slowed clips, configuration for interpolation method.
+- **Out of scope:** Applying interpolation to clips that aren't speed-ramped (e.g., regular 1.0x playback), or integrating third-party AI upscaling/interpolation ML models.

@@ -461,6 +461,56 @@ class TestFFmpegOrchestration:
     @patch("src.core.montage.subprocess.run")
     @patch("src.core.montage.tempfile.mkdtemp")
     @patch("src.core.montage.shutil.rmtree")
+    @patch("src.core.montage.os.path.exists", return_value=True)
+    def test_extract_includes_minterpolate_for_slowmo(
+        self, mock_exists, mock_rmtree, mock_mkdtemp, mock_run, mock_which,
+        generator, video_clips, tmp_path
+    ):
+        """When a segment is slow-mo (<1.0x), minterpolate filter should be applied."""
+        temp_dir = str(tmp_path / "montage_temp")
+        os.makedirs(temp_dir, exist_ok=True)
+        mock_mkdtemp.return_value = temp_dir
+        mock_run.return_value = MagicMock(returncode=0, stderr="")
+
+        # Audio with a single low-intensity segment that will trigger slow-mo
+        audio = AudioAnalysisResult(
+            filename="slow.wav",
+            bpm=120.0,
+            duration=10.0,
+            peaks=[],
+            sections=[],
+            beat_times=[float(i) * 0.5 for i in range(10)],
+            intensity_curve=[0.1] * 10,
+        )
+
+        config = PacingConfig(
+            speed_ramp_enabled=True,
+            low_intensity_speed=0.5, # Ensure speed factor is < 1.0
+            interpolation_method="blend" # Our new setting
+        )
+        
+        generator.generate(
+            audio, video_clips,
+            str(tmp_path / "output.mp4"),
+            audio_path="/audio/song.wav",
+            pacing=config,
+        )
+
+        # Check the FFmpeg calls for the segment extraction
+        for call_args in mock_run.call_args_list:
+            cmd = call_args[0][0] if call_args[0] else call_args[1].get("cmd", [])
+            cmd_str = " ".join(str(c) for c in cmd)
+            # Find the extraction call (it has -ss and -t)
+            if "-ss" in cmd_str and "-t" in cmd_str:
+                assert "setpts=PTS/0.5" in cmd_str
+                assert "minterpolate=fps=30:mi_mode=blend" in cmd_str
+                assert "fps=30" in cmd_str
+
+
+    @patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")
+    @patch("src.core.montage.subprocess.run")
+    @patch("src.core.montage.tempfile.mkdtemp")
+    @patch("src.core.montage.shutil.rmtree")
     def test_temp_dir_cleaned_on_error(
         self, mock_rmtree, mock_mkdtemp, mock_run, mock_which,
         generator, audio_data, video_clips, tmp_path

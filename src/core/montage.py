@@ -33,6 +33,7 @@ FFMPEG_TIMEOUT = 600
 # Target resolution for all extracted segments (ensures xfade compatibility)
 TARGET_WIDTH = 1920
 TARGET_HEIGHT = 1080
+TARGET_FPS = 30
 
 # Default config file location (project root)
 DEFAULT_CONFIG_PATH = Path(__file__).resolve().parents[2] / "montage_config.yaml"
@@ -483,6 +484,16 @@ class MontageGenerator:
 
             if seg.speed_factor != 1.0:
                 vf_parts.append(f"setpts=PTS/{seg.speed_factor}")
+                # FEAT-010: Smooth Slow Motion Interpolation
+                if seg.speed_factor < 1.0 and config.interpolation_method != "none":
+                    if config.interpolation_method == "mci":
+                        vf_parts.append(f"minterpolate=fps={TARGET_FPS}:mi_mode=mci")
+                    else:
+                        vf_parts.append(f"minterpolate=fps={TARGET_FPS}:mi_mode=blend")
+            
+            # Normalize frame rate for ALL segments to ensure clean concatenation
+            vf_parts.append(f"fps={TARGET_FPS}")
+            
             cmd.extend(["-vf", ",".join(vf_parts)])
 
             cmd.extend([

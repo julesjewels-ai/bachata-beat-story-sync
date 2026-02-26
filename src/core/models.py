@@ -196,6 +196,11 @@ class PacingConfig(BaseModel):
         0.5, description="Duration of each transition in seconds"
     )
 
+    # Frame Interpolation for Slow Motion (FEAT-010)
+    interpolation_method: str = Field(
+        "blend", description="Frame interpolation method for slow motion (<1.0x). Options: 'none', 'blend', 'mci'"
+    )
+
 class AudioMixConfig(BaseModel):
     """
     Configuration for mixing multiple audio tracks.
