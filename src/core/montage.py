@@ -15,7 +15,7 @@ import random
 import re
 import yaml
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Tuple, Any
 from src.core.interfaces import ProgressObserver
 from src.core.models import (
     AudioAnalysisResult,
@@ -84,6 +84,118 @@ class MontageGenerator:
         4. Overlay audio (FFmpeg subprocess)
     """
 
+    @staticmethod
+    def _prepare_clips(
+        video_clips: List[VideoAnalysisResult], config: PacingConfig
+    ) -> Tuple[List[VideoAnalysisResult], List[VideoAnalysisResult]]:
+        """
+        Deduplicates, extracts forced clips, and sorts the remaining clips.
+
+        Returns:
+            A tuple of (sorted_clips, forced_clips).
+        """
+        # Deduplicate identical clips (e.g. same footage in multiple folders)
+        unique_clips = []
+        seen = set()
+        for c in video_clips:
+            key = (round(c.duration, 1), round(c.intensity_score, 3), c.is_vertical)
+            if key not in seen:
+                seen.add(key)
+                unique_clips.append(c)
+
+        forced_clips_tuple = []
+        for c in unique_clips:
+            basename = os.path.basename(c.path)
+            match = re.match(r'^(\d+)_', basename)
+            if match:
+                prefix = int(match.group(1))
+                forced_clips_tuple.append((prefix, c))
+
+        forced_clips_tuple.sort(key=lambda x: x[0])
+        forced_clips = [fc[1] for fc in forced_clips_tuple]
+
+        # Sort clips by intensity score (highest first) for matching
+        if config.is_shorts:
+            # Prioritise vertical clips first
+            sorted_clips = sorted(
+                unique_clips, key=lambda c: (c.is_vertical, c.intensity_score), reverse=True
+            )
+        else:
+            sorted_clips = sorted(
+                unique_clips, key=lambda c: c.intensity_score, reverse=True
+            )
+
+        return sorted_clips, forced_clips
+
+    @staticmethod
+    def _calculate_segment_params(
+        beat_idx: int,
+        beat_times: List[float],
+        intensity_curve: List[float],
+        timeline_pos: float,
+        total_dur: float,
+        spb: float,
+        min_beats: int,
+        config: PacingConfig,
+        clip_idx: int,
+    ) -> Tuple[float, int, float, str]:
+        """
+        Calculates the duration, beat count, speed, and intensity level for the next segment.
+
+        Returns:
+            Tuple of (segment_duration, beat_count, speed, level).
+        """
+        # Calculate progress ratio for dynamic pacing and cliffhanger
+        progress = min(1.0, timeline_pos / total_dur) if total_dur > 0 else 0.0
+
+        # Determine intensity at this beat
+        intensity = (
+            intensity_curve[beat_idx]
+            if beat_idx < len(intensity_curve)
+            else 0.5
+        )
+
+        # Pick target duration and speed based on intensity level
+        if intensity >= config.high_intensity_threshold:
+            target_seconds = config.high_intensity_seconds
+            level = "high"
+            speed = config.high_intensity_speed if config.speed_ramp_enabled else 1.0
+        elif intensity < config.low_intensity_threshold:
+            target_seconds = config.low_intensity_seconds
+            level = "low"
+            speed = config.low_intensity_speed if config.speed_ramp_enabled else 1.0
+        else:
+            target_seconds = config.medium_intensity_seconds
+            level = "medium"
+            speed = config.medium_intensity_speed if config.speed_ramp_enabled else 1.0
+
+        # Dynamic Flow: accelerate pacing towards the end (reduce duration by up to 40%)
+        if config.accelerate_pacing:
+            target_seconds *= (1.0 - (0.4 * progress))
+
+        # Human Touch: randomize speed ramps slightly (+/- 10%)
+        if config.randomize_speed_ramps and config.speed_ramp_enabled:
+            seed_val = f"{config.seed}_{clip_idx}_{beat_idx}"
+            rng = random.Random(seed_val)
+            speed *= rng.uniform(0.9, 1.1)
+
+        # Convert target to beats, then enforce minimum
+        if config.snap_to_beats:
+            target_beats = max(min_beats, round(target_seconds / spb))
+        else:
+            target_beats = max(min_beats, math.ceil(target_seconds / spb))
+
+        # Don't exceed available beats
+        beat_count = min(target_beats, len(beat_times) - beat_idx)
+        segment_duration = beat_count * spb
+
+        # Test mode: trim segment if it would exceed duration limit
+        if config.max_duration_seconds is not None:
+            remaining = config.max_duration_seconds - timeline_pos
+            segment_duration = min(segment_duration, remaining)
+
+        return segment_duration, beat_count, speed, level
+
     def build_segment_plan(
         self,
         audio_data: AudioAnalysisResult,
@@ -121,37 +233,8 @@ class MontageGenerator:
         # Minimum beats to satisfy the floor
         min_beats = max(1, math.ceil(config.min_clip_seconds / spb))
 
-        # Deduplicate identical clips (e.g. same footage in multiple folders)
-        unique_clips = []
-        seen = set()
-        for c in video_clips:
-            key = (round(c.duration, 1), round(c.intensity_score, 3), c.is_vertical)
-            if key not in seen:
-                seen.add(key)
-                unique_clips.append(c)
-                
-
-        forced_clips_tuple = []
-        for c in unique_clips:
-            basename = os.path.basename(c.path)
-            match = re.match(r'^(\d+)_', basename)
-            if match:
-                prefix = int(match.group(1))
-                forced_clips_tuple.append((prefix, c))
-                
-        forced_clips_tuple.sort(key=lambda x: x[0])
-        forced_clips = [fc[1] for fc in forced_clips_tuple]
-
-        # Sort clips by intensity score (highest first) for matching
-        if config.is_shorts:
-            # Prioritise vertical clips first
-            sorted_clips = sorted(
-                unique_clips, key=lambda c: (c.is_vertical, c.intensity_score), reverse=True
-            )
-        else:
-            sorted_clips = sorted(
-                unique_clips, key=lambda c: c.intensity_score, reverse=True
-            )
+        # Prepare clips (deduplicate, extract forced, sort)
+        sorted_clips, forced_clips = self._prepare_clips(video_clips, config)
 
         segments: List[SegmentPlan] = []
         timeline_pos = 0.0
@@ -161,6 +244,7 @@ class MontageGenerator:
 
         # Pre-compute section lookup from audio sections
         sections = audio_data.sections or []
+        total_dur = config.max_duration_seconds or audio_data.duration
 
         while beat_idx < len(beat_times):
             # Test mode: stop if we've hit the clip limit
@@ -174,55 +258,11 @@ class MontageGenerator:
             ):
                 break
 
-            # Calculate progress ratio for dynamic pacing and cliffhanger
-            total_dur = config.max_duration_seconds or audio_data.duration
-            progress = min(1.0, timeline_pos / total_dur) if total_dur > 0 else 0.0
-
-            # Determine intensity at this beat
-            intensity = (
-                intensity_curve[beat_idx]
-                if beat_idx < len(intensity_curve)
-                else 0.5
+            # Calculate parameters for this segment
+            segment_duration, beat_count, speed, level = self._calculate_segment_params(
+                beat_idx, beat_times, intensity_curve, timeline_pos,
+                total_dur, spb, min_beats, config, clip_idx
             )
-
-            # Pick target duration and speed based on intensity level
-            if intensity >= config.high_intensity_threshold:
-                target_seconds = config.high_intensity_seconds
-                level = "high"
-                speed = config.high_intensity_speed if config.speed_ramp_enabled else 1.0
-            elif intensity < config.low_intensity_threshold:
-                target_seconds = config.low_intensity_seconds
-                level = "low"
-                speed = config.low_intensity_speed if config.speed_ramp_enabled else 1.0
-            else:
-                target_seconds = config.medium_intensity_seconds
-                level = "medium"
-                speed = config.medium_intensity_speed if config.speed_ramp_enabled else 1.0
-
-            # Dynamic Flow: accelerate pacing towards the end (reduce duration by up to 40%)
-            if config.accelerate_pacing:
-                target_seconds *= (1.0 - (0.4 * progress))
-
-            # Human Touch: randomize speed ramps slightly (+/- 10%)
-            if config.randomize_speed_ramps and config.speed_ramp_enabled:
-                seed_val = f"{config.seed}_{clip_idx}_{beat_idx}"
-                rng = random.Random(seed_val)
-                speed *= rng.uniform(0.9, 1.1)
-
-            # Convert target to beats, then enforce minimum
-            if config.snap_to_beats:
-                target_beats = max(min_beats, round(target_seconds / spb))
-            else:
-                target_beats = max(min_beats, math.ceil(target_seconds / spb))
-
-            # Don't exceed available beats
-            beat_count = min(target_beats, len(beat_times) - beat_idx)
-            segment_duration = beat_count * spb
-
-            # Test mode: trim segment if it would exceed duration limit
-            if config.max_duration_seconds is not None:
-                remaining = config.max_duration_seconds - timeline_pos
-                segment_duration = min(segment_duration, remaining)
 
             # Pick clip (forced prefix followed by round-robin)
             if forced_clip_idx < len(forced_clips):
