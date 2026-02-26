@@ -5,14 +5,15 @@ Handles audio analysis logic and video synchronization algorithms.
 import logging
 import os
 from typing import List, Optional
-from src.core.models import AudioAnalysisResult, PacingConfig, VideoAnalysisResult
-from pydantic import ValidationError
-from src.core.video_analyzer import (
-    VideoAnalyzer, VideoAnalysisInput, SUPPORTED_VIDEO_EXTENSIONS
+from src.core.models import (
+    AudioAnalysisResult, PacingConfig, VideoAnalysisResult,
+    VideoAnalysisInput, SUPPORTED_VIDEO_EXTENSIONS
 )
+from pydantic import ValidationError
+from src.core.video_analyzer import VideoAnalyzer
 
 from src.core.montage import MontageGenerator
-from src.core.interfaces import ProgressObserver
+from src.core.interfaces import ProgressObserver, VideoAnalyzerProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -22,8 +23,8 @@ class BachataSyncEngine:
     The main engine responsible for syncing video segments to audio.
     """
 
-    def __init__(self) -> None:
-        self.video_analyzer = VideoAnalyzer()
+    def __init__(self, video_analyzer: Optional[VideoAnalyzerProtocol] = None) -> None:
+        self.video_analyzer = video_analyzer or VideoAnalyzer()
         self.montage_generator = MontageGenerator()
 
     def scan_video_library(

@@ -3,7 +3,10 @@ Data Transfer Objects (DTOs) for Bachata Beat-Story Sync.
 These models define the strict contracts for data exchange between layers.
 """
 from typing import List, Optional
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+from src.core.validation import validate_file_path
+
+SUPPORTED_VIDEO_EXTENSIONS = {'.mp4', '.mov', '.avi', '.mkv'}
 
 
 class MusicalSection(BaseModel):
@@ -206,3 +209,14 @@ class AudioMixConfig(BaseModel):
         2.0, description="Duration in seconds for the crossfades between tracks"
     )
 
+
+class VideoAnalysisInput(BaseModel):
+    """
+    Input model for video analysis validation.
+    """
+    file_path: str = Field(..., description="Path to the video file")
+
+    @field_validator('file_path')
+    @classmethod
+    def validate_path(cls, v: str) -> str:
+        return validate_file_path(v, SUPPORTED_VIDEO_EXTENSIONS)
