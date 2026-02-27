@@ -1,0 +1,1 @@
+Initial setup complete. Need to fix typing and ruff issues before proceeding.

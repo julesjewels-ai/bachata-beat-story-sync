@@ -13,7 +13,6 @@ from pydantic import ValidationError
 import os
 from src.core.audio_mixer import AudioMixer, SUPPORTED_AUDIO_EXTENSIONS as MIX_EXTS
 
-from src.core.audio_mixer import AudioMixer, SUPPORTED_AUDIO_EXTENSIONS as MIX_EXTS
 
 
 def parse_args() -> argparse.Namespace:
