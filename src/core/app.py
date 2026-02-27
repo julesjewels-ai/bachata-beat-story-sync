@@ -27,7 +27,7 @@ class BachataSyncEngine:
         self.montage_generator = MontageGenerator()
 
     def scan_video_library(
-        self, directory: str, observer: Optional[ProgressObserver] = None
+        self, directory: str, exclude_dirs: Optional[List[str]] = None, observer: Optional[ProgressObserver] = None
     ) -> List[VideoAnalysisResult]:
         """
         Scans a directory for video files and assigns a visual intensity score.
@@ -35,7 +35,7 @@ class BachataSyncEngine:
         if not os.path.exists(directory):
             raise FileNotFoundError(f"Video directory not found: {directory}")
 
-        files_to_process = self._collect_video_files(directory)
+        files_to_process = self._collect_video_files(directory, exclude_dirs)
         total_files = len(files_to_process)
         clips = []
 
@@ -58,14 +58,23 @@ class BachataSyncEngine:
 
         return clips
 
-    def _collect_video_files(self, directory: str) -> List[str]:
+    def _collect_video_files(self, directory: str, exclude_dirs: Optional[List[str]] = None) -> List[str]:
         """Recursively collects all supported video files in a directory."""
-        return [
-            os.path.join(root, file)
-            for root, _, files in os.walk(directory)
-            for file in files
-            if os.path.splitext(file)[1].lower() in SUPPORTED_VIDEO_EXTENSIONS
-        ]
+        exclude_dirs = [os.path.abspath(d) for d in exclude_dirs] if exclude_dirs else []
+        collected = []
+        for root, dirs, files in os.walk(directory):
+            # Skip excluded directories
+            if any(os.path.abspath(root).startswith(ex_dir) for ex_dir in exclude_dirs):
+                # Don't mutate dirs here, just skip the files
+                continue
+            
+            # Optionally mutate dirs to prevent os.walk from going deeper into excluded dirs
+            dirs[:] = [d for d in dirs if not any(os.path.abspath(os.path.join(root, d)).startswith(ex_dir) for ex_dir in exclude_dirs)]
+            
+            for file in files:
+                if os.path.splitext(file)[1].lower() in SUPPORTED_VIDEO_EXTENSIONS:
+                    collected.append(os.path.join(root, file))
+        return collected
 
     def _process_video_file(
         self, video_path: str
@@ -86,6 +95,7 @@ class BachataSyncEngine:
         audio_data: AudioAnalysisResult,
         video_clips: List[VideoAnalysisResult],
         output_path: str,
+        broll_clips: Optional[List[VideoAnalysisResult]] = None,
         audio_path: Optional[str] = None,
         observer: Optional[ProgressObserver] = None,
         pacing: Optional[PacingConfig] = None,
@@ -97,6 +107,7 @@ class BachataSyncEngine:
             audio_data: Analyzed audio features.
             video_clips: Analyzed video clips with intensity scores.
             output_path: Path for the final output video.
+            broll_clips: Optional list of B-roll video clips.
             audio_path: Optional path to audio file to overlay.
             observer: Optional progress observer for status updates.
             pacing: Optional pacing configuration (e.g. test mode limits).
@@ -110,5 +121,6 @@ class BachataSyncEngine:
         )
 
         return self.montage_generator.generate(
-            audio_data, video_clips, output_path, audio_path, observer=observer, pacing=pacing
+            audio_data, video_clips, output_path, audio_path=audio_path,
+            broll_clips=broll_clips, observer=observer, pacing=pacing
         )

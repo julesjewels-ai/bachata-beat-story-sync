@@ -218,3 +218,29 @@ Implement frame interpolation (optical flow or frame blending) during the FFmpeg
 ### Scope
 - **In scope:** Adding interpolation filters to the FFmpeg filter chain for slowed clips, configuration for interpolation method.
 - **Out of scope:** Applying interpolation to clips that aren't speed-ramped (e.g., regular 1.0x playback), or integrating third-party AI upscaling/interpolation ML models.
+
+---
+
+## FEAT-011: Intermittent B-Roll Insertion
+
+| Field       | Value                                |
+|-------------|--------------------------------------|
+| **Status**  | `VERIFIED`                           |
+| **Priority**| 🟢 Low                               |
+| **Effort**  | Low                                  |
+| **Impact**  | Medium — adds visual storytelling variety |
+
+### Why this matters
+To prevent visual fatigue, especially during longer montages, inserting B-Roll clips breaks up the constant action and gives the viewer's eyes a chance to rest or absorb the atmosphere, improving the overall pacing of the video.
+
+### Description
+Automatically interleave B-roll clips into the montage roughly every 12 to 15 seconds to provide visual variety, using a dedicated folder for the B-roll footage.
+
+### Implementation Details
+- B-roll intervals are randomized between 12 and 15 seconds using `broll_interval_seconds` and `broll_interval_variance` in `PacingConfig`.
+- `main.py` accepts an optional `--broll-dir` argument, falling back to a nested `broll` directory inside the main video directory.
+- `app.py` excludes the B-roll directory from the general video library scan to prevent duplication.
+
+### Scope
+- **In scope:** Interleaving B-roll clips at randomized intervals, separating B-roll clips into a separate scanning path.
+- **Out of scope:** Semantic B-roll awareness (matching B-roll content to lyrics or emotion).

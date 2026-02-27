@@ -159,6 +159,14 @@ class PacingConfig(BaseModel):
         True, description="Randomise start offset within clips to avoid repetition"
     )
 
+    # B-Roll settings (FEAT-011)
+    broll_interval_seconds: float = Field(
+        13.5, description="Target interval between B-roll clips in seconds"
+    )
+    broll_interval_variance: float = Field(
+        1.5, description="Allowed variance in B-roll intervals (± seconds)"
+    )
+
     # Shorts Generator Configs
     is_shorts: bool = Field(
         False, description="Generate a vertical 9:16 short"

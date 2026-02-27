@@ -89,6 +89,7 @@ class MontageGenerator:
         audio_data: AudioAnalysisResult,
         video_clips: List[VideoAnalysisResult],
         pacing: Optional[PacingConfig] = None,
+        broll_clips: Optional[List[VideoAnalysisResult]] = None,
     ) -> List[SegmentPlan]:
         """
         Build a timeline of clip segments from audio beat/intensity data.
@@ -157,7 +158,12 @@ class MontageGenerator:
         timeline_pos = 0.0
         beat_idx = 0
         clip_idx = 0
+        broll_idx = 0
         forced_clip_idx = 0
+
+        # B-Roll tracking
+        last_broll_time = -config.broll_interval_seconds # Allow B-roll early on if configured
+        target_broll_interval = config.broll_interval_seconds + random.uniform(-config.broll_interval_variance, config.broll_interval_variance)
 
         # Pre-compute section lookup from audio sections
         sections = audio_data.sections or []
@@ -224,10 +230,22 @@ class MontageGenerator:
                 remaining = config.max_duration_seconds - timeline_pos
                 segment_duration = min(segment_duration, remaining)
 
+            # Determine if this segment should be B-Roll
+            is_broll = False
+            if broll_clips and (timeline_pos - last_broll_time) >= target_broll_interval:
+                # Don't use B-roll for the very first clip if possible
+                if timeline_pos > 0.0:
+                    is_broll = True
+
             # Pick clip (forced prefix followed by round-robin)
             if forced_clip_idx < len(forced_clips):
                 clip = forced_clips[forced_clip_idx]
                 forced_clip_idx += 1
+            elif is_broll:
+                clip = broll_clips[broll_idx % len(broll_clips)]
+                broll_idx += 1
+                last_broll_time = timeline_pos
+                target_broll_interval = config.broll_interval_seconds + random.uniform(-config.broll_interval_variance, config.broll_interval_variance)
             else:
                 clip = sorted_clips[clip_idx % len(sorted_clips)]
                 clip_idx += 1
@@ -284,6 +302,7 @@ class MontageGenerator:
         audio_path: Optional[str] = None,
         observer: Optional[ProgressObserver] = None,
         pacing: Optional[PacingConfig] = None,
+        broll_clips: Optional[List[VideoAnalysisResult]] = None,
     ) -> str:
         """
         Generate a montage video synchronized to the audio.
@@ -301,6 +320,7 @@ class MontageGenerator:
             audio_path: Optional path to audio file to overlay.
             observer: Optional progress observer for status updates.
             pacing: Optional pacing configuration. Loaded from file if None.
+            broll_clips: Optional list of B-roll video clips.
 
         Returns:
             Path to the generated output video.
@@ -323,7 +343,7 @@ class MontageGenerator:
         config = pacing or load_pacing_config()
 
         # 1. Build segment plan
-        segments = self.build_segment_plan(audio_data, video_clips, config)
+        segments = self.build_segment_plan(audio_data, video_clips, config, broll_clips)
         if not segments:
             raise ValueError(
                 "Could not build a segment plan — no beats detected "

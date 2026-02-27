@@ -33,6 +33,12 @@ def parse_args() -> argparse.Namespace:
         help="Directory containing .mp4 video clips"
     )
     parser.add_argument(
+        "--broll-dir",
+        type=str,
+        default=None,
+        help="Optional directory containing B-roll clips (defaults to 'broll' inside video-dir if it exists)"
+    )
+    parser.add_argument(
         "--output",
         type=str,
         default="output_story.mp4",
@@ -112,12 +118,32 @@ def main() -> None:
 
         # 2. Scan Videos
         logger.info("Scanning video library in: %s", args.video_dir)
+        
+        broll_dir = args.broll_dir
+        if not broll_dir:
+            auto_broll_path = os.path.join(args.video_dir, "broll")
+            if os.path.exists(auto_broll_path) and os.path.isdir(auto_broll_path):
+                broll_dir = auto_broll_path
+                logger.info("Auto-detected B-roll folder: %s", broll_dir)
+
+        # Build list of directories to exclude from the main video scan
+        exclude_dirs = [broll_dir] if broll_dir else None
+
         # Use RichProgressObserver for visual feedback
         with RichProgressObserver() as observer:
             video_clips = engine.scan_video_library(
-                args.video_dir, observer=observer
+                args.video_dir, exclude_dirs=exclude_dirs, observer=observer
             )
         logger.info("Found %d suitable clips.", len(video_clips))
+
+        broll_clips = None
+        if broll_dir and os.path.exists(broll_dir):
+            logger.info("Scanning B-roll library in: %s", broll_dir)
+            with RichProgressObserver() as observer:
+                broll_clips = engine.scan_video_library(
+                    broll_dir, observer=observer
+                )
+            logger.info("Found %d suitable B-roll clips.", len(broll_clips))
 
         # 3. Sync and Generate
         pacing = None
@@ -147,6 +173,7 @@ def main() -> None:
         with RichProgressObserver() as observer:
             result_path = engine.generate_story(
                 audio_meta, montage_clips, args.output,
+                broll_clips=broll_clips,
                 audio_path=audio_input.file_path, observer=observer, pacing=pacing,
             )
         del montage_clips  # free immediately

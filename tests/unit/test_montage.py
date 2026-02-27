@@ -869,3 +869,71 @@ class TestClipVariety:
         for seg in segments:
             assert seg.start_time == 0.0
 
+class TestBRollInsertion:
+    """Tests for FEAT-011: Intermittent B-Roll Insertion."""
+
+    @pytest.fixture
+    def gen(self):
+        return MontageGenerator()
+
+    @pytest.fixture
+    def broll_clips(self):
+        return [
+            VideoAnalysisResult(
+                path="/videos/broll/broll1.mp4",
+                intensity_score=0.4,
+                duration=30.0,
+                thumbnail_data=None,
+                is_vertical=False,
+            ),
+            VideoAnalysisResult(
+                path="/videos/broll/broll2.mp4",
+                intensity_score=0.5,
+                duration=30.0,
+                thumbnail_data=None,
+                is_vertical=False,
+            ),
+        ]
+
+    @pytest.fixture
+    def long_audio(self):
+        """Audio data with 120 beats at 120 BPM (60 seconds)."""
+        return AudioAnalysisResult(
+            filename="long_track.wav",
+            bpm=120.0,
+            duration=60.0,
+            peaks=[],
+            sections=[],
+            beat_times=[float(i) * 0.5 for i in range(120)],
+            intensity_curve=[0.5] * 120,
+        )
+
+    def test_broll_inserted_at_intervals(self, gen, long_audio, video_clips, broll_clips):
+        """B-roll clips are inserted roughly at configured intervals."""
+        config = PacingConfig(broll_interval_seconds=13.5, broll_interval_variance=1.5)
+        segments = gen.build_segment_plan(long_audio, video_clips, pacing=config, broll_clips=broll_clips)
+
+        broll_segments = [seg for seg in segments if "broll" in seg.video_path]
+        assert len(broll_segments) > 0, "Expected B-roll clips to be inserted"
+
+        # The first B-roll shouldn't be the very first clip
+        assert "broll" not in segments[0].video_path
+
+        # Check the gaps between B-roll clips
+        last_broll_time = -config.broll_interval_seconds
+        for seg in broll_segments:
+            gap = seg.timeline_position - last_broll_time
+            # Given variance is 1.5, gap shouldn't be wildly out of [12.0, 15.0] range
+            # though it snaps to beats so allow a slight margin of error (e.g. up to a few seconds)
+            assert gap >= (config.broll_interval_seconds - config.broll_interval_variance - 3.0)
+            assert gap <= (config.broll_interval_seconds + config.broll_interval_variance + 12.0) # Might overshoot slightly due to previous clip finishing
+            last_broll_time = seg.timeline_position
+
+    def test_no_broll_provided(self, gen, long_audio, video_clips):
+        """Works fine if no broll clips are provided."""
+        config = PacingConfig()
+        segments = gen.build_segment_plan(long_audio, video_clips, pacing=config, broll_clips=[])
+        
+        for seg in segments:
+            assert "broll" not in seg.video_path
+
