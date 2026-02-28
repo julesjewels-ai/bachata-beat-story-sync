@@ -1,0 +1,2 @@
+Started refactoring src/core/audio_analyzer.py:detect_sections to lower cyclomatic complexity.
+Completed refactoring of `detect_sections` in `src/core/audio_analyzer.py`.
