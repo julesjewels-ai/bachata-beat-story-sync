@@ -2,6 +2,10 @@
 
 > Automatically sync your Bachata dance video clips to music and create stunning montages.
 
+<p align="center">
+  <img src="assets/reviewing_clips.png" alt="Reviewing dance footage on a vintage camera" width="100%">
+</p>
+
 ---
 
 ## 🌟 High-Level Overview
@@ -137,6 +141,10 @@ flowchart LR
 ```
 
 ### 🎥 B-roll Insertion
+
+<p align="center">
+  <img src="assets/broll_shoes.png" alt="Bachata dance shoes resting near a speaker" width="100%">
+</p>
 
 The system can periodically inject clips from a dedicated B-roll library to add narrative flair and break up the dancing sequences (configured by default to roughly every 13.5 seconds).  
 
