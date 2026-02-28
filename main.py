@@ -86,7 +86,13 @@ def main() -> None:
     logger = logging.getLogger(__name__)
     logger.info("Starting Bachata Beat-Story Sync...")
 
-    engine = BachataSyncEngine()
+    from src.services.persistence import FileAnalysisRepository, CachedVideoAnalyzer
+    from src.core.video_analyzer import VideoAnalyzer
+
+    repository = FileAnalysisRepository()
+    inner_analyzer = VideoAnalyzer()
+    cached_analyzer = CachedVideoAnalyzer(inner_analyzer, repository)
+    engine = BachataSyncEngine(video_analyzer=cached_analyzer)
     audio_analyzer = AudioAnalyzer()
 
     try:

@@ -17,13 +17,15 @@ from src.core.interfaces import ProgressObserver
 logger = logging.getLogger(__name__)
 
 
+from src.core.interfaces import VideoAnalyzerProtocol
+
 class BachataSyncEngine:
     """
     The main engine responsible for syncing video segments to audio.
     """
 
-    def __init__(self) -> None:
-        self.video_analyzer = VideoAnalyzer()
+    def __init__(self, video_analyzer: Optional[VideoAnalyzerProtocol] = None) -> None:
+        self.video_analyzer = video_analyzer or VideoAnalyzer()
         self.montage_generator = MontageGenerator()
 
     def scan_video_library(

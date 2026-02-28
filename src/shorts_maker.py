@@ -106,7 +106,13 @@ def main() -> None:
     
     os.makedirs(args.output_dir, exist_ok=True)
 
-    engine = BachataSyncEngine()
+    from src.services.persistence import FileAnalysisRepository, CachedVideoAnalyzer
+    from src.core.video_analyzer import VideoAnalyzer
+
+    repository = FileAnalysisRepository()
+    inner_analyzer = VideoAnalyzer()
+    cached_analyzer = CachedVideoAnalyzer(inner_analyzer, repository)
+    engine = BachataSyncEngine(video_analyzer=cached_analyzer)
     audio_analyzer = AudioAnalyzer()
 
     try:
