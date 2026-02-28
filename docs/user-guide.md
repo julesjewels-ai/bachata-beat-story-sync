@@ -65,8 +65,12 @@ python main.py [OPTIONS]
 |------|----------|---------|-------------|
 | `--audio PATH` | ✅ Yes | — | Path to input audio file (`.wav` or `.mp3`) |
 | `--video-dir PATH` | ✅ Yes | — | Directory containing video clips (`.mp4`, `.mov`, `.avi`, `.mkv`) |
+| `--broll-dir PATH` | No | `video-dir/broll` | Optional directory for B-roll clips |
 | `--output PATH` | No | `output_story.mp4` | Output video file path |
 | `--export-report PATH` | No | — | Export an Excel analysis report (`.xlsx`) |
+| `--test-mode` | No | `False` | Run in test mode (max 4 clips, 10s of music) |
+| `--max-clips INT` | No | — | Maximum number of clip segments (overrides test-mode) |
+| `--max-duration FLOAT` | No | — | Maximum montage duration in seconds (overrides test-mode) |
 | `--version` | No | — | Show version and exit |
 
 ### Examples
@@ -80,7 +84,29 @@ python main.py --audio song.wav --video-dir ./clips/ --output my_montage.mp4
 
 # With Excel report
 python main.py --audio song.wav --video-dir ./clips/ --export-report analysis.xlsx
+
+# With explicit B-roll directory
+python main.py --audio song.wav --video-dir ./clips/ --broll-dir ./broll/
+
+# Test mode for rapid iteration
+python main.py --audio song.wav --video-dir ./clips/ --test-mode
 ```
+
+---
+
+## Advanced Features
+
+### Forced Clip Ordering
+You can force specific clips to appear at the beginning of the montage by prepending their filenames with a number and an underscore (e.g., `1_start.mp4`, `2_dance.mp4`). The sync engine will prioritise these clips in exact sequence before falling back to dynamic intensity-based matching for the remainder of the clips.
+
+### B-roll Insertion
+The system can periodically inject clips from a dedicated B-roll library to add narrative flair and break up the dancing sequences (configured by default to roughly every 13.5 seconds).  
+You can use B-roll by:
+1. Placing a folder simply named `broll` directly inside your `--video-dir`. It will be automatically detected.
+2. Providing an explicit B-roll folder path using the `--broll-dir` CLI argument.
+
+### Smooth Slow-Motion
+For low-intensity musical passages, the sync engine may slow down clips to match the mood. rather than duplicating frames (which looks choppy), the tool uses FFmpeg's advanced frame blending (`minterpolate`) to synthetically interpolate new frames, ensuring smooth visual fluidity.
 
 ---
 

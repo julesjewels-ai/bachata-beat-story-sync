@@ -13,8 +13,12 @@ Parses CLI arguments.
 |----------|------|----------|---------|-------------|
 | `--audio` | `str` | Yes | — | Path to input `.wav`/`.mp3` audio |
 | `--video-dir` | `str` | Yes | — | Directory containing video clips |
+| `--broll-dir` | `str` | No | `video-dir/broll` | Optional directory for B-roll clips |
 | `--output` | `str` | No | `output_story.mp4` | Output video path |
 | `--export-report` | `str` | No | `None` | Excel report output path |
+| `--test-mode` | flag | No | `False` | Run in test mode (max 4 clips, 10s of music) |
+| `--max-clips` | `int` | No | `None` | Maximum number of clip segments |
+| `--max-duration`| `float`| No | `None` | Maximum montage duration in seconds |
 | `--version` | flag | No | — | Show version (`0.1.0`) |
 
 ### `main() → None`
@@ -43,7 +47,7 @@ Scans a directory recursively for supported video files with progress reporting.
 
 **Raises:** `FileNotFoundError` if directory doesn't exist.
 
-#### `generate_story(audio_data: AudioAnalysisResult, video_clips: List[VideoAnalysisResult], output_path: str) → str`
+#### `generate_story(audio_data: AudioAnalysisResult, video_clips: List[VideoAnalysisResult], output_path: str, broll_clips: Optional[List[VideoAnalysisResult]] = None, audio_path: Optional[str] = None, observer: Optional[ProgressObserver] = None, pacing: Optional[PacingConfig] = None) → str`
 Delegates to `MontageGenerator.generate()`.
 
 **Returns:** Path to the generated output video.
@@ -106,13 +110,13 @@ Analyzes a video file using OpenCV:
 
 ### `MontageGenerator`
 
-#### `generate(audio_result: AudioAnalysisResult, video_results: List[VideoAnalysisResult], output_path: str) → str`
+#### `generate(audio_data: AudioAnalysisResult, video_clips: List[VideoAnalysisResult], output_path: str, audio_path: Optional[str] = None, observer: Optional[ProgressObserver] = None, pacing: Optional[PacingConfig] = None, broll_clips: Optional[List[VideoAnalysisResult]] = None) → str`
 Builds a video montage:
-1. Calculates bar duration (4 beats) from BPM
-2. Iterates through audio duration, selecting clips for each bar
-3. Trims clips to bar duration from random start points
-4. Resizes all clips to 720p height
-5. Concatenates and overlays audio
+1. Calculates required segment sequences mapping to musical beats and intensity
+2. Randomises start offsets and speeds up or interpolates slow-motion clips (`minterpolate`)
+3. Intersperses B-roll segments at configured intervals
+4. Applies crop scale and resizing to normalise all segments
+5. Concatenates and overlays audio track
 6. Exports as H.264/AAC MP4
 
 **Raises:** `ValueError` if no video clips. `FileNotFoundError` if audio missing. `RuntimeError` if no valid segments generated.

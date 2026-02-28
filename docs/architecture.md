@@ -156,7 +156,7 @@ bachata-beat-story-sync/
 | `app.py` | `BachataSyncEngine` | Orchestrates the full pipeline: video scanning → story generation |
 | `audio_analyzer.py` | `AudioAnalyzer` | Extracts BPM, beats, and onsets from audio using Librosa |
 | `video_analyzer.py` | `VideoAnalyzer` | Computes motion-intensity scores and thumbnails using OpenCV |
-| `montage.py` | `MontageGenerator` | Concatenates video segments synced to beats using MoviePy |
+| `montage.py` | `MontageGenerator` | Extracts and concatenates segments synced to beats using direct FFmpeg subprocesses |
 | `models.py` | `AudioAnalysisResult`, `VideoAnalysisResult` | Pydantic DTOs for inter-layer data transfer |
 | `interfaces.py` | `ProgressObserver` | Protocol (structural typing) for progress callbacks |
 | `validation.py` | `validate_file_path()` | Shared input validation with security checks |
@@ -262,7 +262,7 @@ classDiagram
 | Python | ≥3.9 | Core runtime |
 | Librosa | ≥0.9.0 | Audio analysis (BPM, beats, onsets) |
 | OpenCV | ≥4.5.0 | Video frame processing, intensity scoring |
-| MoviePy | ≥2.0.0 | Video clip manipulation and export |
+| FFmpeg | ≥4.0 | Video segment extraction, assembly, and interpolation (`minterpolate`) |
 | Pydantic | ≥2.0.0 | Data validation and DTOs |
 | openpyxl | ≥3.1.0 | Excel report generation |
 | Pillow | ≥10.0.0 | Image processing (thumbnails) |

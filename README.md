@@ -11,6 +11,9 @@ An automated video editing tool that analyzes Bachata audio tracks (`.wav` / `.m
 | Automated Video Montage Generation (FFmpeg) | ✅ |
 | Excel Analysis Reports with Charts & Thumbnails | ✅ |
 | Rich Console Progress Feedback | ✅ |
+| B-roll Clip Insertion | ✅ |
+| Slow-Motion Frame Interpolation | ✅ |
+| Forced Clip Sequence Ordering | ✅ |
 | Musical Section Segmentation | 🔜 Planned |
 | Sentiment-based Clip Matching | 🔜 Planned |
 | Narrative Arc Construction | 🔜 Planned |
@@ -36,6 +39,12 @@ python main.py --audio my_track.wav --video-dir ./clips/
 
 # With Excel report
 python main.py --audio my_track.wav --video-dir ./clips/ --export-report report.xlsx
+
+# With explicit B-roll directory
+python main.py --audio my_track.wav --video-dir ./clips/ --broll-dir ./broll/
+
+# Test mode (limits to max 4 clips and 10s of music)
+python main.py --audio my_track.wav --video-dir ./clips/ --test-mode
 ```
 
 ## Development

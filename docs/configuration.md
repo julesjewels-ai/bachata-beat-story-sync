@@ -12,8 +12,12 @@ The tool is invoked via `python main.py` with the following arguments:
 |----------|----------|------|---------|-------------|
 | `--audio` | ✅ | `str` | — | Path to the input audio file (`.wav` or `.mp3`) |
 | `--video-dir` | ✅ | `str` | — | Directory containing video clips to scan |
+| `--broll-dir` | ❌ | `str` | `video-dir/broll` | Optional directory for B-roll clips |
 | `--output` | ❌ | `str` | `output_story.mp4` | Path for the generated output video |
 | `--export-report` | ❌ | `str` | `None` | Path for the optional Excel analysis report |
+| `--test-mode` | ❌ | flag | `False` | Run in test mode (limits to max 4 clips and 10s of music) |
+| `--max-clips` | ❌ | `int` | `None` | Maximum number of clip segments (overrides test-mode) |
+| `--max-duration`| ❌ | `float`| `None` | Maximum montage duration in seconds (overrides test-mode) |
 | `--version` | ❌ | flag | — | Display version number and exit |
 
 ---
@@ -31,6 +35,17 @@ A YAML file in the project root that controls clip pacing — no code changes ne
 | `snap_to_beats` | `true` | Snap durations to beat boundaries |
 | `high_intensity_threshold` | `0.65` | Intensity ≥ this is "high" |
 | `low_intensity_threshold` | `0.35` | Intensity < this is "low" |
+| `speed_ramp_enabled` | `true` | Enable speed ramping per intensity level |
+| `high_intensity_speed` | `1.2` | Speed multiplier for high-intensity clips (>1 = fast) |
+| `medium_intensity_speed` | `1.0` | Speed multiplier for medium-intensity clips |
+| `low_intensity_speed` | `0.9` | Speed multiplier for low-intensity clips (<1 = slow-mo) |
+| `clip_variety_enabled` | `true` | Randomize start offset within reused clips |
+| `broll_interval_seconds` | `13.5` | Target interval between B-roll clips in seconds |
+| `broll_interval_variance` | `1.5` | Allowed variance in B-roll intervals (± seconds) |
+| `interpolation_method` | `blend` | Frame interpolation method for slow motion. Options: `none`, `blend`, `mci` |
+| `accelerate_pacing` | `false` | Gradually decrease clip durations towards the end |
+| `randomize_speed_ramps` | `false` | Apply random variance to speed ramps for a human touch |
+| `abrupt_ending` | `false` | End sharply to create a cliffhanger effect |
 
 > If `montage_config.yaml` is missing, defaults above are used automatically.
 
