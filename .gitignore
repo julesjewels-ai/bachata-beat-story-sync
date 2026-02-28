@@ -17,3 +17,6 @@ venv/
 *.mov
 
 .DS_Store
+
+# Security Reports
+bandit-report.json

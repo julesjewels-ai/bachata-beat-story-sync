@@ -745,7 +745,8 @@ class MontageGenerator:
                 capture_output=True,
                 text=True,
                 timeout=10,
-            )
+                shell=False,
+            )  # nosec B603
             return float(result.stdout.strip())
         except (ValueError, subprocess.TimeoutExpired, OSError):
             logger.warning(
@@ -798,7 +799,8 @@ class MontageGenerator:
                 stderr=subprocess.PIPE,
                 text=True,
                 timeout=FFMPEG_TIMEOUT,
-            )
+                shell=False,
+            )  # nosec B603
 
             if result.returncode != 0:
                 stderr_tail = result.stderr[-500:] if result.stderr else ""

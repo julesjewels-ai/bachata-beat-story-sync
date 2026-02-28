@@ -159,7 +159,8 @@ class AudioMixer:
                 stderr=subprocess.PIPE,
                 text=True,
                 timeout=FFMPEG_TIMEOUT,
-            )
+                shell=False,
+            )  # nosec B603
             if result.returncode != 0:
                 stderr_tail = result.stderr[-500:] if result.stderr else ""
                 raise RuntimeError(
