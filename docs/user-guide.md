@@ -2,10 +2,6 @@
 
 > Automatically sync your Bachata dance video clips to music and create stunning montages.
 
-<p align="center">
-  <img src="assets/reviewing_clips.png" alt="Reviewing dance footage on a vintage camera" width="100%">
-</p>
-
 ---
 
 ## 🌟 High-Level Overview
