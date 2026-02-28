@@ -19,7 +19,6 @@ from typing import List, Optional, Tuple
 from src.core.interfaces import ProgressObserver
 from src.core.models import (
     AudioAnalysisResult,
-    MusicalSection,
     PacingConfig,
     SegmentPlan,
     VideoAnalysisResult,
@@ -532,7 +531,7 @@ class MontageGenerator:
             if config.is_shorts:
                 # Crop center to 9:16 aspect ratio (safe for both horizontal drop-ins and slight vertical variances)
                 vf_parts = [
-                    f"crop='min(iw,ih*9/16)':'min(ih,iw*16/9)'",
+                    "crop='min(iw,ih*9/16)':'min(ih,iw*16/9)'",
                     f"scale={t_width}:{t_height}",
                 ]
             else:

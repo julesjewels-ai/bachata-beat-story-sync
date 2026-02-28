@@ -1,5 +1,4 @@
 import pytest
-import numpy as np
 from src.core.audio_analyzer import detect_sections
 from src.core.models import MusicalSection
 
