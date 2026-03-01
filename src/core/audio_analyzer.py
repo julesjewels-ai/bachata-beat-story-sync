@@ -27,6 +27,48 @@ class AudioAnalysisInput(BaseModel):
         return validate_file_path(v, SUPPORTED_AUDIO_EXTENSIONS)
 
 
+def _merge_short_boundaries(boundaries: list[int]) -> list[int]:
+    """Merge very short sections (fewer than 3 beats) into their neighbour."""
+    if not boundaries:
+        return []
+
+    merged: list[int] = [boundaries[0]]
+    for b in boundaries[1:]:
+        if b - merged[-1] < 3 and b != boundaries[-1]:
+            continue  # skip this boundary — section too short
+        merged.append(b)
+    return merged
+
+
+def _determine_section_label(
+    i: int,
+    total_sections: int,
+    avg_intensity: float,
+    start_idx: int,
+    end_idx: int,
+    smoothed: np.ndarray,
+) -> str:
+    """Determine the musical section label using position and intensity."""
+    if i == 0 and avg_intensity < 0.5:
+        return "intro"
+    if i == total_sections - 2 and avg_intensity < 0.5:
+        return "outro"
+    if avg_intensity >= 0.65:
+        return "high_energy"
+    if avg_intensity < 0.35:
+        return "low_energy"
+
+    # Check if this is a transition (rising or falling)
+    if end_idx < len(smoothed) and start_idx < len(smoothed):
+        delta = smoothed[min(end_idx - 1, len(smoothed) - 1)] - smoothed[start_idx]
+        if delta > 0.1:
+            return "buildup"
+        if delta < -0.1:
+            return "breakdown"
+
+    return "mid_energy"
+
+
 def detect_sections(
     beat_times: list[float],
     intensity_curve: list[float],
@@ -79,13 +121,7 @@ def detect_sections(
     # Remove duplicates and sort
     boundaries = sorted(set(boundaries))
 
-    # Merge very short sections (fewer than 3 beats) into their neighbour
-    merged: list[int] = [boundaries[0]]
-    for b in boundaries[1:]:
-        if b - merged[-1] < 3 and b != boundaries[-1]:
-            continue  # skip this boundary — section too short
-        merged.append(b)
-    boundaries = merged
+    boundaries = _merge_short_boundaries(boundaries)
 
     sections: list[MusicalSection] = []
     for i in range(len(boundaries) - 1):
@@ -96,27 +132,9 @@ def detect_sections(
         end_time = beat_times[end_idx] if end_idx < len(beat_times) else duration
         avg_intensity = float(np.mean(curve[start_idx:end_idx]))
 
-        # Label based on position and intensity
-        if i == 0 and avg_intensity < 0.5:
-            label = "intro"
-        elif i == len(boundaries) - 2 and avg_intensity < 0.5:
-            label = "outro"
-        elif avg_intensity >= 0.65:
-            label = "high_energy"
-        elif avg_intensity < 0.35:
-            label = "low_energy"
-        else:
-            # Check if this is a transition (rising or falling)
-            if end_idx < len(smoothed) and start_idx < len(smoothed):
-                delta = smoothed[min(end_idx - 1, len(smoothed) - 1)] - smoothed[start_idx]
-                if delta > 0.1:
-                    label = "buildup"
-                elif delta < -0.1:
-                    label = "breakdown"
-                else:
-                    label = "mid_energy"
-            else:
-                label = "mid_energy"
+        label = _determine_section_label(
+            i, len(boundaries), avg_intensity, start_idx, end_idx, smoothed
+        )
 
         sections.append(MusicalSection(
             label=label,
