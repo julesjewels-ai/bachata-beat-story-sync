@@ -6,6 +6,8 @@ import logging
 import os
 import numpy as np
 import librosa
+import sklearn.cluster  # type: ignore[import-untyped]
+from typing import Optional
 from pydantic import BaseModel, Field, field_validator
 from src.core.validation import validate_file_path
 from src.core.models import AudioAnalysisResult, MusicalSection
@@ -13,6 +15,57 @@ from src.core.models import AudioAnalysisResult, MusicalSection
 logger = logging.getLogger(__name__)
 
 SUPPORTED_AUDIO_EXTENSIONS = {'.wav', '.mp3'}
+
+
+def segment_structure(
+    y: np.ndarray,
+    sr: int,
+    beat_frames: np.ndarray,
+    n_segments: int = 4
+) -> list[int]:
+    """
+    Implements structural segmentation using chroma features and
+    Agglomerative Clustering to find major musical boundaries.
+
+    Args:
+        y: Audio time series.
+        sr: Sampling rate.
+        beat_frames: Detected beat frames.
+        n_segments: Number of clusters (sections) to find.
+
+    Returns:
+        A list of boundary indices mapping to beat_frames.
+    """
+    if len(beat_frames) < 16 or n_segments < 2:
+        return []
+
+    # 1. Compute Chroma CQT (pitch class profiles)
+    chroma = librosa.feature.chroma_cqt(y=y, sr=sr)
+
+    # 2. Synchronize chroma to beats
+    # Type ignore because beat_frames is ndarray which is Sequence-like
+    chroma_sync = librosa.util.sync(chroma, beat_frames, aggregate=np.median) # type: ignore[arg-type]
+
+    # 3. Transpose for sklearn (samples, features)
+    X = chroma_sync.T
+
+    # 4. Cluster using AgglomerativeClustering with no connectivity matrix,
+    # we just want to find structural boundaries, usually without one.
+    # The memory instruction mentions structural segmentation using
+    # librosa.feature.chroma_cqt and sklearn.cluster.AgglomerativeClustering.
+    clustering = sklearn.cluster.AgglomerativeClustering(
+        n_clusters=n_segments,
+    )
+    labels = clustering.fit_predict(X)
+
+    # 5. Find boundaries where the cluster label changes
+    boundaries = [0]
+    for i in range(1, len(labels)):
+        if labels[i] != labels[i-1]:
+            boundaries.append(i)
+    boundaries.append(len(labels))
+
+    return sorted(list(set(boundaries)))
 
 
 class AudioAnalysisInput(BaseModel):
@@ -33,6 +86,7 @@ def detect_sections(
     duration: float,
     smoothing_window: int = 8,
     change_threshold: float = 0.15,
+    structural_boundaries: Optional[list[int]] = None,
 ) -> list[MusicalSection]:
     """
     Detect musical sections from the intensity envelope.
@@ -71,11 +125,18 @@ def detect_sections(
     # Compute absolute gradient of the smoothed curve
     gradient = np.abs(np.diff(smoothed))
 
-    # Find change-point indices where gradient exceeds threshold
-    change_points = list(np.where(gradient >= change_threshold)[0] + 1)
-
-    # Build boundary indices: [0, cp1, cp2, ..., len(curve)]
-    boundaries = [0] + change_points + [len(curve)]
+    if structural_boundaries and len(structural_boundaries) > 1:
+        # Prioritize structure-based segmentation
+        boundaries = list(structural_boundaries)
+        if 0 not in boundaries:
+            boundaries = [0] + boundaries
+        if len(curve) not in boundaries:
+            boundaries.append(len(curve))
+    else:
+        # Find change-point indices where gradient exceeds threshold
+        change_points = list(np.where(gradient >= change_threshold)[0] + 1)
+        # Build boundary indices: [0, cp1, cp2, ..., len(curve)]
+        boundaries = [0] + change_points + [len(curve)]
     # Remove duplicates and sort
     boundaries = sorted(set(boundaries))
 
@@ -185,11 +246,17 @@ class AudioAnalyzer:
             bpm_val = float(np.asarray(tempo).flat[0])
             peaks_list = [float(t) for t in onset_times]
 
+            # Structural segmentation
+            structural_boundaries = segment_structure(
+                y=y, sr=int(sr), beat_frames=beat_frames
+            )
+
             # Detect musical sections from intensity envelope
             sections = detect_sections(
                 beat_times=beat_times_list,
                 intensity_curve=intensity_curve,
                 duration=duration,
+                structural_boundaries=structural_boundaries,
             )
 
             result = AudioAnalysisResult(

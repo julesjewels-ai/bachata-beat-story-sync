@@ -36,9 +36,10 @@ class TestAudioAnalyzer:
             AudioAnalysisInput(file_path="ghost.wav")
         assert "File not found" in str(excinfo.value)
 
+    @patch("src.core.audio_analyzer.segment_structure")
     @patch("src.core.audio_analyzer.librosa")
     @patch("src.core.validation.os.path.exists", return_value=True)
-    def test_analyze_returns_result(self, mock_exists, mock_librosa):
+    def test_analyze_returns_result(self, mock_exists, mock_librosa, mock_segment_structure):
         """Test that analyze returns a valid AudioAnalysisResult."""
         # Setup mocks
         mock_librosa.load.return_value = (np.zeros(100), 22050)
@@ -55,6 +56,7 @@ class TestAudioAnalyzer:
         mock_librosa.feature.rms.return_value = np.array(
             [[0.2, 0.5, 0.8, 0.3, 0.1]]
         )
+        mock_segment_structure.return_value = [0, 1, 3]
 
         input_data = AudioAnalysisInput(file_path="song.mp3")
         result = self.analyzer.analyze(input_data)
@@ -79,6 +81,7 @@ class TestAudioAnalyzer:
         mock_librosa.beat.beat_track.assert_called_once()
         mock_librosa.onset.onset_detect.assert_called_once()
         mock_librosa.feature.rms.assert_called_once()
+        mock_segment_structure.assert_called_once()
 
     @patch("src.core.audio_analyzer.librosa")
     @patch("src.core.validation.os.path.exists", return_value=True)
