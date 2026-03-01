@@ -1,1 +1,2 @@
 src/core/montage.py:MontageGenerator.build_segment_plan
+src/core/audio_analyzer.py:detect_sections
