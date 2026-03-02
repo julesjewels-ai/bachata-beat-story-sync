@@ -6,13 +6,13 @@
 
 ## 🌟 High-Level Overview
 
+![Hero Banner representing a Bachata dance with rhythmic neon lighting](assets/hero_banner.png)
+
 Bachata Beat-Story Sync is an intelligent video editing assistant. It listens to your music, watches your dance clips, and mathematically matches the energy of your dancing to the rhythm of the song. 
 
 ```mermaid
 flowchart LR
-    A[🎵 Audio File] --> C{Sync Engine}
-    B[🎬 Video Clips] --> C
-    D[🎞️ B-Roll] -.-> C
+    In[🎵 Audio / 🎬 Video / 🎞️ B-Roll] --> C{Sync Engine}
     C -->|Beat & Motion Analysis| E[✨ Final Montage MP4]
     C -.->|Analysis Data| F[📊 Excel Report]
 ```
@@ -111,35 +111,24 @@ python main.py --audio song.wav --video-dir ./clips/ --test-mode
 
 ## ✨ Advanced Features
 
+![Advanced Features banner representing a glowing timeline with video clips and soundwaves](assets/advanced_banner.png)
+
 ### 1️⃣ Forced Clip Ordering
 
 You can force specific clips to appear at the beginning of the montage by prepending their filenames with a number and an underscore (e.g., `1_start.mp4`, `2_dance.mp4`). The sync engine will prioritise these clips in exact sequence before falling back to dynamic intensity-based matching for the remainder of the clips.
 
 ```mermaid
 flowchart LR
-    subgraph Input Files
-    direction TB
-    I1[1_start.mp4]
-    I2[2_dance.mp4]
-    I3[shines_clip.mp4]
-    I4[turn_pattern.mp4]
-    end
-
-    subgraph Timeline Output
-    direction LR
-    O1[1_start.mp4] --> O2[2_dance.mp4] --> O3[...]
-    end
-
-    I1 -->|"1st (Forced)"| O1
-    I2 -->|"2nd (Forced)"| O2
-    I3 -.->|"Dynamic Sync"| O3
-    I4 -.->|"Dynamic Sync"| O3
+    I1[1_start.mp4] -->|"1st (Forced)"| O1[1_start.mp4]
+    I2[2_dance.mp4] -->|"2nd (Forced)"| O2[2_dance.mp4]
+    I3[Other Clips] -.->|"Dynamic Sync"| O3[...]
+    O1 --> O2 --> O3
 ```
 
 ### 🎥 B-roll Insertion
 
 <p align="center">
-  <img src="assets/broll_shoes.png" alt="Bachata dance shoes resting near a speaker" width="100%">
+  <img src="assets/broll_banner.png" alt="Close-up of dancing shoes in an autumn forest path" width="100%">
 </p>
 
 The system can periodically inject clips from a dedicated B-roll library to add narrative flair and break up the dancing sequences (configured by default to roughly every 13.5 seconds).  
@@ -165,18 +154,10 @@ For low-intensity musical passages, the sync engine may slow down clips to match
 
 ```mermaid
 flowchart LR
-    subgraph ❌ Standard Slow Motion (Choppy)
-    direction LR
-    A1[Frame 1] --> A1_dup[Frame 1] --> A2[Frame 2] --> A2_dup[Frame 2]
-    end
-    
-    subgraph ✅ Smooth Interpolation
-    direction LR
-    B1[Frame 1] --> B_new[✨ Blended Frame] --> B2[Frame 2] --> B_new2[✨ Blended Frame]
-    end
+    A1[Frame 1] --> A1_dup[Frame 1_dup] --> A2[Frame 2]
+    B1[Frame 1] --> B_new[✨ Blended Frame] --> B2[Frame 2]
 
     style B_new fill:#4a3200,stroke:#cca300,stroke-width:2px,stroke-dasharray: 5 5,color:#fff
-    style B_new2 fill:#4a3200,stroke:#cca300,stroke-width:2px,stroke-dasharray: 5 5,color:#fff
 ```
 
 ---
@@ -201,13 +182,13 @@ flowchart LR
 
 ## 🧠 How It Works
 
+![How It Works banner visualizing audio data flowing into an intelligent processor to create a final video reel](assets/works_banner.png)
+
 The tool follows a 4-step pipeline:
 
 ```mermaid
-flowchart TD
-    1[🔊 1. Audio Analysis] -->|BPM, Beats, Onsets| 2[🎬 2. Video Scanning]
-    2 -->|Intensity Scores, Thumbnails| 3[⚙️ 3. Sync & Generate]
-    3 -->|Beat Matching, Concatenation| 4[📦 4. Output]
+flowchart LR
+    1[🔊 1. Audio] --> 2[🎬 2. Video] --> 3[⚙️ 3. Sync] --> 4[📦 4. Output]
 ```
 
 1. **Audio Analysis** — Detects BPM, beat positions, and onset times in your Bachata track

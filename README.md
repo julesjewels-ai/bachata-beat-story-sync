@@ -28,7 +28,7 @@ An automated video editing tool that analyzes Bachata audio tracks (`.wav` / `.m
 ## Quick Start
 
 <p align="center">
-  <img src="docs/assets/editor_laptop.png" alt="Video editor compiling footage" width="100%">
+  <img src="docs/assets/editor_banner.png" alt="Video editor compiling footage" width="100%">
 </p>
 
 ```bash
