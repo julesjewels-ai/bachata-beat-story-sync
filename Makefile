@@ -23,7 +23,7 @@ endif
 .PHONY: install run test clean
 
 install:
-	$(PYTHON) -m venv $(VENV)
+	$(PYTHON).13 -m venv $(VENV)
 	$(BIN)/pip install --upgrade pip
 	$(BIN)/pip install -r requirements.txt
 
