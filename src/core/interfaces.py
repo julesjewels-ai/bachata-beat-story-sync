@@ -1,7 +1,19 @@
 """
 Core interfaces and protocols for Bachata Beat-Story Sync.
 """
-from typing import Protocol
+from typing import Protocol, List
+from src.core.models import AudioAnalysisResult, VideoAnalysisResult
+
+
+class IExcelGenerator(Protocol):
+    """
+    Protocol for generating Excel reports from analysis data.
+    """
+    def generate_report(self,
+                        audio_data: AudioAnalysisResult,
+                        video_data: List[VideoAnalysisResult],
+                        output_path: str) -> str:
+        ...
 
 
 class ProgressObserver(Protocol):

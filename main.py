@@ -7,13 +7,15 @@ import logging
 from src.core.app import BachataSyncEngine
 from src.core.audio_analyzer import AudioAnalyzer, AudioAnalysisInput
 from src.core.models import PacingConfig
+from src.core.interfaces import IExcelGenerator
 from src.services.reporting import ExcelReportGenerator
+from src.services.reporting.formatting import ReportFormatter
+from src.services.reporting.components import ChartBuilder, ThumbnailEmbedder
 from src.ui.console import RichProgressObserver
 from pydantic import ValidationError
 import os
 from src.core.audio_mixer import AudioMixer, SUPPORTED_AUDIO_EXTENSIONS as MIX_EXTS
 
-from src.core.audio_mixer import AudioMixer, SUPPORTED_AUDIO_EXTENSIONS as MIX_EXTS
 
 
 def parse_args() -> argparse.Namespace:
@@ -185,7 +187,14 @@ def main() -> None:
                 "Generating analysis report to %s...",
                 args.export_report
             )
-            report_gen = ExcelReportGenerator()
+            formatter = ReportFormatter()
+            chart_builder = ChartBuilder()
+            embedder = ThumbnailEmbedder()
+            report_gen: IExcelGenerator = ExcelReportGenerator(
+                formatter=formatter,
+                chart_builder=chart_builder,
+                thumbnail_embedder=embedder
+            )
             report_gen.generate_report(
                 audio_meta, video_clips, args.export_report
             )

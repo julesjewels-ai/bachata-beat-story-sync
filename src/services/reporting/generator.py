@@ -5,6 +5,7 @@ Orchestrates the report creation using specialized components.
 import logging
 import openpyxl
 from typing import List
+from src.core.interfaces import IExcelGenerator
 from src.core.models import AudioAnalysisResult, VideoAnalysisResult
 from .formatting import ReportFormatter
 from .components import ChartBuilder, ThumbnailEmbedder
@@ -12,16 +13,19 @@ from .components import ChartBuilder, ThumbnailEmbedder
 logger = logging.getLogger(__name__)
 
 
-class ExcelReportGenerator:
+class ExcelReportGenerator(IExcelGenerator):
     """
     Generates Excel reports from analysis data.
     Uses clean architecture to separate formatting and component logic.
     """
 
-    def __init__(self) -> None:
-        self.formatter = ReportFormatter()
-        self.chart_builder = ChartBuilder()
-        self.thumbnail_embedder = ThumbnailEmbedder()
+    def __init__(self,
+                 formatter: ReportFormatter,
+                 chart_builder: ChartBuilder,
+                 thumbnail_embedder: ThumbnailEmbedder) -> None:
+        self.formatter = formatter
+        self.chart_builder = chart_builder
+        self.thumbnail_embedder = thumbnail_embedder
 
     def generate_report(self,
                         audio_data: AudioAnalysisResult,
