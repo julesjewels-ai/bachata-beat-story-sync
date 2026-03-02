@@ -1,4 +1,4 @@
-PYTHON = python3
+PYTHON = python3.13
 VENV = venv
 BIN = $(VENV)/bin
 TEST_MODE ?=
@@ -23,7 +23,7 @@ endif
 .PHONY: install run test clean
 
 install:
-	$(PYTHON).13 -m venv $(VENV)
+	$(PYTHON) -m venv $(VENV)
 	$(BIN)/pip install --upgrade pip
 	$(BIN)/pip install -r requirements.txt
 
