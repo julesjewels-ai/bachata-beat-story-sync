@@ -220,24 +220,76 @@ class TestBuildSegmentPlan:
         for i in range(1, len(segments)):
             assert segments[i].timeline_position > segments[i - 1].timeline_position
 
-    def test_round_robin_clip_assignment(
-        self, generator, video_clips
+    def test_intensity_matched_clip_assignment(
+        self, generator,
     ):
-        """Clips should be assigned in round-robin order."""
+        """High-intensity beats should select from high-intensity clips,
+        and low-intensity beats from low-intensity clips (FEAT-009)."""
+        # Provide clips with distinct intensity scores
+        clips = [
+            VideoAnalysisResult(
+                path="/videos/high_action.mp4",
+                intensity_score=0.9,
+                duration=30.0,
+                thumbnail_data=None,
+            ),
+            VideoAnalysisResult(
+                path="/videos/calm_footage.mp4",
+                intensity_score=0.1,
+                duration=30.0,
+                thumbnail_data=None,
+            ),
+        ]
+        # Audio: first half high intensity, second half low
         audio = AudioAnalysisResult(
-            filename="rr.wav",
+            filename="match.wav",
             bpm=120.0,
             duration=30.0,
             peaks=[],
             sections=[],
             beat_times=[float(i) * 0.5 for i in range(32)],
-            intensity_curve=[0.5] * 32,
+            intensity_curve=[0.9] * 16 + [0.1] * 16,
         )
-        segments = generator.build_segment_plan(audio, video_clips)
+        segments = generator.build_segment_plan(audio, clips)
 
-        # With round-robin, consecutive segments should alternate clips
-        if len(segments) >= 2:
-            assert segments[0].video_path != segments[1].video_path
+        for seg in segments:
+            if seg.intensity_level == "high":
+                assert seg.video_path == "/videos/high_action.mp4", (
+                    "High-intensity beat should use the high-action clip"
+                )
+            elif seg.intensity_level == "low":
+                assert seg.video_path == "/videos/calm_footage.mp4", (
+                    "Low-intensity beat should use the calm clip"
+                )
+
+    def test_pool_fallback_when_empty(
+        self, generator,
+    ):
+        """When no clip matches the target pool, fallback to adjacent pool."""
+        # Only medium clips — high and low pools are empty
+        clips = [
+            VideoAnalysisResult(
+                path="/videos/medium_only.mp4",
+                intensity_score=0.5,
+                duration=30.0,
+                thumbnail_data=None,
+            ),
+        ]
+        # Audio with high-intensity beats — pool will be empty
+        audio = AudioAnalysisResult(
+            filename="fallback.wav",
+            bpm=120.0,
+            duration=30.0,
+            peaks=[],
+            sections=[],
+            beat_times=[float(i) * 0.5 for i in range(16)],
+            intensity_curve=[0.9] * 16,
+        )
+        # Should not crash — falls back to medium pool
+        segments = generator.build_segment_plan(audio, clips)
+        assert len(segments) > 0
+        for seg in segments:
+            assert seg.video_path == "/videos/medium_only.mp4"
 
     def test_build_segment_plan_with_prefix_ordering(
         self, generator, video_clips

@@ -157,7 +157,7 @@ Allows the user to force specific clips to appear at the very beginning of the m
 
 | Field       | Value                                |
 |-------------|--------------------------------------|
-| **Status**  | `PROPOSED`                           |
+| **Status**  | `IMPLEMENTED`                        |
 | **Priority**| 🔴 High                              |
 | **Effort**  | Medium                               |
 | **Impact**  | High — the most noticeable remaining gap in montage quality |

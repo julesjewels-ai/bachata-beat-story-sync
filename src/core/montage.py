@@ -131,6 +131,66 @@ class MontageGenerator:
         return sorted_clips, forced_clips
 
     @staticmethod
+    def _build_intensity_pools(
+        clips: List[VideoAnalysisResult],
+        config: PacingConfig,
+    ) -> dict:
+        """
+        Bucket clips into high / medium / low pools by intensity_score.
+
+        Uses the same thresholds as audio intensity classification.
+
+        Returns:
+            Dict with keys 'high', 'medium', 'low' mapping to lists of clips.
+        """
+        pools: dict = {"high": [], "medium": [], "low": []}
+        for clip in clips:
+            if clip.intensity_score >= config.high_intensity_threshold:
+                pools["high"].append(clip)
+            elif clip.intensity_score < config.low_intensity_threshold:
+                pools["low"].append(clip)
+            else:
+                pools["medium"].append(clip)
+        return pools
+
+    @staticmethod
+    def _pick_from_pool(
+        pools: dict,
+        pool_indices: dict,
+        target_level: str,
+    ) -> VideoAnalysisResult:
+        """
+        Pick a clip from the target intensity pool with round-robin.
+
+        Falls back to adjacent pools if the target pool is empty:
+            high   → medium → low
+            low    → medium → high
+            medium → high   → low
+
+        Args:
+            pools: Dict of intensity pools built by _build_intensity_pools.
+            pool_indices: Mutable dict tracking per-pool round-robin index.
+            target_level: Desired intensity level ('high', 'medium', 'low').
+
+        Returns:
+            A VideoAnalysisResult from the best available pool.
+        """
+        fallback_order = {
+            "high": ["high", "medium", "low"],
+            "medium": ["medium", "high", "low"],
+            "low": ["low", "medium", "high"],
+        }
+        for level in fallback_order[target_level]:
+            pool = pools[level]
+            if pool:
+                idx = pool_indices[level] % len(pool)
+                pool_indices[level] += 1
+                return pool[idx]
+
+        # Should be unreachable if clips were provided, but guard anyway
+        raise ValueError("All intensity pools are empty — no clips available.")
+
+    @staticmethod
     def _calculate_segment_params(
         config: PacingConfig,
         intensity: float,
@@ -219,6 +279,14 @@ class MontageGenerator:
         # Prepare clips (deduplication, sorting, forced ordering)
         sorted_clips, forced_clips = self._prepare_clips(video_clips, config)
 
+        # FEAT-009: Build intensity-matched pools for clip selection
+        pools = self._build_intensity_pools(sorted_clips, config)
+        pool_indices: dict = {"high": 0, "medium": 0, "low": 0}
+        logger.debug(
+            "Intensity pools — high: %d, medium: %d, low: %d",
+            len(pools["high"]), len(pools["medium"]), len(pools["low"]),
+        )
+
         segments: List[SegmentPlan] = []
         timeline_pos = 0.0
         beat_idx = 0
@@ -287,7 +355,8 @@ class MontageGenerator:
                 last_broll_time = timeline_pos
                 target_broll_interval = config.broll_interval_seconds + random.uniform(-config.broll_interval_variance, config.broll_interval_variance)
             else:
-                clip = sorted_clips[clip_idx % len(sorted_clips)]
+                # FEAT-009: intensity-matched pool selection w/ fallback
+                clip = self._pick_from_pool(pools, pool_indices, level)
                 clip_idx += 1
 
             # Compute start offset within clip
