@@ -15,11 +15,10 @@ import random
 import re
 import yaml
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict
 from src.core.interfaces import ProgressObserver
 from src.core.models import (
     AudioAnalysisResult,
-    MusicalSection,
     PacingConfig,
     SegmentPlan,
     VideoAnalysisResult,
@@ -88,13 +87,13 @@ class MontageGenerator:
     def _prepare_clips(
         video_clips: List[VideoAnalysisResult],
         config: PacingConfig,
-    ) -> Tuple[List[VideoAnalysisResult], List[VideoAnalysisResult]]:
+    ) -> Tuple[Dict[str, List[VideoAnalysisResult]], List[VideoAnalysisResult]]:
         """
-        Deduplicate, separate forced clips, and sort regular clips.
+        Deduplicate, separate forced clips, and bucket regular clips by intensity.
 
         Returns:
             Tuple containing:
-            - sorted_clips: List of regular clips sorted by priority/intensity.
+            - clip_pools: Dict with 'high', 'medium', 'low' lists of clips.
             - forced_clips: List of clips with numeric prefix (e.g. '1_start.mp4').
         """
         # Deduplicate identical clips (e.g. same footage in multiple folders)
@@ -107,28 +106,47 @@ class MontageGenerator:
                 unique_clips.append(c)
 
         forced_clips_tuple = []
+        regular_clips = []
         for c in unique_clips:
             basename = os.path.basename(c.path)
             match = re.match(r'^(\d+)_', basename)
             if match:
                 prefix = int(match.group(1))
                 forced_clips_tuple.append((prefix, c))
+            else:
+                regular_clips.append(c)
 
         forced_clips_tuple.sort(key=lambda x: x[0])
         forced_clips = [fc[1] for fc in forced_clips_tuple]
 
-        # Sort clips by intensity score (highest first) for matching
-        if config.is_shorts:
-            # Prioritise vertical clips first
-            sorted_clips = sorted(
-                unique_clips, key=lambda c: (c.is_vertical, c.intensity_score), reverse=True
-            )
-        else:
-            sorted_clips = sorted(
-                unique_clips, key=lambda c: c.intensity_score, reverse=True
-            )
+        # Bucket regular clips by intensity
+        clip_pools: Dict[str, List[VideoAnalysisResult]] = {
+            "high": [],
+            "medium": [],
+            "low": [],
+        }
 
-        return sorted_clips, forced_clips
+        for c in regular_clips:
+            if c.intensity_score >= config.high_intensity_threshold:
+                clip_pools["high"].append(c)
+            elif c.intensity_score < config.low_intensity_threshold:
+                clip_pools["low"].append(c)
+            else:
+                clip_pools["medium"].append(c)
+
+        # Sort clips within each pool by intensity score (highest first)
+        for level in clip_pools:
+            if config.is_shorts:
+                # Prioritise vertical clips first
+                clip_pools[level] = sorted(
+                    clip_pools[level], key=lambda c: (c.is_vertical, c.intensity_score), reverse=True
+                )
+            else:
+                clip_pools[level] = sorted(
+                    clip_pools[level], key=lambda c: c.intensity_score, reverse=True
+                )
+
+        return clip_pools, forced_clips
 
     @staticmethod
     def _calculate_segment_params(
@@ -216,8 +234,8 @@ class MontageGenerator:
         # Minimum beats to satisfy the floor
         min_beats = max(1, math.ceil(config.min_clip_seconds / spb))
 
-        # Prepare clips (deduplication, sorting, forced ordering)
-        sorted_clips, forced_clips = self._prepare_clips(video_clips, config)
+        # Prepare clips (deduplication, bucketing, forced ordering)
+        clip_pools, forced_clips = self._prepare_clips(video_clips, config)
 
         segments: List[SegmentPlan] = []
         timeline_pos = 0.0
@@ -225,6 +243,7 @@ class MontageGenerator:
         clip_idx = 0
         broll_idx = 0
         forced_clip_idx = 0
+        pool_indices = {"high": 0, "medium": 0, "low": 0}
 
         # B-Roll tracking
         last_broll_time = -config.broll_interval_seconds # Allow B-roll early on if configured
@@ -277,24 +296,48 @@ class MontageGenerator:
                 if timeline_pos > 0.0:
                     is_broll = True
 
-            # Pick clip (forced prefix followed by round-robin)
+            # Pick clip (forced prefix, then b-roll, then pool-based matching)
             if forced_clip_idx < len(forced_clips):
                 clip = forced_clips[forced_clip_idx]
                 forced_clip_idx += 1
-            elif is_broll:
+                clip_idx_for_seed = forced_clip_idx
+            elif is_broll and broll_clips is not None:
                 clip = broll_clips[broll_idx % len(broll_clips)]
                 broll_idx += 1
                 last_broll_time = timeline_pos
                 target_broll_interval = config.broll_interval_seconds + random.uniform(-config.broll_interval_variance, config.broll_interval_variance)
+                clip_idx_for_seed = broll_idx
             else:
-                clip = sorted_clips[clip_idx % len(sorted_clips)]
-                clip_idx += 1
+                # Fallback logic for pools: target -> adjacent -> adjacent
+                fallbacks = {
+                    "high": ["high", "medium", "low"],
+                    "medium": ["medium", "high", "low"],
+                    "low": ["low", "medium", "high"],
+                }
+                selected_pool = "medium"  # Safe default
+                for pool_name in fallbacks.get(level, ["medium"]):
+                    if clip_pools[pool_name]:
+                        selected_pool = pool_name
+                        break
+
+                pool = clip_pools[selected_pool]
+                # If all pools are somehow empty (should not happen if video_clips is not empty and _prepare_clips works correctly)
+                if not pool:
+                    # Fallback to the first available clip from the original list
+                    clip = video_clips[0]
+                    clip_idx_for_seed = 0
+                else:
+                    idx = pool_indices[selected_pool]
+                    clip = pool[idx % len(pool)]
+                    pool_indices[selected_pool] += 1
+                    clip_idx += 1
+                    clip_idx_for_seed = pool_indices[selected_pool]
 
             # Compute start offset within clip
             max_start = max(0.0, clip.duration - segment_duration)
             if config.clip_variety_enabled and max_start > 0:
                 # Deterministic per-segment offset using clip path + usage index + seed
-                seed_str = f"{config.seed}:{clip.path}:{clip_idx}"
+                seed_str = f"{config.seed}:{clip.path}:{clip_idx_for_seed}"
                 seed = int(
                     hashlib.md5(
                         seed_str.encode()
@@ -532,7 +575,7 @@ class MontageGenerator:
             if config.is_shorts:
                 # Crop center to 9:16 aspect ratio (safe for both horizontal drop-ins and slight vertical variances)
                 vf_parts = [
-                    f"crop='min(iw,ih*9/16)':'min(ih,iw*16/9)'",
+                    "crop='min(iw,ih*9/16)':'min(ih,iw*16/9)'",
                     f"scale={t_width}:{t_height}",
                 ]
             else:

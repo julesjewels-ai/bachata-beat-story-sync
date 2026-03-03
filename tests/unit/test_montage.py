@@ -220,24 +220,51 @@ class TestBuildSegmentPlan:
         for i in range(1, len(segments)):
             assert segments[i].timeline_position > segments[i - 1].timeline_position
 
-    def test_round_robin_clip_assignment(
-        self, generator, video_clips
+    def test_pool_based_clip_assignment(
+        self, generator
     ):
-        """Clips should be assigned in round-robin order."""
+        """Clips should be assigned from the matching intensity pool."""
+        clips = [
+            VideoAnalysisResult(path="/videos/high1.mp4", intensity_score=0.9, duration=10.0, is_vertical=False),
+            VideoAnalysisResult(path="/videos/high2.mp4", intensity_score=0.8, duration=10.0, is_vertical=False),
+            VideoAnalysisResult(path="/videos/med1.mp4", intensity_score=0.5, duration=10.0, is_vertical=False),
+            VideoAnalysisResult(path="/videos/med2.mp4", intensity_score=0.4, duration=10.0, is_vertical=False),
+            VideoAnalysisResult(path="/videos/low1.mp4", intensity_score=0.1, duration=10.0, is_vertical=False),
+        ]
+
+        # We need enough beats to generate 5 segments
+        # Let's provide 40 beats (0.5s each = 20s total)
         audio = AudioAnalysisResult(
-            filename="rr.wav",
+            filename="pools.wav",
             bpm=120.0,
             duration=30.0,
             peaks=[],
             sections=[],
-            beat_times=[float(i) * 0.5 for i in range(32)],
-            intensity_curve=[0.5] * 32,
+            beat_times=[float(i) * 0.5 for i in range(40)],
+            # Each segment consumes multiple beats, so we must map intensity
+            # correctly across the sequence of segments.
+            # Segment 1 (high): 2.5s -> 5 beats.
+            # Segment 2 (med): 4.0s -> 8 beats.
+            # Segment 3 (low): 6.0s -> 12 beats.
+            # Segment 4 (high): 2.5s -> 5 beats.
+            # Segment 5 (med): remaining beats
+            intensity_curve=([0.9] * 5) + ([0.5] * 8) + ([0.1] * 12) + ([0.9] * 5) + ([0.5] * 10),
         )
-        segments = generator.build_segment_plan(audio, video_clips)
 
-        # With round-robin, consecutive segments should alternate clips
-        if len(segments) >= 2:
-            assert segments[0].video_path != segments[1].video_path
+        segments = generator.build_segment_plan(audio, clips)
+
+        assert len(segments) >= 5
+
+        # Verify correct pools are used based on intensity curve
+        assert "high1" in segments[0].video_path
+        assert "med1" in segments[1].video_path
+        assert "low1" in segments[2].video_path
+
+        # Verify round-robin happens within pools
+        # The second 'high' segment should pick the second high clip
+        assert "high2" in segments[3].video_path
+        # The second 'med' segment should pick the second med clip
+        assert "med2" in segments[4].video_path
 
     def test_build_segment_plan_with_prefix_ordering(
         self, generator, video_clips
@@ -445,7 +472,7 @@ class TestFFmpegOrchestration:
         with open(concat_path, "w") as f:
             f.write("fake video data")
 
-        result = generator.generate(
+        generator.generate(
             audio_data, video_clips, output_path,
             audio_path="/audio/song.wav"
         )
@@ -697,7 +724,6 @@ class TestTransitionPipeline:
         generator, video_clips, tmp_path
     ):
         """When transitions enabled with multiple sections, xfade is called."""
-        from src.core.models import MusicalSection
 
         temp_dir = str(tmp_path / "montage_temp")
         os.makedirs(temp_dir, exist_ok=True)
