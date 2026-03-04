@@ -3,44 +3,50 @@ name: CI
 on:
   push:
     branches: [ main ]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'requirements.txt'
+      - 'pyproject.toml'
+      - '.github/workflows/ci.yml'
   pull_request:
     branches: [ main ]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'requirements.txt'
+      - 'pyproject.toml'
+      - '.github/workflows/ci.yml'
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    
+
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Install uv
       uses: astral-sh/setup-uv@v5
-      
+      with:
+        enable-cache: true
+
     - name: Set up Python
       run: uv python install 3.13
-      
+
     - name: Install dependencies
       run: |
         uv venv
         uv pip install -r requirements.txt
         uv pip install ruff pytest mypy types-PyYAML types-openpyxl
-        
+
     - name: Check formatting
-      run: |
-        source .venv/bin/activate
-        ruff format --check src/ tests/
-        
+      run: uv run ruff format --check src/ tests/
+
     - name: Lint
-      run: |
-        source .venv/bin/activate
-        ruff check src/ tests/
-        
+      run: uv run ruff check src/ tests/
+
     - name: Type check
-      run: |
-        source .venv/bin/activate
-        mypy src/ tests/
-        
+      run: uv run mypy src/ tests/
+
     - name: Run unit tests
-      run: |
-        source .venv/bin/activate
-        pytest tests/unit/
+      run: uv run pytest tests/unit/
