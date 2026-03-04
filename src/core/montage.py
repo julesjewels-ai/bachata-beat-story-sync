@@ -4,18 +4,21 @@ Montage generator for Bachata Beat-Story Sync.
 Uses direct FFmpeg subprocess calls for memory-safe video processing.
 Only one FFmpeg process runs at a time — no memory leaks.
 """
+
 import hashlib
 import logging
 import math
 import os
+import random
+import re
 import shutil
 import subprocess
 import tempfile
-import random
-import re
-import yaml
 from pathlib import Path
 from typing import List, Optional, Tuple
+
+import yaml
+
 from src.core.interfaces import ProgressObserver
 from src.core.models import (
     AudioAnalysisResult,
@@ -65,9 +68,7 @@ def load_pacing_config(
             return config
         except Exception as e:
             logger.warning(
-                "Failed to load pacing config from %s: %s. "
-                "Using defaults.",
-                path, e
+                "Failed to load pacing config from %s: %s. Using defaults.", path, e
             )
 
     return PacingConfig()
@@ -109,7 +110,7 @@ class MontageGenerator:
         forced_clips_tuple = []
         for c in unique_clips:
             basename = os.path.basename(c.path)
-            match = re.match(r'^(\d+)_', basename)
+            match = re.match(r"^(\d+)_", basename)
             if match:
                 prefix = int(match.group(1))
                 forced_clips_tuple.append((prefix, c))
@@ -121,7 +122,9 @@ class MontageGenerator:
         if config.is_shorts:
             # Prioritise vertical clips first
             sorted_clips = sorted(
-                unique_clips, key=lambda c: (c.is_vertical, c.intensity_score), reverse=True
+                unique_clips,
+                key=lambda c: (c.is_vertical, c.intensity_score),
+                reverse=True,
             )
         else:
             sorted_clips = sorted(
@@ -155,8 +158,8 @@ class MontageGenerator:
 
     @staticmethod
     def _pick_from_pool(
-        pools: dict,
-        pool_indices: dict,
+        pools: dict[str, list[VideoAnalysisResult]],
+        pool_indices: dict[str, int],
         target_level: str,
     ) -> VideoAnalysisResult:
         """
@@ -222,7 +225,7 @@ class MontageGenerator:
 
         # Dynamic Flow: accelerate pacing towards the end (reduce duration by up to 40%)
         if config.accelerate_pacing:
-            target_seconds *= (1.0 - (0.4 * progress))
+            target_seconds *= 1.0 - (0.4 * progress)
 
         # Human Touch: randomize speed ramps slightly (+/- 10%)
         if config.randomize_speed_ramps and config.speed_ramp_enabled:
@@ -284,7 +287,9 @@ class MontageGenerator:
         pool_indices: dict = {"high": 0, "medium": 0, "low": 0}
         logger.debug(
             "Intensity pools — high: %d, medium: %d, low: %d",
-            len(pools["high"]), len(pools["medium"]), len(pools["low"]),
+            len(pools["high"]),
+            len(pools["medium"]),
+            len(pools["low"]),
         )
 
         segments: List[SegmentPlan] = []
@@ -295,8 +300,12 @@ class MontageGenerator:
         forced_clip_idx = 0
 
         # B-Roll tracking
-        last_broll_time = -config.broll_interval_seconds # Allow B-roll early on if configured
-        target_broll_interval = config.broll_interval_seconds + random.uniform(-config.broll_interval_variance, config.broll_interval_variance)
+        last_broll_time = (
+            -config.broll_interval_seconds
+        )  # Allow B-roll early on if configured
+        target_broll_interval = config.broll_interval_seconds + random.uniform(
+            -config.broll_interval_variance, config.broll_interval_variance
+        )
 
         # Pre-compute section lookup from audio sections
         sections = audio_data.sections or []
@@ -319,9 +328,7 @@ class MontageGenerator:
 
             # Determine intensity at this beat
             intensity = (
-                intensity_curve[beat_idx]
-                if beat_idx < len(intensity_curve)
-                else 0.5
+                intensity_curve[beat_idx] if beat_idx < len(intensity_curve) else 0.5
             )
 
             # Calculate segment parameters (target beats, level, speed)
@@ -340,7 +347,10 @@ class MontageGenerator:
 
             # Determine if this segment should be B-Roll
             is_broll = False
-            if broll_clips and (timeline_pos - last_broll_time) >= target_broll_interval:
+            if (
+                broll_clips
+                and (timeline_pos - last_broll_time) >= target_broll_interval
+            ):
                 # Don't use B-roll for the very first clip if possible
                 if timeline_pos > 0.0:
                     is_broll = True
@@ -350,10 +360,13 @@ class MontageGenerator:
                 clip = forced_clips[forced_clip_idx]
                 forced_clip_idx += 1
             elif is_broll:
+                assert broll_clips is not None
                 clip = broll_clips[broll_idx % len(broll_clips)]
                 broll_idx += 1
                 last_broll_time = timeline_pos
-                target_broll_interval = config.broll_interval_seconds + random.uniform(-config.broll_interval_variance, config.broll_interval_variance)
+                target_broll_interval = config.broll_interval_seconds + random.uniform(
+                    -config.broll_interval_variance, config.broll_interval_variance
+                )
             else:
                 # FEAT-009: intensity-matched pool selection w/ fallback
                 clip = self._pick_from_pool(pools, pool_indices, level)
@@ -365,9 +378,7 @@ class MontageGenerator:
                 # Deterministic per-segment offset using clip path + usage index + seed
                 seed_str = f"{config.seed}:{clip.path}:{clip_idx}"
                 seed = int(
-                    hashlib.md5(
-                        seed_str.encode()
-                    ).hexdigest()[:8],
+                    hashlib.md5(seed_str.encode()).hexdigest()[:8],
                     16,
                 )
                 start_time = (seed % int(max_start * 1000)) / 1000.0
@@ -378,7 +389,9 @@ class MontageGenerator:
             actual_duration = min(segment_duration, clip.duration - start_time)
 
             # Look up musical section for this beat position
-            current_time = beat_times[beat_idx] if beat_idx < len(beat_times) else timeline_pos
+            current_time = (
+                beat_times[beat_idx] if beat_idx < len(beat_times) else timeline_pos
+            )
             section_label = None
             for sec in sections:
                 if sec.start_time <= current_time < sec.end_time:
@@ -462,7 +475,8 @@ class MontageGenerator:
         total_dur = segments[-1].timeline_position + segments[-1].duration
         logger.info(
             "Built segment plan: %d segments, total duration: %.1fs",
-            len(segments), total_dur,
+            len(segments),
+            total_dur,
         )
         if config.max_clips or config.max_duration_seconds:
             logger.info(
@@ -476,14 +490,11 @@ class MontageGenerator:
 
         try:
             # 2. Extract segments (one FFmpeg process at a time)
-            segment_files = self._extract_segments(
-                segments, temp_dir, config, observer
-            )
+            segment_files = self._extract_segments(segments, temp_dir, config, observer)
 
             # 3. Group-and-transition or simple concat
             transitions_enabled = (
-                config.transition_type
-                and config.transition_type.lower() != "none"
+                config.transition_type and config.transition_type.lower() != "none"
             )
 
             if transitions_enabled:
@@ -496,25 +507,19 @@ class MontageGenerator:
                     file_idx = 0
                     for g_idx, group in enumerate(groups):
                         group_seg_files = segment_files[
-                            file_idx:file_idx + len(group)
+                            file_idx : file_idx + len(group)
                         ]
                         file_idx += len(group)
 
                         if len(group_seg_files) == 1:
                             group_files.append(group_seg_files[0])
                         else:
-                            group_out = os.path.join(
-                                temp_dir, f"group_{g_idx:04d}.mp4"
-                            )
-                            self._concatenate_segments(
-                                group_seg_files, group_out
-                            )
+                            group_out = os.path.join(temp_dir, f"group_{g_idx:04d}.mp4")
+                            self._concatenate_segments(group_seg_files, group_out)
                             group_files.append(group_out)
 
                     # Apply xfade transitions between groups
-                    concat_path = os.path.join(
-                        temp_dir, "concat_output.mp4"
-                    )
+                    concat_path = os.path.join(temp_dir, "concat_output.mp4")
                     self._apply_transitions(
                         group_files,
                         concat_path,
@@ -523,17 +528,11 @@ class MontageGenerator:
                     )
                 else:
                     # Only one section — fall back to simple concat
-                    concat_path = os.path.join(
-                        temp_dir, "concat_output.mp4"
-                    )
-                    self._concatenate_segments(
-                        segment_files, concat_path
-                    )
+                    concat_path = os.path.join(temp_dir, "concat_output.mp4")
+                    self._concatenate_segments(segment_files, concat_path)
             else:
                 # No transitions — simple concat (current behaviour)
-                concat_path = os.path.join(
-                    temp_dir, "concat_output.mp4"
-                )
+                concat_path = os.path.join(temp_dir, "concat_output.mp4")
                 self._concatenate_segments(segment_files, concat_path)
 
             # 4. Overlay audio (or just copy if no audio)
@@ -569,14 +568,14 @@ class MontageGenerator:
             if not os.path.exists(seg.video_path):
                 logger.warning(
                     "Skipping segment %d/%d: source file missing: %s",
-                    i + 1, total, seg.video_path,
+                    i + 1,
+                    total,
+                    seg.video_path,
                 )
                 continue
 
             if observer:
-                observer.on_progress(
-                    i, total, f"Extracting segment {i + 1}/{total}..."
-                )
+                observer.on_progress(i, total, f"Extracting segment {i + 1}/{total}...")
 
             output_file = os.path.join(temp_dir, f"seg_{i:04d}.mp4")
 
@@ -586,10 +585,13 @@ class MontageGenerator:
 
             cmd = [
                 "ffmpeg",
-                "-y",                       # Overwrite output
-                "-ss", f"{seg.start_time:.3f}",  # Seek to start
-                "-i", seg.video_path,       # Input file
-                "-t", f"{extract_duration:.3f}",  # Duration (adjusted for speed)
+                "-y",  # Overwrite output
+                "-ss",
+                f"{seg.start_time:.3f}",  # Seek to start
+                "-i",
+                seg.video_path,  # Input file
+                "-t",
+                f"{extract_duration:.3f}",  # Duration (adjusted for speed)
             ]
 
             # Build video filter chain:
@@ -606,8 +608,7 @@ class MontageGenerator:
                 ]
             else:
                 vf_parts = [
-                    f"scale={t_width}:{t_height}"
-                    f":force_original_aspect_ratio=decrease",
+                    f"scale={t_width}:{t_height}:force_original_aspect_ratio=decrease",
                     f"pad={t_width}:{t_height}:(ow-iw)/2:(oh-ih)/2",
                 ]
 
@@ -619,21 +620,28 @@ class MontageGenerator:
                         vf_parts.append(f"minterpolate=fps={TARGET_FPS}:mi_mode=mci")
                     else:
                         vf_parts.append(f"minterpolate=fps={TARGET_FPS}:mi_mode=blend")
-            
+
             # Normalize frame rate for ALL segments to ensure clean concatenation
             vf_parts.append(f"fps={TARGET_FPS}")
-            
+
             cmd.extend(["-vf", ",".join(vf_parts)])
 
-            cmd.extend([
-                "-c:v", "libx264",          # Re-encode for consistent format
-                "-preset", "fast",          # Fast encoding
-                "-crf", "23",               # Good quality
-                "-an",                      # Strip audio (overlaid later)
-                "-pix_fmt", "yuv420p",      # Compatibility
-                "-movflags", "+faststart",  # Web-friendly
-                output_file,
-            ])
+            cmd.extend(
+                [
+                    "-c:v",
+                    "libx264",  # Re-encode for consistent format
+                    "-preset",
+                    "fast",  # Fast encoding
+                    "-crf",
+                    "23",  # Good quality
+                    "-an",  # Strip audio (overlaid later)
+                    "-pix_fmt",
+                    "yuv420p",  # Compatibility
+                    "-movflags",
+                    "+faststart",  # Web-friendly
+                    output_file,
+                ]
+            )
 
             self._run_ffmpeg(cmd, f"segment extraction {i + 1}")
             segment_files.append(output_file)
@@ -670,9 +678,7 @@ class MontageGenerator:
         groups.append(current_group)
         return groups
 
-    def _concatenate_segments(
-        self, segment_files: List[str], output_path: str
-    ) -> None:
+    def _concatenate_segments(self, segment_files: List[str], output_path: str) -> None:
         """
         Concatenate extracted segments using FFmpeg concat demuxer.
 
@@ -690,10 +696,14 @@ class MontageGenerator:
             cmd = [
                 "ffmpeg",
                 "-y",
-                "-f", "concat",
-                "-safe", "0",
-                "-i", concat_list_path,
-                "-c", "copy",       # No re-encode (already consistent)
+                "-f",
+                "concat",
+                "-safe",
+                "0",
+                "-i",
+                concat_list_path,
+                "-c",
+                "copy",  # No re-encode (already consistent)
                 output_path,
             ]
 
@@ -737,7 +747,7 @@ class MontageGenerator:
 
         for i in range(1, len(group_files)):
             next_input = group_files[i]
-            is_last = (i == len(group_files) - 1)
+            is_last = i == len(group_files) - 1
 
             # Offset = current duration minus transition overlap
             offset = max(0.0, current_duration - transition_duration)
@@ -745,24 +755,29 @@ class MontageGenerator:
             if is_last:
                 step_output = output_path
             else:
-                step_output = os.path.join(
-                    temp_dir, f"xfade_step_{i:04d}.mp4"
-                )
+                step_output = os.path.join(temp_dir, f"xfade_step_{i:04d}.mp4")
 
             cmd = [
                 "ffmpeg",
                 "-y",
-                "-i", current_input,
-                "-i", next_input,
+                "-i",
+                current_input,
+                "-i",
+                next_input,
                 "-filter_complex",
                 f"[0:v][1:v]xfade=transition={transition_type}"
                 f":duration={transition_duration:.3f}"
                 f":offset={offset:.3f}[v]",
-                "-map", "[v]",
-                "-c:v", "libx264",
-                "-preset", "fast",
-                "-crf", "23",
-                "-pix_fmt", "yuv420p",
+                "-map",
+                "[v]",
+                "-c:v",
+                "libx264",
+                "-preset",
+                "fast",
+                "-crf",
+                "23",
+                "-pix_fmt",
+                "yuv420p",
                 "-an",
                 step_output,
             ]
@@ -772,26 +787,20 @@ class MontageGenerator:
             except RuntimeError as e:
                 logger.warning(
                     "xfade transition %d failed, falling back to concat: %s",
-                    i, e,
+                    i,
+                    e,
                 )
                 # Fallback: just concatenate without transition
-                self._concatenate_segments(
-                    [current_input, next_input], step_output
-                )
+                self._concatenate_segments([current_input, next_input], step_output)
 
             # Eagerly clean up previous intermediate file (not a source group)
-            if (
-                current_input != group_files[0]
-                and os.path.exists(current_input)
-            ):
+            if current_input != group_files[0] and os.path.exists(current_input):
                 os.remove(current_input)
 
             # Update for next iteration
             next_duration = self._get_video_duration(next_input)
             # New duration = old + new - overlap
-            current_duration = (
-                current_duration + next_duration - transition_duration
-            )
+            current_duration = current_duration + next_duration - transition_duration
             current_input = step_output
 
     @staticmethod
@@ -806,9 +815,12 @@ class MontageGenerator:
             result = subprocess.run(
                 [
                     "ffprobe",
-                    "-v", "error",
-                    "-show_entries", "format=duration",
-                    "-of", "csv=p=0",
+                    "-v",
+                    "error",
+                    "-show_entries",
+                    "format=duration",
+                    "-of",
+                    "csv=p=0",
                     video_path,
                 ],
                 capture_output=True,
@@ -835,13 +847,19 @@ class MontageGenerator:
         cmd = [
             "ffmpeg",
             "-y",
-            "-i", video_path,       # Video (no audio)
-            "-i", audio_path,       # Audio source
-            "-c:v", "copy",         # Don't re-encode video
-            "-c:a", "aac",          # Encode audio to AAC
-            "-b:a", "192k",         # Good audio quality
-            "-shortest",            # Trim to shorter stream
-            "-movflags", "+faststart",
+            "-i",
+            video_path,  # Video (no audio)
+            "-i",
+            audio_path,  # Audio source
+            "-c:v",
+            "copy",  # Don't re-encode video
+            "-c:a",
+            "aac",  # Encode audio to AAC
+            "-b:a",
+            "192k",  # Good audio quality
+            "-shortest",  # Trim to shorter stream
+            "-movflags",
+            "+faststart",
             output_path,
         ]
 
@@ -851,4 +869,5 @@ class MontageGenerator:
     def _run_ffmpeg(cmd: List[str], stage_name: str) -> None:
         """Delegate to the shared FFmpeg runner."""
         from src.core.ffmpeg_utils import run_ffmpeg
+
         run_ffmpeg(cmd, stage_name)

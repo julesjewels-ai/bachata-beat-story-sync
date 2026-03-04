@@ -1,13 +1,16 @@
 """
 Video analysis module for Bachata Beat-Story Sync.
 """
-import cv2
-import numpy as np
+
 import logging
 from typing import Iterator, Optional
+
+import cv2
+import numpy as np
 from pydantic import BaseModel, Field, field_validator
-from src.core.validation import validate_file_path
+
 from src.core.models import VideoAnalysisResult
+from src.core.validation import validate_file_path
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +18,7 @@ logger = logging.getLogger(__name__)
 MAX_VIDEO_FRAMES = 100_000  # Approx 1 hour at 30 FPS
 MAX_VIDEO_DURATION_SECONDS = 3600  # 1 hour
 
-SUPPORTED_VIDEO_EXTENSIONS = {'.mp4', '.mov', '.avi', '.mkv'}
+SUPPORTED_VIDEO_EXTENSIONS = {".mp4", ".mov", ".avi", ".mkv"}
 BLUR_KERNEL_SIZE = (21, 21)
 NORMALIZATION_FACTOR = 100
 
@@ -29,9 +32,10 @@ class VideoAnalysisInput(BaseModel):
     """
     Input model for video analysis validation.
     """
+
     file_path: str = Field(..., description="Path to the video file")
 
-    @field_validator('file_path')
+    @field_validator("file_path")
     @classmethod
     def validate_path(cls, v: str) -> str:
         return validate_file_path(v, SUPPORTED_VIDEO_EXTENSIONS)
@@ -61,7 +65,7 @@ class VideoAnalyzer:
 
         try:
             duration = self._validate_video_properties(cap)
-            
+
             # Check aspect ratio for vertical shorts (9:16)
             width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
             height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -71,9 +75,7 @@ class VideoAnalyzer:
 
             # Reset frame position for intensity calculation
             if not cap.set(cv2.CAP_PROP_POS_FRAMES, 0):
-                logger.warning(
-                    "Could not reset frame position for %s", file_path
-                )
+                logger.warning("Could not reset frame position for %s", file_path)
 
             intensity_score = self._calculate_intensity(cap)
 
@@ -82,7 +84,7 @@ class VideoAnalyzer:
                 intensity_score=intensity_score / NORMALIZATION_FACTOR,
                 duration=duration,
                 is_vertical=is_vertical,
-                thumbnail_data=thumbnail_data
+                thumbnail_data=thumbnail_data,
             )
         finally:
             cap.release()
@@ -145,8 +147,7 @@ class VideoAnalyzer:
         duration = frame_count / frame_rate if frame_rate > 0 else 0
         if duration > MAX_VIDEO_DURATION_SECONDS:
             raise ValueError(
-                f"Video exceeds maximum duration "
-                f"({MAX_VIDEO_DURATION_SECONDS}s)"
+                f"Video exceeds maximum duration ({MAX_VIDEO_DURATION_SECONDS}s)"
             )
 
         return duration

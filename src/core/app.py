@@ -2,17 +2,21 @@
 Core business logic for Bachata Beat-Story Sync.
 Handles audio analysis logic and video synchronization algorithms.
 """
+
 import logging
 import os
 from typing import List, Optional
-from src.core.models import AudioAnalysisResult, PacingConfig, VideoAnalysisResult
-from pydantic import ValidationError
-from src.core.video_analyzer import (
-    VideoAnalyzer, VideoAnalysisInput, SUPPORTED_VIDEO_EXTENSIONS
-)
 
-from src.core.montage import MontageGenerator
+from pydantic import ValidationError
+
 from src.core.interfaces import ProgressObserver
+from src.core.models import AudioAnalysisResult, PacingConfig, VideoAnalysisResult
+from src.core.montage import MontageGenerator
+from src.core.video_analyzer import (
+    SUPPORTED_VIDEO_EXTENSIONS,
+    VideoAnalysisInput,
+    VideoAnalyzer,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +31,10 @@ class BachataSyncEngine:
         self.montage_generator = MontageGenerator()
 
     def scan_video_library(
-        self, directory: str, exclude_dirs: Optional[List[str]] = None, observer: Optional[ProgressObserver] = None
+        self,
+        directory: str,
+        exclude_dirs: Optional[List[str]] = None,
+        observer: Optional[ProgressObserver] = None,
     ) -> List[VideoAnalysisResult]:
         """
         Scans a directory for video files and assigns a visual intensity score.
@@ -44,41 +51,46 @@ class BachataSyncEngine:
             for i, video_path in enumerate(files_to_process):
                 filename = os.path.basename(video_path)
                 if observer:
-                    observer.on_progress(
-                        i, total_files, f"Scanning {filename}..."
-                    )
+                    observer.on_progress(i, total_files, f"Scanning {filename}...")
 
                 if result := self._process_video_file(video_path):
                     clips.append(result)
         finally:
             if observer:
-                observer.on_progress(
-                    total_files, total_files, "Scan complete."
-                )
+                observer.on_progress(total_files, total_files, "Scan complete.")
 
         return clips
 
-    def _collect_video_files(self, directory: str, exclude_dirs: Optional[List[str]] = None) -> List[str]:
+    def _collect_video_files(
+        self, directory: str, exclude_dirs: Optional[List[str]] = None
+    ) -> List[str]:
         """Recursively collects all supported video files in a directory."""
-        exclude_dirs = [os.path.abspath(d) for d in exclude_dirs] if exclude_dirs else []
+        exclude_dirs = (
+            [os.path.abspath(d) for d in exclude_dirs] if exclude_dirs else []
+        )
         collected = []
         for root, dirs, files in os.walk(directory):
             # Skip excluded directories
             if any(os.path.abspath(root).startswith(ex_dir) for ex_dir in exclude_dirs):
                 # Don't mutate dirs here, just skip the files
                 continue
-            
+
             # Optionally mutate dirs to prevent os.walk from going deeper into excluded dirs
-            dirs[:] = [d for d in dirs if not any(os.path.abspath(os.path.join(root, d)).startswith(ex_dir) for ex_dir in exclude_dirs)]
-            
+            dirs[:] = [
+                d
+                for d in dirs
+                if not any(
+                    os.path.abspath(os.path.join(root, d)).startswith(ex_dir)
+                    for ex_dir in exclude_dirs
+                )
+            ]
+
             for file in files:
                 if os.path.splitext(file)[1].lower() in SUPPORTED_VIDEO_EXTENSIONS:
                     collected.append(os.path.join(root, file))
         return collected
 
-    def _process_video_file(
-        self, video_path: str
-    ) -> Optional[VideoAnalysisResult]:
+    def _process_video_file(self, video_path: str) -> Optional[VideoAnalysisResult]:
         """Helper to process a single video file."""
         try:
             input_data = VideoAnalysisInput(file_path=video_path)
@@ -117,10 +129,16 @@ class BachataSyncEngine:
         """
         logger.info(
             "Synthesizing %d clips against %s BPM audio...",
-            len(video_clips), audio_data.bpm
+            len(video_clips),
+            audio_data.bpm,
         )
 
         return self.montage_generator.generate(
-            audio_data, video_clips, output_path, audio_path=audio_path,
-            broll_clips=broll_clips, observer=observer, pacing=pacing
+            audio_data,
+            video_clips,
+            output_path,
+            audio_path=audio_path,
+            broll_clips=broll_clips,
+            observer=observer,
+            pacing=pacing,
         )

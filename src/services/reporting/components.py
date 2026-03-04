@@ -2,9 +2,11 @@
 Component builders for Excel reports.
 Handles charts and image embedding.
 """
+
 import io
 import logging
 from typing import Optional
+
 from openpyxl.chart import BarChart, Reference
 from openpyxl.drawing.image import Image as OpenpyxlImage
 from openpyxl.utils import get_column_letter
@@ -18,9 +20,9 @@ class ChartBuilder:
     Constructs Excel charts for visualization.
     """
 
-    def create_intensity_chart(self, source_ws: Worksheet,
-                             data_count: int,
-                             intensity_col_idx: int) -> Optional[BarChart]:
+    def create_intensity_chart(
+        self, source_ws: Worksheet, data_count: int, intensity_col_idx: int
+    ) -> Optional[BarChart]:
         """
         Creates a Bar Chart visualizing intensity scores.
 
@@ -48,7 +50,7 @@ class ChartBuilder:
             min_col=intensity_col_idx,
             min_row=1,
             max_row=data_count + 1,
-            max_col=intensity_col_idx
+            max_col=intensity_col_idx,
         )
         chart.add_data(data, titles_from_data=True)
         return chart
@@ -59,8 +61,9 @@ class ThumbnailEmbedder:
     Handles embedding of thumbnail images into Excel cells.
     """
 
-    def embed_thumbnail(self, ws: Worksheet, row: int, col: int,
-                       image_data: bytes) -> bool:
+    def embed_thumbnail(
+        self, ws: Worksheet, row: int, col: int, image_data: bytes
+    ) -> bool:
         """
         Embeds a PNG thumbnail into the specified cell.
 
@@ -89,7 +92,5 @@ class ThumbnailEmbedder:
             return True
 
         except Exception as e:
-            logger.warning(
-                "Could not embed image at %d,%d: %s", row, col, e
-            )
+            logger.warning("Could not embed image at %d,%d: %s", row, col, e)
             return False

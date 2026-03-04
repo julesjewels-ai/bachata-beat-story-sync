@@ -1,0 +1,42 @@
+[project]
+name = "bachata-beat-story-sync"
+version = "0.1.0"
+description = "Syncs Bachata dance clips to musical beats and intensity."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "pytest>=7.0.0",
+    "numpy>=1.21.0",
+    "librosa>=0.9.0",
+    "opencv-python>=4.5.0",
+    "pydantic>=2.0.0",
+    "openpyxl>=3.1.0",
+    "mypy>=1.0.0",
+    "types-openpyxl>=3.1.0",
+    "types-PyYAML>=6.0.0",
+    "rich>=10.0.0",
+    "Pillow>=10.0.0",
+    "imageio-ffmpeg>=0.5.1",
+    "pyyaml>=6.0.0",
+]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "UP",  # pyupgrade
+    "C4",  # flake8-comprehensions
+]
+ignore = []
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

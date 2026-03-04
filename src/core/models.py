@@ -2,7 +2,9 @@
 Data Transfer Objects (DTOs) for Bachata Beat-Story Sync.
 These models define the strict contracts for data exchange between layers.
 """
+
 from typing import List, Optional
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -10,18 +12,16 @@ class MusicalSection(BaseModel):
     """
     A detected musical section within a track.
     """
+
     model_config = ConfigDict(extra="forbid")
 
     label: str = Field(
-        ..., description="Section label: 'intro', 'high_energy', "
-        "'low_energy', 'buildup', 'breakdown', 'outro'"
+        ...,
+        description="Section label: 'intro', 'high_energy', "
+        "'low_energy', 'buildup', 'breakdown', 'outro'",
     )
-    start_time: float = Field(
-        ..., description="Start timestamp in seconds"
-    )
-    end_time: float = Field(
-        ..., description="End timestamp in seconds"
-    )
+    start_time: float = Field(..., description="Start timestamp in seconds")
+    end_time: float = Field(..., description="End timestamp in seconds")
     avg_intensity: float = Field(
         ..., description="Average normalised intensity (0.0-1.0)"
     )
@@ -31,27 +31,24 @@ class AudioAnalysisResult(BaseModel):
     """
     Result model for audio analysis.
     """
+
     model_config = ConfigDict(extra="forbid")
 
     filename: str = Field(..., description="Name of the audio file")
     bpm: float = Field(..., description="Beats per minute of the track")
-    duration: float = Field(
-        ..., description="Duration of the track in seconds"
-    )
-    peaks: List[float] = Field(
-        ..., description="Timestamps of high intensity peaks"
-    )
+    duration: float = Field(..., description="Duration of the track in seconds")
+    peaks: List[float] = Field(..., description="Timestamps of high intensity peaks")
     sections: List[MusicalSection] = Field(
         default_factory=list,
-        description="Detected musical sections with timestamps and labels"
+        description="Detected musical sections with timestamps and labels",
     )
     beat_times: List[float] = Field(
         default_factory=list,
-        description="Precise timestamps of each detected beat (seconds)"
+        description="Precise timestamps of each detected beat (seconds)",
     )
     intensity_curve: List[float] = Field(
         default_factory=list,
-        description="Normalised RMS energy (0.0-1.0) at each beat position"
+        description="Normalised RMS energy (0.0-1.0) at each beat position",
     )
 
 
@@ -59,15 +56,14 @@ class VideoAnalysisResult(BaseModel):
     """
     Result model for video analysis.
     """
+
     model_config = ConfigDict(extra="forbid")
 
     path: str = Field(..., description="Absolute path to the video file")
     intensity_score: float = Field(
         ..., description="Visual intensity score (0.0 to 1.0)"
     )
-    duration: float = Field(
-        ..., description="Duration of the video clip in seconds"
-    )
+    duration: float = Field(..., description="Duration of the video clip in seconds")
     is_vertical: bool = Field(
         False, description="Whether the video is vertical (height > width)"
     )
@@ -80,17 +76,14 @@ class SegmentPlan(BaseModel):
     """
     One planned clip segment in the montage timeline.
     """
+
     model_config = ConfigDict(extra="forbid")
 
-    video_path: str = Field(
-        ..., description="Path to the source video file"
-    )
+    video_path: str = Field(..., description="Path to the source video file")
     start_time: float = Field(
         ..., description="Start time in the source video (seconds)"
     )
-    duration: float = Field(
-        ..., description="Duration to extract (seconds)"
-    )
+    duration: float = Field(..., description="Duration to extract (seconds)")
     timeline_position: float = Field(
         ..., description="Position on the output timeline (seconds)"
     )
@@ -101,7 +94,8 @@ class SegmentPlan(BaseModel):
         1.0, description="Playback speed multiplier (>1 = fast, <1 = slow-mo)"
     )
     section_label: Optional[str] = Field(
-        None, description="Musical section this segment belongs to (e.g. 'intro', 'high_energy')"
+        None,
+        description="Musical section this segment belongs to (e.g. 'intro', 'high_energy')",
     )
 
 
@@ -112,6 +106,7 @@ class PacingConfig(BaseModel):
     Controls how long clips last at each intensity level, the minimum
     clip duration, and whether durations snap to beat boundaries.
     """
+
     model_config = ConfigDict(extra="forbid")
 
     min_clip_seconds: float = Field(
@@ -168,14 +163,13 @@ class PacingConfig(BaseModel):
     )
 
     # Shorts Generator Configs
-    is_shorts: bool = Field(
-        False, description="Generate a vertical 9:16 short"
-    )
+    is_shorts: bool = Field(False, description="Generate a vertical 9:16 short")
     seed: str = Field(
         "", description="Seed for deterministic stochasticity in unique generation"
     )
     accelerate_pacing: bool = Field(
-        False, description="Gradually decrease clip durations towards the end (Dynamic Flow)"
+        False,
+        description="Gradually decrease clip durations towards the end (Dynamic Flow)",
     )
     randomize_speed_ramps: bool = Field(
         False, description="Apply random variance to speed ramps for a human touch"
@@ -197,8 +191,9 @@ class PacingConfig(BaseModel):
 
     # Transition configuration
     transition_type: str = Field(
-        "none", description="FFmpeg xfade transition type: "
-        "'none', 'fade', 'wipeleft', 'wiperight', 'slideup', etc."
+        "none",
+        description="FFmpeg xfade transition type: "
+        "'none', 'fade', 'wipeleft', 'wiperight', 'slideup', etc.",
     )
     transition_duration: float = Field(
         0.5, description="Duration of each transition in seconds"
@@ -206,16 +201,18 @@ class PacingConfig(BaseModel):
 
     # Frame Interpolation for Slow Motion (FEAT-010)
     interpolation_method: str = Field(
-        "blend", description="Frame interpolation method for slow motion (<1.0x). Options: 'none', 'blend', 'mci'"
+        "blend",
+        description="Frame interpolation method for slow motion (<1.0x). Options: 'none', 'blend', 'mci'",
     )
+
 
 class AudioMixConfig(BaseModel):
     """
     Configuration for mixing multiple audio tracks.
     """
+
     model_config = ConfigDict(extra="forbid")
 
     crossfade_duration_seconds: float = Field(
         2.0, description="Duration in seconds for the crossfades between tracks"
     )
-

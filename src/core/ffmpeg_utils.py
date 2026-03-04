@@ -5,6 +5,7 @@ Single source of truth for subprocess FFmpeg invocation, timeout
 handling, and error formatting used by both MontageGenerator and
 AudioMixer.
 """
+
 import logging
 import subprocess
 from typing import List
@@ -26,7 +27,7 @@ def run_ffmpeg(cmd: List[str], stage_name: str) -> None:
     Raises:
         RuntimeError: If FFmpeg exits with non-zero or times out.
     """
-    logger.debug("FFmpeg [%s]: %s", stage_name, ' '.join(cmd))
+    logger.debug("FFmpeg [%s]: %s", stage_name, " ".join(cmd))
 
     try:
         result = subprocess.run(

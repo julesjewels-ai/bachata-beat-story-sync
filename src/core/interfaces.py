@@ -1,6 +1,7 @@
 """
 Core interfaces and protocols for Bachata Beat-Story Sync.
 """
+
 from typing import Protocol
 
 
@@ -8,6 +9,7 @@ class ProgressObserver(Protocol):
     """
     Protocol for objects that observe progress of long-running operations.
     """
+
     def on_progress(self, current: int, total: int, message: str = "") -> None:
         """
         Called to update progress.

@@ -2,10 +2,12 @@
 Formatting service for Excel reports.
 Handles styles, column sizing, and conditional formatting.
 """
+
 from typing import Optional
-from openpyxl.styles import Font, Alignment
-from openpyxl.utils import get_column_letter
+
 from openpyxl.formatting.rule import ColorScaleRule
+from openpyxl.styles import Alignment, Font
+from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 
 
@@ -14,13 +16,15 @@ class ReportFormatter:
     Encapsulates logic for styling Excel worksheets.
     """
 
-    def apply_header_style(self, cell, center: bool = False) -> None:
+    from typing import Any
+
+    def apply_header_style(self, cell: Any, center: bool = False) -> None:
         """Applies header styling (bold) to a cell."""
         cell.font = Font(bold=True)
         if center:
             cell.alignment = Alignment(horizontal="center")
 
-    def apply_bold_font(self, cell) -> None:
+    def apply_bold_font(self, cell: Any) -> None:
         """Makes the cell text bold."""
         cell.font = Font(bold=True)
 
@@ -49,9 +53,9 @@ class ReportFormatter:
             col_letter = get_column_letter(col_idx)
             ws.column_dimensions[col_letter].width = adjusted_width
 
-    def apply_intensity_conditional_formatting(self, ws: Worksheet,
-                                             min_row: int, max_row: int,
-                                             col_idx: int) -> None:
+    def apply_intensity_conditional_formatting(
+        self, ws: Worksheet, min_row: int, max_row: int, col_idx: int
+    ) -> None:
         """
         Applies a 3-color scale to the specified column range.
         Red (Low Intensity) -> Yellow -> Green (High Intensity).
@@ -73,8 +77,14 @@ class ReportFormatter:
         # FFEB84: Light Yellow
         # 63BE7B: Light Green
         rule = ColorScaleRule(
-            start_type='num', start_value=0, start_color='F8696B',
-            mid_type='percentile', mid_value=50, mid_color='FFEB84',
-            end_type='num', end_value=1, end_color='63BE7B'
+            start_type="num",
+            start_value=0,
+            start_color="F8696B",
+            mid_type="percentile",
+            mid_value=50,
+            mid_color="FFEB84",
+            end_type="num",
+            end_value=1,
+            end_color="63BE7B",
         )
         ws.conditional_formatting.add(range_string, rule)

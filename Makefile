@@ -20,12 +20,12 @@ ifneq ($(MAX_DURATION),)
   EXTRA_FLAGS += --max-duration $(MAX_DURATION)
 endif
 
-.PHONY: install run test clean
+.PHONY: install run test lint format check-types clean
 
 install:
-	$(PYTHON) -m venv $(VENV)
-	$(BIN)/pip install --upgrade pip
-	$(BIN)/pip install -r requirements.txt
+	[ -d $(VENV) ] || uv venv $(VENV) --python 3.13
+	uv pip install -p $(VENV) -r requirements.txt
+	uv pip install -p $(VENV) ruff pytest mypy
 
 run:
 	$(BIN)/python main.py --audio "$(AUDIO)" --video-dir "$(VIDEO_DIR)" $(EXTRA_FLAGS)
@@ -33,7 +33,18 @@ run:
 test:
 	$(BIN)/pytest
 
+lint:
+	$(BIN)/ruff check src/ tests/
+
+format:
+	$(BIN)/ruff format src/ tests/
+	$(BIN)/ruff check --select I --fix src/ tests/
+
+check-types:
+	$(BIN)/mypy src/ tests/
+
 clean:
 	rm -rf $(VENV)
 	find . -type d -name "__pycache__" -exec rm -rf {} +
+	rm -rf .pytest_cache .mypy_cache .ruff_cache
 	rm -f *.mp4

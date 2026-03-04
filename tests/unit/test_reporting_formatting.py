@@ -1,8 +1,9 @@
 """
 Unit tests for report formatting logic.
 """
-import pytest
+
 import openpyxl
+import pytest
 from openpyxl.formatting.rule import Rule
 from src.services.reporting.formatting import ReportFormatter
 
@@ -58,7 +59,7 @@ def test_apply_intensity_conditional_formatting():
     # In openpyxl, ColorScaleRule factory returns a Rule object
     assert isinstance(found_rule, Rule)
     # Check if it has a colorScale attribute (it should for this type)
-    assert hasattr(found_rule, 'colorScale')
+    assert hasattr(found_rule, "colorScale")
 
     # Verify colors
     cs = found_rule.colorScale

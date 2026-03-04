@@ -1,10 +1,10 @@
 """
 Console UI implementations using Rich.
 """
+
 from typing import Optional
-from rich.progress import (
-    Progress, SpinnerColumn, BarColumn, TextColumn, TaskID
-)
+
+from rich.progress import BarColumn, Progress, SpinnerColumn, TaskID, TextColumn
 
 
 class RichProgressObserver:
@@ -16,6 +16,7 @@ class RichProgressObserver:
         with RichProgressObserver() as observer:
             engine.scan_video_library(directory, observer=observer)
     """
+
     def __init__(self) -> None:
         self.progress = Progress(
             SpinnerColumn(),
@@ -31,7 +32,9 @@ class RichProgressObserver:
     def __enter__(self) -> "RichProgressObserver":
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:  # type: ignore[override]
+    from typing import Any
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         self.close()
         return None
 
@@ -54,10 +57,7 @@ class RichProgressObserver:
 
         # Check if task_id is valid before updating
         if self.task_id is not None:
-            self.progress.update(
-                self.task_id, completed=current, description=message
-            )
+            self.progress.update(self.task_id, completed=current, description=message)
 
         if current >= total and self.started:
             self.close()
-

@@ -1,11 +1,13 @@
 """
 Unit tests for the AudioAnalyzer class.
 """
-import pytest
-import numpy as np
+
 from unittest.mock import patch
+
+import numpy as np
+import pytest
 from pydantic import ValidationError
-from src.core.audio_analyzer import AudioAnalyzer, AudioAnalysisInput
+from src.core.audio_analyzer import AudioAnalysisInput, AudioAnalyzer
 
 
 class TestAudioAnalyzer:
@@ -43,18 +45,14 @@ class TestAudioAnalyzer:
         # Setup mocks
         mock_librosa.load.return_value = (np.zeros(100), 22050)
         mock_librosa.get_duration.return_value = 180.0
-        mock_librosa.beat.beat_track.return_value = (
-            128.0, np.array([10, 20, 30])
-        )
+        mock_librosa.beat.beat_track.return_value = (128.0, np.array([10, 20, 30]))
         mock_librosa.onset.onset_detect.return_value = np.array([10, 20])
         mock_librosa.frames_to_time.side_effect = [
-            np.array([0.5, 1.0, 1.5]),     # beat_times
-            np.array([0.5, 1.0]),           # onset_times
+            np.array([0.5, 1.0, 1.5]),  # beat_times
+            np.array([0.5, 1.0]),  # onset_times
             np.array([0.0, 0.5, 1.0, 1.5, 2.0]),  # rms_times
         ]
-        mock_librosa.feature.rms.return_value = np.array(
-            [[0.2, 0.5, 0.8, 0.3, 0.1]]
-        )
+        mock_librosa.feature.rms.return_value = np.array([[0.2, 0.5, 0.8, 0.3, 0.1]])
 
         input_data = AudioAnalysisInput(file_path="song.mp3")
         result = self.analyzer.analyze(input_data)

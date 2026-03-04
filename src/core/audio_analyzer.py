@@ -1,27 +1,31 @@
 """
 Audio analysis module for Bachata Beat-Story Sync.
 """
+
 import gc
 import logging
 import os
-import numpy as np
+
 import librosa
+import numpy as np
 from pydantic import BaseModel, Field, field_validator
-from src.core.validation import validate_file_path
+
 from src.core.models import AudioAnalysisResult, MusicalSection
+from src.core.validation import validate_file_path
 
 logger = logging.getLogger(__name__)
 
-SUPPORTED_AUDIO_EXTENSIONS = {'.wav', '.mp3'}
+SUPPORTED_AUDIO_EXTENSIONS = {".wav", ".mp3"}
 
 
 class AudioAnalysisInput(BaseModel):
     """
     Input model for audio analysis validation.
     """
+
     file_path: str = Field(..., description="Path to the audio file")
 
-    @field_validator('file_path')
+    @field_validator("file_path")
     @classmethod
     def validate_path(cls, v: str) -> str:
         return validate_file_path(v, SUPPORTED_AUDIO_EXTENSIONS)
@@ -98,10 +102,14 @@ def detect_sections(
         # Not enough data — return single full-track section
         label = "full_track"
         avg = float(np.mean(intensity_curve)) if intensity_curve else 0.5
-        return [MusicalSection(
-            label=label, start_time=0.0, end_time=duration,
-            avg_intensity=avg,
-        )]
+        return [
+            MusicalSection(
+                label=label,
+                start_time=0.0,
+                end_time=duration,
+                avg_intensity=avg,
+            )
+        ]
 
     curve = np.array(intensity_curve, dtype=np.float64)
 
@@ -136,17 +144,27 @@ def detect_sections(
             i, len(boundaries), avg_intensity, start_idx, end_idx, smoothed
         )
 
-        sections.append(MusicalSection(
-            label=label,
-            start_time=round(start_time, 3),
-            end_time=round(end_time, 3),
-            avg_intensity=round(avg_intensity, 3),
-        ))
+        sections.append(
+            MusicalSection(
+                label=label,
+                start_time=round(start_time, 3),
+                end_time=round(end_time, 3),
+                avg_intensity=round(avg_intensity, 3),
+            )
+        )
 
-    return sections if sections else [MusicalSection(
-        label="full_track", start_time=0.0, end_time=duration,
-        avg_intensity=float(np.mean(curve)),
-    )]
+    return (
+        sections
+        if sections
+        else [
+            MusicalSection(
+                label="full_track",
+                start_time=0.0,
+                end_time=duration,
+                avg_intensity=float(np.mean(curve)),
+            )
+        ]
+    )
 
 
 class AudioAnalyzer:
@@ -182,9 +200,7 @@ class AudioAnalyzer:
             # Compute per-beat intensity (RMS energy at each beat position)
             rms = librosa.feature.rms(y=y)[0]
             curve_buffer = np.arange(len(rms))
-            rms_times = librosa.frames_to_time(
-                curve_buffer, sr=sr
-            )
+            rms_times = librosa.frames_to_time(curve_buffer, sr=sr)
 
             # Normalise RMS to 0.0-1.0
             rms_max = float(np.max(rms)) if len(rms) > 0 else 1.0
@@ -195,9 +211,7 @@ class AudioAnalyzer:
             for bt in beat_times_arr:
                 # Find closest RMS frame to this beat
                 idx = int(np.argmin(np.abs(rms_times - bt)))
-                intensity_curve.append(
-                    float(rms[idx] / rms_max)
-                )
+                intensity_curve.append(float(rms[idx] / rms_max))
 
             # Convert numpy types to python types for Pydantic
             bpm_val = float(np.asarray(tempo).flat[0])

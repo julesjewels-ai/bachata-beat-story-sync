@@ -2,12 +2,16 @@
 Main generator service for Excel reports.
 Orchestrates the report creation using specialized components.
 """
+
 import logging
-import openpyxl
 from typing import List
+
+import openpyxl
+
 from src.core.models import AudioAnalysisResult, VideoAnalysisResult
-from .formatting import ReportFormatter
+
 from .components import ChartBuilder, ThumbnailEmbedder
+from .formatting import ReportFormatter
 
 logger = logging.getLogger(__name__)
 
@@ -23,10 +27,12 @@ class ExcelReportGenerator:
         self.chart_builder = ChartBuilder()
         self.thumbnail_embedder = ThumbnailEmbedder()
 
-    def generate_report(self,
-                        audio_data: AudioAnalysisResult,
-                        video_data: List[VideoAnalysisResult],
-                        output_path: str) -> str:
+    def generate_report(
+        self,
+        audio_data: AudioAnalysisResult,
+        video_data: List[VideoAnalysisResult],
+        output_path: str,
+    ) -> str:
         """
         Creates an Excel file with analysis details.
 
@@ -56,14 +62,17 @@ class ExcelReportGenerator:
         logger.info("Report generated at: %s", output_path)
         return output_path
 
-    def _write_headers(self, ws, headers: List[str], center: bool = False) -> None:
+    from typing import Any
+
+    def _write_headers(self, ws: Any, headers: List[str], center: bool = False) -> None:
         """Helper to write and format table headers."""
         for col, header in enumerate(headers, 1):
             cell = ws.cell(row=1, column=col, value=header)
             self.formatter.apply_header_style(cell, center=center)
 
-    def _build_summary_sheet(self, ws, audio_data: AudioAnalysisResult,
-                             video_count: int) -> None:
+    def _build_summary_sheet(
+        self, ws: Any, audio_data: AudioAnalysisResult, video_count: int
+    ) -> None:
         """Constructs the summary sheet."""
         headers = ["Metric", "Value"]
         data = [
@@ -72,7 +81,7 @@ class ExcelReportGenerator:
             ("Duration (s)", audio_data.duration),
             ("Peak Count", len(audio_data.peaks)),
             ("Sections", ", ".join(s.label for s in audio_data.sections)),
-            ("Total Videos Scanned", video_count)
+            ("Total Videos Scanned", video_count),
         ]
 
         self._write_headers(ws, headers, center=True)
@@ -87,7 +96,7 @@ class ExcelReportGenerator:
 
         self.formatter.adjust_column_widths(ws)
 
-    def _build_video_sheet(self, ws, video_data: List[VideoAnalysisResult]) -> None:
+    def _build_video_sheet(self, ws: Any, video_data: List[VideoAnalysisResult]) -> None:
         """Constructs the video details sheet."""
         headers = ["File Path", "Duration (s)", "Intensity Score", "Thumbnail"]
 
@@ -104,7 +113,9 @@ class ExcelReportGenerator:
                 ws.cell(row=r, column=4, value="[No Image]")
                 continue
 
-            if not self.thumbnail_embedder.embed_thumbnail(ws, r, 4, video.thumbnail_data):
+            if not self.thumbnail_embedder.embed_thumbnail(
+                ws, r, 4, video.thumbnail_data
+            ):
                 ws.cell(row=r, column=4, value="[Error]")
 
         # Auto-size columns
@@ -117,8 +128,9 @@ class ExcelReportGenerator:
                 ws, min_row=2, max_row=row_count + 1, col_idx=3
             )
 
-    def _build_visualization_sheet(self, wb, source_sheet_name: str,
-                                   data_count: int) -> None:
+    def _build_visualization_sheet(
+        self, wb: Any, source_sheet_name: str, data_count: int
+    ) -> None:
         """Adds charts to the workbook."""
         if data_count == 0:
             return
