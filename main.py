@@ -8,11 +8,11 @@ from src.core.app import BachataSyncEngine
 from src.core.audio_analyzer import AudioAnalyzer, AudioAnalysisInput
 from src.core.models import PacingConfig
 from src.services.reporting import ExcelReportGenerator
+from src.services.persistence import FileAnalysisRepository, CachedVideoAnalyzer
+from src.core.video_analyzer import VideoAnalyzer
 from src.ui.console import RichProgressObserver
 from pydantic import ValidationError
 import os
-from src.core.audio_mixer import AudioMixer, SUPPORTED_AUDIO_EXTENSIONS as MIX_EXTS
-
 from src.core.audio_mixer import AudioMixer, SUPPORTED_AUDIO_EXTENSIONS as MIX_EXTS
 
 
@@ -86,7 +86,12 @@ def main() -> None:
     logger = logging.getLogger(__name__)
     logger.info("Starting Bachata Beat-Story Sync...")
 
-    engine = BachataSyncEngine()
+    # Wire up the analyzer with cache decorator
+    base_analyzer = VideoAnalyzer()
+    repo = FileAnalysisRepository()
+    cached_analyzer = CachedVideoAnalyzer(base_analyzer, repo)
+
+    engine = BachataSyncEngine(video_analyzer=cached_analyzer)
     audio_analyzer = AudioAnalyzer()
 
     try:

@@ -349,7 +349,7 @@ class MontageGenerator:
             if forced_clip_idx < len(forced_clips):
                 clip = forced_clips[forced_clip_idx]
                 forced_clip_idx += 1
-            elif is_broll:
+            elif is_broll and broll_clips is not None and len(broll_clips) > 0:
                 clip = broll_clips[broll_idx % len(broll_clips)]
                 broll_idx += 1
                 last_broll_time = timeline_pos

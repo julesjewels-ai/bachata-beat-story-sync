@@ -8,6 +8,7 @@ from typing import Iterator, Optional
 from pydantic import BaseModel, Field, field_validator
 from src.core.validation import validate_file_path
 from src.core.models import VideoAnalysisResult
+from src.core.interfaces import VideoAnalysisInputProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -42,18 +43,20 @@ class VideoAnalyzer:
     Analyzes video files to determine their visual intensity and other metrics.
     """
 
-    def analyze(self, input_data: VideoAnalysisInput) -> VideoAnalysisResult:
+    def analyze(self, input_data: VideoAnalysisInputProtocol) -> VideoAnalysisResult:
         """
         Analyzes a video file to calculate a visual intensity score.
 
         Args:
-            input_data: Validated input containing the file path.
+            input_data: Input containing the file path.
 
         Returns:
             A VideoAnalysisResult with the video's path, intensity score,
             and duration.
         """
-        file_path = input_data.file_path
+        # Instantiate to trigger pydantic validation
+        validated_input = VideoAnalysisInput(file_path=input_data.file_path)
+        file_path = validated_input.file_path
 
         cap = cv2.VideoCapture(file_path)
         if not cap.isOpened():
