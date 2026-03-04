@@ -19,7 +19,6 @@ from typing import List, Optional, Tuple
 from src.core.interfaces import ProgressObserver
 from src.core.models import (
     AudioAnalysisResult,
-    MusicalSection,
     PacingConfig,
     SegmentPlan,
     VideoAnalysisResult,
@@ -340,7 +339,7 @@ class MontageGenerator:
 
             # Determine if this segment should be B-Roll
             is_broll = False
-            if broll_clips and (timeline_pos - last_broll_time) >= target_broll_interval:
+            if broll_clips is not None and len(broll_clips) > 0 and (timeline_pos - last_broll_time) >= target_broll_interval:
                 # Don't use B-roll for the very first clip if possible
                 if timeline_pos > 0.0:
                     is_broll = True
@@ -349,7 +348,7 @@ class MontageGenerator:
             if forced_clip_idx < len(forced_clips):
                 clip = forced_clips[forced_clip_idx]
                 forced_clip_idx += 1
-            elif is_broll:
+            elif is_broll and broll_clips is not None and len(broll_clips) > 0:
                 clip = broll_clips[broll_idx % len(broll_clips)]
                 broll_idx += 1
                 last_broll_time = timeline_pos
@@ -601,7 +600,7 @@ class MontageGenerator:
             if config.is_shorts:
                 # Crop center to 9:16 aspect ratio (safe for both horizontal drop-ins and slight vertical variances)
                 vf_parts = [
-                    f"crop='min(iw,ih*9/16)':'min(ih,iw*16/9)'",
+                    "crop='min(iw,ih*9/16)':'min(ih,iw*16/9)'",
                     f"scale={t_width}:{t_height}",
                 ]
             else:

@@ -497,7 +497,7 @@ class TestFFmpegOrchestration:
         with open(concat_path, "w") as f:
             f.write("fake video data")
 
-        result = generator.generate(
+        generator.generate(
             audio_data, video_clips, output_path,
             audio_path="/audio/song.wav"
         )
@@ -749,7 +749,6 @@ class TestTransitionPipeline:
         generator, video_clips, tmp_path
     ):
         """When transitions enabled with multiple sections, xfade is called."""
-        from src.core.models import MusicalSection
 
         temp_dir = str(tmp_path / "montage_temp")
         os.makedirs(temp_dir, exist_ok=True)
