@@ -244,3 +244,82 @@ Automatically interleave B-roll clips into the montage roughly every 12 to 15 se
 ### Scope
 - **In scope:** Interleaving B-roll clips at randomized intervals, separating B-roll clips into a separate scanning path.
 - **Out of scope:** Semantic B-roll awareness (matching B-roll content to lyrics or emotion).
+
+---
+
+## FEAT-012: Video Style Filters (Color Grading)
+
+| Field        | Value                                            |
+|--------------|--------------------------------------------------|
+| **Status**   | `PROPOSED`                                       |
+| **Priority** | 🟡 Medium                                         |
+| **Effort**   | Low                                              |
+| **Impact**   | Medium — adds mood and brand consistency          |
+
+### Why this matters
+Raw footage from different cameras and lighting conditions looks inconsistent. A single configurable color grade creates a consistent "mood" across all clips in the montage — the difference between amateur-looking footage and a cohesive production.
+
+### Description
+Apply a named color-grading filter to every segment during FFmpeg extraction. The style is set once via `PacingConfig` (or `montage_config.yaml`) and applied uniformly.
+
+### Implementation Details
+- Add a `video_style: str` field to `PacingConfig` (default `"none"`).
+  - Supported values: `"none"`, `"bw"` (black & white), `"vintage"` (warm + faded), `"warm"`, `"cool"`.
+- Inside `_extract_segments()` in `montage.py`, append the matching FFmpeg `-vf` filter to `vf_parts` based on `config.video_style`:
+  - `"bw"` → `hue=s=0`
+  - `"vintage"` → `curves=vintage,vignette`
+  - `"warm"` → `colortemperature=warmth=200` *(or `colorchannelmixer`)*
+  - `"cool"` → `colortemperature=warmth=-200`
+- Add `--video-style` CLI argument to `main.py` and `shorts_maker.py`.
+
+### Risk Assessment
+| Risk | Likelihood | Mitigation |
+|------|-----------|------------|
+| Filter names differ between FFmpeg versions | Low | Use widely-supported primitives (`hue`, `curves`, `colorchannelmixer`) |
+| Slight re-encode quality loss | Low | CRF 23 already in use; negligible |
+| Performance overhead | Low | Filters add ~5–10% to extraction time — acceptable |
+| `colortemperature` filter not available | Medium | Fall back to `colorchannelmixer` equivalents |
+
+### Scope
+- **In scope:** `bw`, `vintage`, `warm`, `cool`, and `none` styles; `montage_config.yaml` and CLI support.
+- **Out of scope:** AI-powered scene-specific grading, per-segment style variation, LUT (Look-Up Table) file support.
+
+---
+
+## FEAT-013: Music-Synced Waveform Overlay
+
+| Field        | Value                                                |
+|--------------|------------------------------------------------------|
+| **Status**   | `PROPOSED`                                           |
+| **Priority** | 🟢 Low                                                |
+| **Effort**   | Medium                                               |
+| **Impact**   | Medium — eye-catching visual element for social video |
+
+### Why this matters
+Social media audiences are trained to expect visual reinforcement of the audio track. A subtle, music-synced waveform or equalizer bar at the bottom of the frame signals energy and production quality, encouraging viewers to keep watching with the sound on.
+
+### Description
+Render a live audio-reactive waveform overlay onto the final output video using FFmpeg's `showwaves` filter. The overlay reacts in real time to the music track and sits at the bottom of the frame.
+
+### Implementation Details
+- Add an `audio_overlay: str` field to `PacingConfig` (default `"none"`).
+  - Supported values: `"none"`, `"waveform"` (line waveform), `"bars"` (frequency bars — requires `showfreqs` or `showcqt`).
+- Modify `_overlay_audio()` in `montage.py`:
+  - When `config.audio_overlay != "none"`, switch from `-c:v copy` to a `-filter_complex` chain:
+    - `"waveform"` → `[1:a]showwaves=s={WIDTH}x280:mode=line:colors=White@0.5[wave];[0:v][wave]overlay=0:H-h[outv]`
+    - `"bars"` → `[1:a]showcqt=s={WIDTH}x280[bars];[0:v][bars]overlay=0:H-h[outv]`
+  - Map `[outv]` and re-encode with `libx264` + `aac` (cannot stream-copy when using filter_complex on video).
+- WIDTH is inferred from `config.is_shorts` → 1080 or 1920.
+- Add `--audio-overlay` CLI argument to `main.py` and `shorts_maker.py`.
+
+### Risk Assessment
+| Risk | Likelihood | Mitigation |
+|------|-----------|------------|
+| Re-encoding required (cannot stream-copy with filter_complex) | **High (guaranteed)** | Budget for ~2–5 min extra processing per video; document clearly |
+| `showcqt` not available on all FFmpeg builds | Medium | Default to `showwaves`; gate `bars` on FFmpeg capability check |
+| Waveform too bright / distracting | Medium | Expose `audio_overlay_opacity` param (default 0.5); use `format=rgb24,colorchannelmixer` |
+| No audio → overlay is flat / invisible | Low | Guard: only apply overlay if `audio_path` is provided |
+
+### Scope
+- **In scope:** `waveform` and `bars` overlays; opacity control; `montage_config.yaml` and CLI support.
+- **Out of scope:** Custom overlay position, colour, or font; per-beat sticker animations; Lottie/After Effects-style motion graphics.
