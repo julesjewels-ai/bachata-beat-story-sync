@@ -151,20 +151,6 @@ class AudioMixer:
 
     @staticmethod
     def _run_ffmpeg(cmd: List[str], stage_name: str) -> None:
-        logger.debug("FFmpeg [%s]: %s", stage_name, ' '.join(cmd))
-        try:
-            result = subprocess.run(
-                cmd,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.PIPE,
-                text=True,
-                timeout=FFMPEG_TIMEOUT,
-                shell=False,
-            )  # nosec B603
-            if result.returncode != 0:
-                stderr_tail = result.stderr[-500:] if result.stderr else ""
-                raise RuntimeError(
-                    f"FFmpeg failed during {stage_name} (exit code {result.returncode}): {stderr_tail}"
-                )
-        except subprocess.TimeoutExpired:
-            raise RuntimeError(f"FFmpeg timed out during {stage_name}.")
+        """Delegate to the shared FFmpeg runner."""
+        from src.core.ffmpeg_utils import run_ffmpeg
+        run_ffmpeg(cmd, stage_name)
