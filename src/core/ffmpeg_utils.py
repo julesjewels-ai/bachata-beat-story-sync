@@ -8,7 +8,6 @@ AudioMixer.
 
 import logging
 import subprocess
-from typing import List
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +15,7 @@ logger = logging.getLogger(__name__)
 FFMPEG_TIMEOUT = 600
 
 
-def run_ffmpeg(cmd: List[str], stage_name: str) -> None:
+def run_ffmpeg(cmd: list[str], stage_name: str) -> None:
     """
     Execute an FFmpeg command with timeout and error handling.
 

@@ -498,7 +498,7 @@ class TestFFmpegOrchestration:
         with open(concat_path, "w") as f:
             f.write("fake video data")
 
-        result = generator.generate(
+        generator.generate(
             audio_data, video_clips, output_path, audio_path="/audio/song.wav"
         )
 
@@ -792,7 +792,6 @@ class TestTransitionPipeline:
         tmp_path,
     ):
         """When transitions enabled with multiple sections, xfade is called."""
-        from src.core.models import MusicalSection
 
         temp_dir = str(tmp_path / "montage_temp")
         os.makedirs(temp_dir, exist_ok=True)
@@ -937,7 +936,7 @@ class TestClipVariety:
         config = PacingConfig(clip_variety_enabled=True)
         plan_a = gen.build_segment_plan(medium_audio, single_clip_30s, config)
         plan_b = gen.build_segment_plan(medium_audio, single_clip_30s, config)
-        for a, b in zip(plan_a, plan_b):
+        for a, b in zip(plan_a, plan_b, strict=False):
             assert a.start_time == b.start_time
 
     def test_clip_variety_disabled_uses_zero(self, gen, medium_audio, single_clip_30s):

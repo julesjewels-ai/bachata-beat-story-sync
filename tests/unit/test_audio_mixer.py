@@ -5,7 +5,7 @@ Unit tests for the AudioMixer class.
 import os
 import shutil
 import tempfile
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from src.core.audio_mixer import AudioMixer
 
@@ -122,7 +122,7 @@ def test_mix_audio_folder_caching():
 
         mixer = AudioMixer()
         # Mocking discover to ensure we don't actually process
-        with patch.object(mixer, '_discover_audio_files') as mock_discover:
+        with patch.object(mixer, "_discover_audio_files") as mock_discover:
             result = mixer.mix_audio_folder(temp_dir, output_file)
 
             assert result == output_file

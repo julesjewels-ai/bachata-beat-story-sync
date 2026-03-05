@@ -4,7 +4,6 @@ Orchestrates the report creation using specialized components.
 """
 
 import logging
-from typing import List
 
 import openpyxl
 
@@ -30,7 +29,7 @@ class ExcelReportGenerator:
     def generate_report(
         self,
         audio_data: AudioAnalysisResult,
-        video_data: List[VideoAnalysisResult],
+        video_data: list[VideoAnalysisResult],
         output_path: str,
     ) -> str:
         """
@@ -64,7 +63,7 @@ class ExcelReportGenerator:
 
     from typing import Any
 
-    def _write_headers(self, ws: Any, headers: List[str], center: bool = False) -> None:
+    def _write_headers(self, ws: Any, headers: list[str], center: bool = False) -> None:
         """Helper to write and format table headers."""
         for col, header in enumerate(headers, 1):
             cell = ws.cell(row=1, column=col, value=header)
@@ -96,7 +95,9 @@ class ExcelReportGenerator:
 
         self.formatter.adjust_column_widths(ws)
 
-    def _build_video_sheet(self, ws: Any, video_data: List[VideoAnalysisResult]) -> None:
+    def _build_video_sheet(
+        self, ws: Any, video_data: list[VideoAnalysisResult]
+    ) -> None:
         """Constructs the video details sheet."""
         headers = ["File Path", "Duration (s)", "Intensity Score", "Thumbnail"]
 
