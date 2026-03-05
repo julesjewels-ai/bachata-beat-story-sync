@@ -2,7 +2,6 @@
 Console UI implementations using Rich.
 """
 
-from typing import Optional
 
 from rich.progress import BarColumn, Progress, SpinnerColumn, TaskID, TextColumn
 
@@ -24,7 +23,7 @@ class RichProgressObserver:
             BarColumn(),
             TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
         )
-        self.task_id: Optional[TaskID] = None
+        self.task_id: TaskID | None = None
         self.started = False
 
     # --- Context manager protocol ---

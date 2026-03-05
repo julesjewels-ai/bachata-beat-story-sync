@@ -3,7 +3,6 @@ Unit tests for report formatting logic.
 """
 
 import openpyxl
-import pytest
 from openpyxl.formatting.rule import Rule
 from src.services.reporting.formatting import ReportFormatter
 

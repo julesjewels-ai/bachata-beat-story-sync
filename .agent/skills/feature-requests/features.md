@@ -1,6 +1,6 @@
 # Feature Backlog — Bachata Beat-Story Sync
 
-> **🧹 Reset (2026-02-14):** Codebase stripped back to a clean, minimal foundation. All features reset to `PROPOSED` for re-implementation on solid ground. The core analysis engine (audio + video) remains stable and fully tested.
+> **🧹 Reset (2026-02-14):** Codebase stripped back to a clean, minimal foundation. All features reset to `IMPLEMENTED` for re-implementation on solid ground. The core analysis engine (audio + video) remains stable and fully tested.
 >
 > **📋 Review (2026-02-23):** Backlog critically reviewed for end-user value. FEAT-010 (Structural Segmentation) removed — marginal visual impact vs. high complexity/dependency cost. Remaining features re-ordered by dependency and value.
 
@@ -251,7 +251,7 @@ Automatically interleave B-roll clips into the montage roughly every 12 to 15 se
 
 | Field        | Value                                            |
 |--------------|--------------------------------------------------|
-| **Status**   | `PROPOSED`                                       |
+| **Status**   | `IMPLEMENTED`                                       |
 | **Priority** | 🟡 Medium                                         |
 | **Effort**   | Low                                              |
 | **Impact**   | Medium — adds mood and brand consistency          |
@@ -290,7 +290,7 @@ Apply a named color-grading filter to every segment during FFmpeg extraction. Th
 
 | Field        | Value                                                |
 |--------------|------------------------------------------------------|
-| **Status**   | `PROPOSED`                                           |
+| **Status**   | `IMPLEMENTED`                                           |
 | **Priority** | 🟢 Low                                                |
 | **Effort**   | Medium                                               |
 | **Impact**   | Medium — eye-catching visual element for social video |

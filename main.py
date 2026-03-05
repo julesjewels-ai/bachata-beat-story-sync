@@ -2,16 +2,18 @@
 Entry point for the Bachata Beat-Story Sync application.
 """
 import argparse
-import sys
 import logging
+import os
+import sys
+
+from pydantic import ValidationError
 from src.core.app import BachataSyncEngine
-from src.core.audio_analyzer import AudioAnalyzer, AudioAnalysisInput
+from src.core.audio_analyzer import AudioAnalysisInput, AudioAnalyzer
+from src.core.audio_mixer import SUPPORTED_AUDIO_EXTENSIONS as MIX_EXTS
+from src.core.audio_mixer import AudioMixer
 from src.core.models import PacingConfig
 from src.services.reporting import ExcelReportGenerator
 from src.ui.console import RichProgressObserver
-from pydantic import ValidationError
-import os
-from src.core.audio_mixer import AudioMixer, SUPPORTED_AUDIO_EXTENSIONS as MIX_EXTS
 
 
 def parse_args() -> argparse.Namespace:
@@ -55,6 +57,13 @@ def parse_args() -> argparse.Namespace:
         help="Run in test mode (max 4 clips, 10 seconds of music)"
     )
     parser.add_argument(
+        "--video-style",
+        type=str,
+        choices=["none", "bw", "vintage", "warm", "cool"],
+        default="none",
+        help="Apply a color grading style to the final video",
+    )
+    parser.add_argument(
         "--max-clips",
         type=int,
         default=None,
@@ -91,12 +100,12 @@ def main() -> None:
         audio_path = args.audio
         if os.path.isdir(audio_path):
             valid_files = [
-                f for f in os.listdir(audio_path) 
-                if os.path.isfile(os.path.join(audio_path, f)) 
+                f for f in os.listdir(audio_path)
+                if os.path.isfile(os.path.join(audio_path, f))
                 and any(f.lower().endswith(ext.lower()) for ext in MIX_EXTS)
                 and f != "_mixed_audio.wav"
             ]
-            
+
             if len(valid_files) > 1:
                 logger.info("Multiple audio files detected. Mixing tracks...")
                 mixed_output = os.path.join(audio_path, "_mixed_audio.wav")
@@ -116,7 +125,7 @@ def main() -> None:
 
         # 2. Scan Videos
         logger.info("Scanning video library in: %s", args.video_dir)
-        
+
         broll_dir = args.broll_dir
         if not broll_dir:
             auto_broll_path = os.path.join(args.video_dir, "broll")
@@ -144,17 +153,23 @@ def main() -> None:
             logger.info("Found %d suitable B-roll clips.", len(broll_clips))
 
         # 3. Sync and Generate
-        pacing = None
         max_clips = args.max_clips
         max_duration = args.max_duration
         if args.test_mode:
             max_clips = max_clips or 4
             max_duration = max_duration or 10.0
+
+        pacing_kwargs = {}
+        if max_clips is not None:
+            pacing_kwargs["max_clips"] = max_clips
+        if max_duration is not None:
+            pacing_kwargs["max_duration_seconds"] = max_duration
+        if args.video_style != "none":
+            pacing_kwargs["video_style"] = args.video_style
+
+        pacing = PacingConfig(**pacing_kwargs) if pacing_kwargs else None
+
         if max_clips or max_duration:
-            pacing = PacingConfig(
-                max_clips=max_clips,
-                max_duration_seconds=max_duration,
-            )
             logger.info(
                 "Pacing limits: max_clips=%s, max_duration=%ss",
                 max_clips or "unlimited",

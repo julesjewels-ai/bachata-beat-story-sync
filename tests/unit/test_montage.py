@@ -466,6 +466,71 @@ class TestGenerateValidation:
 class TestFFmpegOrchestration:
     """Tests for FFmpeg subprocess orchestration (mocked)."""
 
+    @pytest.mark.parametrize(
+        "style, expected_filter",
+        [
+            ("bw", "hue=s=0"),
+            ("vintage", "curves=vintage,vignette"),
+            ("warm", "colorchannelmixer=rr=1.2:gg=1.1:bb=0.9"),
+            ("cool", "colorchannelmixer=rr=0.9:gg=1.1:bb=1.2"),
+        ],
+    )
+    @patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")
+    @patch("src.core.montage.subprocess.run")
+    @patch("src.core.montage.tempfile.mkdtemp")
+    @patch("src.core.montage.shutil.rmtree")
+    @patch("src.core.montage.os.path.exists", return_value=True)
+    def test_extract_includes_video_style_filter(
+        self,
+        mock_exists,
+        mock_rmtree,
+        mock_mkdtemp,
+        mock_run,
+        mock_which,
+        generator,
+        video_clips,
+        tmp_path,
+        style,
+        expected_filter,
+    ):
+        """FEAT-012: The specified video style filter should be applied via -vf."""
+        temp_dir = str(tmp_path / "montage_temp")
+        os.makedirs(temp_dir, exist_ok=True)
+        mock_mkdtemp.return_value = temp_dir
+        mock_run.return_value = MagicMock(returncode=0, stderr="")
+
+        audio = AudioAnalysisResult(
+            filename="style.wav",
+            bpm=120.0,
+            duration=5.0,
+            peaks=[],
+            sections=[],
+            beat_times=[float(i) * 0.5 for i in range(10)],
+            intensity_curve=[0.5] * 10,
+        )
+
+        config = PacingConfig(video_style=style)
+
+        generator.generate(
+            audio,
+            video_clips,
+            str(tmp_path / "output.mp4"),
+            audio_path="/audio/song.wav",
+            pacing=config,
+        )
+
+        # Check the FFmpeg calls for the segment extraction
+        filter_found = False
+        for call_args in mock_run.call_args_list:
+            cmd = call_args[0][0] if call_args[0] else call_args[1].get("cmd", [])
+            cmd_str = " ".join(str(c) for c in cmd)
+            # Find the extraction call (it has -ss and -t)
+            if "-ss" in cmd_str and "-t" in cmd_str:
+                assert expected_filter in cmd_str, f"Missing {expected_filter} in {cmd_str}"
+                filter_found = True
+
+        assert filter_found, "Segment extraction FFmpeg call not found."
+
     @patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")
     @patch("src.core.montage.subprocess.run")
     @patch("src.core.montage.tempfile.mkdtemp")
@@ -792,7 +857,6 @@ class TestTransitionPipeline:
         tmp_path,
     ):
         """When transitions enabled with multiple sections, xfade is called."""
-        from src.core.models import MusicalSection
 
         temp_dir = str(tmp_path / "montage_temp")
         os.makedirs(temp_dir, exist_ok=True)

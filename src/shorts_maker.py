@@ -8,7 +8,6 @@ import os
 import random
 import sys
 import uuid
-from typing import Tuple
 
 from pydantic import ValidationError
 
@@ -22,7 +21,7 @@ from src.ui.console import RichProgressObserver
 logger = logging.getLogger(__name__)
 
 
-def parse_duration(duration_str: str) -> Tuple[float, float]:
+def parse_duration(duration_str: str) -> tuple[float, float]:
     """Parses duration string like '60' or '10-15' into min and max floats."""
     if "-" in duration_str:
         parts = duration_str.split("-")
@@ -72,6 +71,13 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--count", type=int, default=1, help="Number of unique shorts to generate"
+    )
+    parser.add_argument(
+        "--video-style",
+        type=str,
+        choices=["none", "bw", "vintage", "warm", "cool"],
+        default="none",
+        help="Apply a color grading style to the final video",
     )
 
     # New Human Touch parameters
@@ -173,6 +179,7 @@ def main() -> None:
                 accelerate_pacing=args.dynamic_flow,
                 randomize_speed_ramps=args.human_touch,
                 abrupt_ending=args.cliffhanger,
+                video_style=args.video_style,
             )
 
             out_filename = f"short_{i + 1:03d}.mp4"

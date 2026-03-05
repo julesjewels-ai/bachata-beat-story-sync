@@ -5,7 +5,6 @@ Handles charts and image embedding.
 
 import io
 import logging
-from typing import Optional
 
 from openpyxl.chart import BarChart, Reference
 from openpyxl.drawing.image import Image as OpenpyxlImage
@@ -22,7 +21,7 @@ class ChartBuilder:
 
     def create_intensity_chart(
         self, source_ws: Worksheet, data_count: int, intensity_col_idx: int
-    ) -> Optional[BarChart]:
+    ) -> BarChart | None:
         """
         Creates a Bar Chart visualizing intensity scores.
 
