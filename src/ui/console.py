@@ -2,7 +2,6 @@
 Console UI implementations using Rich.
 """
 
-
 from rich.progress import BarColumn, Progress, SpinnerColumn, TaskID, TextColumn
 
 
