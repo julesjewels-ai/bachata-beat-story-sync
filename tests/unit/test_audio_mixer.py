@@ -7,7 +7,7 @@ import shutil
 import tempfile
 from unittest.mock import patch
 
-from src.core.audio_mixer import AudioMixer
+from src.core.audio_mixer import AudioMixer, resolve_audio_path
 
 
 def test_discover_audio_files():
@@ -129,3 +129,57 @@ def test_mix_audio_folder_caching():
             mock_discover.assert_not_called()
     finally:
         shutil.rmtree(temp_dir)
+
+
+# --- Tests for resolve_audio_path() ---
+
+
+def test_resolve_audio_path_returns_file_unchanged():
+    """A file path is returned as-is without any mixing."""
+    temp_dir = tempfile.mkdtemp()
+    try:
+        audio_file = os.path.join(temp_dir, "song.wav")
+        with open(audio_file, "w") as f:
+            f.write("dummy")
+
+        result = resolve_audio_path(audio_file)
+        assert result == audio_file
+    finally:
+        shutil.rmtree(temp_dir)
+
+
+def test_resolve_audio_path_dir_single_file_no_mix():
+    """A directory with only one audio file returns the dir path (no mixing)."""
+    temp_dir = tempfile.mkdtemp()
+    try:
+        with open(os.path.join(temp_dir, "only_track.mp3"), "w") as f:
+            f.write("content")
+        with open(os.path.join(temp_dir, "readme.txt"), "w") as f:
+            f.write("not audio")
+
+        result = resolve_audio_path(temp_dir)
+        # Should return the original dir path unchanged (single file → no mixing)
+        assert result == temp_dir
+    finally:
+        shutil.rmtree(temp_dir)
+
+
+@patch("src.core.audio_mixer.AudioMixer.mix_audio_folder")
+def test_resolve_audio_path_dir_multiple_files_triggers_mix(mock_mix):
+    """A directory with multiple audio files triggers the mixer."""
+    temp_dir = tempfile.mkdtemp()
+    try:
+        for name in ["01_track.mp3", "02_track.wav"]:
+            with open(os.path.join(temp_dir, name), "w") as f:
+                f.write("content")
+
+        expected_output = os.path.join(temp_dir, "_mixed_audio.wav")
+        mock_mix.return_value = expected_output
+
+        result = resolve_audio_path(temp_dir)
+
+        mock_mix.assert_called_once()
+        assert result == expected_output
+    finally:
+        shutil.rmtree(temp_dir)
+

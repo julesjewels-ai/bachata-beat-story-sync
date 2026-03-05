@@ -41,3 +41,7 @@ pacing:
   # Options: 'fade', 'wipeleft', 'wiperight', 'slideup', 'slidedown', etc.
   transition_type: fade
   transition_duration: 0.5        # Duration of each transition (seconds)
+
+  # Video style — applies a uniform color grade to all clips
+  # Options: 'none', 'bw' (black & white), 'vintage', 'warm', 'cool'
+  video_style: warm

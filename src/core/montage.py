@@ -620,6 +620,17 @@ class MontageGenerator:
                     else:
                         vf_parts.append(f"minterpolate=fps={TARGET_FPS}:mi_mode=blend")
 
+            # Video Style Filter (FEAT-012)
+            _VIDEO_STYLE_FILTERS = {
+                "bw": "hue=s=0",
+                "vintage": "curves=vintage,vignette",
+                "warm": "colorchannelmixer=rr=1.1:gg=1.0:bb=0.9",
+                "cool": "colorchannelmixer=rr=0.9:gg=1.0:bb=1.1",
+            }
+            style_vf = _VIDEO_STYLE_FILTERS.get(config.video_style, "")
+            if style_vf:
+                vf_parts.append(style_vf)
+
             # Normalize frame rate for ALL segments to ensure clean concatenation
             vf_parts.append(f"fps={TARGET_FPS}")
 

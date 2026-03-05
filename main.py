@@ -9,8 +9,7 @@ import sys
 from pydantic import ValidationError
 from src.core.app import BachataSyncEngine
 from src.core.audio_analyzer import AudioAnalysisInput, AudioAnalyzer
-from src.core.audio_mixer import SUPPORTED_AUDIO_EXTENSIONS as MIX_EXTS
-from src.core.audio_mixer import AudioMixer
+from src.core.audio_mixer import resolve_audio_path
 from src.core.models import PacingConfig
 from src.services.reporting import ExcelReportGenerator
 from src.ui.console import RichProgressObserver
@@ -70,6 +69,13 @@ def parse_args() -> argparse.Namespace:
         help="Maximum montage duration in seconds (overrides test-mode default)"
     )
     parser.add_argument(
+        "--video-style",
+        type=str,
+        default=None,
+        choices=["none", "bw", "vintage", "warm", "cool"],
+        help="Color grading style: none, bw, vintage, warm, cool",
+    )
+    parser.add_argument(
         "--version",
         action="version",
         version="%(prog)s 0.1.0"
@@ -92,24 +98,8 @@ def main() -> None:
 
     try:
         audio_path = args.audio
-        if os.path.isdir(audio_path):
-            valid_files = [
-                f for f in os.listdir(audio_path)
-                if os.path.isfile(os.path.join(audio_path, f))
-                and any(f.lower().endswith(ext.lower()) for ext in MIX_EXTS)
-                and f != "_mixed_audio.wav"
-            ]
-
-            if len(valid_files) > 1:
-                logger.info("Multiple audio files detected. Mixing tracks...")
-                mixed_output = os.path.join(audio_path, "_mixed_audio.wav")
-                mixer = AudioMixer()
-                with RichProgressObserver() as mix_observer:
-                    audio_path = mixer.mix_audio_folder(
-                        audio_path, mixed_output,
-                        observer=mix_observer,
-                    )
-                logger.info("Mixed audio saved to: %s", audio_path)
+        with RichProgressObserver() as mix_observer:
+            audio_path = resolve_audio_path(audio_path, observer=mix_observer)
 
         # 1. Analyze Audio
         logger.info("Analyzing audio track: %s", audio_path)
@@ -156,15 +146,21 @@ def main() -> None:
         if args.test_mode:
             max_clips = max_clips or 4
             max_duration = max_duration or 10.0
-        if max_clips or max_duration:
-            pacing = PacingConfig(
-                max_clips=max_clips,
-                max_duration_seconds=max_duration,
-            )
+
+        # Build pacing overrides from CLI args
+        pacing_kwargs: dict = {}
+        if max_clips:
+            pacing_kwargs["max_clips"] = max_clips
+        if max_duration:
+            pacing_kwargs["max_duration_seconds"] = max_duration
+        if args.video_style:
+            pacing_kwargs["video_style"] = args.video_style
+
+        if pacing_kwargs:
+            pacing = PacingConfig(**pacing_kwargs)
             logger.info(
-                "Pacing limits: max_clips=%s, max_duration=%ss",
-                max_clips or "unlimited",
-                max_duration or "unlimited",
+                "Pacing overrides: %s",
+                ", ".join(f"{k}={v}" for k, v in pacing_kwargs.items()),
             )
         logger.info("Syncing visual narrative to musical dynamics...")
 

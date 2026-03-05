@@ -1050,3 +1050,146 @@ class TestBRollInsertion:
 
         for seg in segments:
             assert "broll" not in seg.video_path
+
+
+class TestVideoStyleFilters:
+    """Tests for FEAT-012: Video Style Filters (Color Grading)."""
+
+    def test_video_style_default_is_none(self):
+        """Default video_style is 'none'."""
+        config = PacingConfig()
+        assert config.video_style == "none"
+
+    def test_video_style_accepts_valid_values(self):
+        """All five style values are accepted by PacingConfig."""
+        for style in ("none", "bw", "vintage", "warm", "cool"):
+            config = PacingConfig(video_style=style)
+            assert config.video_style == style
+
+    def test_video_style_rejects_invalid(self):
+        """Invalid video_style values are rejected by Pydantic."""
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            PacingConfig(video_style="neon")
+
+    def test_load_video_style_from_yaml(self, tmp_path):
+        """video_style is correctly loaded from YAML config."""
+        config_file = tmp_path / "test_config.yaml"
+        config_file.write_text("pacing:\n  video_style: warm\n")
+
+        config = load_pacing_config(str(config_file))
+        assert config.video_style == "warm"
+
+    @patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")
+    @patch("src.core.montage.subprocess.run")
+    @patch("src.core.montage.tempfile.mkdtemp")
+    @patch("src.core.montage.shutil.rmtree")
+    @patch("src.core.montage.os.path.exists", return_value=True)
+    def test_extract_includes_style_filter(
+        self,
+        mock_exists,
+        mock_rmtree,
+        mock_mkdtemp,
+        mock_run,
+        mock_which,
+        generator,
+        video_clips,
+        tmp_path,
+    ):
+        """When video_style='bw', the FFmpeg command includes hue=s=0."""
+        temp_dir = str(tmp_path / "montage_temp")
+        os.makedirs(temp_dir, exist_ok=True)
+        mock_mkdtemp.return_value = temp_dir
+        mock_run.return_value = MagicMock(returncode=0, stderr="")
+
+        audio = AudioAnalysisResult(
+            filename="style.wav",
+            bpm=120.0,
+            duration=10.0,
+            peaks=[],
+            sections=[],
+            beat_times=[float(i) * 0.5 for i in range(10)],
+            intensity_curve=[0.5] * 10,
+        )
+
+        config = PacingConfig(video_style="bw")
+
+        # Create fake concat output
+        concat_path = os.path.join(temp_dir, "concat_output.mp4")
+        with open(concat_path, "w") as f:
+            f.write("fake")
+
+        generator.generate(
+            audio,
+            video_clips,
+            str(tmp_path / "output.mp4"),
+            audio_path="/audio/song.wav",
+            pacing=config,
+        )
+
+        # Verify at least one extraction call includes the bw filter
+        extraction_calls = [
+            " ".join(str(c) for c in call_args[0][0])
+            for call_args in mock_run.call_args_list
+            if call_args[0] and "-ss" in str(call_args[0][0])
+        ]
+        assert any("hue=s=0" in cmd for cmd in extraction_calls), (
+            "Expected 'hue=s=0' in at least one extraction FFmpeg call"
+        )
+
+    @patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")
+    @patch("src.core.montage.subprocess.run")
+    @patch("src.core.montage.tempfile.mkdtemp")
+    @patch("src.core.montage.shutil.rmtree")
+    @patch("src.core.montage.os.path.exists", return_value=True)
+    def test_no_style_filter_when_none(
+        self,
+        mock_exists,
+        mock_rmtree,
+        mock_mkdtemp,
+        mock_run,
+        mock_which,
+        generator,
+        video_clips,
+        tmp_path,
+    ):
+        """When video_style='none', no color filter appears in FFmpeg commands."""
+        temp_dir = str(tmp_path / "montage_temp")
+        os.makedirs(temp_dir, exist_ok=True)
+        mock_mkdtemp.return_value = temp_dir
+        mock_run.return_value = MagicMock(returncode=0, stderr="")
+
+        audio = AudioAnalysisResult(
+            filename="nostyle.wav",
+            bpm=120.0,
+            duration=10.0,
+            peaks=[],
+            sections=[],
+            beat_times=[float(i) * 0.5 for i in range(10)],
+            intensity_curve=[0.5] * 10,
+        )
+
+        config = PacingConfig(video_style="none")
+
+        concat_path = os.path.join(temp_dir, "concat_output.mp4")
+        with open(concat_path, "w") as f:
+            f.write("fake")
+
+        generator.generate(
+            audio,
+            video_clips,
+            str(tmp_path / "output.mp4"),
+            audio_path="/audio/song.wav",
+            pacing=config,
+        )
+
+        color_filters = ["hue=s=0", "curves=vintage", "colorchannelmixer"]
+        for call_args in mock_run.call_args_list:
+            if call_args[0]:
+                cmd_str = " ".join(str(c) for c in call_args[0][0])
+                for f_name in color_filters:
+                    assert f_name not in cmd_str, (
+                        f"Unexpected color filter '{f_name}' found when "
+                        f"video_style='none'"
+                    )

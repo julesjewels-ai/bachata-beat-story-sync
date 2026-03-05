@@ -251,7 +251,7 @@ Automatically interleave B-roll clips into the montage roughly every 12 to 15 se
 
 | Field        | Value                                            |
 |--------------|--------------------------------------------------|
-| **Status**   | `PROPOSED`                                       |
+| **Status**   | `IMPLEMENTED`                                    |
 | **Priority** | 🟡 Medium                                         |
 | **Effort**   | Low                                              |
 | **Impact**   | Medium — adds mood and brand consistency          |

@@ -41,6 +41,48 @@ def load_audio_mix_config(config_path: str | None = None) -> AudioMixConfig:
     return AudioMixConfig()
 
 
+def resolve_audio_path(
+    audio_path: str,
+    observer: ProgressObserver | None = None,
+) -> str:
+    """Resolve an audio path that may be a file or a directory.
+
+    If *audio_path* is a directory containing multiple supported audio
+    files, they are automatically mixed into a single WAV using
+    :class:`AudioMixer`.  The mixed output is cached at
+    ``<dir>/_mixed_audio.wav`` so repeated runs are instant.
+
+    Args:
+        audio_path: Path to a single audio file **or** a directory
+            containing audio files to mix.
+        observer: Optional progress observer forwarded to the mixer.
+
+    Returns:
+        The resolved path to a single audio file ready for analysis.
+    """
+    if not os.path.isdir(audio_path):
+        return audio_path
+
+    valid_files = [
+        f
+        for f in os.listdir(audio_path)
+        if os.path.isfile(os.path.join(audio_path, f))
+        and any(f.lower().endswith(ext.lower()) for ext in SUPPORTED_AUDIO_EXTENSIONS)
+        and f != "_mixed_audio.wav"
+    ]
+
+    if len(valid_files) > 1:
+        logger.info("Multiple audio files detected. Mixing tracks...")
+        mixed_output = os.path.join(audio_path, "_mixed_audio.wav")
+        mixer = AudioMixer()
+        audio_path = mixer.mix_audio_folder(
+            audio_path, mixed_output, observer=observer
+        )
+        logger.info("Mixed audio saved to: %s", audio_path)
+
+    return audio_path
+
+
 class AudioMixer:
     """
     Combines multiple audio files into a single continuous mix with crossfades.

@@ -13,8 +13,7 @@ from pydantic import ValidationError
 
 from src.core.app import BachataSyncEngine
 from src.core.audio_analyzer import AudioAnalysisInput, AudioAnalyzer
-from src.core.audio_mixer import SUPPORTED_AUDIO_EXTENSIONS as MIX_EXTS
-from src.core.audio_mixer import AudioMixer
+from src.core.audio_mixer import resolve_audio_path
 from src.core.models import PacingConfig
 from src.ui.console import RichProgressObserver
 
@@ -90,6 +89,13 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="End abruptly for a cliffhanger effect",
     )
+    parser.add_argument(
+        "--video-style",
+        type=str,
+        default=None,
+        choices=["none", "bw", "vintage", "warm", "cool"],
+        help="Color grading style: none, bw, vintage, warm, cool",
+    )
 
     return parser.parse_args()
 
@@ -109,24 +115,8 @@ def main() -> None:
 
     try:
         audio_path = args.audio
-        if os.path.isdir(audio_path):
-            valid_files = [
-                f
-                for f in os.listdir(audio_path)
-                if os.path.isfile(os.path.join(audio_path, f))
-                and any(f.lower().endswith(ext.lower()) for ext in MIX_EXTS)
-                and f != "_mixed_audio.wav"
-            ]
-
-            if len(valid_files) > 1:
-                logger.info("Multiple audio files detected. Mixing tracks...")
-                mixed_output = os.path.join(audio_path, "_mixed_audio.wav")
-                mixer = AudioMixer()
-                with RichProgressObserver() as mix_observer:
-                    audio_path = mixer.mix_audio_folder(
-                        audio_path, mixed_output, observer=mix_observer
-                    )
-                logger.info("Mixed audio saved to: %s", audio_path)
+        with RichProgressObserver() as mix_observer:
+            audio_path = resolve_audio_path(audio_path, observer=mix_observer)
 
         # 1. Analyze Audio (Once)
         logger.info("Analyzing audio track: %s", audio_path)
@@ -166,14 +156,18 @@ def main() -> None:
             target_duration = random.uniform(min_dur, max_dur)
             run_seed = str(uuid.uuid4())
 
-            pacing = PacingConfig(
-                is_shorts=True,
-                seed=run_seed,
-                max_duration_seconds=target_duration,
-                accelerate_pacing=args.dynamic_flow,
-                randomize_speed_ramps=args.human_touch,
-                abrupt_ending=args.cliffhanger,
-            )
+            pacing_kwargs: dict = {
+                "is_shorts": True,
+                "seed": run_seed,
+                "max_duration_seconds": target_duration,
+                "accelerate_pacing": args.dynamic_flow,
+                "randomize_speed_ramps": args.human_touch,
+                "abrupt_ending": args.cliffhanger,
+            }
+            if args.video_style:
+                pacing_kwargs["video_style"] = args.video_style
+
+            pacing = PacingConfig(**pacing_kwargs)
 
             out_filename = f"short_{i + 1:03d}.mp4"
             out_path = os.path.join(args.output_dir, out_filename)

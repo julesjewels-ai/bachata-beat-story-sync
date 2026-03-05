@@ -4,6 +4,8 @@ These models define the strict contracts for data exchange between layers.
 """
 
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -204,6 +206,13 @@ class PacingConfig(BaseModel):
         "blend",
         description="Frame interpolation method for slow"
         " motion (<1.0x). Options: 'none', 'blend', 'mci'",
+    )
+
+    # Video Style / Color Grading (FEAT-012)
+    video_style: Literal["none", "bw", "vintage", "warm", "cool"] = Field(
+        "none",
+        description="Color grading style applied to all segments. "
+        "Options: 'none', 'bw', 'vintage', 'warm', 'cool'",
     )
 
 
