@@ -3,12 +3,13 @@ Video analysis module for Bachata Beat-Story Sync.
 """
 
 import logging
-from typing import Iterator, Optional
+from collections.abc import Iterator
 
 import cv2
 import numpy as np
 from pydantic import BaseModel, Field, field_validator
 
+from src.core.interfaces import VideoAnalysisInputProtocol
 from src.core.models import VideoAnalysisResult
 from src.core.validation import validate_file_path
 
@@ -46,7 +47,7 @@ class VideoAnalyzer:
     Analyzes video files to determine their visual intensity and other metrics.
     """
 
-    def analyze(self, input_data: VideoAnalysisInput) -> VideoAnalysisResult:
+    def analyze(self, input_data: VideoAnalysisInputProtocol) -> VideoAnalysisResult:
         """
         Analyzes a video file to calculate a visual intensity score.
 
@@ -61,7 +62,7 @@ class VideoAnalyzer:
 
         cap = cv2.VideoCapture(file_path)
         if not cap.isOpened():
-            raise IOError(f"Could not open video file: {file_path}")
+            raise OSError(f"Could not open video file: {file_path}")
 
         try:
             duration = self._validate_video_properties(cap)
@@ -89,7 +90,7 @@ class VideoAnalyzer:
         finally:
             cap.release()
 
-    def _extract_thumbnail(self, cap: cv2.VideoCapture) -> Optional[bytes]:
+    def _extract_thumbnail(self, cap: cv2.VideoCapture) -> bytes | None:
         """Extracts a thumbnail from the middle of the video."""
         try:
             frame = self._get_middle_frame(cap)
@@ -107,7 +108,7 @@ class VideoAnalyzer:
             logger.warning("Failed to extract thumbnail: %s", e)
             return None
 
-    def _get_middle_frame(self, cap: cv2.VideoCapture) -> Optional[np.ndarray]:
+    def _get_middle_frame(self, cap: cv2.VideoCapture) -> np.ndarray | None:
         """Retrieves the frame at the middle of the video."""
         frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         if frame_count <= 0:

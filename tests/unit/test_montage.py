@@ -792,7 +792,6 @@ class TestTransitionPipeline:
         tmp_path,
     ):
         """When transitions enabled with multiple sections, xfade is called."""
-        from src.core.models import MusicalSection
 
         temp_dir = str(tmp_path / "montage_temp")
         os.makedirs(temp_dir, exist_ok=True)

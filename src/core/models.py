@@ -3,7 +3,6 @@ Data Transfer Objects (DTOs) for Bachata Beat-Story Sync.
 These models define the strict contracts for data exchange between layers.
 """
 
-from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -37,16 +36,16 @@ class AudioAnalysisResult(BaseModel):
     filename: str = Field(..., description="Name of the audio file")
     bpm: float = Field(..., description="Beats per minute of the track")
     duration: float = Field(..., description="Duration of the track in seconds")
-    peaks: List[float] = Field(..., description="Timestamps of high intensity peaks")
-    sections: List[MusicalSection] = Field(
+    peaks: list[float] = Field(..., description="Timestamps of high intensity peaks")
+    sections: list[MusicalSection] = Field(
         default_factory=list,
         description="Detected musical sections with timestamps and labels",
     )
-    beat_times: List[float] = Field(
+    beat_times: list[float] = Field(
         default_factory=list,
         description="Precise timestamps of each detected beat (seconds)",
     )
-    intensity_curve: List[float] = Field(
+    intensity_curve: list[float] = Field(
         default_factory=list,
         description="Normalised RMS energy (0.0-1.0) at each beat position",
     )
@@ -67,7 +66,7 @@ class VideoAnalysisResult(BaseModel):
     is_vertical: bool = Field(
         False, description="Whether the video is vertical (height > width)"
     )
-    thumbnail_data: Optional[bytes] = Field(
+    thumbnail_data: bytes | None = Field(
         None, description="Binary data of the video thumbnail (PNG format)"
     )
 
@@ -93,7 +92,7 @@ class SegmentPlan(BaseModel):
     speed_factor: float = Field(
         1.0, description="Playback speed multiplier (>1 = fast, <1 = slow-mo)"
     )
-    section_label: Optional[str] = Field(
+    section_label: str | None = Field(
         None,
         description="Musical section this segment belongs to (e.g. 'intro', 'high_energy')",
     )
@@ -142,10 +141,10 @@ class PacingConfig(BaseModel):
     low_intensity_speed: float = Field(
         0.9, description="Speed multiplier for low-intensity clips (<1 = slow-mo)"
     )
-    max_clips: Optional[int] = Field(
+    max_clips: int | None = Field(
         None, description="Maximum number of clip segments (None = unlimited)"
     )
-    max_duration_seconds: Optional[float] = Field(
+    max_duration_seconds: float | None = Field(
         None, description="Maximum total montage duration in seconds (None = unlimited)"
     )
 

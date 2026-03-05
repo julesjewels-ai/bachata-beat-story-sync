@@ -8,7 +8,6 @@ import os
 import random
 import sys
 import uuid
-from typing import Tuple
 
 from pydantic import ValidationError
 
@@ -17,12 +16,14 @@ from src.core.audio_analyzer import AudioAnalysisInput, AudioAnalyzer
 from src.core.audio_mixer import SUPPORTED_AUDIO_EXTENSIONS as MIX_EXTS
 from src.core.audio_mixer import AudioMixer
 from src.core.models import PacingConfig
+from src.core.video_analyzer import VideoAnalyzer
+from src.services.persistence import CachedVideoAnalyzer, FileAnalysisRepository
 from src.ui.console import RichProgressObserver
 
 logger = logging.getLogger(__name__)
 
 
-def parse_duration(duration_str: str) -> Tuple[float, float]:
+def parse_duration(duration_str: str) -> tuple[float, float]:
     """Parses duration string like '60' or '10-15' into min and max floats."""
     if "-" in duration_str:
         parts = duration_str.split("-")
@@ -104,7 +105,11 @@ def main() -> None:
 
     os.makedirs(args.output_dir, exist_ok=True)
 
-    engine = BachataSyncEngine()
+    base_analyzer = VideoAnalyzer()
+    cache_repo = FileAnalysisRepository()
+    cached_analyzer = CachedVideoAnalyzer(base_analyzer, cache_repo)
+
+    engine = BachataSyncEngine(video_analyzer=cached_analyzer)
     audio_analyzer = AudioAnalyzer()
 
     try:
