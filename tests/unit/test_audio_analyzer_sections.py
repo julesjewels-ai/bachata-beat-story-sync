@@ -4,7 +4,8 @@ from src.core.models import MusicalSection
 
 
 @pytest.mark.parametrize(
-    "beat_times, intensity_curve, duration, smoothing_window, expected_labels, expected_count",
+    "beat_times, intensity_curve, duration,"
+    " smoothing_window, expected_labels, expected_count",
     [
         # Case 1: Empty input -> Full track
         ([], [], 10.0, 8, ["full_track"], 1),
@@ -47,8 +48,10 @@ from src.core.models import MusicalSection
             3,
         ),
         # Case 7: Buildup (Rising Intensity followed by drop)
-        # Note: Buildup logic requires end_idx < len(smoothed), so it cannot be the very last section
-        # unless we fix the code. We add a drop to create a second section.
+        # Note: Buildup logic requires end_idx < len(smoothed),
+        # so it cannot be the very last section
+        # unless we fix the code. We add a drop to create
+        # a second section.
         (
             [0.5, 1.0, 1.5, 2.0, 2.5, 3.0],
             [0.4, 0.5, 0.6, 0.7, 0.2, 0.2],
@@ -135,5 +138,7 @@ def test_detect_sections_scenarios(
         assert isinstance(section, MusicalSection)
         if i < len(expected_labels):
             assert section.label == expected_labels[i], (
-                f"Section {i} label mismatch. Expected {expected_labels[i]}, got {section.label}"
+                f"Section {i} label mismatch."
+                f" Expected {expected_labels[i]},"
+                f" got {section.label}"
             )

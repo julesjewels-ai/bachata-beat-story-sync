@@ -36,7 +36,8 @@ def parse_args() -> argparse.Namespace:
         "--broll-dir",
         type=str,
         default=None,
-        help="Optional directory containing B-roll clips (defaults to 'broll' inside video-dir if it exists)"
+        help="Optional directory containing B-roll clips"
+        " (defaults to 'broll' inside video-dir if it exists)"
     )
     parser.add_argument(
         "--output",
@@ -104,7 +105,10 @@ def main() -> None:
                 mixed_output = os.path.join(audio_path, "_mixed_audio.wav")
                 mixer = AudioMixer()
                 with RichProgressObserver() as mix_observer:
-                    audio_path = mixer.mix_audio_folder(audio_path, mixed_output, observer=mix_observer)
+                    audio_path = mixer.mix_audio_folder(
+                        audio_path, mixed_output,
+                        observer=mix_observer,
+                    )
                 logger.info("Mixed audio saved to: %s", audio_path)
 
         # 1. Analyze Audio

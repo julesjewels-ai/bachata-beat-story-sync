@@ -81,12 +81,15 @@ def create_mock_cap(
 
     if read_success:
         # One for thumbnail, then iterator for intensity
-        # We need enough frames to trigger intensity calculation (at least 2 processed frames)
-        # If FPS=30 and ANALYSIS_FPS=3, skip=10. We need frames at index 0 and 10.
+        # We need enough frames to trigger intensity calculation
+        # (at least 2 processed frames)
+        # If FPS=30 and ANALYSIS_FPS=3, skip=10.
+        # We need frames at index 0 and 10.
         reads = [(True, dummy_frame)] + [(True, dummy_frame)] * 20 + [(False, None)]
     else:
         # 1. Thumbnail extraction fails (read returns False)
-        # 2. Intensity calculation loop starts, read returns False immediately -> breaks loop
+        # 2. Intensity calculation loop starts,
+        #    read returns False immediately -> breaks loop
         reads = [(False, None), (False, None)]
 
     mock_cap.read.side_effect = reads

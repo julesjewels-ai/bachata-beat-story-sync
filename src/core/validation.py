@@ -39,7 +39,8 @@ def validate_file_path(path: str, allowed_extensions: Iterable[str]) -> str:
         ]
         if not valid_files:
             raise ValueError(
-                f"No valid file found in directory {path} with extensions {allowed_extensions}"
+                f"No valid file found in directory {path}"
+                f" with extensions {allowed_extensions}"
             )
         if len(valid_files) > 1:
             raise ValueError(

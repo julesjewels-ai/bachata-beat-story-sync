@@ -74,7 +74,8 @@ class BachataSyncEngine:
                 # Don't mutate dirs here, just skip the files
                 continue
 
-            # Optionally mutate dirs to prevent os.walk from going deeper into excluded dirs
+            # Optionally mutate dirs to prevent os.walk from
+            # going deeper into excluded dirs
             dirs[:] = [
                 d
                 for d in dirs

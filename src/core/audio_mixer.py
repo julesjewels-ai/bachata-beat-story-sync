@@ -135,8 +135,10 @@ class AudioMixer:
                     else os.path.join(temp_dir, f"mix_step_{i:04d}.wav")
                 )
 
-                # We need exact crossfade because acrossfade handles overlap automatically if duration is specified
-                # The filter form is: [0:a][1:a]acrossfade=d=duration:o=1:c1=tri:c2=tri[a]
+                # We need exact crossfade because acrossfade
+                # handles overlap automatically if duration
+                # is specified. Filter form:
+                # [0:a][1:a]acrossfade=d=duration:c1=tri:c2=tri[a]
                 cmd = [
                     "ffmpeg",
                     "-y",

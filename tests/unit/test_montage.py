@@ -297,7 +297,7 @@ class TestBuildSegmentPlan:
             assert seg.video_path == "/videos/medium_only.mp4"
 
     def test_build_segment_plan_with_prefix_ordering(self, generator, video_clips):
-        """Pre-fixed clips are forced to the front of the segment plan in numeric order."""
+        """Pre-fixed clips forced to front in numeric order."""
         prefixed_clips = [
             VideoAnalysisResult(
                 path="/videos/2_clip.mp4",
@@ -498,8 +498,9 @@ class TestFFmpegOrchestration:
         with open(concat_path, "w") as f:
             f.write("fake video data")
 
-        result = generator.generate(
-            audio_data, video_clips, output_path, audio_path="/audio/song.wav"
+        generator.generate(
+            audio_data, video_clips, output_path,
+            audio_path="/audio/song.wav",
         )
 
         # Verify FFmpeg was called multiple times
@@ -1029,8 +1030,9 @@ class TestBRollInsertion:
         last_broll_time = -config.broll_interval_seconds
         for seg in broll_segments:
             gap = seg.timeline_position - last_broll_time
-            # Given variance is 1.5, gap shouldn't be wildly out of [12.0, 15.0] range
-            # though it snaps to beats so allow a slight margin of error (e.g. up to a few seconds)
+            # Given variance is 1.5, gap shouldn't be wildly
+            # out of [12.0, 15.0] range though it snaps to
+            # beats so allow a slight margin of error
             assert gap >= (
                 config.broll_interval_seconds - config.broll_interval_variance - 3.0
             )

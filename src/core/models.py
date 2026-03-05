@@ -94,7 +94,8 @@ class SegmentPlan(BaseModel):
     )
     section_label: str | None = Field(
         None,
-        description="Musical section this segment belongs to (e.g. 'intro', 'high_energy')",
+        description="Musical section this segment belongs to"
+        " (e.g. 'intro', 'high_energy')",
     )
 
 
@@ -201,7 +202,8 @@ class PacingConfig(BaseModel):
     # Frame Interpolation for Slow Motion (FEAT-010)
     interpolation_method: str = Field(
         "blend",
-        description="Frame interpolation method for slow motion (<1.0x). Options: 'none', 'blend', 'mci'",
+        description="Frame interpolation method for slow"
+        " motion (<1.0x). Options: 'none', 'blend', 'mci'",
     )
 
 

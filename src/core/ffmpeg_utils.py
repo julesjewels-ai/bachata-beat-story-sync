@@ -49,4 +49,4 @@ def run_ffmpeg(cmd: list[str], stage_name: str) -> None:
         raise RuntimeError(
             f"FFmpeg timed out during {stage_name} "
             f"(>{FFMPEG_TIMEOUT}s). The input file may be too large."
-        )
+        ) from None

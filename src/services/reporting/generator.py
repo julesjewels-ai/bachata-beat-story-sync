@@ -95,7 +95,9 @@ class ExcelReportGenerator:
 
         self.formatter.adjust_column_widths(ws)
 
-    def _build_video_sheet(self, ws: Any, video_data: list[VideoAnalysisResult]) -> None:
+    def _build_video_sheet(
+        self, ws: Any, video_data: list[VideoAnalysisResult]
+    ) -> None:
         """Constructs the video details sheet."""
         headers = ["File Path", "Duration (s)", "Intensity Score", "Thumbnail"]
 

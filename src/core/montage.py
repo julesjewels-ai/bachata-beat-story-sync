@@ -599,7 +599,8 @@ class MontageGenerator:
             t_height = 1920 if config.is_shorts else TARGET_HEIGHT
 
             if config.is_shorts:
-                # Crop center to 9:16 aspect ratio (safe for both horizontal drop-ins and slight vertical variances)
+                # Crop center to 9:16 aspect ratio (safe for
+                # horizontal drop-ins and vertical variances)
                 vf_parts = [
                     "crop='min(iw,ih*9/16)':'min(ih,iw*16/9)'",
                     f"scale={t_width}:{t_height}",
