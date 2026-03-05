@@ -38,7 +38,7 @@ class FileAnalysisRepository(AnalysisRepository):
         try:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
         except OSError as e:
-            raise CacheError(f"Failed to create cache directory: {e}")
+            raise CacheError(f"Failed to create cache directory: {e}") from e
 
     def _get_cache_path(self, file_path: str) -> Path:
         """Generates a stable cache filename based on the file path."""
@@ -93,7 +93,7 @@ class FileAnalysisRepository(AnalysisRepository):
         try:
             mtime = os.path.getmtime(file_path)
         except OSError as e:
-            raise CacheError(f"Cannot get modified time for {file_path}: {e}")
+            raise CacheError(f"Cannot get modified time for {file_path}: {e}") from e
 
         data = result.model_dump()
 
@@ -110,7 +110,7 @@ class FileAnalysisRepository(AnalysisRepository):
             with open(cache_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
         except OSError as e:
-            raise CacheError(f"Failed to write cache for {file_path}: {e}")
+            raise CacheError(f"Failed to write cache for {file_path}: {e}") from e
 
 
 class CachedVideoAnalyzer(VideoAnalyzerProtocol):

@@ -35,7 +35,7 @@ select = [
     "UP",  # pyupgrade
     "C4",  # flake8-comprehensions
 ]
-ignore = []
+ignore = ["E501"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

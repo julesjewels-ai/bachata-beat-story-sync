@@ -37,10 +37,10 @@ def parse_duration(duration_str: str) -> tuple[float, float]:
     try:
         val = float(duration_str.strip())
         return val, val
-    except ValueError:
+    except ValueError as err:
         raise argparse.ArgumentTypeError(
             f"Invalid duration format: '{duration_str}'. Use '60' or '10-15'."
-        )
+        ) from err
 
 
 def parse_args() -> argparse.Namespace:

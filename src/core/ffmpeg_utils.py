@@ -45,8 +45,8 @@ def run_ffmpeg(cmd: list[str], stage_name: str) -> None:
                 f"(exit code {result.returncode}): {stderr_tail}"
             )
 
-    except subprocess.TimeoutExpired:
+    except subprocess.TimeoutExpired as err:
         raise RuntimeError(
             f"FFmpeg timed out during {stage_name} "
             f"(>{FFMPEG_TIMEOUT}s). The input file may be too large."
-        )
+        ) from err
