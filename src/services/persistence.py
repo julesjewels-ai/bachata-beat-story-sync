@@ -99,7 +99,9 @@ class FileAnalysisRepository(AnalysisRepository):
 
         # Handle base64 thumbnail encoding
         if data.get("thumbnail_data") is not None:
-            data["thumbnail_data"] = base64.b64encode(data["thumbnail_data"]).decode("utf-8")
+            data["thumbnail_data"] = base64.b64encode(data["thumbnail_data"]).decode(
+                "utf-8"
+            )
 
         # Add metadata
         data["_source_mtime"] = mtime
