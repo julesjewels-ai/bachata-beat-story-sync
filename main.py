@@ -2,16 +2,18 @@
 Entry point for the Bachata Beat-Story Sync application.
 """
 import argparse
-import sys
 import logging
+import os
+import sys
+
+from pydantic import ValidationError
 from src.core.app import BachataSyncEngine
-from src.core.audio_analyzer import AudioAnalyzer, AudioAnalysisInput
+from src.core.audio_analyzer import AudioAnalysisInput, AudioAnalyzer
+from src.core.audio_mixer import SUPPORTED_AUDIO_EXTENSIONS as MIX_EXTS
+from src.core.audio_mixer import AudioMixer
 from src.core.models import PacingConfig
 from src.services.reporting import ExcelReportGenerator
 from src.ui.console import RichProgressObserver
-from pydantic import ValidationError
-import os
-from src.core.audio_mixer import AudioMixer, SUPPORTED_AUDIO_EXTENSIONS as MIX_EXTS
 
 
 def parse_args() -> argparse.Namespace:
@@ -91,12 +93,12 @@ def main() -> None:
         audio_path = args.audio
         if os.path.isdir(audio_path):
             valid_files = [
-                f for f in os.listdir(audio_path) 
-                if os.path.isfile(os.path.join(audio_path, f)) 
+                f for f in os.listdir(audio_path)
+                if os.path.isfile(os.path.join(audio_path, f))
                 and any(f.lower().endswith(ext.lower()) for ext in MIX_EXTS)
                 and f != "_mixed_audio.wav"
             ]
-            
+
             if len(valid_files) > 1:
                 logger.info("Multiple audio files detected. Mixing tracks...")
                 mixed_output = os.path.join(audio_path, "_mixed_audio.wav")
@@ -116,7 +118,7 @@ def main() -> None:
 
         # 2. Scan Videos
         logger.info("Scanning video library in: %s", args.video_dir)
-        
+
         broll_dir = args.broll_dir
         if not broll_dir:
             auto_broll_path = os.path.join(args.video_dir, "broll")

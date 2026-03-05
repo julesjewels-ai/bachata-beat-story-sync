@@ -8,7 +8,6 @@ import os
 import random
 import sys
 import uuid
-from typing import Tuple
 
 from pydantic import ValidationError
 
@@ -22,7 +21,7 @@ from src.ui.console import RichProgressObserver
 logger = logging.getLogger(__name__)
 
 
-def parse_duration(duration_str: str) -> Tuple[float, float]:
+def parse_duration(duration_str: str) -> tuple[float, float]:
     """Parses duration string like '60' or '10-15' into min and max floats."""
     if "-" in duration_str:
         parts = duration_str.split("-")

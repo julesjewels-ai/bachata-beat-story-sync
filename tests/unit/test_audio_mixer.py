@@ -5,7 +5,7 @@ Unit tests for the AudioMixer class.
 import os
 import shutil
 import tempfile
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from src.core.audio_mixer import AudioMixer
 

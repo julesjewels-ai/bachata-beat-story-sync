@@ -5,9 +5,7 @@ Audio mixer for combining multiple audio tracks.
 import logging
 import os
 import shutil
-import subprocess
 import tempfile
-from typing import List, Optional
 
 import yaml
 
@@ -24,7 +22,7 @@ DEFAULT_CONFIG_PATH = os.path.join(
 SUPPORTED_AUDIO_EXTENSIONS = {".mp3", ".wav", ".flac", ".aac"}
 
 
-def load_audio_mix_config(config_path: Optional[str] = None) -> AudioMixConfig:
+def load_audio_mix_config(config_path: str | None = None) -> AudioMixConfig:
     """
     Load audio mix configuration from YAML file.
     Falls back to AudioMixConfig defaults if missing or invalid.
@@ -32,7 +30,7 @@ def load_audio_mix_config(config_path: Optional[str] = None) -> AudioMixConfig:
     path = config_path if config_path else DEFAULT_CONFIG_PATH
     if os.path.exists(path):
         try:
-            with open(path, "r") as f:
+            with open(path) as f:
                 raw = yaml.safe_load(f) or {}
             mix_data = raw.get("audio_mix", {})
             return AudioMixConfig(**mix_data)
@@ -52,7 +50,7 @@ class AudioMixer:
         self,
         folder_path: str,
         output_path: str,
-        observer: Optional[ProgressObserver] = None,
+        observer: ProgressObserver | None = None,
     ) -> str:
         """
         Discovers supported audio files in the given folder, sorts them
@@ -86,7 +84,7 @@ class AudioMixer:
             audio_files, output_path, config.crossfade_duration_seconds, observer
         )
 
-    def _discover_audio_files(self, folder_path: str) -> List[str]:
+    def _discover_audio_files(self, folder_path: str) -> list[str]:
         """
         Find all supported audio files and format them alphanumerically.
         Explicitly excludes the output cache file (_mixed_audio.wav) so it
@@ -102,10 +100,10 @@ class AudioMixer:
 
     def _mix_files(
         self,
-        audio_files: List[str],
+        audio_files: list[str],
         output_path: str,
         crossfade_duration: float,
-        observer: Optional[ProgressObserver] = None,
+        observer: ProgressObserver | None = None,
     ) -> str:
         """
         Sequentially concatenates audio files using FFmpeg 'acrossfade' filter.
@@ -173,7 +171,7 @@ class AudioMixer:
             shutil.rmtree(temp_dir, ignore_errors=True)
 
     @staticmethod
-    def _run_ffmpeg(cmd: List[str], stage_name: str) -> None:
+    def _run_ffmpeg(cmd: list[str], stage_name: str) -> None:
         """Delegate to the shared FFmpeg runner."""
         from src.core.ffmpeg_utils import run_ffmpeg
 

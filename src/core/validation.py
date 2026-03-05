@@ -3,7 +3,7 @@ Common validation logic for file inputs.
 """
 
 import os
-from typing import Iterable
+from collections.abc import Iterable
 
 
 def validate_file_path(path: str, allowed_extensions: Iterable[str]) -> str:

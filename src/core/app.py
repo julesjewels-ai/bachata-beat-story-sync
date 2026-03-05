@@ -5,7 +5,6 @@ Handles audio analysis logic and video synchronization algorithms.
 
 import logging
 import os
-from typing import List, Optional
 
 from pydantic import ValidationError
 
@@ -33,9 +32,9 @@ class BachataSyncEngine:
     def scan_video_library(
         self,
         directory: str,
-        exclude_dirs: Optional[List[str]] = None,
-        observer: Optional[ProgressObserver] = None,
-    ) -> List[VideoAnalysisResult]:
+        exclude_dirs: list[str] | None = None,
+        observer: ProgressObserver | None = None,
+    ) -> list[VideoAnalysisResult]:
         """
         Scans a directory for video files and assigns a visual intensity score.
         """
@@ -62,8 +61,8 @@ class BachataSyncEngine:
         return clips
 
     def _collect_video_files(
-        self, directory: str, exclude_dirs: Optional[List[str]] = None
-    ) -> List[str]:
+        self, directory: str, exclude_dirs: list[str] | None = None
+    ) -> list[str]:
         """Recursively collects all supported video files in a directory."""
         exclude_dirs = (
             [os.path.abspath(d) for d in exclude_dirs] if exclude_dirs else []
@@ -90,7 +89,7 @@ class BachataSyncEngine:
                     collected.append(os.path.join(root, file))
         return collected
 
-    def _process_video_file(self, video_path: str) -> Optional[VideoAnalysisResult]:
+    def _process_video_file(self, video_path: str) -> VideoAnalysisResult | None:
         """Helper to process a single video file."""
         try:
             input_data = VideoAnalysisInput(file_path=video_path)
@@ -105,12 +104,12 @@ class BachataSyncEngine:
     def generate_story(
         self,
         audio_data: AudioAnalysisResult,
-        video_clips: List[VideoAnalysisResult],
+        video_clips: list[VideoAnalysisResult],
         output_path: str,
-        broll_clips: Optional[List[VideoAnalysisResult]] = None,
-        audio_path: Optional[str] = None,
-        observer: Optional[ProgressObserver] = None,
-        pacing: Optional[PacingConfig] = None,
+        broll_clips: list[VideoAnalysisResult] | None = None,
+        audio_path: str | None = None,
+        observer: ProgressObserver | None = None,
+        pacing: PacingConfig | None = None,
     ) -> str:
         """
         Syncs clips to audio data and generates a montage video.

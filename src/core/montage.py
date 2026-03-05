@@ -15,14 +15,12 @@ import shutil
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import List, Optional, Tuple
 
 import yaml
 
 from src.core.interfaces import ProgressObserver
 from src.core.models import (
     AudioAnalysisResult,
-    MusicalSection,
     PacingConfig,
     SegmentPlan,
     VideoAnalysisResult,
@@ -43,7 +41,7 @@ DEFAULT_CONFIG_PATH = Path(__file__).resolve().parents[2] / "montage_config.yaml
 
 
 def load_pacing_config(
-    config_path: Optional[str] = None,
+    config_path: str | None = None,
 ) -> PacingConfig:
     """
     Load pacing configuration from YAML file.
@@ -60,7 +58,7 @@ def load_pacing_config(
 
     if path.exists():
         try:
-            with open(path, "r") as f:
+            with open(path) as f:
                 raw = yaml.safe_load(f) or {}
             pacing_data = raw.get("pacing", {})
             config = PacingConfig(**pacing_data)
@@ -87,9 +85,9 @@ class MontageGenerator:
 
     @staticmethod
     def _prepare_clips(
-        video_clips: List[VideoAnalysisResult],
+        video_clips: list[VideoAnalysisResult],
         config: PacingConfig,
-    ) -> Tuple[List[VideoAnalysisResult], List[VideoAnalysisResult]]:
+    ) -> tuple[list[VideoAnalysisResult], list[VideoAnalysisResult]]:
         """
         Deduplicate, separate forced clips, and sort regular clips.
 
@@ -135,7 +133,7 @@ class MontageGenerator:
 
     @staticmethod
     def _build_intensity_pools(
-        clips: List[VideoAnalysisResult],
+        clips: list[VideoAnalysisResult],
         config: PacingConfig,
     ) -> dict:
         """
@@ -202,7 +200,7 @@ class MontageGenerator:
         beat_idx: int,
         spb: float,
         min_beats: int,
-    ) -> Tuple[int, str, float]:
+    ) -> tuple[int, str, float]:
         """
         Determine target beats, intensity level string, and playback speed.
 
@@ -244,10 +242,10 @@ class MontageGenerator:
     def build_segment_plan(
         self,
         audio_data: AudioAnalysisResult,
-        video_clips: List[VideoAnalysisResult],
-        pacing: Optional[PacingConfig] = None,
-        broll_clips: Optional[List[VideoAnalysisResult]] = None,
-    ) -> List[SegmentPlan]:
+        video_clips: list[VideoAnalysisResult],
+        pacing: PacingConfig | None = None,
+        broll_clips: list[VideoAnalysisResult] | None = None,
+    ) -> list[SegmentPlan]:
         """
         Build a timeline of clip segments from audio beat/intensity data.
 
@@ -292,7 +290,7 @@ class MontageGenerator:
             len(pools["low"]),
         )
 
-        segments: List[SegmentPlan] = []
+        segments: list[SegmentPlan] = []
         timeline_pos = 0.0
         beat_idx = 0
         clip_idx = 0
@@ -419,12 +417,12 @@ class MontageGenerator:
     def generate(
         self,
         audio_data: AudioAnalysisResult,
-        video_clips: List[VideoAnalysisResult],
+        video_clips: list[VideoAnalysisResult],
         output_path: str,
-        audio_path: Optional[str] = None,
-        observer: Optional[ProgressObserver] = None,
-        pacing: Optional[PacingConfig] = None,
-        broll_clips: Optional[List[VideoAnalysisResult]] = None,
+        audio_path: str | None = None,
+        observer: ProgressObserver | None = None,
+        pacing: PacingConfig | None = None,
+        broll_clips: list[VideoAnalysisResult] | None = None,
     ) -> str:
         """
         Generate a montage video synchronized to the audio.
@@ -550,18 +548,18 @@ class MontageGenerator:
 
     def _extract_segments(
         self,
-        segments: List[SegmentPlan],
+        segments: list[SegmentPlan],
         temp_dir: str,
         config: PacingConfig,
-        observer: Optional[ProgressObserver] = None,
-    ) -> List[str]:
+        observer: ProgressObserver | None = None,
+    ) -> list[str]:
         """
         Extract each segment from its source video using FFmpeg.
 
         Only ONE FFmpeg process runs at a time. Each completes and
         releases all resources before the next starts.
         """
-        segment_files: List[str] = []
+        segment_files: list[str] = []
         total = len(segments)
 
         for i, seg in enumerate(segments):
@@ -603,7 +601,7 @@ class MontageGenerator:
             if config.is_shorts:
                 # Crop center to 9:16 aspect ratio (safe for both horizontal drop-ins and slight vertical variances)
                 vf_parts = [
-                    f"crop='min(iw,ih*9/16)':'min(ih,iw*16/9)'",
+                    "crop='min(iw,ih*9/16)':'min(ih,iw*16/9)'",
                     f"scale={t_width}:{t_height}",
                 ]
             else:
@@ -653,8 +651,8 @@ class MontageGenerator:
 
     @staticmethod
     def _group_segments_by_section(
-        segments: List[SegmentPlan],
-    ) -> List[List[SegmentPlan]]:
+        segments: list[SegmentPlan],
+    ) -> list[list[SegmentPlan]]:
         """
         Group consecutive segments that share the same section_label.
 
@@ -665,8 +663,8 @@ class MontageGenerator:
         if not segments:
             return []
 
-        groups: List[List[SegmentPlan]] = []
-        current_group: List[SegmentPlan] = [segments[0]]
+        groups: list[list[SegmentPlan]] = []
+        current_group: list[SegmentPlan] = [segments[0]]
 
         for seg in segments[1:]:
             if seg.section_label == current_group[-1].section_label:
@@ -678,7 +676,7 @@ class MontageGenerator:
         groups.append(current_group)
         return groups
 
-    def _concatenate_segments(self, segment_files: List[str], output_path: str) -> None:
+    def _concatenate_segments(self, segment_files: list[str], output_path: str) -> None:
         """
         Concatenate extracted segments using FFmpeg concat demuxer.
 
@@ -714,7 +712,7 @@ class MontageGenerator:
 
     def _apply_transitions(
         self,
-        group_files: List[str],
+        group_files: list[str],
         output_path: str,
         transition_type: str,
         transition_duration: float,
@@ -866,7 +864,7 @@ class MontageGenerator:
         self._run_ffmpeg(cmd, "audio overlay")
 
     @staticmethod
-    def _run_ffmpeg(cmd: List[str], stage_name: str) -> None:
+    def _run_ffmpeg(cmd: list[str], stage_name: str) -> None:
         """Delegate to the shared FFmpeg runner."""
         from src.core.ffmpeg_utils import run_ffmpeg
 
