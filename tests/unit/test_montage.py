@@ -499,7 +499,9 @@ class TestFFmpegOrchestration:
             f.write("fake video data")
 
         generator.generate(
-            audio_data, video_clips, output_path,
+            audio_data,
+            video_clips,
+            output_path,
             audio_path="/audio/song.wav",
         )
 
