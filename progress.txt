@@ -1,0 +1,5 @@
+1. Added PacingConfig properties `audio_overlay` and `audio_overlay_opacity`.
+2. Implemented `-filter_complex` overlay commands using `showwaves` and `showcqt` in `MontageGenerator._overlay_audio`.
+3. Added `--audio-overlay` argument to `main.py` and `src/shorts_maker.py`.
+4. Wrote unit tests for `_overlay_audio` in `tests/unit/test_audio_overlay.py`.
+5. Validated tests, mypy, and ruff checks pass.

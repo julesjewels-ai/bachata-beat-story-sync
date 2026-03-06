@@ -76,6 +76,13 @@ def parse_args() -> argparse.Namespace:
         help="Color grading style: none, bw, vintage, warm, cool",
     )
     parser.add_argument(
+        "--audio-overlay",
+        type=str,
+        default=None,
+        choices=["none", "waveform", "bars"],
+        help="Audio-reactive overlay type: none, waveform, bars",
+    )
+    parser.add_argument(
         "--version",
         action="version",
         version="%(prog)s 0.1.0"
@@ -155,6 +162,8 @@ def main() -> None:
             pacing_kwargs["max_duration_seconds"] = max_duration
         if args.video_style:
             pacing_kwargs["video_style"] = args.video_style
+        if getattr(args, "audio_overlay", None):
+            pacing_kwargs["audio_overlay"] = args.audio_overlay
 
         if pacing_kwargs:
             pacing = PacingConfig(**pacing_kwargs)

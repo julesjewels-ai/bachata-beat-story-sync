@@ -535,7 +535,7 @@ class MontageGenerator:
 
             # 4. Overlay audio (or just copy if no audio)
             if audio_path and os.path.exists(audio_path):
-                self._overlay_audio(concat_path, audio_path, output_path)
+                self._overlay_audio(concat_path, audio_path, output_path, config)
             else:
                 shutil.move(concat_path, output_path)
 
@@ -847,12 +847,18 @@ class MontageGenerator:
             return 0.0
 
     def _overlay_audio(
-        self, video_path: str, audio_path: str, output_path: str
+        self,
+        video_path: str,
+        audio_path: str,
+        output_path: str,
+        config: PacingConfig,
     ) -> None:
         """
         Replace the video's audio track with the original song.
 
         Trims audio to match video duration automatically via -shortest.
+        If config.audio_overlay is enabled, applies an audio-reactive
+        overlay which requires re-encoding the video.
         """
         cmd = [
             "ffmpeg",
@@ -861,17 +867,56 @@ class MontageGenerator:
             video_path,  # Video (no audio)
             "-i",
             audio_path,  # Audio source
-            "-c:v",
-            "copy",  # Don't re-encode video
-            "-c:a",
-            "aac",  # Encode audio to AAC
-            "-b:a",
-            "192k",  # Good audio quality
-            "-shortest",  # Trim to shorter stream
-            "-movflags",
-            "+faststart",
-            output_path,
         ]
+
+        # Use filter_complex for waveform overlays
+        if config.audio_overlay in ["waveform", "bars"]:
+            width = 1080 if config.is_shorts else TARGET_WIDTH
+            opacity = config.audio_overlay_opacity
+
+            if config.audio_overlay == "waveform":
+                filter_str = (
+                    f"[1:a]showwaves=s={width}x280:mode=line:colors=White@{opacity}[wave];"
+                    f"[0:v][wave]overlay=0:H-h[outv]"
+                )
+            else:  # bars
+                # showcqt doesn't support @opacity natively in its color options as
+                # cleanly, but we can use format=rgba and colorchannelmixer to set
+                # opacity. Actually, standard bars (showcqt) overlay can use blend
+                # or colorchannelmixer. Let's use colorchannelmixer.
+                filter_str = (
+                    f"[1:a]showcqt=s={width}x280,format=rgba,"
+                    f"colorchannelmixer=aa={opacity}[bars];"
+                    f"[0:v][bars]overlay=0:H-h[outv]"
+                )
+
+            cmd.extend([
+                "-filter_complex", filter_str,
+                "-map", "[outv]",
+                "-map", "1:a",
+                "-c:v", "libx264",
+                "-preset", "fast",
+                "-crf", "23",
+                "-pix_fmt", "yuv420p",
+            ])
+            logger.info(
+                "Applying audio overlay: %s (requires re-encoding)",
+                config.audio_overlay
+            )
+        else:
+            # Standard copy (no overlay)
+            cmd.extend([
+                "-c:v", "copy",
+            ])
+
+        # Common audio and output settings
+        cmd.extend([
+            "-c:a", "aac",
+            "-b:a", "192k",
+            "-shortest",
+            "-movflags", "+faststart",
+            output_path,
+        ])
 
         self._run_ffmpeg(cmd, "audio overlay")
 
