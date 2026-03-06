@@ -15,6 +15,8 @@ from src.core.app import BachataSyncEngine
 from src.core.audio_analyzer import AudioAnalysisInput, AudioAnalyzer
 from src.core.audio_mixer import resolve_audio_path
 from src.core.models import PacingConfig
+from src.core.video_analyzer import VideoAnalyzer
+from src.services.persistence import CachedVideoAnalyzer, FileAnalysisRepository
 from src.ui.console import RichProgressObserver
 
 logger = logging.getLogger(__name__)
@@ -110,7 +112,11 @@ def main() -> None:
 
     os.makedirs(args.output_dir, exist_ok=True)
 
-    engine = BachataSyncEngine()
+    # Wire dependencies
+    repository = FileAnalysisRepository()
+    base_analyzer = VideoAnalyzer()
+    cached_analyzer = CachedVideoAnalyzer(base_analyzer, repository)
+    engine = BachataSyncEngine(video_analyzer=cached_analyzer)
     audio_analyzer = AudioAnalyzer()
 
     try:
