@@ -44,7 +44,7 @@ class FileAnalysisRepository(AnalysisRepositoryProtocol):
         """Generates a stable cache file path based on the absolute video path."""
         # Use MD5 hash of the absolute path to create a unique, safe filename
         abs_path = os.path.abspath(video_path)
-        path_hash = hashlib.md5(abs_path.encode('utf-8')).hexdigest()
+        path_hash = hashlib.md5(abs_path.encode("utf-8")).hexdigest()
         return os.path.join(self.cache_dir, f"{path_hash}.json")
 
     def get_video_analysis(self, video_path: str) -> VideoAnalysisResult | None:

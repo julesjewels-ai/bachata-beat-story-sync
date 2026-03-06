@@ -13,6 +13,7 @@ from src.services.persistence import CachedVideoAnalyzer, FileAnalysisRepository
 
 class DummyInput(VideoAnalysisInputProtocol):
     """Dummy input for testing."""
+
     def __init__(self, file_path: str):
         self.file_path = file_path
 

@@ -11,6 +11,7 @@ class VideoAnalysisInputProtocol(Protocol):
     """
     Protocol for video analysis input.
     """
+
     file_path: str
 
 
