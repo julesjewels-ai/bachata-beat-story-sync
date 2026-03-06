@@ -37,7 +37,7 @@ jobs:
       run: |
         uv venv
         uv pip install -r requirements.txt
-        uv pip install ruff pytest mypy types-PyYAML types-openpyxl
+        uv pip install ruff pytest mypy types-PyYAML types-openpyxl pytest-mock
 
     - name: Check formatting
       run: uv run ruff format --check src/ tests/
