@@ -9,6 +9,7 @@ import cv2
 import numpy as np
 from pydantic import BaseModel, Field, field_validator
 
+from src.core.interfaces import VideoAnalysisInputProtocol
 from src.core.models import VideoAnalysisResult
 from src.core.validation import validate_file_path
 
@@ -46,7 +47,7 @@ class VideoAnalyzer:
     Analyzes video files to determine their visual intensity and other metrics.
     """
 
-    def analyze(self, input_data: VideoAnalysisInput) -> VideoAnalysisResult:
+    def analyze(self, input_data: VideoAnalysisInputProtocol) -> VideoAnalysisResult:
         """
         Analyzes a video file to calculate a visual intensity score.
 

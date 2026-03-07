@@ -11,6 +11,8 @@ from src.core.app import BachataSyncEngine
 from src.core.audio_analyzer import AudioAnalysisInput, AudioAnalyzer
 from src.core.audio_mixer import resolve_audio_path
 from src.core.models import PacingConfig
+from src.core.video_analyzer import VideoAnalyzer
+from src.services.persistence import CachedVideoAnalyzer, FileAnalysisRepository
 from src.services.reporting import ExcelReportGenerator
 from src.ui.console import RichProgressObserver
 
@@ -93,7 +95,11 @@ def main() -> None:
     logger = logging.getLogger(__name__)
     logger.info("Starting Bachata Beat-Story Sync...")
 
-    engine = BachataSyncEngine()
+    video_analyzer = CachedVideoAnalyzer(
+        analyzer=VideoAnalyzer(),
+        repository=FileAnalysisRepository(),
+    )
+    engine = BachataSyncEngine(video_analyzer=video_analyzer)
     audio_analyzer = AudioAnalyzer()
 
     try:

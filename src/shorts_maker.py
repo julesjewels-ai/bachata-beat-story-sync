@@ -15,6 +15,8 @@ from src.core.app import BachataSyncEngine
 from src.core.audio_analyzer import AudioAnalysisInput, AudioAnalyzer
 from src.core.audio_mixer import resolve_audio_path
 from src.core.models import PacingConfig
+from src.core.video_analyzer import VideoAnalyzer
+from src.services.persistence import CachedVideoAnalyzer, FileAnalysisRepository
 from src.ui.console import RichProgressObserver
 
 logger = logging.getLogger(__name__)
@@ -36,8 +38,7 @@ def parse_duration(duration_str: str) -> tuple[float, float]:
         return val, val
     except ValueError:
         raise argparse.ArgumentTypeError(
-            f"Invalid duration format: '{duration_str}'."
-            " Use '60' or '10-15'."
+            f"Invalid duration format: '{duration_str}'. Use '60' or '10-15'."
         ) from None
 
 
@@ -110,7 +111,11 @@ def main() -> None:
 
     os.makedirs(args.output_dir, exist_ok=True)
 
-    engine = BachataSyncEngine()
+    video_analyzer = CachedVideoAnalyzer(
+        analyzer=VideoAnalyzer(),
+        repository=FileAnalysisRepository(),
+    )
+    engine = BachataSyncEngine(video_analyzer=video_analyzer)
     audio_analyzer = AudioAnalyzer()
 
     try:
