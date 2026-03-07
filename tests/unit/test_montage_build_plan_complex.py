@@ -70,7 +70,8 @@ def mock_audio_data() -> AudioAnalysisResult:
 
 
 @pytest.mark.parametrize(
-    "pacing_kwargs, audio_kwargs, broll_enabled, expected_len, validation_fn, mock_video_clips_override",
+    "pacing_kwargs, audio_kwargs, broll_enabled, expected_len, "
+    "validation_fn, mock_video_clips_override",
     [
         # Case 1: Hit config.max_clips limit
         (
