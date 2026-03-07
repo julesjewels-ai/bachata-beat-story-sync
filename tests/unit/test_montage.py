@@ -1073,7 +1073,7 @@ class TestVideoStyleFilters:
         from pydantic import ValidationError
 
         with pytest.raises(ValidationError):
-            PacingConfig(video_style="neon")
+            PacingConfig(video_style="neon")  # type: ignore[arg-type]
 
     def test_load_video_style_from_yaml(self, tmp_path):
         """video_style is correctly loaded from YAML config."""
