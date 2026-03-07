@@ -196,6 +196,8 @@ def test_build_segment_plan_complex(
 
     # Assert
     if expected_len is not None:
-        assert len(segments) == expected_len, f"Expected length {expected_len}, got {len(segments)}"
+        assert len(segments) == expected_len, (
+            f"Expected length {expected_len}, got {len(segments)}"
+        )
 
     assert validation_fn(segments) is True, "Validation function failed for segments."
