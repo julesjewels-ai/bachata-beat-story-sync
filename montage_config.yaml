@@ -45,3 +45,8 @@ pacing:
   # Video style — applies a uniform color grade to all clips
   # Options: 'none', 'bw' (black & white), 'vintage', 'warm', 'cool'
   video_style: warm
+
+  # Audio Overlay Visualizer (FEAT-013)
+  # Options: 'none', 'waveform' (line), 'bars' (frequency bars)
+  # audio_overlay: none
+  # audio_overlay_opacity: 0.5

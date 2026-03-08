@@ -1193,3 +1193,50 @@ class TestVideoStyleFilters:
                         f"Unexpected color filter '{f_name}' found when "
                         f"video_style='none'"
                     )
+
+class TestAudioOverlay:
+    """Tests for FEAT-013: Music-Synced Waveform Overlay."""
+
+    def test_audio_overlay_default_pacing_config(self):
+        """Default audio_overlay is 'none'."""
+        config = PacingConfig()
+        assert config.audio_overlay == "none"
+        assert config.audio_overlay_opacity == 0.5
+
+    def test_validates_audio_overlay_literals(self):
+        """Invalid audio_overlay values are rejected by Pydantic."""
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            PacingConfig(audio_overlay="invalid-type")
+
+    @patch("src.core.montage.subprocess.run")
+    def test_overlay_audio_uses_copy_when_none(self, mock_run, generator):
+        """When audio_overlay is 'none', uses fast stream copy."""
+        mock_run.return_value = MagicMock(returncode=0, stderr="")
+        config = PacingConfig(audio_overlay="none")
+
+        generator._overlay_audio("in.mp4", "audio.wav", "out.mp4", config)
+
+        cmd = mock_run.call_args[0][0]
+        cmd_str = " ".join(str(x) for x in cmd)
+        
+        assert "-c:v copy" in cmd_str
+        assert "-filter_complex" not in cmd_str
+
+    @patch("src.core.montage.subprocess.run")
+    def test_overlay_audio_uses_filter_complex_waveform(self, mock_run, generator):
+        """When audio_overlay is 'waveform', uses filter_complex and visualizer filters."""
+        mock_run.return_value = MagicMock(returncode=0, stderr="")
+        config = PacingConfig(audio_overlay="waveform")
+
+        generator._overlay_audio("in.mp4", "audio.wav", "out.mp4", config)
+
+        cmd = mock_run.call_args[0][0]
+        cmd_str = " ".join(str(x) for x in cmd)
+        
+        assert "-filter_complex" in cmd_str
+        assert "showwaves=" in cmd_str
+        # Does not run fast stream copy
+        assert "-c:v copy" not in cmd_str
+        assert "-c:v libx264" in cmd_str

@@ -290,7 +290,7 @@ Apply a named color-grading filter to every segment during FFmpeg extraction. Th
 
 | Field        | Value                                                |
 |--------------|------------------------------------------------------|
-| **Status**   | `PROPOSED`                                           |
+| **Status**   | `IMPLEMENTED`                                        |
 | **Priority** | 🟢 Low                                                |
 | **Effort**   | Medium                                               |
 | **Impact**   | Medium — eye-catching visual element for social video |

@@ -96,6 +96,19 @@ def parse_args() -> argparse.Namespace:
         choices=["none", "bw", "vintage", "warm", "cool"],
         help="Color grading style: none, bw, vintage, warm, cool",
     )
+    parser.add_argument(
+        "--audio-overlay",
+        type=str,
+        default=None,
+        choices=["none", "waveform", "bars"],
+        help="Music-synced visualizer pattern: none, waveform, bars",
+    )
+    parser.add_argument(
+        "--audio-overlay-opacity",
+        type=float,
+        default=None,
+        help="Opacity of the audio visualizer block (0.0 to 1.0)",
+    )
 
     return parser.parse_args()
 
@@ -166,6 +179,10 @@ def main() -> None:
             }
             if args.video_style:
                 pacing_kwargs["video_style"] = args.video_style
+            if args.audio_overlay:
+                pacing_kwargs["audio_overlay"] = args.audio_overlay
+            if args.audio_overlay_opacity is not None:
+                pacing_kwargs["audio_overlay_opacity"] = args.audio_overlay_opacity
 
             pacing = PacingConfig(**pacing_kwargs)
 

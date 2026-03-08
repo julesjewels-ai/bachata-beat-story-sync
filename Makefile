@@ -4,6 +4,9 @@ BIN = $(VENV)/bin
 TEST_MODE ?=
 MAX_CLIPS ?=
 MAX_DURATION ?=
+VIDEO_STYLE ?=
+AUDIO_OVERLAY ?=
+AUDIO_OVERLAY_OPACITY ?=
 
 # Build optional flags
 EXTRA_FLAGS =
@@ -18,6 +21,18 @@ endif
 
 ifneq ($(MAX_DURATION),)
   EXTRA_FLAGS += --max-duration $(MAX_DURATION)
+endif
+
+ifneq ($(VIDEO_STYLE),)
+  EXTRA_FLAGS += --video-style $(VIDEO_STYLE)
+endif
+
+ifneq ($(AUDIO_OVERLAY),)
+  EXTRA_FLAGS += --audio-overlay $(AUDIO_OVERLAY)
+endif
+
+ifneq ($(AUDIO_OVERLAY_OPACITY),)
+  EXTRA_FLAGS += --audio-overlay-opacity $(AUDIO_OVERLAY_OPACITY)
 endif
 
 .PHONY: install run test lint format check-types clean
