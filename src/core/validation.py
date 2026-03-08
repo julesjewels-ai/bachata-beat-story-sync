@@ -16,8 +16,7 @@ def _resolve_directory_file(path: str, allowed_exts: set[str]) -> str:
     ]
     if not valid_files:
         raise ValueError(
-            f"No valid file found in directory {path}"
-            f" with extensions {allowed_exts}"
+            f"No valid file found in directory {path} with extensions {allowed_exts}"
         )
     if len(valid_files) > 1:
         raise ValueError(
