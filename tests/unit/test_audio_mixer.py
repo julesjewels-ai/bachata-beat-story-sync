@@ -122,7 +122,7 @@ def test_mix_audio_folder_caching():
 
         mixer = AudioMixer()
         # Mocking discover to ensure we don't actually process
-        with patch.object(mixer, '_discover_audio_files') as mock_discover:
+        with patch.object(mixer, "_discover_audio_files") as mock_discover:
             result = mixer.mix_audio_folder(temp_dir, output_file)
 
             assert result == output_file
@@ -182,4 +182,3 @@ def test_resolve_audio_path_dir_multiple_files_triggers_mix(mock_mix):
         assert result == expected_output
     finally:
         shutil.rmtree(temp_dir)
-

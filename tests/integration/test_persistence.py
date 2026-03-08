@@ -84,4 +84,4 @@ def test_cached_video_analyzer_cache_miss_and_hit(
     result2 = cached_analyzer.analyze(input_data)
 
     assert result2 == sample_video_result
-    mock_analyzer.analyze.assert_called_once() # Still only called once
+    mock_analyzer.analyze.assert_called_once()  # Still only called once
