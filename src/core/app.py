@@ -8,7 +8,7 @@ import os
 
 from pydantic import ValidationError
 
-from src.core.interfaces import ProgressObserver
+from src.core.interfaces import ProgressObserver, VideoAnalyzerProtocol
 from src.core.models import AudioAnalysisResult, PacingConfig, VideoAnalysisResult
 from src.core.montage import MontageGenerator
 from src.core.video_analyzer import (
@@ -25,8 +25,10 @@ class BachataSyncEngine:
     The main engine responsible for syncing video segments to audio.
     """
 
-    def __init__(self) -> None:
-        self.video_analyzer = VideoAnalyzer()
+    def __init__(
+        self, video_analyzer: VideoAnalyzerProtocol | None = None
+    ) -> None:
+        self.video_analyzer = video_analyzer or VideoAnalyzer()
         self.montage_generator = MontageGenerator()
 
     def scan_video_library(
