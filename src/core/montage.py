@@ -535,7 +535,7 @@ class MontageGenerator:
 
             # 4. Overlay audio (or just copy if no audio)
             if audio_path and os.path.exists(audio_path):
-                self._overlay_audio(concat_path, audio_path, output_path)
+                self._overlay_audio(concat_path, audio_path, output_path, config)
             else:
                 shutil.move(concat_path, output_path)
 
@@ -847,31 +847,85 @@ class MontageGenerator:
             return 0.0
 
     def _overlay_audio(
-        self, video_path: str, audio_path: str, output_path: str
+        self,
+        video_path: str,
+        audio_path: str,
+        output_path: str,
+        config: PacingConfig,
     ) -> None:
         """
         Replace the video's audio track with the original song.
 
         Trims audio to match video duration automatically via -shortest.
+        Applies a music-synced audio overlay if configured.
         """
-        cmd = [
-            "ffmpeg",
-            "-y",
-            "-i",
-            video_path,  # Video (no audio)
-            "-i",
-            audio_path,  # Audio source
-            "-c:v",
-            "copy",  # Don't re-encode video
-            "-c:a",
-            "aac",  # Encode audio to AAC
-            "-b:a",
-            "192k",  # Good audio quality
-            "-shortest",  # Trim to shorter stream
-            "-movflags",
-            "+faststart",
-            output_path,
-        ]
+        if config.audio_overlay == "none":
+            cmd = [
+                "ffmpeg",
+                "-y",
+                "-i",
+                video_path,  # Video (no audio)
+                "-i",
+                audio_path,  # Audio source
+                "-c:v",
+                "copy",  # Don't re-encode video
+                "-c:a",
+                "aac",  # Encode audio to AAC
+                "-b:a",
+                "192k",  # Good audio quality
+                "-shortest",  # Trim to shorter stream
+                "-movflags",
+                "+faststart",
+                output_path,
+            ]
+        else:
+            width = 1080 if config.is_shorts else 1920
+            opacity = config.audio_overlay_opacity
+
+            # The literal types guarantee audio_overlay is 'waveform' or 'bars'
+            if config.audio_overlay == "waveform":
+                filter_complex = (
+                    f"[1:a]showwaves=s={width}x280:mode=line:"
+                    f"colors=White@{opacity}[wave];"
+                    f"[0:v][wave]overlay=0:H-h[outv]"
+                )
+            else:  # bars
+                filter_complex = (
+                    f"[1:a]showcqt=s={width}x280:"
+                    f"bar_g=2:bar_v=9:sono_h=0:axis_h=0:"
+                    f"tc=0:text=0:basefreq=50:endfreq=10000"
+                    f",format=rgba,colorchannelmixer=aa={opacity}[bars];"
+                    f"[0:v][bars]overlay=0:H-h[outv]"
+                )
+
+            cmd = [
+                "ffmpeg",
+                "-y",
+                "-i",
+                video_path,
+                "-i",
+                audio_path,
+                "-filter_complex",
+                filter_complex,
+                "-map",
+                "[outv]",
+                "-map",
+                "1:a",
+                "-c:v",
+                "libx264",
+                "-preset",
+                "fast",
+                "-crf",
+                "23",
+                "-c:a",
+                "aac",
+                "-b:a",
+                "192k",
+                "-shortest",
+                "-movflags",
+                "+faststart",
+                output_path,
+            ]
 
         self._run_ffmpeg(cmd, "audio overlay")
 

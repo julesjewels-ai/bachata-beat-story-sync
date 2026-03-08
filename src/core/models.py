@@ -215,6 +215,16 @@ class PacingConfig(BaseModel):
         "Options: 'none', 'bw', 'vintage', 'warm', 'cool'",
     )
 
+    # Music-Synced Waveform Overlay (FEAT-013)
+    audio_overlay: Literal["none", "waveform", "bars"] = Field(
+        "none",
+        description="Audio-reactive overlay type. Options: 'none', 'waveform', 'bars'",
+    )
+    audio_overlay_opacity: float = Field(
+        0.5,
+        description="Opacity of the audio overlay (0.0 to 1.0)",
+    )
+
 
 class AudioMixConfig(BaseModel):
     """
