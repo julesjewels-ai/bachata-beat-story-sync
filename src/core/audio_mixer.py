@@ -75,9 +75,7 @@ def resolve_audio_path(
         logger.info("Multiple audio files detected. Mixing tracks...")
         mixed_output = os.path.join(audio_path, "_mixed_audio.wav")
         mixer = AudioMixer()
-        audio_path = mixer.mix_audio_folder(
-            audio_path, mixed_output, observer=observer
-        )
+        audio_path = mixer.mix_audio_folder(audio_path, mixed_output, observer=observer)
         logger.info("Mixed audio saved to: %s", audio_path)
 
     return audio_path

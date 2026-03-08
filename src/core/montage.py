@@ -376,7 +376,7 @@ class MontageGenerator:
                 # Deterministic per-segment offset using clip path + usage index + seed
                 seed_str = f"{config.seed}:{clip.path}:{clip_idx}"
                 seed = int(
-                    hashlib.md5(seed_str.encode()).hexdigest()[:8],
+                    hashlib.md5(seed_str.encode(), usedforsecurity=False).hexdigest()[:8],
                     16,
                 )
                 start_time = (seed % int(max_start * 1000)) / 1000.0

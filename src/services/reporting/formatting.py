@@ -3,7 +3,6 @@ Formatting service for Excel reports.
 Handles styles, column sizing, and conditional formatting.
 """
 
-
 from openpyxl.formatting.rule import ColorScaleRule
 from openpyxl.styles import Alignment, Font
 from openpyxl.utils import get_column_letter

@@ -64,13 +64,16 @@ class BachataSyncEngine:
         self, directory: str, exclude_dirs: list[str] | None = None
     ) -> list[str]:
         """Recursively collects all supported video files in a directory."""
+        # Ensure exclude dirs are absolute and append separator to prevent
+        # partial matches. e.g. excluding '/tmp/dir' should not exclude '/tmp/dir_not'
         exclude_dirs = (
-            [os.path.abspath(d) for d in exclude_dirs] if exclude_dirs else []
+            [os.path.abspath(d) + os.sep for d in exclude_dirs] if exclude_dirs else []
         )
         collected = []
         for root, dirs, files in os.walk(directory):
+            root_abs = os.path.abspath(root) + os.sep
             # Skip excluded directories
-            if any(os.path.abspath(root).startswith(ex_dir) for ex_dir in exclude_dirs):
+            if any(root_abs.startswith(ex_dir) for ex_dir in exclude_dirs):
                 # Don't mutate dirs here, just skip the files
                 continue
 
@@ -80,7 +83,7 @@ class BachataSyncEngine:
                 d
                 for d in dirs
                 if not any(
-                    os.path.abspath(os.path.join(root, d)).startswith(ex_dir)
+                    (os.path.abspath(os.path.join(root, d)) + os.sep).startswith(ex_dir)
                     for ex_dir in exclude_dirs
                 )
             ]
