@@ -225,6 +225,11 @@ class PacingConfig(BaseModel):
         0.5,
         description="Opacity of the audio visualizer block (0.0 to 1.0)"
     )
+    audio_overlay_position: Literal["left", "center", "right"] = Field(
+        "right",
+        description="Horizontal position of the audio overlay: "
+        "'left', 'center', 'right'",
+    )
 
 
 class AudioMixConfig(BaseModel):

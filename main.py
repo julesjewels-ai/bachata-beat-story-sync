@@ -89,6 +89,13 @@ def parse_args() -> argparse.Namespace:
         help="Opacity of the audio visualizer block (0.0 to 1.0)",
     )
     parser.add_argument(
+        "--audio-overlay-position",
+        type=str,
+        default=None,
+        choices=["left", "center", "right"],
+        help="Position of the audio overlay: left, center, right (default: right)",
+    )
+    parser.add_argument(
         "--version",
         action="version",
         version="%(prog)s 0.1.0"
@@ -172,6 +179,8 @@ def main() -> None:
             pacing_kwargs["audio_overlay"] = args.audio_overlay
         if args.audio_overlay_opacity is not None:
             pacing_kwargs["audio_overlay_opacity"] = args.audio_overlay_opacity
+        if args.audio_overlay_position:
+            pacing_kwargs["audio_overlay_position"] = args.audio_overlay_position
 
         if pacing_kwargs:
             pacing = PacingConfig(**pacing_kwargs)

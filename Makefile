@@ -7,6 +7,7 @@ MAX_DURATION ?=
 VIDEO_STYLE ?=
 AUDIO_OVERLAY ?=
 AUDIO_OVERLAY_OPACITY ?=
+AUDIO_OVERLAY_POSITION ?=
 
 # Build optional flags
 EXTRA_FLAGS =
@@ -33,6 +34,10 @@ endif
 
 ifneq ($(AUDIO_OVERLAY_OPACITY),)
   EXTRA_FLAGS += --audio-overlay-opacity $(AUDIO_OVERLAY_OPACITY)
+endif
+
+ifneq ($(AUDIO_OVERLAY_POSITION),)
+  EXTRA_FLAGS += --audio-overlay-position $(AUDIO_OVERLAY_POSITION)
 endif
 
 .PHONY: install run test lint format check-types clean

@@ -875,16 +875,34 @@ class MontageGenerator:
                 output_path,
             ]
         else:
-            width = 1080 if config.is_shorts else 1920
-            height = 280
+            video_width = 1080 if config.is_shorts else 1920
+            # Overlay takes up ~20% of the video width
+            overlay_w = int(video_width * 0.2)
+            overlay_h = 120
             opacity = max(0.0, min(1.0, config.audio_overlay_opacity))
+
+            # Compute X position
+            if config.audio_overlay_position == "left":
+                x_expr = "10"
+            elif config.audio_overlay_position == "center":
+                x_expr = f"(W-{overlay_w})/2"
+            else:  # right (default)
+                x_expr = f"W-{overlay_w}-10"
 
             if config.audio_overlay == "waveform":
                 # line-based waveform
-                f_str = f"[1:a]showwaves=s={width}x{height}:mode=line:colors=White@{opacity:.2f}[wave];[0:v][wave]overlay=0:H-h[outv]"
+                f_str = (
+                    f"[1:a]showwaves=s={overlay_w}x{overlay_h}"
+                    f":mode=line:colors=White@{opacity:.2f}[wave];"
+                    f"[0:v][wave]overlay={x_expr}:H-h-10[outv]"
+                )
             else:
                 # frequency bars
-                f_str = f"[1:a]showfreqs=s={width}x{height}:mode=bar:colors=White@{opacity:.2f}[bars];[0:v][bars]overlay=0:H-h[outv]"
+                f_str = (
+                    f"[1:a]showfreqs=s={overlay_w}x{overlay_h}"
+                    f":mode=bar:colors=White@{opacity:.2f}[bars];"
+                    f"[0:v][bars]overlay={x_expr}:H-h-10[outv]"
+                )
 
             cmd = [
                 "ffmpeg",

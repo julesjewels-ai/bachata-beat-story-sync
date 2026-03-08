@@ -323,3 +323,53 @@ Render a live audio-reactive waveform overlay onto the final output video using 
 ### Scope
 - **In scope:** `waveform` and `bars` overlays; opacity control; `montage_config.yaml` and CLI support.
 - **Out of scope:** Custom overlay position, colour, or font; per-beat sticker animations; Lottie/After Effects-style motion graphics.
+
+---
+
+## FEAT-014: Full Pipeline Orchestrator (Core)
+
+| Field        | Value                                                |
+|--------------|------------------------------------------------------|
+| **Status**   | `PLANNED`                                            |
+| **Priority** | 🔴 High                                              |
+| **Effort**   | Low–Medium                                           |
+| **Impact**   | High — single command to generate mix + separate tracks |
+
+### Description
+Create a new entry point (`src/pipeline.py`) that orchestrates the existing application classes. It should take a directory of audio tracks and:
+1. Use `AudioMixer` to mix them into a single track (cached).
+2. Generate a main music video for the combined mix.
+3. Automatically iterate through each individual track in the folder and generate a separate music video for each.
+
+Includes adding a `make full-pipeline` target.
+
+---
+
+## FEAT-015: Pipeline Shorts Integration
+
+| Field        | Value                                                |
+|--------------|------------------------------------------------------|
+| **Status**   | `PLANNED`                                            |
+| **Priority** | 🟡 Medium                                            |
+| **Effort**   | Low                                                  |
+| **Impact**   | High — completes the content generation package        |
+
+### Description
+Extend the `full-pipeline` orchestrator to also generate YouTube Shorts for each individual track. After the main horizontal video is generated for a track, the pipeline should instantly run the equivalent of `shorts_maker.py` logic N times (configured via `--shorts-count`) using the track's audio.
+
+---
+
+## FEAT-016: Shared Scan Optimization
+
+| Field        | Value                                                |
+|--------------|------------------------------------------------------|
+| **Status**   | `PLANNED`                                            |
+| **Priority** | 🟡 Medium                                            |
+| **Effort**   | Low                                                  |
+| **Impact**   | Medium — significantly improves processing speed       |
+
+### Description
+Provide a `--shared-scan` flag for the pipeline.
+- **Default (Independent Scan):** For every track (and the mix), the video library is re-scanned (or deep-copied) to ensure that the "used clips" history is fresh, guaranteeing maximum visual variety for each video.
+- **Shared Scan:** When enabled, the library is only scanned *once* at the beginning and that state is passed to all tracks. This avoids minutes of scanning overhead at the cost of less variety (if a clip is used in track 1, it might have the same offset in track 2).
+

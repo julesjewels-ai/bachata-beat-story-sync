@@ -50,3 +50,4 @@ pacing:
   # Options: 'none', 'waveform' (line), 'bars' (frequency bars)
   # audio_overlay: none
   # audio_overlay_opacity: 0.5
+  # audio_overlay_position: right
