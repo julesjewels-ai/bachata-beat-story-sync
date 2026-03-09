@@ -330,7 +330,7 @@ Render a live audio-reactive waveform overlay onto the final output video using 
 
 | Field        | Value                                                |
 |--------------|------------------------------------------------------|
-| **Status**   | `PLANNED`                                            |
+| **Status**   | `IMPLEMENTED`                                        |
 | **Priority** | 🔴 High                                              |
 | **Effort**   | Low–Medium                                           |
 | **Impact**   | High — single command to generate mix + separate tracks |
@@ -363,7 +363,7 @@ Includes adding a `make full-pipeline` target to `Makefile`.
 
 | Field        | Value                                                |
 |--------------|------------------------------------------------------|
-| **Status**   | `PLANNED`                                            |
+| **Status**   | `IMPLEMENTED`                                        |
 | **Priority** | 🟡 Medium                                            |
 | **Effort**   | Low                                                  |
 | **Impact**   | High — completes the content generation package        |
@@ -386,7 +386,7 @@ Extend the `full-pipeline` orchestrator to also generate YouTube Shorts for each
 
 | Field        | Value                                                |
 |--------------|------------------------------------------------------|
-| **Status**   | `PLANNED`                                            |
+| **Status**   | `IMPLEMENTED`                                        |
 | **Priority** | 🟡 Medium                                            |
 | **Effort**   | Low                                                  |
 | **Impact**   | Medium — significantly improves processing speed       |

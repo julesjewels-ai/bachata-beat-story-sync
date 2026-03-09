@@ -61,10 +61,10 @@ run:
 	$(BIN)/python main.py --audio "$(AUDIO)" --video-dir "$(VIDEO_DIR)" $(EXTRA_FLAGS)
 
 run-shorts:
-	$(BIN)/python src/shorts_maker.py --audio "$(AUDIO)" --video-dir "$(VIDEO_DIR)" --count $(SHORTS_COUNT) --duration "$(SHORTS_DURATION)" $(EXTRA_FLAGS)
+	$(BIN)/python -m src.shorts_maker --audio "$(AUDIO)" --video-dir "$(VIDEO_DIR)" --count $(SHORTS_COUNT) --duration "$(SHORTS_DURATION)" $(EXTRA_FLAGS)
 
 full-pipeline:
-	$(BIN)/python src/pipeline.py --audio "$(AUDIO)" --video-dir "$(VIDEO_DIR)" --output-dir "$(OUTPUT_DIR)" --shorts-count $(SHORTS_COUNT) --shorts-duration "$(SHORTS_DURATION)" $(EXTRA_FLAGS)
+	$(BIN)/python -m src.pipeline --audio "$(AUDIO)" --video-dir "$(VIDEO_DIR)" --output-dir "$(OUTPUT_DIR)" --shorts-count $(SHORTS_COUNT) --shorts-duration "$(SHORTS_DURATION)" $(EXTRA_FLAGS)
 
 test:
 	$(BIN)/pytest

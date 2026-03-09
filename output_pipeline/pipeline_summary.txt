@@ -1,0 +1,8 @@
+Pipeline complete in 1473s
+Total files generated: 5
+
+  output_pipeline/mix.mp4
+  output_pipeline/track_01_BBB_-_Orch_-_27_-_Bachata_para_Bailar_2026_-_Ritmo_Suave_y_Melodía_de_Violonchelo_🌹_#MusicaLatina_#BachataNueva.mp4
+  output_pipeline/shorts/track_01/short_001.mp4
+  output_pipeline/track_02_BBB_-_Orch_-_30_-_Amor_Eterno_-_La_Bachata_Romántica_más_Emocional_para_Recordar_y_Bailar_🌹.mp4
+  output_pipeline/shorts/track_02/short_001.mp4
