@@ -12,9 +12,16 @@ An automated video editing tool that analyzes Bachata audio tracks (`.wav` / `.m
 | Excel Analysis Reports with Charts & Thumbnails | ✅ |
 | Rich Console Progress Feedback | ✅ |
 | B-roll Clip Insertion | ✅ |
-| Slow-Motion Frame Interpolation | ✅ |
+| Slow-Motion Frame Interpolation (FEAT-010) | ✅ |
 | Forced Clip Sequence Ordering | ✅ |
-| Musical Section Segmentation | 🔜 Planned |
+| Musical Section Segmentation (FEAT-008) | ✅ |
+| Intensity-Matched Clip Selection (FEAT-009) | ✅ |
+| Section-Aware Transitions / xfade (FEAT-011) | ✅ |
+| Video Style / Color Grading (FEAT-012) | ✅ |
+| Audio-Reactive Visualizer Overlay (FEAT-013) | ✅ |
+| Full Pipeline Orchestrator (FEAT-014) | ✅ |
+| YouTube Shorts Batch Generator (FEAT-015) | ✅ |
+| Audio Track Mixing with Crossfades | ✅ |
 | Sentiment-based Clip Matching | 🔜 Planned |
 | Narrative Arc Construction | 🔜 Planned |
 | AI Multimodal Analysis (Gemini) | 🔜 Planned |
@@ -38,14 +45,20 @@ cd bachata-beat-story-sync
 make install
 source venv/bin/activate
 
-# Run
+# Single-track montage
 python main.py --audio my_track.wav --video-dir ./clips/
 
 # With Excel report
 python main.py --audio my_track.wav --video-dir ./clips/ --export-report report.xlsx
 
-# With explicit B-roll directory
-python main.py --audio my_track.wav --video-dir ./clips/ --broll-dir ./broll/
+# With B-roll and video style
+python main.py --audio my_track.wav --video-dir ./clips/ --broll-dir ./broll/ --video-style vintage
+
+# Full pipeline — mix + individual videos + shorts (recommended)
+make full-pipeline AUDIO=./tracks/ VIDEO_DIR=./clips/ TEST_MODE=1
+
+# YouTube Shorts only
+make run-shorts AUDIO=my_track.wav VIDEO_DIR=./clips/ SHORTS_COUNT=3
 
 # Test mode (limits to max 4 clips and 10s of music)
 python main.py --audio my_track.wav --video-dir ./clips/ --test-mode
@@ -54,10 +67,15 @@ python main.py --audio my_track.wav --video-dir ./clips/ --test-mode
 ## Development
 
 ```bash
-make install  # Create venv and install dependencies
-make run      # Run the application
-make test     # Run test suite (pytest)
-make clean    # Remove venv, caches, and output files
+make install         # Create venv and install dependencies
+make run             # Run single-track montage
+make run-shorts      # Generate YouTube Shorts
+make full-pipeline   # Run full pipeline (mix + videos + shorts)
+make test            # Run test suite (pytest)
+make lint            # Lint with ruff
+make format          # Auto-format with ruff
+make check-types     # Type-check with mypy
+make clean           # Remove venv, caches, and output files
 ```
 
 ## Documentation
@@ -77,12 +95,13 @@ make clean    # Remove venv, caches, and output files
 | Technology | Purpose |
 |------------|---------|
 | Python 3.9+ | Core runtime |
-| Librosa | Audio analysis |
-| OpenCV | Video frame analysis |
-| FFmpeg | Video segment extraction & assembly |
+| Librosa | Audio analysis (BPM, beats, sections) |
+| OpenCV | Video frame analysis & intensity scoring |
+| FFmpeg | Video/audio extraction, assembly, transitions, & visualizers |
 | Pydantic | Input validation & DTOs |
 | openpyxl | Excel report generation |
 | Rich | Console progress bars |
+| PyYAML | Configuration loading |
 
 ## License
 
