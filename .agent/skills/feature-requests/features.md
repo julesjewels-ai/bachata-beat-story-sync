@@ -337,11 +337,25 @@ Render a live audio-reactive waveform overlay onto the final output video using 
 
 ### Description
 Create a new entry point (`src/pipeline.py`) that orchestrates the existing application classes. It should take a directory of audio tracks and:
-1. Use `AudioMixer` to mix them into a single track (cached).
-2. Generate a main music video for the combined mix.
-3. Automatically iterate through each individual track in the folder and generate a separate music video for each.
+1. **Discover** individual audio files in the `--audio` folder and sort them.
+2. **Mix** them into a combined WAV via `AudioMixer` (saves `_mixed_audio.wav` as cache).
+3. **Replicate B-roll logic** from `main.py` (auto-detect `broll/` inside `--video-dir` and exclude it from the main scan).
+4. **Generate mix video** using the combined audio → `<output-dir>/mix.mp4`
+5. **Loop over each track**:
+   - Analyze the track's audio independently.
+   - Re-scan the video library (to randomize clip order).
+   - Strip `thumbnail_data` from clips before montage (memory management).
+   - Generate a music video → `<output-dir>/track_01_<name>.mp4`
 
-Includes adding a `make full-pipeline` target.
+**CLI arguments required:**
+- `--audio` (required): Folder of audio tracks
+- `--video-dir` (required): Folder of video clips
+- `--broll-dir`: Optional custom B-roll path
+- `--output-dir`: defaults to `output_pipeline`
+- `--skip-mix`: Flag to skip the combined mix video
+- All visual args: `--video-style`, `--audio-overlay`, `--audio-overlay-opacity`, `--audio-overlay-position`, `--test-mode`
+
+Includes adding a `make full-pipeline` target to `Makefile`.
 
 ---
 
@@ -355,7 +369,16 @@ Includes adding a `make full-pipeline` target.
 | **Impact**   | High — completes the content generation package        |
 
 ### Description
-Extend the `full-pipeline` orchestrator to also generate YouTube Shorts for each individual track. After the main horizontal video is generated for a track, the pipeline should instantly run the equivalent of `shorts_maker.py` logic N times (configured via `--shorts-count`) using the track's audio.
+Extend the `full-pipeline` orchestrator to also generate YouTube Shorts for each individual track. After the main horizontal video is generated for a track, the pipeline should instantly run the equivalent of `shorts_maker.py` logic N times using the track's audio.
+
+**CLI arguments required:**
+- `--shorts-count` (default 1, 0 disables shorts)
+- `--shorts-duration` (default 60, supports ranges like 10-15)
+
+**Implementation edge cases:**
+- Shorts should **not** use B-roll clips (matches `shorts_maker.py` behaviour).
+- Shorts must inherit all visual pacing configs (video style, overlay settings) from the parent CLI args.
+- Output path structure: `<output-dir>/shorts/track_01/short_001.mp4`
 
 ---
 
@@ -369,7 +392,10 @@ Extend the `full-pipeline` orchestrator to also generate YouTube Shorts for each
 | **Impact**   | Medium — significantly improves processing speed       |
 
 ### Description
-Provide a `--shared-scan` flag for the pipeline.
-- **Default (Independent Scan):** For every track (and the mix), the video library is re-scanned (or deep-copied) to ensure that the "used clips" history is fresh, guaranteeing maximum visual variety for each video.
-- **Shared Scan:** When enabled, the library is only scanned *once* at the beginning and that state is passed to all tracks. This avoids minutes of scanning overhead at the cost of less variety (if a clip is used in track 1, it might have the same offset in track 2).
+Provide a `--shared-scan` flag for the pipeline to heavily optimize duration when processing many tracks.
 
+- **Default (Independent Scan):** For every track (and the mix), the video library is re-scanned. This ensures that the "used clips" history is fresh, guaranteeing maximum visual variety for each video, but costs ~1 minute of CPU time per track.
+- **Shared Scan:** When `--shared-scan` is set, the library is only scanned *once* at the beginning and the list of `VideoAnalysisResult` objects is passed to all tracks. This skips the scanning overhead at the cost of less variety (if a clip is used in track 1, it might have the same offset in track 2).
+
+**Implementation details:**
+- Must ensure that any mutation of the clip list (like `thumbnail_data=None`) does not break the shared state across iterations. Deep-copy the clip list before mutating.

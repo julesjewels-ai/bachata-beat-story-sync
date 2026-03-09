@@ -9,6 +9,12 @@ AUDIO_OVERLAY ?=
 AUDIO_OVERLAY_OPACITY ?=
 AUDIO_OVERLAY_POSITION ?=
 
+# Pipeline optional flags
+SHORTS_COUNT ?= 1
+SHORTS_DURATION ?= 60
+OUTPUT_DIR ?= output_pipeline
+SHARED_SCAN ?= 0
+
 # Build optional flags
 EXTRA_FLAGS =
 
@@ -40,7 +46,11 @@ ifneq ($(AUDIO_OVERLAY_POSITION),)
   EXTRA_FLAGS += --audio-overlay-position $(AUDIO_OVERLAY_POSITION)
 endif
 
-.PHONY: install run test lint format check-types clean
+ifeq ($(SHARED_SCAN), 1)
+  EXTRA_FLAGS += --shared-scan
+endif
+
+.PHONY: install run run-shorts full-pipeline test lint format check-types clean
 
 install:
 	[ -d $(VENV) ] || uv venv $(VENV) --python 3.13
@@ -49,6 +59,12 @@ install:
 
 run:
 	$(BIN)/python main.py --audio "$(AUDIO)" --video-dir "$(VIDEO_DIR)" $(EXTRA_FLAGS)
+
+run-shorts:
+	$(BIN)/python src/shorts_maker.py --audio "$(AUDIO)" --video-dir "$(VIDEO_DIR)" --count $(SHORTS_COUNT) --duration "$(SHORTS_DURATION)" $(EXTRA_FLAGS)
+
+full-pipeline:
+	$(BIN)/python src/pipeline.py --audio "$(AUDIO)" --video-dir "$(VIDEO_DIR)" --output-dir "$(OUTPUT_DIR)" --shorts-count $(SHORTS_COUNT) --shorts-duration "$(SHORTS_DURATION)" $(EXTRA_FLAGS)
 
 test:
 	$(BIN)/pytest
