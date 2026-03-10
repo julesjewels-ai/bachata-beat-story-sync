@@ -15,6 +15,7 @@ import random
 import sys
 import time
 import uuid
+from typing import Any
 
 from pydantic import ValidationError
 
@@ -130,19 +131,19 @@ def _safe_filename(path: str) -> str:
 
 def _generate_video(
     engine: BachataSyncEngine,
-    audio_meta,
-    clips: list,
+    audio_meta: Any,
+    clips: list[Any] | None,
     output_path: str,
     audio_path: str,
-    pacing_kwargs: dict,
-    broll_clips: list | None = None,
+    pacing_kwargs: dict[str, Any],
+    broll_clips: list[Any] | None = None,
 ) -> str:
     """Generate a single horizontal music video."""
     pacing = PacingConfig(**pacing_kwargs) if pacing_kwargs else None
     with RichProgressObserver() as obs:
         return engine.generate_story(
             audio_meta,
-            clips,
+            clips or [],
             output_path,
             broll_clips=broll_clips,
             audio_path=audio_path,
@@ -153,14 +154,14 @@ def _generate_video(
 
 def _generate_shorts(
     engine: BachataSyncEngine,
-    audio_meta,
-    clips: list,
+    audio_meta: Any,
+    clips: list[Any] | None,
     audio_path: str,
     output_dir: str,
     count: int,
     min_dur: float,
     max_dur: float,
-    pacing_kwargs: dict,
+    pacing_kwargs: dict[str, Any],
 ) -> list[str]:
     """Generate *count* shorts into *output_dir*, returning paths."""
     os.makedirs(output_dir, exist_ok=True)
@@ -188,7 +189,7 @@ def _generate_shorts(
         with RichProgressObserver() as obs:
             result = engine.generate_story(
                 audio_meta,
-                clips,
+                clips or [],
                 out_path,
                 audio_path=audio_path,
                 observer=obs,
