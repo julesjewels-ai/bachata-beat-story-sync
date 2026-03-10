@@ -1,7 +1,7 @@
 import os
 
 import pytest
-from pytest_mock import MockerFixture
+from pytest_mock import MockerFixture  # type: ignore[import-not-found]
 from src.core.app import BachataSyncEngine
 
 
