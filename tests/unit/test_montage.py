@@ -499,7 +499,9 @@ class TestFFmpegOrchestration:
             f.write("fake video data")
 
         generator.generate(
-            audio_data, video_clips, output_path,
+            audio_data,
+            video_clips,
+            output_path,
             audio_path="/audio/song.wav",
         )
 
@@ -1194,6 +1196,7 @@ class TestVideoStyleFilters:
                         f"video_style='none'"
                     )
 
+
 class TestAudioOverlay:
     """Tests for FEAT-013: Music-Synced Waveform Overlay."""
 
@@ -1220,13 +1223,13 @@ class TestAudioOverlay:
 
         cmd = mock_run.call_args[0][0]
         cmd_str = " ".join(str(x) for x in cmd)
-        
+
         assert "-c:v copy" in cmd_str
         assert "-filter_complex" not in cmd_str
 
     @patch("src.core.montage.subprocess.run")
     def test_overlay_audio_uses_filter_complex_waveform(self, mock_run, generator):
-        """When audio_overlay is 'waveform', uses filter_complex and visualizer filters."""
+        """When audio_overlay is 'waveform', uses filter_complex."""
         mock_run.return_value = MagicMock(returncode=0, stderr="")
         config = PacingConfig(audio_overlay="waveform")
 
@@ -1234,7 +1237,7 @@ class TestAudioOverlay:
 
         cmd = mock_run.call_args[0][0]
         cmd_str = " ".join(str(x) for x in cmd)
-        
+
         assert "-filter_complex" in cmd_str
         assert "showwaves=" in cmd_str
         # Does not run fast stream copy

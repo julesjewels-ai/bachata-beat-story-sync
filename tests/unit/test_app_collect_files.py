@@ -10,6 +10,7 @@ def sync_engine() -> BachataSyncEngine:
     """Fixture to provide a clean BachataSyncEngine instance."""
     return BachataSyncEngine()
 
+
 @pytest.mark.parametrize(
     "directory, exclude_dirs, walk_return, expected_collected",
     [
@@ -24,7 +25,7 @@ def sync_engine() -> BachataSyncEngine:
             [
                 os.path.join("/test_dir", "video1.mp4"),
                 os.path.join("/test_dir/sub1", "video2.mov"),
-            ]
+            ],
         ),
         # Case 2: Exclude specific directory
         (
@@ -38,7 +39,7 @@ def sync_engine() -> BachataSyncEngine:
             [
                 os.path.join("/test_dir", "video1.mp4"),
                 os.path.join("/test_dir/keep_me", "video3.mp4"),
-            ]
+            ],
         ),
         # Case 3: Partial substring edge case (Security vulnerability fix check)
         # Exclude "/test_dir/exclude", should NOT exclude "/test_dir/exclude_not"
@@ -52,7 +53,7 @@ def sync_engine() -> BachataSyncEngine:
             ],
             [
                 os.path.join("/test_dir/exclude_not", "video2.mp4"),
-            ]
+            ],
         ),
         # Case 4: Ignore unsupported extensions entirely
         (
@@ -61,9 +62,9 @@ def sync_engine() -> BachataSyncEngine:
             [
                 ("/test_dir", [], ["audio.wav", "document.pdf", "image.png"]),
             ],
-            []
+            [],
         ),
-    ]
+    ],
 )
 def test_collect_video_files_edge_cases(
     mocker: MockerFixture,
@@ -71,7 +72,7 @@ def test_collect_video_files_edge_cases(
     directory: str,
     exclude_dirs: list[str] | None,
     walk_return: list[tuple[str, list[str], list[str]]],
-    expected_collected: list[str]
+    expected_collected: list[str],
 ) -> None:
     """
     Test _collect_video_files for edge cases including exclusion logic,
@@ -90,8 +91,7 @@ def test_collect_video_files_edge_cases(
 
 
 def test_collect_video_files_os_sep_coverage(
-    mocker: MockerFixture,
-    sync_engine: BachataSyncEngine
+    mocker: MockerFixture, sync_engine: BachataSyncEngine
 ) -> None:
     """Test specifically covering missing branches where os.sep is already present."""
     mocker.patch("os.walk", return_value=[("/test_dir/", [], ["video.mp4"])])
