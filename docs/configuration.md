@@ -18,6 +18,10 @@ The tool is invoked via `python main.py` with the following arguments:
 | `--test-mode` | ❌ | flag | `False` | Run in test mode (limits to max 4 clips and 10s of music) |
 | `--max-clips` | ❌ | `int` | `None` | Maximum number of clip segments (overrides test-mode) |
 | `--max-duration`| ❌ | `float`| `None` | Maximum montage duration in seconds (overrides test-mode) |
+| `--video-style` | ❌ | `str` | `none` | Color grading preset: `none`, `vintage`, `cool`, `warm`, `cinematic` |
+| `--audio-overlay` | ❌ | `str` | `none` | Music-synced visualizer: `none`, `waveform` (lines), `bars` (frequency bars) |
+| `--audio-overlay-opacity` | ❌ | `float` | `0.5` | Opacity of the audio visualizer (0.0–1.0) |
+| `--audio-overlay-position` | ❌ | `str` | `bottom` | Vertical position of the visualizer: `top`, `center`, `bottom` |
 | `--version` | ❌ | flag | — | Display version number and exit |
 
 ---
@@ -118,9 +122,46 @@ The generated montage video uses these encoding settings (defined in `src/core/m
 | Target | Command | Description |
 |--------|---------|-------------|
 | `make install` | Create venv + install deps | Sets up `venv/` with all requirements |
-| `make run` | Run `main.py` | Runs via venv Python (requires CLI args) |
+| `make run` | Run `main.py` | Single-track montage via venv (requires `AUDIO` & `VIDEO_DIR`) |
+| `make run-shorts` | Run `shorts_maker` | Generate YouTube Shorts (requires `AUDIO` & `VIDEO_DIR`) |
+| `make full-pipeline` | Run `pipeline` | Full orchestration: mix + individual videos + shorts |
 | `make test` | Run pytest | Executes test suite via venv |
+| `make lint` | Run ruff check | Lint source and test files |
+| `make format` | Run ruff format | Auto-format source and test files |
+| `make check-types` | Run mypy | Type-check source and test files |
 | `make clean` | Remove caches + outputs | Deletes `venv/`, `__pycache__/`, and `*.mp4` files |
+
+### Makefile Variables
+
+All variables below are **optional** and apply to `make run`, `make run-shorts`, and `make full-pipeline`:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `AUDIO` | — | **(Required)** Path to audio file or directory of tracks |
+| `VIDEO_DIR` | — | **(Required)** Directory of video clips to scan |
+| `TEST_MODE` | `0` | Set to `1` to enable test mode (max 4 clips, 10s audio) |
+| `MAX_CLIPS` | — | Override maximum number of clip segments |
+| `MAX_DURATION` | — | Override maximum montage duration (seconds) |
+| `VIDEO_STYLE` | — | Color grading preset: `vintage`, `cool`, `warm`, `cinematic` |
+| `AUDIO_OVERLAY` | — | Visualizer type: `waveform` (lines) or `bars` (frequency bars) |
+| `AUDIO_OVERLAY_OPACITY` | — | Visualizer opacity (0.0–1.0) |
+| `AUDIO_OVERLAY_POSITION` | — | Visualizer position: `top`, `center`, `bottom` |
+| `SHORTS_COUNT` | `1` | Number of shorts to generate (pipeline/shorts targets) |
+| `SHORTS_DURATION` | `60` | Duration per short in seconds |
+| `OUTPUT_DIR` | `output_pipeline` | Output directory (pipeline target only) |
+| `SHARED_SCAN` | `0` | Set to `1` to share a single video scan across all tracks |
+
+**Example — montage with waveform overlay:**
+
+```bash
+make run AUDIO=song.wav VIDEO_DIR=./clips/ AUDIO_OVERLAY=waveform
+```
+
+**Example — full pipeline with bars visualizer at 70% opacity:**
+
+```bash
+make full-pipeline AUDIO=./tracks/ VIDEO_DIR=./clips/ AUDIO_OVERLAY=bars AUDIO_OVERLAY_OPACITY=0.7
+```
 
 ---
 

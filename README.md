@@ -54,6 +54,12 @@ python main.py --audio my_track.wav --video-dir ./clips/ --export-report report.
 # With B-roll and video style
 python main.py --audio my_track.wav --video-dir ./clips/ --broll-dir ./broll/ --video-style vintage
 
+# With audio-reactive waveform overlay
+make run AUDIO=my_track.wav VIDEO_DIR=./clips/ AUDIO_OVERLAY=waveform
+
+# With frequency bars at custom opacity
+make run AUDIO=my_track.wav VIDEO_DIR=./clips/ AUDIO_OVERLAY=bars AUDIO_OVERLAY_OPACITY=0.7
+
 # Full pipeline — mix + individual videos + shorts (recommended)
 make full-pipeline AUDIO=./tracks/ VIDEO_DIR=./clips/ TEST_MODE=1
 
