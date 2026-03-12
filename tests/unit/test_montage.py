@@ -1073,7 +1073,7 @@ class TestVideoStyleFilters:
         from pydantic import ValidationError
 
         with pytest.raises(ValidationError):
-            PacingConfig(video_style="neon")
+            PacingConfig(video_style="neon")  # type: ignore[arg-type]
 
     def test_load_video_style_from_yaml(self, tmp_path):
         """video_style is correctly loaded from YAML config."""
@@ -1211,7 +1211,7 @@ class TestAudioOverlay:
         from pydantic import ValidationError
 
         with pytest.raises(ValidationError):
-            PacingConfig(audio_overlay="invalid-type")
+            PacingConfig(audio_overlay="invalid-type")  # type: ignore[arg-type]
 
     @patch("src.core.montage.subprocess.run")
     def test_overlay_audio_uses_copy_when_none(self, mock_run, generator):

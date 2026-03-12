@@ -15,6 +15,7 @@ import random
 import sys
 import time
 import uuid
+from typing import Any
 
 from pydantic import ValidationError
 
@@ -130,12 +131,12 @@ def _safe_filename(path: str) -> str:
 
 def _generate_video(
     engine: BachataSyncEngine,
-    audio_meta,
-    clips: list,
+    audio_meta: Any,
+    clips: list[Any],
     output_path: str,
     audio_path: str,
-    pacing_kwargs: dict,
-    broll_clips: list | None = None,
+    pacing_kwargs: dict[str, Any],
+    broll_clips: list[Any] | None = None,
 ) -> str:
     """Generate a single horizontal music video."""
     pacing = PacingConfig(**pacing_kwargs) if pacing_kwargs else None
@@ -153,14 +154,14 @@ def _generate_video(
 
 def _generate_shorts(
     engine: BachataSyncEngine,
-    audio_meta,
-    clips: list,
+    audio_meta: Any,
+    clips: list[Any],
     audio_path: str,
     output_dir: str,
     count: int,
     min_dur: float,
     max_dur: float,
-    pacing_kwargs: dict,
+    pacing_kwargs: dict[str, Any],
 ) -> list[str]:
     """Generate *count* shorts into *output_dir*, returning paths."""
     os.makedirs(output_dir, exist_ok=True)
@@ -342,11 +343,13 @@ def main() -> None:
         # ----------------------------------------------------------
         # 4. Shared scan (if enabled)
         # ----------------------------------------------------------
-        shared_clips = None
-        shared_broll = None
+        shared_clips: list[Any] = []
+        shared_broll: list[Any] = []
         if args.shared_scan:
             logger.info("=== Shared scan: scanning video library once ===")
-            shared_clips, shared_broll = _scan_videos(engine, args.video_dir, broll_dir)
+            _sc, _sb = _scan_videos(engine, args.video_dir, broll_dir)
+            shared_clips = _sc or []
+            shared_broll = _sb or []
 
         # ----------------------------------------------------------
         # 5. Generate mix video
@@ -365,7 +368,8 @@ def main() -> None:
             if args.shared_scan:
                 clips, broll = shared_clips, shared_broll
             else:
-                clips, broll = _scan_videos(engine, args.video_dir, broll_dir)
+                _c, _b = _scan_videos(engine, args.video_dir, broll_dir)
+                clips, broll = _c or [], _b or []
 
             mix_out = os.path.join(args.output_dir, "mix.mp4")
             result = _generate_video(
@@ -407,7 +411,8 @@ def main() -> None:
             if args.shared_scan:
                 clips, broll = shared_clips, shared_broll
             else:
-                clips, broll = _scan_videos(engine, args.video_dir, broll_dir)
+                _c2, _b2 = _scan_videos(engine, args.video_dir, broll_dir)
+                clips, broll = _c2 or [], _b2 or []
 
             # Generate horizontal video
             track_out = os.path.join(args.output_dir, f"{track_label}.mp4")
