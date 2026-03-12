@@ -399,3 +399,41 @@ Provide a `--shared-scan` flag for the pipeline to heavily optimize duration whe
 
 **Implementation details:**
 - Must ensure that any mutation of the clip list (like `thumbnail_data=None`) does not break the shared state across iterations. Deep-copy the clip list before mutating.
+
+---
+
+## FEAT-017: Per-Track Intro Variety (Pipeline)
+
+| Field        | Value                                                |
+|--------------|------------------------------------------------------|
+| **Status**   | `PROPOSED`                                           |
+| **Priority** | 🔴 High                                              |
+| **Effort**   | Low–Medium                                           |
+| **Impact**   | High — prevents all pipeline videos from looking identical in the first seconds |
+
+### Why this matters
+When the pipeline generates videos for multiple tracks, every output currently starts with the **same intro clips** because FEAT-008's prefix-ordering logic (`1_intro.mp4`, `2_lead.mp4`, etc.) applies identically each time. The result is that a viewer scrolling through the channel sees the exact same opening sequence on every video, which looks repetitive and unprofessional.
+
+### Description
+Vary the opening clip selection across pipeline tracks so that each video starts differently, while preserving the user's intent behind prefix clips for single-video generation.
+
+### Proposed Approaches (pick one during planning)
+
+#### A — Rotate Prefix Clips Across Tracks
+- Treat the list of prefix clips as a circular buffer.
+- For track N, start the prefix sequence at offset `N % len(prefix_clips)`.
+- Example with 3 prefix clips (`1_`, `2_`, `3_`): Track 1 → `1,2,3`; Track 2 → `2,3,1`; Track 3 → `3,1,2`.
+- Zero-config: works automatically in pipeline mode.
+
+#### B — Shuffle Prefix Clips Per Track
+- Shuffle the prefix clips with a per-track seed (`random.seed(track_index)`) before applying FEAT-008 ordering.
+- Ensures variety while remaining deterministic and reproducible.
+
+#### C — Skip Prefix Ordering in Pipeline Mode
+- When running via `pipeline.py`, disable prefix-forced ordering entirely and let the normal intensity-matching logic (FEAT-009) pick the intro clip naturally.
+- Prefix ordering only applies when running `main.py` directly (single-video mode).
+- Expose a `--force-prefix-ordering` flag for pipeline to opt back in.
+
+### Scope
+- **In scope:** Varying intro clip selection across pipeline tracks; preserving single-video prefix behaviour.
+- **Out of scope:** AI-based intro selection, per-track configuration files, thumbnail-based intro detection.
