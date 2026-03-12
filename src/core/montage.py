@@ -239,6 +239,210 @@ class MontageGenerator:
 
         return target_beats, level, speed
 
+    def _is_test_limit_reached(
+        self,
+        config: PacingConfig,
+        segments_count: int,
+        timeline_pos: float,
+        total_dur: float,
+    ) -> bool:
+        if config.max_clips is not None and segments_count >= config.max_clips:
+            return True
+        if (
+            config.max_duration_seconds is not None
+            and timeline_pos >= config.max_duration_seconds
+        ):
+            return True
+        return False
+
+    def _get_start_offset(
+        self,
+        config: PacingConfig,
+        clip: VideoAnalysisResult,
+        segment_duration: float,
+        clip_idx: int,
+    ) -> float:
+        max_start = max(0.0, clip.duration - segment_duration)
+        if config.clip_variety_enabled and max_start > 0:
+            seed_str = f"{config.seed}:{clip.path}:{clip_idx}"
+            seed = int(
+                hashlib.md5(seed_str.encode(), usedforsecurity=False).hexdigest()[:8],
+                16,
+            )
+            return (seed % int(max_start * 1000)) / 1000.0
+        return 0.0
+
+    def _determine_clip_and_offset(
+        self,
+        config: PacingConfig,
+        timeline_pos: float,
+        last_broll_time: float,
+        target_broll_interval: float,
+        broll_clips: list[VideoAnalysisResult] | None,
+        broll_idx: int,
+        forced_clips: list[VideoAnalysisResult],
+        forced_clip_idx: int,
+        pools: dict[str, list[VideoAnalysisResult]],
+        pool_indices: dict[str, int],
+        level: str,
+        clip_idx: int,
+        segment_duration: float,
+    ) -> tuple[VideoAnalysisResult, float, float, int, int, int, float, float]:
+        """
+        Returns (clip, start_time, actual_duration,
+                 updated_clip_idx, updated_broll_idx, updated_forced_idx,
+                 updated_last_broll_time, updated_target_broll_interval)
+        """
+        # Determine B-Roll
+        is_broll = False
+        if broll_clips and (timeline_pos - last_broll_time) >= target_broll_interval:
+            if timeline_pos > 0.0:
+                is_broll = True
+
+        # Select Clip
+        if forced_clip_idx < len(forced_clips):
+            clip = forced_clips[forced_clip_idx]
+            forced_clip_idx += 1
+        elif is_broll:
+            assert broll_clips is not None
+            clip = broll_clips[broll_idx % len(broll_clips)]
+            broll_idx += 1
+            last_broll_time = timeline_pos
+            target_broll_interval = config.broll_interval_seconds + random.uniform(
+                -config.broll_interval_variance, config.broll_interval_variance
+            )
+        else:
+            clip = self._pick_from_pool(pools, pool_indices, level)
+            clip_idx += 1
+
+        start_time = self._get_start_offset(config, clip, segment_duration, clip_idx)
+
+        # Clamp duration
+        actual_duration = min(segment_duration, clip.duration - start_time)
+
+        return (
+            clip,
+            start_time,
+            actual_duration,
+            clip_idx,
+            broll_idx,
+            forced_clip_idx,
+            last_broll_time,
+            target_broll_interval,
+        )
+
+    def _get_section_label(self, sections: list, current_time: float) -> str | None:
+        for sec in sections:
+            if sec.start_time <= current_time < sec.end_time:
+                return str(sec.label)
+        return None
+
+    def _process_segment_iteration(
+        self,
+        audio_data: AudioAnalysisResult,
+        config: PacingConfig,
+        timeline_pos: float,
+        beat_idx: int,
+        clip_idx: int,
+        broll_idx: int,
+        forced_clip_idx: int,
+        last_broll_time: float,
+        target_broll_interval: float,
+        spb: float,
+        min_beats: int,
+        total_dur: float,
+        broll_clips: list[VideoAnalysisResult] | None,
+        forced_clips: list[VideoAnalysisResult],
+        pools: dict[str, list[VideoAnalysisResult]],
+        pool_indices: dict[str, int],
+        sections: list,
+    ) -> tuple[SegmentPlan | None, float, int, int, int, int, float, float]:
+        progress = min(1.0, timeline_pos / total_dur) if total_dur > 0 else 0.0
+        intensity = (
+            audio_data.intensity_curve[beat_idx]
+            if beat_idx < len(audio_data.intensity_curve)
+            else 0.5
+        )
+
+        target_beats, level, speed = self._calculate_segment_params(
+            config, intensity, progress, clip_idx, beat_idx, spb, min_beats
+        )
+
+        beat_count = min(target_beats, len(audio_data.beat_times) - beat_idx)
+        segment_duration = beat_count * spb
+
+        if config.max_duration_seconds is not None:
+            remaining = config.max_duration_seconds - timeline_pos
+            segment_duration = min(segment_duration, remaining)
+
+        (
+            clip,
+            start_time,
+            actual_duration,
+            clip_idx,
+            broll_idx,
+            forced_clip_idx,
+            last_broll_time,
+            target_broll_interval,
+        ) = self._determine_clip_and_offset(
+            config,
+            timeline_pos,
+            last_broll_time,
+            target_broll_interval,
+            broll_clips,
+            broll_idx,
+            forced_clips,
+            forced_clip_idx,
+            pools,
+            pool_indices,
+            level,
+            clip_idx,
+            segment_duration,
+        )
+
+        current_time = (
+            audio_data.beat_times[beat_idx]
+            if beat_idx < len(audio_data.beat_times)
+            else timeline_pos
+        )
+        section_label = self._get_section_label(sections, current_time)
+
+        segment = None
+        if actual_duration > 0:
+            segment = SegmentPlan(
+                video_path=clip.path,
+                start_time=start_time,
+                duration=actual_duration,
+                timeline_position=timeline_pos,
+                intensity_level=level,
+                speed_factor=speed,
+                section_label=section_label,
+            )
+
+        return (
+            segment,
+            actual_duration,
+            beat_count,
+            clip_idx,
+            broll_idx,
+            forced_clip_idx,
+            last_broll_time,
+            target_broll_interval,
+        )
+
+    def _create_initial_state(
+        self, audio_data: AudioAnalysisResult, config: PacingConfig
+    ) -> tuple[float, int, float, float, float]:
+        spb = 60.0 / audio_data.bpm if audio_data.bpm > 0 else 0.5
+        min_beats = max(1, math.ceil(config.min_clip_seconds / spb))
+
+        last_broll_time = -config.broll_interval_seconds
+        target_broll_interval = config.broll_interval_seconds + random.uniform(
+            -config.broll_interval_variance, config.broll_interval_variance
+        )
+        total_dur = config.max_duration_seconds or audio_data.duration
+        return spb, min_beats, last_broll_time, target_broll_interval, total_dur
+
     def build_segment_plan(
         self,
         audio_data: AudioAnalysisResult,
@@ -248,47 +452,18 @@ class MontageGenerator:
     ) -> list[SegmentPlan]:
         """
         Build a timeline of clip segments from audio beat/intensity data.
-
-        Clip duration is time-based (not beat-count) and snaps to beat
-        boundaries so cuts feel musical. A hard minimum floor is enforced.
-
-        Args:
-            audio_data: Analysed audio with beat_times and intensity_curve.
-            video_clips: Available video clips sorted by intensity.
-            pacing: Optional pacing configuration. Uses defaults if None.
-
-        Returns:
-            Ordered list of SegmentPlan objects covering the audio duration.
         """
-        if not video_clips:
-            return []
-
-        beat_times = audio_data.beat_times
-        intensity_curve = audio_data.intensity_curve
-
-        if not beat_times:
+        if not video_clips or not audio_data.beat_times:
             return []
 
         config = pacing or PacingConfig()
+        spb, min_beats, last_broll_time, target_broll_interval, total_dur = (
+            self._create_initial_state(audio_data, config)
+        )
 
-        # Calculate seconds-per-beat from BPM
-        spb = 60.0 / audio_data.bpm if audio_data.bpm > 0 else 0.5
-
-        # Minimum beats to satisfy the floor
-        min_beats = max(1, math.ceil(config.min_clip_seconds / spb))
-
-        # Prepare clips (deduplication, sorting, forced ordering)
         sorted_clips, forced_clips = self._prepare_clips(video_clips, config)
-
-        # FEAT-009: Build intensity-matched pools for clip selection
         pools = self._build_intensity_pools(sorted_clips, config)
         pool_indices: dict = {"high": 0, "medium": 0, "low": 0}
-        logger.debug(
-            "Intensity pools — high: %d, medium: %d, low: %d",
-            len(pools["high"]),
-            len(pools["medium"]),
-            len(pools["low"]),
-        )
 
         segments: list[SegmentPlan] = []
         timeline_pos = 0.0
@@ -296,118 +471,45 @@ class MontageGenerator:
         clip_idx = 0
         broll_idx = 0
         forced_clip_idx = 0
-
-        # B-Roll tracking
-        last_broll_time = (
-            -config.broll_interval_seconds
-        )  # Allow B-roll early on if configured
-        target_broll_interval = config.broll_interval_seconds + random.uniform(
-            -config.broll_interval_variance, config.broll_interval_variance
-        )
-
-        # Pre-compute section lookup from audio sections
         sections = audio_data.sections or []
 
-        while beat_idx < len(beat_times):
-            # Test mode: stop if we've hit the clip limit
-            if config.max_clips is not None and len(segments) >= config.max_clips:
-                break
-
-            # Test mode: stop if we've hit the duration limit
-            if (
-                config.max_duration_seconds is not None
-                and timeline_pos >= config.max_duration_seconds
+        while beat_idx < len(audio_data.beat_times):
+            if self._is_test_limit_reached(
+                config, len(segments), timeline_pos, total_dur
             ):
                 break
 
-            # Calculate progress ratio for dynamic pacing and cliffhanger
-            total_dur = config.max_duration_seconds or audio_data.duration
-            progress = min(1.0, timeline_pos / total_dur) if total_dur > 0 else 0.0
-
-            # Determine intensity at this beat
-            intensity = (
-                intensity_curve[beat_idx] if beat_idx < len(intensity_curve) else 0.5
+            (
+                segment,
+                actual_duration,
+                beat_count,
+                clip_idx,
+                broll_idx,
+                forced_clip_idx,
+                last_broll_time,
+                target_broll_interval,
+            ) = self._process_segment_iteration(
+                audio_data,
+                config,
+                timeline_pos,
+                beat_idx,
+                clip_idx,
+                broll_idx,
+                forced_clip_idx,
+                last_broll_time,
+                target_broll_interval,
+                spb,
+                min_beats,
+                total_dur,
+                broll_clips,
+                forced_clips,
+                pools,
+                pool_indices,
+                sections,
             )
 
-            # Calculate segment parameters (target beats, level, speed)
-            target_beats, level, speed = self._calculate_segment_params(
-                config, intensity, progress, clip_idx, beat_idx, spb, min_beats
-            )
-
-            # Don't exceed available beats
-            beat_count = min(target_beats, len(beat_times) - beat_idx)
-            segment_duration = beat_count * spb
-
-            # Test mode: trim segment if it would exceed duration limit
-            if config.max_duration_seconds is not None:
-                remaining = config.max_duration_seconds - timeline_pos
-                segment_duration = min(segment_duration, remaining)
-
-            # Determine if this segment should be B-Roll
-            is_broll = False
-            if (
-                broll_clips
-                and (timeline_pos - last_broll_time) >= target_broll_interval
-            ):
-                # Don't use B-roll for the very first clip if possible
-                if timeline_pos > 0.0:
-                    is_broll = True
-
-            # Pick clip (forced prefix followed by round-robin)
-            if forced_clip_idx < len(forced_clips):
-                clip = forced_clips[forced_clip_idx]
-                forced_clip_idx += 1
-            elif is_broll:
-                assert broll_clips is not None
-                clip = broll_clips[broll_idx % len(broll_clips)]
-                broll_idx += 1
-                last_broll_time = timeline_pos
-                target_broll_interval = config.broll_interval_seconds + random.uniform(
-                    -config.broll_interval_variance, config.broll_interval_variance
-                )
-            else:
-                # FEAT-009: intensity-matched pool selection w/ fallback
-                clip = self._pick_from_pool(pools, pool_indices, level)
-                clip_idx += 1
-
-            # Compute start offset within clip
-            max_start = max(0.0, clip.duration - segment_duration)
-            if config.clip_variety_enabled and max_start > 0:
-                # Deterministic per-segment offset using clip path + usage index + seed
-                seed_str = f"{config.seed}:{clip.path}:{clip_idx}"
-                seed = int(
-                    hashlib.md5(seed_str.encode()).hexdigest()[:8],
-                    16,
-                )
-                start_time = (seed % int(max_start * 1000)) / 1000.0
-            else:
-                start_time = 0.0
-
-            # Clamp segment duration to remaining clip after start offset
-            actual_duration = min(segment_duration, clip.duration - start_time)
-
-            # Look up musical section for this beat position
-            current_time = (
-                beat_times[beat_idx] if beat_idx < len(beat_times) else timeline_pos
-            )
-            section_label = None
-            for sec in sections:
-                if sec.start_time <= current_time < sec.end_time:
-                    section_label = sec.label
-                    break
-
-            if actual_duration > 0:
-                segments.append(
-                    SegmentPlan(
-                        video_path=clip.path,
-                        start_time=start_time,
-                        duration=actual_duration,
-                        timeline_position=timeline_pos,
-                        intensity_level=level,
-                        speed_factor=speed,
-                        section_label=section_label,
-                    )
-                )
+            if segment:
+                segments.append(segment)
                 timeline_pos += actual_duration
 
             beat_idx += beat_count
