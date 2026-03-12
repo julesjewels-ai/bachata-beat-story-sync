@@ -1229,7 +1229,7 @@ class TestAudioOverlay:
 
     @patch("src.core.montage.subprocess.run")
     def test_overlay_audio_uses_filter_complex_waveform(self, mock_run, generator):
-        """When audio_overlay is 'waveform', uses filter_complex and visualizer filters."""
+        """When audio_overlay is 'waveform', uses filter_complex."""
         mock_run.return_value = MagicMock(returncode=0, stderr="")
         config = PacingConfig(audio_overlay="waveform")
 
