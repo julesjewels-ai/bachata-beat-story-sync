@@ -24,6 +24,7 @@ from src.pipeline import (
 # Fixtures
 # ------------------------------------------------------------------
 
+
 def _make_audio_result(bpm: float = 128.0, duration: float = 180.0):
     return AudioAnalysisResult(
         filename="test.wav",
