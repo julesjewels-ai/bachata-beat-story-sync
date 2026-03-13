@@ -116,6 +116,11 @@ class MontageGenerator:
         forced_clips_tuple.sort(key=lambda x: x[0])
         forced_clips = [fc[1] for fc in forced_clips_tuple]
 
+        # FEAT-017: Rotate prefix clips for per-track intro variety
+        if config.prefix_offset and forced_clips:
+            offset = config.prefix_offset % len(forced_clips)
+            forced_clips = forced_clips[offset:] + forced_clips[:offset]
+
         # Sort clips by intensity score (highest first) for matching
         if config.is_shorts:
             # Prioritise vertical clips first
@@ -855,6 +860,11 @@ class MontageGenerator:
         If audio_overlay is configured, renders a visualizer.
         Otherwise, stream-copies video and encodes audio to save time.
         """
+        from src.core.ffmpeg_utils import timeout_for_duration
+
+        # Compute timeout proportional to video length
+        video_duration = self._get_video_duration(video_path)
+        overlay_timeout = timeout_for_duration(video_duration) if video_duration > 0 else None
         if config.audio_overlay == "none":
             cmd = [
                 "ffmpeg",
@@ -935,11 +945,15 @@ class MontageGenerator:
                 output_path,
             ]
 
-        self._run_ffmpeg(cmd, "audio overlay")
+        self._run_ffmpeg(cmd, "audio overlay", timeout_seconds=overlay_timeout)
 
     @staticmethod
-    def _run_ffmpeg(cmd: list[str], stage_name: str) -> None:
+    def _run_ffmpeg(
+        cmd: list[str],
+        stage_name: str,
+        timeout_seconds: int | None = None,
+    ) -> None:
         """Delegate to the shared FFmpeg runner."""
         from src.core.ffmpeg_utils import run_ffmpeg
 
-        run_ffmpeg(cmd, stage_name)
+        run_ffmpeg(cmd, stage_name, timeout_seconds=timeout_seconds)

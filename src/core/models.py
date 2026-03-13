@@ -215,6 +215,13 @@ class PacingConfig(BaseModel):
         "Options: 'none', 'bw', 'vintage', 'warm', 'cool'",
     )
 
+    # Per-Track Intro Variety (FEAT-017)
+    prefix_offset: int = Field(
+        0,
+        description="Rotate the forced prefix clip list by this many positions. "
+        "Pipeline sets this to track_index to vary intros across videos.",
+    )
+
     # Audio Overlay (FEAT-013)
     audio_overlay: Literal["none", "waveform", "bars"] = Field(
         "none",

@@ -333,6 +333,63 @@ class TestBuildSegmentPlan:
         assert segments[0].video_path == "/videos/1_clip.mp4"
         assert segments[1].video_path == "/videos/2_clip.mp4"
 
+    def test_prefix_offset_rotates_intro_clips(self, generator):
+        """FEAT-017: prefix_offset rotates the forced prefix clips."""
+        # Distinct intensity_scores to survive deduplication
+        prefixed_clips = [
+            VideoAnalysisResult(
+                path="/videos/1_a.mp4", intensity_score=0.51,
+                duration=30.0, thumbnail_data=None,
+            ),
+            VideoAnalysisResult(
+                path="/videos/2_b.mp4", intensity_score=0.52,
+                duration=30.0, thumbnail_data=None,
+            ),
+            VideoAnalysisResult(
+                path="/videos/3_c.mp4", intensity_score=0.53,
+                duration=30.0, thumbnail_data=None,
+            ),
+        ]
+        audio = AudioAnalysisResult(
+            filename="rotate.wav", bpm=120.0, duration=30.0,
+            peaks=[], sections=[],
+            beat_times=[float(i) * 0.5 for i in range(40)],
+            intensity_curve=[0.5] * 40,
+        )
+        config = PacingConfig(prefix_offset=1, max_clips=3)
+        segments = generator.build_segment_plan(audio, prefixed_clips, config)
+
+        assert len(segments) == 3
+        # Offset 1 → starts at 2_b, then 3_c, then 1_a
+        assert segments[0].video_path == "/videos/2_b.mp4"
+        assert segments[1].video_path == "/videos/3_c.mp4"
+        assert segments[2].video_path == "/videos/1_a.mp4"
+
+    def test_prefix_offset_zero_preserves_order(self, generator):
+        """FEAT-017: prefix_offset=0 keeps original prefix order."""
+        prefixed_clips = [
+            VideoAnalysisResult(
+                path="/videos/1_a.mp4", intensity_score=0.51,
+                duration=30.0, thumbnail_data=None,
+            ),
+            VideoAnalysisResult(
+                path="/videos/2_b.mp4", intensity_score=0.52,
+                duration=30.0, thumbnail_data=None,
+            ),
+        ]
+        audio = AudioAnalysisResult(
+            filename="norotate.wav", bpm=120.0, duration=30.0,
+            peaks=[], sections=[],
+            beat_times=[float(i) * 0.5 for i in range(40)],
+            intensity_curve=[0.5] * 40,
+        )
+        config = PacingConfig(prefix_offset=0, max_clips=2)
+        segments = generator.build_segment_plan(audio, prefixed_clips, config)
+
+        assert len(segments) == 2
+        assert segments[0].video_path == "/videos/1_a.mp4"
+        assert segments[1].video_path == "/videos/2_b.mp4"
+
 
 class TestMinimumClipDuration:
     """Tests that the minimum clip duration floor is enforced."""

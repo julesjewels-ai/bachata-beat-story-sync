@@ -11,22 +11,44 @@ import subprocess
 
 logger = logging.getLogger(__name__)
 
-# Timeout per FFmpeg subprocess call (seconds)
+# Default timeout per FFmpeg subprocess call (seconds)
 FFMPEG_TIMEOUT = 600
 
 
-def run_ffmpeg(cmd: list[str], stage_name: str) -> None:
+def timeout_for_duration(duration_seconds: float) -> int:
+    """
+    Compute a reasonable FFmpeg timeout based on media duration.
+
+    Uses max(FFMPEG_TIMEOUT, duration * 2) so short clips keep the
+    standard 600 s floor while long mixes get proportional headroom.
+
+    Args:
+        duration_seconds: Length of the input media in seconds.
+
+    Returns:
+        Timeout value in seconds.
+    """
+    return max(FFMPEG_TIMEOUT, int(duration_seconds * 2))
+
+
+def run_ffmpeg(
+    cmd: list[str],
+    stage_name: str,
+    timeout_seconds: int | None = None,
+) -> None:
     """
     Execute an FFmpeg command with timeout and error handling.
 
     Args:
         cmd: The FFmpeg command as a list of arguments.
         stage_name: Human-readable name for error messages.
+        timeout_seconds: Optional override for the default timeout.
 
     Raises:
         RuntimeError: If FFmpeg exits with non-zero or times out.
     """
-    logger.debug("FFmpeg [%s]: %s", stage_name, " ".join(cmd))
+    effective_timeout = timeout_seconds or FFMPEG_TIMEOUT
+    logger.debug("FFmpeg [%s] (timeout=%ds): %s", stage_name, effective_timeout, " ".join(cmd))
 
     try:
         result = subprocess.run(
@@ -34,7 +56,7 @@ def run_ffmpeg(cmd: list[str], stage_name: str) -> None:
             stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE,
             text=True,
-            timeout=FFMPEG_TIMEOUT,
+            timeout=effective_timeout,
             shell=False,
         )  # nosec B603
 
@@ -48,5 +70,5 @@ def run_ffmpeg(cmd: list[str], stage_name: str) -> None:
     except subprocess.TimeoutExpired:
         raise RuntimeError(
             f"FFmpeg timed out during {stage_name} "
-            f"(>{FFMPEG_TIMEOUT}s). The input file may be too large."
+            f"(>{effective_timeout}s). The input file may be too large."
         ) from None

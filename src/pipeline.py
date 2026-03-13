@@ -1,17 +1,21 @@
 """
-Full Pipeline Orchestrator — FEAT-014 / FEAT-015 / FEAT-016.
+Full Pipeline Orchestrator — FEAT-014 / FEAT-015 / FEAT-016 / FEAT-018.
 
 Single command to:
   1. Mix a folder of audio tracks into one combined WAV.
   2. Generate a horizontal music video for the mix.
   3. Generate a horizontal music video for each individual track.
   4. Generate N YouTube Shorts for each individual track.
+
+FEAT-018: Professional Rich-based CLI output with phase headers,
+spinners, success markers, error panels, and a structured summary.
 """
 
 import argparse
 import logging
 import os
 import random
+import subprocess
 import sys
 import time
 import uuid
@@ -25,7 +29,7 @@ from src.core.audio_mixer import (
     resolve_audio_path,
 )
 from src.core.models import PacingConfig
-from src.ui.console import RichProgressObserver
+from src.ui.console import PipelineLogger, RichProgressObserver
 
 logger = logging.getLogger(__name__)
 
@@ -164,6 +168,7 @@ def _generate_shorts(
     min_dur: float,
     max_dur: float,
     pacing_kwargs: dict,
+    log: PipelineLogger,
 ) -> list[str]:
     """Generate *count* shorts into *output_dir*, returning paths."""
     os.makedirs(output_dir, exist_ok=True)
@@ -185,9 +190,7 @@ def _generate_shorts(
         pacing = PacingConfig(**shorts_kwargs)
         out_path = os.path.join(output_dir, f"short_{i + 1:03d}.mp4")
 
-        logger.info(
-            "  Generating short %d/%d (%.0fs)...", i + 1, count, target_duration
-        )
+        log.detail(f"Short {i + 1}/{count} ({target_duration:.0f}s)")
         with RichProgressObserver() as obs:
             result = engine.generate_story(
                 audio_meta,
@@ -265,6 +268,14 @@ def parse_args() -> argparse.Namespace:
         choices=["left", "center", "right"],
         help="Visualizer position",
     )
+    parser.add_argument(
+        "--verbose", action="store_true",
+        help="Enable debug-level logging for troubleshooting",
+    )
+    parser.add_argument(
+        "--quiet", action="store_true",
+        help="Suppress all output except errors",
+    )
     return parser.parse_args()
 
 
@@ -273,16 +284,23 @@ def parse_args() -> argparse.Namespace:
 # ------------------------------------------------------------------
 
 def main() -> None:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(levelname)s - %(message)s",
-    )
     args = parse_args()
+
+    # Configure standard logging (for internal debug messages only)
+    logging.basicConfig(
+        level=logging.DEBUG if args.verbose else logging.WARNING,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    )
+
+    log = PipelineLogger(quiet=args.quiet)
     t0 = time.time()
 
     audio_dir = args.audio
     if not os.path.isdir(audio_dir):
-        logger.error("--audio must be a directory of audio tracks, got: %s", audio_dir)
+        log.error(
+            f"--audio must be a directory of audio tracks, got: {audio_dir}",
+            hint="Check that the path exists and is a directory.",
+        )
         sys.exit(1)
 
     os.makedirs(args.output_dir, exist_ok=True)
@@ -301,27 +319,36 @@ def main() -> None:
         # ----------------------------------------------------------
         # 1. Discover individual audio files
         # ----------------------------------------------------------
+        log.phase("🔍 Discovering Audio")
         individual_tracks = _discover_audio_files(audio_dir)
         if not individual_tracks:
-            logger.error("No supported audio files found in %s", audio_dir)
+            log.error(
+                f"No supported audio files found in {audio_dir}",
+                hint="Supported formats: "
+                + ", ".join(sorted(SUPPORTED_AUDIO_EXTENSIONS)),
+            )
             sys.exit(1)
-        logger.info(
-            "Discovered %d audio tracks in %s",
-            len(individual_tracks), audio_dir,
+        log.step(
+            f"Found {len(individual_tracks)} track(s) in [bold]{audio_dir}[/bold]"
         )
 
         # ----------------------------------------------------------
         # 2. Mix tracks (via existing resolve_audio_path caching)
         # ----------------------------------------------------------
-        logger.info("=== Step 1: Mixing audio tracks ===")
-        with RichProgressObserver() as obs:
-            mix_path = resolve_audio_path(audio_dir, observer=obs)
-        logger.info("Mix audio ready: %s", mix_path)
+        log.phase("🎵 Mixing Audio")
+        with log.status(f"Mixing {len(individual_tracks)} tracks…"):
+            with RichProgressObserver() as obs:
+                mix_path = resolve_audio_path(audio_dir, observer=obs)
+        log.success(f"Mix ready: [bold]{mix_path}[/bold]")
 
         # ----------------------------------------------------------
         # 3. Detect B-roll
         # ----------------------------------------------------------
         broll_dir = _detect_broll_dir(args.video_dir, args.broll_dir)
+        if broll_dir:
+            log.step(f"B-roll directory: [bold]{broll_dir}[/bold]")
+        else:
+            log.detail("No B-roll directory detected")
 
         # ----------------------------------------------------------
         # 4. Shared scan (if enabled)
@@ -329,35 +356,45 @@ def main() -> None:
         shared_clips = None
         shared_broll = None
         if args.shared_scan:
-            logger.info("=== Shared scan: scanning video library once ===")
-            shared_clips, shared_broll = _scan_videos(
-                engine, args.video_dir, broll_dir
-            )
+            log.phase("📹 Scanning Video Library")
+            with log.status("Scanning clips…"):
+                shared_clips, shared_broll = _scan_videos(
+                    engine, args.video_dir, broll_dir
+                )
+            clip_msg = f"Found {len(shared_clips)} main clip(s)"
+            if shared_broll:
+                clip_msg += f", {len(shared_broll)} B-roll"
+            log.step(clip_msg)
 
         # ----------------------------------------------------------
         # 5. Generate mix video
         # ----------------------------------------------------------
         if not args.skip_mix:
-            logger.info("=== Step 2: Generating mix video ===")
+            log.phase("🎬 Generating Mix Video")
             mix_audio_input = AudioAnalysisInput(file_path=mix_path)
-            mix_meta = analyzer.analyze(mix_audio_input)
-            logger.info(
-                "Mix: BPM=%.1f, peaks=%d, duration=%.1fs",
-                mix_meta.bpm, len(mix_meta.peaks), mix_meta.duration,
+            with log.status("Analyzing mix audio…"):
+                mix_meta = analyzer.analyze(mix_audio_input)
+            log.detail(
+                f"BPM={mix_meta.bpm:.1f}  peaks={len(mix_meta.peaks)}"
+                f"  duration={mix_meta.duration:.1f}s"
             )
 
             if args.shared_scan:
                 clips, broll = shared_clips, shared_broll
             else:
-                clips, broll = _scan_videos(engine, args.video_dir, broll_dir)
+                with log.status("Scanning video library…"):
+                    clips, broll = _scan_videos(
+                        engine, args.video_dir, broll_dir
+                    )
 
             mix_out = os.path.join(args.output_dir, "mix.mp4")
-            result = _generate_video(
-                engine, mix_meta, clips, mix_out,
-                mix_path, pacing_kwargs, broll_clips=broll,
-            )
+            with log.status("Rendering mix video…"):
+                result = _generate_video(
+                    engine, mix_meta, clips, mix_out,
+                    mix_path, pacing_kwargs, broll_clips=broll,
+                )
             generated_files.append(result)
-            logger.info("Mix video saved: %s", result)
+            log.success(f"Mix video: [bold]{result}[/bold]")
 
         # ----------------------------------------------------------
         # 6. Per-track: video + shorts
@@ -365,53 +402,69 @@ def main() -> None:
         for idx, track_path in enumerate(individual_tracks, start=1):
             track_name = _safe_filename(track_path)
             track_label = f"track_{idx:02d}_{track_name}"
-            logger.info(
-                "=== Track %d/%d: %s ===",
-                idx, len(individual_tracks), track_name,
+
+            log.phase(
+                f"🎸 Track {idx}/{len(individual_tracks)}: {track_name}"
             )
 
             # Analyze this track's audio independently
             track_input = AudioAnalysisInput(file_path=track_path)
-            track_meta = analyzer.analyze(track_input)
-            logger.info(
-                "  BPM=%.1f, peaks=%d, duration=%.1fs",
-                track_meta.bpm, len(track_meta.peaks), track_meta.duration,
+            with log.status("Analyzing track audio…"):
+                track_meta = analyzer.analyze(track_input)
+            log.detail(
+                f"BPM={track_meta.bpm:.1f}  peaks={len(track_meta.peaks)}"
+                f"  duration={track_meta.duration:.1f}s"
             )
 
             # Scan (or reuse shared scan)
             if args.shared_scan:
                 clips, broll = shared_clips, shared_broll
             else:
-                clips, broll = _scan_videos(engine, args.video_dir, broll_dir)
+                with log.status("Scanning video library…"):
+                    clips, broll = _scan_videos(
+                        engine, args.video_dir, broll_dir
+                    )
+
+            # FEAT-017: rotate prefix clips per track for intro variety
+            track_pacing = {**pacing_kwargs, "prefix_offset": idx - 1}
 
             # Generate horizontal video
             track_out = os.path.join(args.output_dir, f"{track_label}.mp4")
-            result = _generate_video(
-                engine, track_meta, clips, track_out,
-                track_path, pacing_kwargs, broll_clips=broll,
-            )
+            with log.status("Rendering track video…"):
+                result = _generate_video(
+                    engine, track_meta, clips, track_out,
+                    track_path, track_pacing, broll_clips=broll,
+                )
             generated_files.append(result)
-            logger.info("  Track video saved: %s", result)
+            log.success(f"Track video: [bold]{result}[/bold]")
 
             # Generate shorts (FEAT-015)
             if args.shorts_count > 0:
                 shorts_dir = os.path.join(
                     args.output_dir, "shorts", f"track_{idx:02d}"
                 )
-                shorts = _generate_shorts(
-                    engine, track_meta, clips, track_path,
-                    shorts_dir, args.shorts_count,
-                    min_dur, max_dur, pacing_kwargs,
-                )
+                with log.status(
+                    f"Rendering {args.shorts_count} short(s)…"
+                ):
+                    shorts = _generate_shorts(
+                        engine, track_meta, clips, track_path,
+                        shorts_dir, args.shorts_count,
+                        min_dur, max_dur, track_pacing,
+                        log,
+                    )
                 generated_files.extend(shorts)
-                logger.info(
-                    "  %d shorts saved in %s", len(shorts), shorts_dir
+                log.success(
+                    f"{len(shorts)} short(s) saved in [bold]{shorts_dir}[/bold]"
                 )
 
         # ----------------------------------------------------------
         # 7. Summary
         # ----------------------------------------------------------
         elapsed = time.time() - t0
+        log.summary(generated_files, elapsed)
+
+        # Also write a plain-text summary file
+        summary_path = os.path.join(args.output_dir, "pipeline_summary.txt")
         summary_lines = [
             f"Pipeline complete in {elapsed:.0f}s",
             f"Total files generated: {len(generated_files)}",
@@ -419,19 +472,46 @@ def main() -> None:
         ]
         for f in generated_files:
             summary_lines.append(f"  {f}")
-
-        summary_text = "\n".join(summary_lines)
-        logger.info("\n%s", summary_text)
-
-        summary_path = os.path.join(args.output_dir, "pipeline_summary.txt")
         with open(summary_path, "w") as fh:
-            fh.write(summary_text + "\n")
+            fh.write("\n".join(summary_lines) + "\n")
 
-    except ValidationError as e:
-        logger.error("Input validation error: %s", e)
+    except FileNotFoundError as e:
+        log.error(
+            f"File or directory not found: {e}",
+            hint="Check that --audio and --video-dir paths exist.",
+        )
         sys.exit(1)
+    except PermissionError as e:
+        log.error(
+            f"Permission denied: {e}",
+            hint="Check file permissions on the output directory.",
+        )
+        sys.exit(1)
+    except subprocess.CalledProcessError as e:
+        log.error(
+            f"FFmpeg process failed (exit code {e.returncode})",
+            hint="Ensure FFmpeg is installed: brew install ffmpeg",
+        )
+        if args.verbose:
+            logger.debug("FFmpeg stderr:\n%s", e.stderr)
+        sys.exit(1)
+    except ValidationError as e:
+        log.error(
+            f"Invalid configuration:\n{e}",
+            hint="Check --video-style, --audio-overlay, and other options.",
+        )
+        sys.exit(1)
+    except KeyboardInterrupt:
+        log.warn("Pipeline cancelled by user.")
+        log.detail(f"Partial output may be in {args.output_dir}")
+        sys.exit(130)
     except Exception as e:
-        logger.error("Pipeline failed: %s", e)
+        log.error(
+            f"Unexpected error: {e}",
+            hint="Run with --verbose for full traceback.",
+        )
+        if args.verbose:
+            logger.exception("Full traceback:")
         sys.exit(1)
 
 

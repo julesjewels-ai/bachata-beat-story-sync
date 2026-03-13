@@ -406,7 +406,7 @@ Provide a `--shared-scan` flag for the pipeline to heavily optimize duration whe
 
 | Field        | Value                                                |
 |--------------|------------------------------------------------------|
-| **Status**   | `PROPOSED`                                           |
+| **Status**   | `DONE`                                               |
 | **Priority** | 🔴 High                                              |
 | **Effort**   | Low–Medium                                           |
 | **Impact**   | High — prevents all pipeline videos from looking identical in the first seconds |
@@ -437,3 +437,33 @@ Vary the opening clip selection across pipeline tracks so that each video starts
 ### Scope
 - **In scope:** Varying intro clip selection across pipeline tracks; preserving single-video prefix behaviour.
 - **Out of scope:** AI-based intro selection, per-track configuration files, thumbnail-based intro detection.
+
+---
+
+## FEAT-018: CLI Logging & UX System
+
+| Field        | Value                                                |
+|--------------|------------------------------------------------------|
+| **Status**   | `IMPLEMENTED`                                        |
+| **Priority** | 🟡 Medium                                            |
+| **Effort**   | Low–Medium                                           |
+| **Impact**   | Medium — professional terminal experience             |
+
+### Why this matters
+Raw `logging.info` output creates flat, unscannable walls of text with no visual hierarchy. Long FFmpeg operations show no feedback, making the terminal appear frozen. Errors provide no guidance on how to fix them.
+
+### Description
+Replace all raw `logging.info/error` calls in `pipeline.py` with a `PipelineLogger` class that provides Rich-based visual hierarchy: phase headers (`Rule`), spinners (`console.status`), colored prefixes (`✔`/`⚠`/`ℹ`), error panels with fix hints, and a final summary panel.
+
+### Implementation Details
+- `PipelineLogger` class added to `src/ui/console.py` co-located with `RichProgressObserver`.
+- Methods: `phase()`, `step()`, `detail()`, `success()`, `warn()`, `error()`, `status()`, `summary()`.
+- `--verbose` flag enables `logging.DEBUG` for internal diagnostics.
+- `--quiet` flag suppresses all non-error output.
+- Non-TTY detection disables spinners when stdout is piped (CI-safe).
+- Typed error catches (`FileNotFoundError`, `PermissionError`, `CalledProcessError`, `ValidationError`, `KeyboardInterrupt`) with actionable hints.
+
+### Scope
+- **In scope:** `pipeline.py` output, `--verbose`/`--quiet` flags, typed error handling.
+- **Out of scope:** Applying to `main.py`/`shorts_maker.py`, log-to-file, custom themes.
+
