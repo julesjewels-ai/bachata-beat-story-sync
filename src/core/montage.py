@@ -553,7 +553,11 @@ class MontageGenerator:
 
             # 4. Overlay audio (or just copy if no audio)
             if audio_path and os.path.exists(audio_path):
-                self._overlay_audio(concat_path, audio_path, output_path, config)
+                video_dur = self._get_video_duration(concat_path)
+                self._overlay_audio(
+                    concat_path, audio_path, output_path, config,
+                    video_duration=video_dur,
+                )
             else:
                 shutil.move(concat_path, output_path)
 
@@ -870,34 +874,56 @@ class MontageGenerator:
             return 0.0
 
     def _overlay_audio(
-        self, video_path: str, audio_path: str, output_path: str, config: PacingConfig
+        self,
+        video_path: str,
+        audio_path: str,
+        output_path: str,
+        config: PacingConfig,
+        video_duration: float = 0.0,
     ) -> None:
         """
         Replace the video's audio track with the original song.
 
         If audio_overlay is configured, renders a visualizer.
         Otherwise, stream-copies video and encodes audio to save time.
+
+        When audio_start_offset > 0, seeks into the audio file so
+        the audio segment matches the beats used to build the video.
+        Explicit -t trimming ensures the audio never exceeds the
+        video length.
         """
         from src.core.ffmpeg_utils import timeout_for_duration
 
         # Compute timeout proportional to video length
-        video_duration = self._get_video_duration(video_path)
-        overlay_timeout = timeout_for_duration(video_duration) if video_duration > 0 else None
+        vid_dur = video_duration or self._get_video_duration(video_path)
+        overlay_timeout = timeout_for_duration(vid_dur) if vid_dur > 0 else None
+
+        # Build audio input args: optional seek + input file
+        audio_input_args: list[str] = []
+        if config.audio_start_offset > 0:
+            audio_input_args.extend(["-ss", f"{config.audio_start_offset:.3f}"])
+        audio_input_args.extend(["-i", audio_path])
+
+        # Explicit duration trim (more reliable than -shortest alone)
+        trim_args: list[str] = []
+        if vid_dur > 0:
+            trim_args.extend(["-t", f"{vid_dur:.3f}"])
+
         if config.audio_overlay == "none":
             cmd = [
                 "ffmpeg",
                 "-y",
                 "-i",
                 video_path,  # Video (no audio)
-                "-i",
-                audio_path,  # Audio source
+                *audio_input_args,  # Audio source (with optional seek)
                 "-c:v",
                 "copy",  # Don't re-encode video
                 "-c:a",
                 "aac",  # Encode audio to AAC
                 "-b:a",
                 "192k",  # Good audio quality
-                "-shortest",  # Trim to shorter stream
+                *trim_args,  # Explicit duration trim
+                "-shortest",  # Fallback safety net
                 "-movflags",
                 "+faststart",
                 output_path,
@@ -937,8 +963,7 @@ class MontageGenerator:
                 "-y",
                 "-i",
                 video_path,
-                "-i",
-                audio_path,
+                *audio_input_args,  # Audio source (with optional seek)
                 "-filter_complex",
                 f_str,
                 "-map",
@@ -957,7 +982,8 @@ class MontageGenerator:
                 "aac",
                 "-b:a",
                 "192k",
-                "-shortest",
+                *trim_args,  # Explicit duration trim
+                "-shortest",  # Fallback safety net
                 "-movflags",
                 "+faststart",
                 output_path,

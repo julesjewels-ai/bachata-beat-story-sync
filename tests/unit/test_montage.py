@@ -1332,6 +1332,69 @@ class TestAudioOverlay:
         assert "-c:v copy" not in cmd_str
         assert "-c:v libx264" in cmd_str
 
+    @patch("src.core.montage.subprocess.run")
+    def test_overlay_audio_seeks_to_offset(self, mock_run, generator):
+        """When audio_start_offset > 0, FFmpeg command includes -ss before the audio input."""
+        mock_run.return_value = MagicMock(returncode=0, stderr="")
+        config = PacingConfig(audio_overlay="none", audio_start_offset=30.0)
+
+        generator._overlay_audio("in.mp4", "audio.wav", "out.mp4", config)
+
+        cmd = mock_run.call_args[0][0]
+        # -ss should appear before the audio -i
+        ss_idx = cmd.index("-ss")
+        audio_i_indices = [
+            i for i, v in enumerate(cmd)
+            if v == "-i" and i + 1 < len(cmd) and cmd[i + 1] == "audio.wav"
+        ]
+        assert len(audio_i_indices) == 1
+        assert ss_idx < audio_i_indices[0], "-ss must appear before audio -i"
+        assert cmd[ss_idx + 1] == "30.000"
+
+    @patch("src.core.montage.subprocess.run")
+    def test_overlay_audio_trims_to_video_duration(self, mock_run, generator):
+        """When video_duration > 0, FFmpeg command includes -t for explicit trimming."""
+        mock_run.return_value = MagicMock(returncode=0, stderr="")
+        config = PacingConfig(audio_overlay="none")
+
+        generator._overlay_audio(
+            "in.mp4", "audio.wav", "out.mp4", config, video_duration=15.0,
+        )
+
+        cmd = mock_run.call_args[0][0]
+        cmd_str = " ".join(str(x) for x in cmd)
+        assert "-t 15.000" in cmd_str
+
+    @patch("src.core.montage.subprocess.run")
+    def test_overlay_audio_no_offset_no_seek(self, mock_run, generator):
+        """When audio_start_offset is 0, no -ss is added before the audio input."""
+        mock_run.return_value = MagicMock(returncode=0, stderr="")
+        config = PacingConfig(audio_overlay="none", audio_start_offset=0.0)
+
+        generator._overlay_audio("in.mp4", "audio.wav", "out.mp4", config)
+
+        cmd = mock_run.call_args[0][0]
+        assert "-ss" not in cmd
+
+    @patch("src.core.montage.subprocess.run")
+    def test_overlay_audio_visualizer_also_seeks(self, mock_run, generator):
+        """Waveform overlay with offset also seeks into the audio file."""
+        mock_run.return_value = MagicMock(returncode=0, stderr="")
+        config = PacingConfig(
+            audio_overlay="waveform", audio_start_offset=20.0,
+        )
+
+        generator._overlay_audio(
+            "in.mp4", "audio.wav", "out.mp4", config, video_duration=10.0,
+        )
+
+        cmd = mock_run.call_args[0][0]
+        cmd_str = " ".join(str(x) for x in cmd)
+        assert "-ss 20.000" in cmd_str
+        assert "-t 10.000" in cmd_str
+        assert "-filter_complex" in cmd_str
+        assert "showwaves=" in cmd_str
+
 
 # ------------------------------------------------------------------
 # FEAT-019: audio_start_offset tests

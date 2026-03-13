@@ -24,6 +24,7 @@ from pydantic import ValidationError
 
 from src.core.app import BachataSyncEngine
 from src.core.audio_analyzer import AudioAnalysisInput, AudioAnalyzer, find_audio_hooks
+from src.cli_utils import build_pacing_kwargs, parse_duration
 from src.core.audio_mixer import (
     SUPPORTED_AUDIO_EXTENSIONS,
     resolve_audio_path,
@@ -47,46 +48,6 @@ def _discover_audio_files(folder_path: str) -> list[str]:
         if os.path.splitext(name)[1].lower() in SUPPORTED_AUDIO_EXTENSIONS:
             files.append(os.path.join(folder_path, name))
     return sorted(files)
-
-
-def _parse_duration(duration_str: str) -> tuple[float, float]:
-    """Parse '60' or '10-15' into (min, max) floats."""
-    if "-" in duration_str:
-        parts = duration_str.split("-")
-        if len(parts) == 2:
-            try:
-                return float(parts[0].strip()), float(parts[1].strip())
-            except ValueError:
-                pass
-    try:
-        val = float(duration_str.strip())
-        return val, val
-    except ValueError:
-        raise argparse.ArgumentTypeError(
-            f"Invalid duration format: '{duration_str}'."
-            " Use '60' or '10-15'."
-        ) from None
-
-
-def _build_pacing_kwargs(args: argparse.Namespace) -> dict:
-    """Build the shared pacing kwargs dict from CLI args."""
-    kwargs: dict = {}
-    if args.test_mode:
-        kwargs["max_clips"] = 4
-        kwargs["max_duration_seconds"] = 10.0
-    if args.video_style:
-        kwargs["video_style"] = args.video_style
-    if args.audio_overlay:
-        kwargs["audio_overlay"] = args.audio_overlay
-    if args.audio_overlay_opacity is not None:
-        kwargs["audio_overlay_opacity"] = args.audio_overlay_opacity
-    if args.audio_overlay_position:
-        kwargs["audio_overlay_position"] = args.audio_overlay_position
-    if args.broll_interval is not None:
-        kwargs["broll_interval_seconds"] = args.broll_interval
-    if args.broll_variance is not None:
-        kwargs["broll_interval_variance"] = args.broll_variance
-    return kwargs
 
 
 def _detect_broll_dir(
@@ -333,10 +294,10 @@ def main() -> None:
     os.makedirs(args.output_dir, exist_ok=True)
 
     # Parse shorts duration
-    min_dur, max_dur = _parse_duration(args.shorts_duration)
+    min_dur, max_dur = parse_duration(args.shorts_duration)
 
     # Shared pacing kwargs across all renders
-    pacing_kwargs = _build_pacing_kwargs(args)
+    pacing_kwargs = build_pacing_kwargs(args)
 
     engine = BachataSyncEngine()
     analyzer = AudioAnalyzer()

@@ -7,6 +7,7 @@ import os
 import sys
 
 from pydantic import ValidationError
+from src.cli_utils import build_pacing_kwargs
 from src.core.app import BachataSyncEngine
 from src.core.audio_analyzer import AudioAnalysisInput, AudioAnalyzer
 from src.core.audio_mixer import resolve_audio_path
@@ -180,23 +181,11 @@ def main() -> None:
             max_duration = max_duration or 10.0
 
         # Build pacing overrides from CLI args
-        pacing_kwargs: dict = {}
+        pacing_kwargs = build_pacing_kwargs(args)
         if max_clips:
             pacing_kwargs["max_clips"] = max_clips
         if max_duration:
             pacing_kwargs["max_duration_seconds"] = max_duration
-        if args.video_style:
-            pacing_kwargs["video_style"] = args.video_style
-        if args.audio_overlay:
-            pacing_kwargs["audio_overlay"] = args.audio_overlay
-        if args.audio_overlay_opacity is not None:
-            pacing_kwargs["audio_overlay_opacity"] = args.audio_overlay_opacity
-        if args.audio_overlay_position:
-            pacing_kwargs["audio_overlay_position"] = args.audio_overlay_position
-        if args.broll_interval is not None:
-            pacing_kwargs["broll_interval_seconds"] = args.broll_interval
-        if args.broll_variance is not None:
-            pacing_kwargs["broll_interval_variance"] = args.broll_variance
 
         if pacing_kwargs:
             pacing = PacingConfig(**pacing_kwargs)

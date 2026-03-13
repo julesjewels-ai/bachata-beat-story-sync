@@ -11,6 +11,7 @@ import uuid
 
 from pydantic import ValidationError
 
+from src.cli_utils import build_pacing_kwargs, parse_duration
 from src.core.app import BachataSyncEngine
 from src.core.audio_analyzer import AudioAnalysisInput, AudioAnalyzer, find_audio_hooks
 from src.core.audio_mixer import resolve_audio_path
@@ -20,25 +21,7 @@ from src.ui.console import RichProgressObserver
 logger = logging.getLogger(__name__)
 
 
-def parse_duration(duration_str: str) -> tuple[float, float]:
-    """Parses duration string like '60' or '10-15' into min and max floats."""
-    if "-" in duration_str:
-        parts = duration_str.split("-")
-        if len(parts) == 2:
-            try:
-                min_d = float(parts[0].strip())
-                max_d = float(parts[1].strip())
-                return min_d, max_d
-            except ValueError:
-                pass
-    try:
-        val = float(duration_str.strip())
-        return val, val
-    except ValueError:
-        raise argparse.ArgumentTypeError(
-            f"Invalid duration format: '{duration_str}'."
-            " Use '60' or '10-15'."
-        ) from None
+
 
 
 def parse_args() -> argparse.Namespace:
@@ -216,6 +199,7 @@ def main() -> None:
             hook_offset = hooks[i] if i < len(hooks) else 0.0
 
             pacing_kwargs: dict = {
+                **build_pacing_kwargs(args),
                 "is_shorts": True,
                 "seed": run_seed,
                 "max_duration_seconds": target_duration,
@@ -224,18 +208,6 @@ def main() -> None:
                 "abrupt_ending": args.cliffhanger,
                 "audio_start_offset": hook_offset,
             }
-            if args.video_style:
-                pacing_kwargs["video_style"] = args.video_style
-            if args.audio_overlay:
-                pacing_kwargs["audio_overlay"] = args.audio_overlay
-            if args.audio_overlay_opacity is not None:
-                pacing_kwargs["audio_overlay_opacity"] = args.audio_overlay_opacity
-            if args.audio_overlay_position:
-                pacing_kwargs["audio_overlay_position"] = args.audio_overlay_position
-            if args.broll_interval is not None:
-                pacing_kwargs["broll_interval_seconds"] = args.broll_interval
-            if args.broll_variance is not None:
-                pacing_kwargs["broll_interval_variance"] = args.broll_variance
 
             pacing = PacingConfig(**pacing_kwargs)
 
