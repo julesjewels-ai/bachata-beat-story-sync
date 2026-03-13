@@ -121,6 +121,16 @@ class MontageGenerator:
             offset = config.prefix_offset % len(forced_clips)
             forced_clips = forced_clips[offset:] + forced_clips[:offset]
 
+        # Only force the first prefix clip as the intro;
+        # remaining prefix clips return to the regular pool.
+        if len(forced_clips) > 1:
+            overflow = forced_clips[1:]
+            forced_clips = forced_clips[:1]
+            # Add overflow back so they participate in intensity selection
+            for clip in overflow:
+                if clip not in unique_clips:
+                    unique_clips.append(clip)
+
         # Sort clips by intensity score (highest first) for matching
         if config.is_shorts:
             # Prioritise vertical clips first
