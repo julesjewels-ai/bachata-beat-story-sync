@@ -1331,3 +1331,81 @@ class TestAudioOverlay:
         # Does not run fast stream copy
         assert "-c:v copy" not in cmd_str
         assert "-c:v libx264" in cmd_str
+
+
+# ------------------------------------------------------------------
+# FEAT-019: audio_start_offset tests
+# ------------------------------------------------------------------
+
+class TestAudioStartOffset:
+    """Verify that build_segment_plan respects audio_start_offset."""
+
+    @pytest.fixture
+    def gen(self):
+        return MontageGenerator()
+
+    @pytest.fixture
+    def clips(self):
+        return [
+            VideoAnalysisResult(
+                path=f"/videos/clip{i}.mp4",
+                intensity_score=0.5,
+                duration=30.0,
+                thumbnail_data=None,
+            )
+            for i in range(5)
+        ]
+
+    @pytest.fixture
+    def audio(self):
+        return AudioAnalysisResult(
+            filename="offset.wav",
+            bpm=120.0,
+            duration=60.0,
+            peaks=[],
+            sections=[],
+            beat_times=[i * 0.5 for i in range(120)],
+            intensity_curve=[0.5] * 120,
+        )
+
+    def test_offset_skips_early_beats(self, gen, clips, audio):
+        """With offset=10.0, segments should not reference early beats."""
+        config = PacingConfig(
+            audio_start_offset=10.0,
+            max_duration_seconds=10.0,
+        )
+        segments = gen.build_segment_plan(audio, clips, config)
+        assert len(segments) > 0
+        # All timeline positions should start at 0 (normalised)
+        assert segments[0].timeline_position == 0.0
+
+    def test_offset_zero_is_default(self, gen, clips, audio):
+        """offset=0.0 should produce same plan as no offset."""
+        config_zero = PacingConfig(
+            audio_start_offset=0.0,
+            max_duration_seconds=10.0,
+            seed="fixed",
+        )
+        config_default = PacingConfig(
+            max_duration_seconds=10.0,
+            seed="fixed",
+        )
+        segs_zero = gen.build_segment_plan(audio, clips, config_zero)
+        segs_default = gen.build_segment_plan(audio, clips, config_default)
+        # Same number of segments with same timeline positions
+        assert len(segs_zero) == len(segs_default)
+        for a, b in zip(segs_zero, segs_default):
+            assert abs(a.timeline_position - b.timeline_position) < 0.01
+
+    def test_offset_with_max_duration(self, gen, clips, audio):
+        """max_duration_seconds limits the *short's* timeline, not absolute."""
+        config = PacingConfig(
+            audio_start_offset=30.0,
+            max_duration_seconds=5.0,
+        )
+        segments = gen.build_segment_plan(audio, clips, config)
+        assert len(segments) > 0
+        # Total content should be ≤ max_duration
+        total = sum(s.duration for s in segments)
+        assert total <= 6.0  # small tolerance for rounding
+

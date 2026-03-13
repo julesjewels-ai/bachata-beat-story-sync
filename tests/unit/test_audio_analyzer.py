@@ -7,7 +7,8 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 from pydantic import ValidationError
-from src.core.audio_analyzer import AudioAnalysisInput, AudioAnalyzer
+from src.core.audio_analyzer import AudioAnalysisInput, AudioAnalyzer, find_audio_hooks
+from src.core.models import AudioAnalysisResult, MusicalSection
 
 
 class TestAudioAnalyzer:
@@ -90,3 +91,106 @@ class TestAudioAnalyzer:
             self.analyzer.analyze(input_data)
 
         assert "Audio analysis failed" in str(excinfo.value)
+
+
+# ------------------------------------------------------------------
+# FEAT-019: find_audio_hooks() tests
+# ------------------------------------------------------------------
+
+def _make_audio(
+    duration: float = 120.0,
+    bpm: float = 120.0,
+    beat_count: int = 240,
+    peaks: list[float] | None = None,
+    sections: list[MusicalSection] | None = None,
+    intensity: list[float] | None = None,
+) -> AudioAnalysisResult:
+    """Helper to build synthetic AudioAnalysisResult for hook tests."""
+    beat_times = [i * (60.0 / bpm) for i in range(beat_count)]
+    if intensity is None:
+        intensity = [0.5] * beat_count
+    return AudioAnalysisResult(
+        filename="hook_test.wav",
+        bpm=bpm,
+        duration=duration,
+        peaks=peaks or [],
+        sections=sections or [],
+        beat_times=beat_times,
+        intensity_curve=intensity,
+    )
+
+
+class TestFindAudioHooks:
+    """Tests for find_audio_hooks (FEAT-019)."""
+
+    def test_returns_correct_count(self):
+        audio = _make_audio(duration=120.0, beat_count=240)
+        hooks = find_audio_hooks(audio, short_duration=15.0, count=3)
+        assert len(hooks) == 3
+
+    def test_skips_first_second(self):
+        audio = _make_audio(duration=60.0, beat_count=120)
+        hooks = find_audio_hooks(audio, short_duration=10.0, count=5)
+        for h in hooks:
+            assert h >= 1.0, f"Hook at {h}s violates 1s skip"
+
+    def test_respects_duration_limit(self):
+        audio = _make_audio(duration=30.0, beat_count=60)
+        hooks = find_audio_hooks(audio, short_duration=15.0, count=5)
+        for h in hooks:
+            assert h + 15.0 <= audio.duration
+
+    def test_minimum_separation(self):
+        audio = _make_audio(duration=120.0, beat_count=240)
+        hooks = find_audio_hooks(audio, short_duration=15.0, count=4)
+        min_sep = 15.0 * 0.5
+        for i, a in enumerate(hooks):
+            for b in hooks[i + 1 :]:
+                assert abs(a - b) >= min_sep, (
+                    f"Hooks {a:.1f}s and {b:.1f}s are too close"
+                )
+
+    def test_prefers_high_intensity(self):
+        # First half low, second half high
+        intensities = [0.1] * 120 + [0.9] * 120
+        audio = _make_audio(
+            duration=120.0, beat_count=240, intensity=intensities
+        )
+        hooks = find_audio_hooks(audio, short_duration=10.0, count=1)
+        # Best hook should be in the high-intensity second half
+        assert hooks[0] >= 60.0
+
+    def test_section_boundary_bonus(self):
+        # Section boundary at exactly 5.0s — candidate at 1.0s should
+        # score bonus for pace_target=4.0 ± 1.0 => match at 5.0
+        sections = [
+            MusicalSection(start_time=0.0, end_time=5.0, label="intro", avg_intensity=0.3),
+            MusicalSection(start_time=5.0, end_time=30.0, label="verse", avg_intensity=0.7),
+        ]
+        audio = _make_audio(
+            duration=30.0, beat_count=60, sections=sections,
+            intensity=[0.5] * 60,
+        )
+        hooks = find_audio_hooks(audio, short_duration=10.0, count=1)
+        # Hook near 1.0s should benefit from the section boundary at 5.0s
+        assert hooks[0] <= 2.0
+
+    def test_fallback_empty_data(self):
+        audio = AudioAnalysisResult(
+            filename="empty.wav",
+            bpm=120.0,
+            duration=10.0,
+            peaks=[],
+            sections=[],
+            beat_times=[],
+            intensity_curve=[],
+        )
+        hooks = find_audio_hooks(audio, short_duration=5.0, count=3)
+        assert hooks == [0.0]
+
+    def test_single_count(self):
+        audio = _make_audio(duration=60.0, beat_count=120)
+        hooks = find_audio_hooks(audio, short_duration=10.0, count=1)
+        assert len(hooks) == 1
+        assert isinstance(hooks[0], float)
+

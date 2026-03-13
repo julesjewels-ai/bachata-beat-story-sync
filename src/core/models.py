@@ -238,6 +238,13 @@ class PacingConfig(BaseModel):
         "'left', 'center', 'right'",
     )
 
+    # Audio Hook Detection (FEAT-019)
+    audio_start_offset: float = Field(
+        0.0,
+        description="Start the montage from this point in the audio (seconds). "
+        "Used by smart-start to shift the audio window for shorts.",
+    )
+
 
 class AudioMixConfig(BaseModel):
     """

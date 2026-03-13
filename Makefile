@@ -16,6 +16,7 @@ SHORTS_COUNT ?= 1
 SHORTS_DURATION ?= 60
 OUTPUT_DIR ?= output_pipeline
 SHARED_SCAN ?= 0
+SMART_START ?=
 
 # Build optional flags
 EXTRA_FLAGS =
@@ -58,6 +59,10 @@ endif
 
 ifeq ($(SHARED_SCAN), 1)
   EXTRA_FLAGS += --shared-scan
+endif
+
+ifeq ($(SMART_START), 0)
+  EXTRA_FLAGS += --no-smart-start
 endif
 
 .PHONY: install run run-shorts full-pipeline test lint format check-types clean

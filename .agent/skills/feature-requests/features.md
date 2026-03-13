@@ -473,7 +473,7 @@ Replace all raw `logging.info/error` calls in `pipeline.py` with a `PipelineLogg
 
 | Field        | Value                                                |
 |--------------|------------------------------------------------------|
-| **Status**   | `PROPOSED`                                           |
+| **Status**   | `IMPLEMENTED`                                        |
 | **Priority** | 🔴 High                                              |
 | **Effort**   | Low–Medium                                           |
 | **Impact**   | High — transforms shorts from "random clip" to "attention-grabbing hook" |
@@ -758,4 +758,38 @@ ffmpeg -i clip.mp4 -vf "select='gt(scene,0.3)',showinfo" -vsync vfr -f null - 2>
 ### Scope
 - **In scope:** Scene-change timestamp detection (OpenCV-based), opening_intensity scoring, scene-aware clip selection for shorts opener, scene-aware within-clip start offset, fallback to existing behaviour when no scene data exists.
 - **Out of scope:** Content-aware scene detection (e.g., "this scene shows a dancer" vs "this scene shows a crowd"), AI/ML-based visual hook detection, per-frame visual quality scoring, FFmpeg scene detection as default (optional alternative only).
+
+---
+
+## FEAT-021: Waveform Overlay Padding / Margins
+
+| Field        | Value                                                |
+|--------------|------------------------------------------------------|
+| **Status**   | `PROPOSED`                                           |
+| **Priority** | 🟢 Low                                                |
+| **Effort**   | Low                                                  |
+| **Impact**   | Low–Medium — visual polish for the audio overlay     |
+| **Depends**  | FEAT-013 (Music-Synced Waveform Overlay)             |
+
+### Why this matters
+When the waveform overlay is positioned on the right (the default), it sits too close to the frame edges — particularly the bottom and right. This looks visually cramped, especially on smaller screens where the overlay appears to bleed into the edge of the video. Proper padding gives the overlay breathing room and a more polished, professional look.
+
+### Description
+Add configurable padding (margins) to the waveform / bars overlay so it doesn't sit flush against the frame edges. The padding should apply to both the X and Y offset calculations in `_overlay_audio()`.
+
+### Implementation Details
+- Add `audio_overlay_padding: int` field to `PacingConfig` (default `20` pixels).
+- Update the X-position expressions in `_overlay_audio()`:
+  - `right` → `W-{overlay_w}-{padding}`  (currently hardcoded to `W-{overlay_w}-10`)
+  - `left`  → `{padding}`               (currently hardcoded to `10`)
+  - `center` → unchanged (centered is inherently padded)
+- Update the Y-position expression:
+  - Currently: `H-h-10`
+  - After: `H-h-{padding}` (applies the same padding value to bottom margin)
+- Add `--audio-overlay-padding` CLI argument to `main.py`, `shorts_maker.py`, and `pipeline.py`.
+- Update `docs/configuration.md` with the new parameter.
+
+### Scope
+- **In scope:** Configurable X/Y padding for waveform overlay; CLI + config support.
+- **Out of scope:** Per-axis padding (separate X and Y values), overlay repositioning to top of frame, animated margin effects.
 

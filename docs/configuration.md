@@ -26,6 +26,13 @@ The tool is invoked via `python main.py` with the following arguments:
 | `--broll-variance` | ❌ | `float` | `1.5` | Allowed variance in B-roll intervals (± seconds) |
 | `--version` | ❌ | flag | — | Display version number and exit |
 
+### Shorts CLI (`shorts_maker.py`)
+
+| Argument | Required | Type | Default | Description |
+|----------|----------|------|---------|-------------|
+| `--smart-start` | ❌ | flag | `True` | Use audio hook detection for smart start selection |
+| `--no-smart-start` | ❌ | flag | — | Disable smart start — all shorts start from beat 0 |
+
 ---
 
 ## Pacing Configuration (`montage_config.yaml`)
@@ -52,6 +59,7 @@ A YAML file in the project root that controls clip pacing — no code changes ne
 | `accelerate_pacing` | `false` | Gradually decrease clip durations towards the end |
 | `randomize_speed_ramps` | `false` | Apply random variance to speed ramps for a human touch |
 | `abrupt_ending` | `false` | End sharply to create a cliffhanger effect |
+| `audio_start_offset` | `0.0` | Start the montage from this point in the audio (seconds). Set automatically by smart-start hook detection. |
 
 > If `montage_config.yaml` is missing, defaults above are used automatically.
 
@@ -167,6 +175,7 @@ All variables below are **optional** and apply to `make run`, `make run-shorts`,
 | `BROLL_VARIANCE` | `1.5` | Allowed variance in B-roll intervals (± seconds) |
 | `OUTPUT_DIR` | `output_pipeline` | Output directory (pipeline target only) |
 | `SHARED_SCAN` | `0` | Set to `1` to share a single video scan across all tracks |
+| `SMART_START` | *(on)* | Set to `0` to disable audio hook detection for shorts |
 
 **Example — montage with waveform overlay:**
 

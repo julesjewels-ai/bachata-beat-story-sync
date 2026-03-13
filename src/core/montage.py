@@ -1,10 +1,6 @@
-"""
-Montage generator for Bachata Beat-Story Sync.
+"""Montage generation engine — FEAT-001 through FEAT-013, FEAT-019."""
 
-Uses direct FFmpeg subprocess calls for memory-safe video processing.
-Only one FFmpeg process runs at a time — no memory leaks.
-"""
-
+import bisect
 import hashlib
 import logging
 import math
@@ -307,7 +303,14 @@ class MontageGenerator:
 
         segments: list[SegmentPlan] = []
         timeline_pos = 0.0
-        beat_idx = 0
+
+        # FEAT-019: skip beats before audio_start_offset
+        if config.audio_start_offset > 0:
+            beat_idx = bisect.bisect_left(
+                beat_times, config.audio_start_offset
+            )
+        else:
+            beat_idx = 0
         clip_idx = 0
         broll_idx = 0
         forced_clip_idx = 0

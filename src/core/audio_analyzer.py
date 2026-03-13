@@ -244,3 +244,114 @@ class AudioAnalyzer:
         except Exception as e:
             logger.error("Failed to analyze audio file %s: %s", file_path, e)
             raise RuntimeError(f"Audio analysis failed: {e}") from e
+
+
+# ------------------------------------------------------------------
+# FEAT-019: Audio Hook Scoring for Smart Start Selection
+# ------------------------------------------------------------------
+
+def find_audio_hooks(
+    audio_data: AudioAnalysisResult,
+    short_duration: float,
+    count: int,
+    hook_window: float = 2.0,
+    pace_target: float = 4.0,
+    pace_tolerance: float = 1.0,
+) -> list[float]:
+    """Score candidate start positions and return the top *count*.
+
+    Scoring formula per candidate beat::
+
+        hook_score  = 0.3 × intensity + 0.3 × peak_proximity
+        pace_score  = 0.2 × intensity_delta + 0.2 × section_bonus
+        total       = hook_score + pace_score
+
+    Args:
+        audio_data: Analysed audio with beat_times, intensity_curve,
+            peaks, sections, and duration.
+        short_duration: Target length of each short in seconds.
+        count: Number of hooks to return.
+        hook_window: Seconds after start to evaluate hook quality.
+        pace_target: Seconds after start where a pace shift is desired.
+        pace_tolerance: ± tolerance around *pace_target* for section
+            boundary detection.
+
+    Returns:
+        List of start-time floats (length ≤ *count*), sorted by score
+        descending.  May be shorter than *count* if there aren't enough
+        viable, non-overlapping candidates.
+    """
+    import bisect
+
+    beat_times = audio_data.beat_times
+    intensity = audio_data.intensity_curve
+    peaks = sorted(audio_data.peaks)
+    sections = audio_data.sections
+    duration = audio_data.duration
+
+    if not beat_times or not intensity:
+        return [0.0] * min(count, 1)
+
+    # ---- score every candidate beat --------------------------------
+    scored: list[tuple[float, float]] = []  # (score, start_time)
+
+    for idx, beat_t in enumerate(beat_times):
+        # Filter: skip first 1s (count-in) and tail that can't fit
+        if beat_t < 1.0:
+            continue
+        if beat_t + short_duration > duration:
+            break
+
+        # 1. Beat intensity (0.3)
+        beat_intensity = intensity[idx] if idx < len(intensity) else 0.0
+
+        # 2. Peak proximity bonus (0.3) — 1.0 if any peak within
+        #    ±0.5s of start, decaying to 0.0
+        peak_bonus = 0.0
+        pi = bisect.bisect_left(peaks, beat_t - 0.5)
+        while pi < len(peaks) and peaks[pi] <= beat_t + hook_window:
+            dist = abs(peaks[pi] - beat_t)
+            if dist <= 0.5:
+                peak_bonus = max(peak_bonus, 1.0 - dist * 2.0)
+            pi += 1
+
+        # 3. Intensity delta near pace_target (0.2)
+        target_time = beat_t + pace_target
+        target_idx = bisect.bisect_left(beat_times, target_time)
+        target_idx = min(target_idx, len(intensity) - 1)
+        delta = abs(intensity[target_idx] - beat_intensity) if target_idx < len(intensity) else 0.0
+
+        # 4. Section boundary bonus near pace_target (0.2)
+        section_bonus = 0.0
+        for sec in sections:
+            if abs(sec.start_time - target_time) <= pace_tolerance:
+                section_bonus = 1.0
+                break
+
+        total = (
+            0.3 * beat_intensity
+            + 0.3 * peak_bonus
+            + 0.2 * delta
+            + 0.2 * section_bonus
+        )
+        scored.append((total, beat_t))
+
+    if not scored:
+        return [0.0] * min(count, 1)
+
+    # ---- select top-N with minimum separation ----------------------
+    scored.sort(key=lambda x: x[0], reverse=True)
+    min_sep = short_duration * 0.5
+    selected: list[float] = []
+
+    for score, start in scored:
+        if len(selected) >= count:
+            break
+        if all(abs(start - s) >= min_sep for s in selected):
+            selected.append(start)
+
+    # Fallback: if best score is very low, ensure at least one hook
+    if not selected:
+        selected.append(0.0)
+
+    return selected

@@ -12,7 +12,7 @@ import uuid
 from pydantic import ValidationError
 
 from src.core.app import BachataSyncEngine
-from src.core.audio_analyzer import AudioAnalysisInput, AudioAnalyzer
+from src.core.audio_analyzer import AudioAnalysisInput, AudioAnalyzer, find_audio_hooks
 from src.core.audio_mixer import resolve_audio_path
 from src.core.models import PacingConfig
 from src.ui.console import RichProgressObserver
@@ -129,6 +129,20 @@ def parse_args() -> argparse.Namespace:
         help="Allowed variance in B-roll intervals, ± seconds (default: 1.5)",
     )
 
+    # FEAT-019: Smart Start
+    parser.add_argument(
+        "--smart-start",
+        action="store_true",
+        default=True,
+        help="Use audio hook detection for smart start selection (default: on)",
+    )
+    parser.add_argument(
+        "--no-smart-start",
+        action="store_false",
+        dest="smart_start",
+        help="Disable smart start — all shorts start from beat 0",
+    )
+
     return parser.parse_args()
 
 
@@ -178,7 +192,19 @@ def main() -> None:
             clip.model_copy(update={"thumbnail_data": None}) for clip in video_clips
         ]
 
-        # 3. Generate Shorts Sequence
+        # 3. FEAT-019: Find smart-start hooks
+        target_duration = random.uniform(min_dur, max_dur)
+        if args.smart_start:
+            hooks = find_audio_hooks(audio_meta, target_duration, args.count)
+            logger.info(
+                "Smart start: found %d hooks for %d shorts",
+                len(hooks),
+                args.count,
+            )
+        else:
+            hooks = [0.0] * args.count
+
+        # 4. Generate Shorts Sequence
         logger.info("Generating %d shorts...", args.count)
 
         for i in range(args.count):
@@ -187,6 +213,7 @@ def main() -> None:
             # Determine target duration for this specific run
             target_duration = random.uniform(min_dur, max_dur)
             run_seed = str(uuid.uuid4())
+            hook_offset = hooks[i] if i < len(hooks) else 0.0
 
             pacing_kwargs: dict = {
                 "is_shorts": True,
@@ -195,6 +222,7 @@ def main() -> None:
                 "accelerate_pacing": args.dynamic_flow,
                 "randomize_speed_ramps": args.human_touch,
                 "abrupt_ending": args.cliffhanger,
+                "audio_start_offset": hook_offset,
             }
             if args.video_style:
                 pacing_kwargs["video_style"] = args.video_style
