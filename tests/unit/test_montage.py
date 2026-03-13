@@ -331,7 +331,8 @@ class TestBuildSegmentPlan:
         assert len(segments) >= 2
         # Only the first prefix clip (1_clip) is forced; 2_clip goes to pool
         assert segments[0].video_path == "/videos/1_clip.mp4"
-        assert segments[1].video_path != "/videos/2_clip.mp4" or True  # pool order varies
+        # pool order varies
+        assert segments[1].video_path != "/videos/2_clip.mp4" or True
 
     def test_prefix_offset_rotates_intro_clips(self, generator):
         """FEAT-017: prefix_offset rotates the forced prefix clips."""
@@ -1162,7 +1163,7 @@ class TestVideoStyleFilters:
         from pydantic import ValidationError
 
         with pytest.raises(ValidationError):
-            PacingConfig(video_style="neon")
+            PacingConfig(video_style="neon")  # type: ignore[arg-type]
 
     def test_load_video_style_from_yaml(self, tmp_path):
         """video_style is correctly loaded from YAML config."""
@@ -1299,7 +1300,7 @@ class TestAudioOverlay:
         from pydantic import ValidationError
 
         with pytest.raises(ValidationError):
-            PacingConfig(audio_overlay="invalid-type")
+            PacingConfig(audio_overlay="invalid-type")  # type: ignore[arg-type]
 
     @patch("src.core.montage.subprocess.run")
     def test_overlay_audio_uses_copy_when_none(self, mock_run, generator):
@@ -1311,13 +1312,13 @@ class TestAudioOverlay:
 
         cmd = mock_run.call_args[0][0]
         cmd_str = " ".join(str(x) for x in cmd)
-        
+
         assert "-c:v copy" in cmd_str
         assert "-filter_complex" not in cmd_str
 
     @patch("src.core.montage.subprocess.run")
     def test_overlay_audio_uses_filter_complex_waveform(self, mock_run, generator):
-        """When audio_overlay is 'waveform', uses filter_complex and visualizer filters."""
+        """When audio_overlay='waveform', uses filter_complex and visualizer."""
         mock_run.return_value = MagicMock(returncode=0, stderr="")
         config = PacingConfig(audio_overlay="waveform")
 
@@ -1325,7 +1326,7 @@ class TestAudioOverlay:
 
         cmd = mock_run.call_args[0][0]
         cmd_str = " ".join(str(x) for x in cmd)
-        
+
         assert "-filter_complex" in cmd_str
         assert "showwaves=" in cmd_str
         # Does not run fast stream copy

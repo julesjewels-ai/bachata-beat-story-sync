@@ -19,6 +19,7 @@ import subprocess
 import sys
 import time
 import uuid
+from typing import Any
 
 from pydantic import ValidationError
 
@@ -141,12 +142,12 @@ def _safe_filename(path: str) -> str:
 
 def _generate_video(
     engine: BachataSyncEngine,
-    audio_meta,
-    clips: list,
+    audio_meta: Any,
+    clips: list[Any],
     output_path: str,
     audio_path: str,
-    pacing_kwargs: dict,
-    broll_clips: list | None = None,
+    pacing_kwargs: dict[str, Any],
+    broll_clips: list[Any] | None = None,
 ) -> str:
     """Generate a single horizontal music video."""
     pacing = PacingConfig(**pacing_kwargs) if pacing_kwargs else None
@@ -164,8 +165,8 @@ def _generate_video(
 
 def _generate_shorts(
     engine: BachataSyncEngine,
-    audio_meta,
-    clips: list,
+    audio_meta: Any,
+    clips: list[Any],
     audio_path: str,
     output_dir: str,
     count: int,
@@ -402,7 +403,7 @@ def main() -> None:
             mix_out = os.path.join(args.output_dir, "mix.mp4")
             with log.status("Rendering mix video…"):
                 result = _generate_video(
-                    engine, mix_meta, clips, mix_out,
+                    engine, mix_meta, clips or [], mix_out,
                     mix_path, pacing_kwargs, broll_clips=broll,
                 )
             generated_files.append(result)
@@ -444,7 +445,7 @@ def main() -> None:
             track_out = os.path.join(args.output_dir, f"{track_label}.mp4")
             with log.status("Rendering track video…"):
                 result = _generate_video(
-                    engine, track_meta, clips, track_out,
+                    engine, track_meta, clips or [], track_out,
                     track_path, track_pacing, broll_clips=broll,
                 )
             generated_files.append(result)
@@ -459,7 +460,7 @@ def main() -> None:
                     f"Rendering {args.shorts_count} short(s)…"
                 ):
                     shorts = _generate_shorts(
-                        engine, track_meta, clips, track_path,
+                        engine, track_meta, clips or [], track_path,
                         shorts_dir, args.shorts_count,
                         min_dur, max_dur, track_pacing,
                         log,

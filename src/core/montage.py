@@ -879,7 +879,9 @@ class MontageGenerator:
 
         # Compute timeout proportional to video length
         video_duration = self._get_video_duration(video_path)
-        overlay_timeout = timeout_for_duration(video_duration) if video_duration > 0 else None
+        overlay_timeout = (
+            timeout_for_duration(video_duration) if video_duration > 0 else None
+        )
         if config.audio_overlay == "none":
             cmd = [
                 "ffmpeg",

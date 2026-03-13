@@ -5,8 +5,8 @@ Console UI implementations using Rich.
 from __future__ import annotations
 
 import sys
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Generator
 
 from rich.console import Console
 from rich.panel import Panel
@@ -36,7 +36,7 @@ class RichProgressObserver:
 
     # --- Context manager protocol ---
 
-    def __enter__(self) -> "RichProgressObserver":
+    def __enter__(self) -> RichProgressObserver:
         return self
 
     from typing import Any
@@ -181,7 +181,7 @@ class PipelineLogger:
         time_str = f"{mins}m {secs}s" if mins else f"{secs}s"
 
         lines = [
-            f"[bold green]✨ Pipeline complete[/bold green]",
+            "[bold green]✨ Pipeline complete[/bold green]",
             f"[dim]Elapsed:[/dim] {time_str}",
             f"[dim]Files generated:[/dim] {len(generated_files)}",
             "",
