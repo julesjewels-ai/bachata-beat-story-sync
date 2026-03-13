@@ -116,6 +116,18 @@ def parse_args() -> argparse.Namespace:
         choices=["left", "center", "right"],
         help="Position of the audio overlay: left, center, right (default: right)",
     )
+    parser.add_argument(
+        "--broll-interval",
+        type=float,
+        default=None,
+        help="Target interval between B-roll clips in seconds (default: 13.5)",
+    )
+    parser.add_argument(
+        "--broll-variance",
+        type=float,
+        default=None,
+        help="Allowed variance in B-roll intervals, ± seconds (default: 1.5)",
+    )
 
     return parser.parse_args()
 
@@ -192,6 +204,10 @@ def main() -> None:
                 pacing_kwargs["audio_overlay_opacity"] = args.audio_overlay_opacity
             if args.audio_overlay_position:
                 pacing_kwargs["audio_overlay_position"] = args.audio_overlay_position
+            if args.broll_interval is not None:
+                pacing_kwargs["broll_interval_seconds"] = args.broll_interval
+            if args.broll_variance is not None:
+                pacing_kwargs["broll_interval_variance"] = args.broll_variance
 
             pacing = PacingConfig(**pacing_kwargs)
 

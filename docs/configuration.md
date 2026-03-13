@@ -22,6 +22,8 @@ The tool is invoked via `python main.py` with the following arguments:
 | `--audio-overlay` | ❌ | `str` | `none` | Music-synced visualizer: `none`, `waveform` (lines), `bars` (frequency bars) |
 | `--audio-overlay-opacity` | ❌ | `float` | `0.5` | Opacity of the audio visualizer (0.0–1.0) |
 | `--audio-overlay-position` | ❌ | `str` | `bottom` | Vertical position of the visualizer: `top`, `center`, `bottom` |
+| `--broll-interval` | ❌ | `float` | `13.5` | Target interval between B-roll clips in seconds |
+| `--broll-variance` | ❌ | `float` | `1.5` | Allowed variance in B-roll intervals (± seconds) |
 | `--version` | ❌ | flag | — | Display version number and exit |
 
 ---
@@ -161,6 +163,8 @@ All variables below are **optional** and apply to `make run`, `make run-shorts`,
 | `AUDIO_OVERLAY_POSITION` | — | Visualizer position: `top`, `center`, `bottom` |
 | `SHORTS_COUNT` | `1` | Number of shorts to generate (pipeline/shorts targets) |
 | `SHORTS_DURATION` | `60` | Duration per short in seconds |
+| `BROLL_INTERVAL` | `13.5` | Target interval between B-roll clips in seconds |
+| `BROLL_VARIANCE` | `1.5` | Allowed variance in B-roll intervals (± seconds) |
 | `OUTPUT_DIR` | `output_pipeline` | Output directory (pipeline target only) |
 | `SHARED_SCAN` | `0` | Set to `1` to share a single video scan across all tracks |
 
@@ -180,6 +184,12 @@ make full-pipeline AUDIO=./tracks/ VIDEO_DIR=./clips/ AUDIO_OVERLAY=bars AUDIO_O
 
 ```bash
 make full-pipeline AUDIO=./tracks/ VIDEO_DIR=./clips/ VIDEO_STYLE=warm
+```
+
+**Example — B-roll every 20 seconds with ±3s variance:**
+
+```bash
+make full-pipeline AUDIO=./tracks/ VIDEO_DIR=./clips/ BROLL_INTERVAL=20 BROLL_VARIANCE=3
 ```
 
 ---

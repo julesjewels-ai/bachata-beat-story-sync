@@ -8,6 +8,8 @@ VIDEO_STYLE ?=
 AUDIO_OVERLAY ?=
 AUDIO_OVERLAY_OPACITY ?=
 AUDIO_OVERLAY_POSITION ?=
+BROLL_INTERVAL ?=
+BROLL_VARIANCE ?=
 
 # Pipeline optional flags
 SHORTS_COUNT ?= 1
@@ -44,6 +46,14 @@ endif
 
 ifneq ($(AUDIO_OVERLAY_POSITION),)
   EXTRA_FLAGS += --audio-overlay-position $(AUDIO_OVERLAY_POSITION)
+endif
+
+ifneq ($(BROLL_INTERVAL),)
+  EXTRA_FLAGS += --broll-interval $(BROLL_INTERVAL)
+endif
+
+ifneq ($(BROLL_VARIANCE),)
+  EXTRA_FLAGS += --broll-variance $(BROLL_VARIANCE)
 endif
 
 ifeq ($(SHARED_SCAN), 1)

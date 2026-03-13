@@ -107,6 +107,8 @@ class TestBuildPacingKwargs:
         args.audio_overlay = None
         args.audio_overlay_opacity = None
         args.audio_overlay_position = None
+        args.broll_interval = None
+        args.broll_variance = None
         result = _build_pacing_kwargs(args)
         assert result == {}
 
@@ -117,6 +119,8 @@ class TestBuildPacingKwargs:
         args.audio_overlay = None
         args.audio_overlay_opacity = None
         args.audio_overlay_position = None
+        args.broll_interval = None
+        args.broll_variance = None
         result = _build_pacing_kwargs(args)
         assert result["max_clips"] == 4
         assert result["max_duration_seconds"] == 10.0
@@ -128,11 +132,26 @@ class TestBuildPacingKwargs:
         args.audio_overlay = "waveform"
         args.audio_overlay_opacity = 0.8
         args.audio_overlay_position = "center"
+        args.broll_interval = None
+        args.broll_variance = None
         result = _build_pacing_kwargs(args)
         assert result["video_style"] == "warm"
         assert result["audio_overlay"] == "waveform"
         assert result["audio_overlay_opacity"] == 0.8
         assert result["audio_overlay_position"] == "center"
+
+    def test_broll_interval_args(self):
+        args = MagicMock()
+        args.test_mode = False
+        args.video_style = None
+        args.audio_overlay = None
+        args.audio_overlay_opacity = None
+        args.audio_overlay_position = None
+        args.broll_interval = 20.0
+        args.broll_variance = 3.0
+        result = _build_pacing_kwargs(args)
+        assert result["broll_interval_seconds"] == 20.0
+        assert result["broll_interval_variance"] == 3.0
 
 
 # ------------------------------------------------------------------
