@@ -209,10 +209,10 @@ class PacingConfig(BaseModel):
     )
 
     # Video Style / Color Grading (FEAT-012)
-    video_style: Literal["none", "bw", "vintage", "warm", "cool"] = Field(
+    video_style: Literal["none", "bw", "vintage", "warm", "cool", "golden"] = Field(
         "none",
         description="Color grading style applied to all segments. "
-        "Options: 'none', 'bw', 'vintage', 'warm', 'cool'",
+        "Options: 'none', 'bw', 'vintage', 'warm', 'cool', 'golden'",
     )
 
     # Per-Track Intro Variety (FEAT-017)

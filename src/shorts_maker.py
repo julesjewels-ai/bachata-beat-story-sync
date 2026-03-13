@@ -93,8 +93,8 @@ def parse_args() -> argparse.Namespace:
         "--video-style",
         type=str,
         default=None,
-        choices=["none", "bw", "vintage", "warm", "cool"],
-        help="Color grading style: none, bw, vintage, warm, cool",
+        choices=["none", "bw", "vintage", "warm", "cool", "golden"],
+        help="Color grading style: none, bw, vintage, warm, cool, golden",
     )
     parser.add_argument(
         "--audio-overlay",

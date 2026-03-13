@@ -641,6 +641,11 @@ class MontageGenerator:
                 "vintage": "curves=vintage,vignette",
                 "warm": "colorchannelmixer=rr=1.1:gg=1.0:bb=0.9",
                 "cool": "colorchannelmixer=rr=0.9:gg=1.0:bb=1.1",
+                "golden": (
+                    "colorchannelmixer=rr=1.15:rg=0.05:gg=1.05:bb=0.75,"
+                    "eq=saturation=0.85:gamma=1.05,"
+                    "vignette"
+                ),
             }
             style_vf = _VIDEO_STYLE_FILTERS.get(config.video_style, "")
             if style_vf:

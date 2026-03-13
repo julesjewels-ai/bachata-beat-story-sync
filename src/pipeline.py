@@ -251,7 +251,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--video-style", default=None,
-        choices=["none", "bw", "vintage", "warm", "cool"],
+        choices=["none", "bw", "vintage", "warm", "cool", "golden"],
         help="Color grading style",
     )
     parser.add_argument(
