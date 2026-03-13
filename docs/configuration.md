@@ -18,7 +18,7 @@ The tool is invoked via `python main.py` with the following arguments:
 | `--test-mode` | ❌ | flag | `False` | Run in test mode (limits to max 4 clips and 10s of music) |
 | `--max-clips` | ❌ | `int` | `None` | Maximum number of clip segments (overrides test-mode) |
 | `--max-duration`| ❌ | `float`| `None` | Maximum montage duration in seconds (overrides test-mode) |
-| `--video-style` | ❌ | `str` | `none` | Color grading preset: `none`, `vintage`, `cool`, `warm`, `cinematic` |
+| `--video-style` | ❌ | `str` | `none` | Color grading preset (see [Video Styles](#video-styles) below) |
 | `--audio-overlay` | ❌ | `str` | `none` | Music-synced visualizer: `none`, `waveform` (lines), `bars` (frequency bars) |
 | `--audio-overlay-opacity` | ❌ | `float` | `0.5` | Opacity of the audio visualizer (0.0–1.0) |
 | `--audio-overlay-position` | ❌ | `str` | `bottom` | Vertical position of the visualizer: `top`, `center`, `bottom` |
@@ -52,6 +52,19 @@ A YAML file in the project root that controls clip pacing — no code changes ne
 | `abrupt_ending` | `false` | End sharply to create a cliffhanger effect |
 
 > If `montage_config.yaml` is missing, defaults above are used automatically.
+
+### Video Styles
+
+Available presets for `--video-style`:
+
+| Style | FFmpeg Filter | Effect |
+|-------|---------------|--------|
+| `none` | *(no filter)* | Original footage, no color grading |
+| `bw` | `hue=s=0` | Black & white (full desaturation) |
+| `vintage` | `curves=vintage,vignette` | Retro film look with darkened edges |
+| `warm` | `colorchannelmixer` | Warm tones — boosted reds, reduced blues |
+| `cool` | `colorchannelmixer` | Cool tones — boosted blues, reduced reds |
+| `golden` | `colorchannelmixer` + `eq` + `vignette` | Nostalgic golden-hour amber — warm tones, soft desaturation, vignette |
 
 ---
 
@@ -142,7 +155,7 @@ All variables below are **optional** and apply to `make run`, `make run-shorts`,
 | `TEST_MODE` | `0` | Set to `1` to enable test mode (max 4 clips, 10s audio) |
 | `MAX_CLIPS` | — | Override maximum number of clip segments |
 | `MAX_DURATION` | — | Override maximum montage duration (seconds) |
-| `VIDEO_STYLE` | — | Color grading preset: `vintage`, `cool`, `warm`, `cinematic` |
+| `VIDEO_STYLE` | — | Color grading preset: `none`, `bw`, `vintage`, `warm`, `cool`, `golden` |
 | `AUDIO_OVERLAY` | — | Visualizer type: `waveform` (lines) or `bars` (frequency bars) |
 | `AUDIO_OVERLAY_OPACITY` | — | Visualizer opacity (0.0–1.0) |
 | `AUDIO_OVERLAY_POSITION` | — | Visualizer position: `top`, `center`, `bottom` |
@@ -161,6 +174,12 @@ make run AUDIO=song.wav VIDEO_DIR=./clips/ AUDIO_OVERLAY=waveform
 
 ```bash
 make full-pipeline AUDIO=./tracks/ VIDEO_DIR=./clips/ AUDIO_OVERLAY=bars AUDIO_OVERLAY_OPACITY=0.7
+```
+
+**Example — full pipeline with warm color grading:**
+
+```bash
+make full-pipeline AUDIO=./tracks/ VIDEO_DIR=./clips/ VIDEO_STYLE=warm
 ```
 
 ---

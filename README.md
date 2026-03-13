@@ -51,7 +51,7 @@ python main.py --audio my_track.wav --video-dir ./clips/
 # With Excel report
 python main.py --audio my_track.wav --video-dir ./clips/ --export-report report.xlsx
 
-# With B-roll and video style
+# With B-roll and video style (options: none, bw, vintage, warm, cool, golden)
 python main.py --audio my_track.wav --video-dir ./clips/ --broll-dir ./broll/ --video-style vintage
 
 # With audio-reactive waveform overlay
@@ -62,6 +62,9 @@ make run AUDIO=my_track.wav VIDEO_DIR=./clips/ AUDIO_OVERLAY=bars AUDIO_OVERLAY_
 
 # Full pipeline — mix + individual videos + shorts (recommended)
 make full-pipeline AUDIO=./tracks/ VIDEO_DIR=./clips/ TEST_MODE=1
+
+# Full pipeline with vintage color grading
+make full-pipeline AUDIO=./tracks/ VIDEO_DIR=./clips/ VIDEO_STYLE=vintage
 
 # YouTube Shorts only
 make run-shorts AUDIO=my_track.wav VIDEO_DIR=./clips/ SHORTS_COUNT=3
