@@ -467,3 +467,295 @@ Replace all raw `logging.info/error` calls in `pipeline.py` with a `PipelineLogg
 - **In scope:** `pipeline.py` output, `--verbose`/`--quiet` flags, typed error handling.
 - **Out of scope:** Applying to `main.py`/`shorts_maker.py`, log-to-file, custom themes.
 
+---
+
+## FEAT-019: Audio Hook Detection for Smart Start Selection
+
+| Field        | Value                                                |
+|--------------|------------------------------------------------------|
+| **Status**   | `PROPOSED`                                           |
+| **Priority** | 🔴 High                                              |
+| **Effort**   | Low–Medium                                           |
+| **Impact**   | High — transforms shorts from "random clip" to "attention-grabbing hook" |
+| **Depends**  | None (uses existing `AudioAnalysisResult` data)      |
+
+### Why this matters
+Currently, **all shorts for the same track use the identical audio window** — they always start from beat 0 and build forward until reaching `max_duration_seconds`. The only variety comes from clip selection shuffling and within-clip start offsets. This means:
+
+1. **No hook optimisation** — the first 2 seconds might land on a quiet intro instead of an attention-grabbing moment.
+2. **All shorts share the same audio segment** — generating 5 shorts from one track produces 5 videos that all play over the same portion of the song.
+3. **No scene-change alignment** — there's no awareness of whether the ~4-second mark coincides with a natural energy shift or section boundary.
+
+YouTube Shorts algorithm rewards videos that retain viewers past the 2-second mark and the 4-second mark. A strong audio hook at the start and a pace change at ~4s are proven engagement triggers.
+
+### Description
+Score candidate start positions within the audio track and select the best N hooks (one per short), prioritising:
+
+1. **Hook quality (0–2s from start):** High audio intensity + proximity to an onset peak = attention-grabbing opening.
+2. **Pace shift (~4s from start):** A section boundary, intensity change, or buildup-to-high_energy transition near the 4-second mark = viewers feel a "something happened" moment that keeps them watching.
+
+Each short in a batch gets assigned a **different hook**, so `--count 5` produces 5 shorts that start at 5 different high-energy moments in the track.
+
+### Implementation Details
+
+#### Stage A — Hook Scoring Engine (core value)
+
+Add a new function `find_audio_hooks()` in `audio_analyzer.py`:
+
+```python
+def find_audio_hooks(
+    audio_data: AudioAnalysisResult,
+    short_duration: float,
+    count: int,
+    hook_window: float = 2.0,
+    pace_target: float = 4.0,
+    pace_tolerance: float = 1.0,
+) -> list[float]:
+    """
+    Score candidate start positions and return the top N.
+
+    Scoring formula per candidate beat:
+        hook_score = intensity_at_beat × peak_proximity_bonus
+        pace_score = intensity_delta_at_4s × section_boundary_bonus
+        total = (0.6 × hook_score) + (0.4 × pace_score)
+
+    Returns:
+        List of start_time floats, length = min(count, viable_candidates).
+    """
+```
+
+**Scoring breakdown:**
+
+| Component | Weight | Signal | Data Source |
+|-----------|--------|--------|-------------|
+| Beat intensity | 0.3 | High RMS energy at start | `intensity_curve[beat_idx]` |
+| Peak proximity | 0.3 | Onset/peak within ±0.5s of start | `peaks` list (binary search) |
+| Intensity delta at +4s | 0.2 | Significant energy change near 4s mark | `intensity_curve` delta |
+| Section boundary at +4s | 0.2 | Section label change within ±1s of 4s | `sections` list |
+
+**Candidate filtering:**
+- Skip any candidate whose `start + short_duration` would exceed the track duration.
+- Skip candidates in the first 1s (often dead silence / count-in).
+- After scoring, apply a **minimum separation** of `short_duration × 0.5` between selected hooks to ensure short content doesn't overlap too much.
+
+#### Stage B — Integration into `shorts_maker.py`
+
+Replace the current "always start at beat 0" logic:
+
+```python
+# Before (current):
+# Timeline always builds from beat_idx = 0
+
+# After:
+hooks = find_audio_hooks(audio_meta, target_duration, args.count)
+for i, hook_start in enumerate(hooks):
+    # Build segment plan starting from hook_start instead of 0.0
+    pacing_kwargs["audio_start_offset"] = hook_start
+```
+
+Add `audio_start_offset: float` to `PacingConfig` (default `0.0`) and modify `build_segment_plan()` in `montage.py` to skip beats before `audio_start_offset`:
+
+```python
+# Find the first beat at or after the offset
+beat_idx = bisect.bisect_left(beat_times, config.audio_start_offset)
+timeline_pos = beat_times[beat_idx] - config.audio_start_offset  # normalize to 0
+```
+
+#### Stage C — CLI & Fallback
+
+- Add `--smart-start` flag to `shorts_maker.py` (enabled by default, `--no-smart-start` to disable).
+- **Fallback:** If `find_audio_hooks()` returns fewer hooks than `--count`, the remaining shorts fall back to the current random-seed behaviour.
+- When `--count 1` and smart-start is enabled, pick the single best hook.
+
+### Performance Considerations
+
+| Concern | Analysis | Budget |
+|---------|----------|--------|
+| Hook scoring computation | Pure Python over existing lists (~300 beats for a 3-min track). Binary search for peaks. | **< 50ms** per track |
+| Memory | No new arrays — operates on existing `beat_times`, `intensity_curve`, `peaks`, `sections`. | **~0 MB additional** |
+| Behavioral change | Existing shorts will now start at different points (intentional). Users who want the old behaviour use `--no-smart-start`. | N/A |
+| Beat index arithmetic | `build_segment_plan()` currently assumes `beat_idx=0`. Offset requires careful clamping to avoid off-by-one on intensity_curve lookups. | Mitigated by test coverage |
+
+### Risk Assessment
+
+| Risk | Likelihood | Impact | Mitigation |
+|------|-----------|--------|------------|
+| Track has no good hooks (low-energy throughout) | Low | Shorts start at suboptimal points | Fallback: if best score < 0.3, revert to beat 0 |
+| `audio_start_offset` causes `beat_idx` out of range | Medium | Crash / empty segment plan | `bisect_left` + bounds check before loop entry |
+| Hook scoring preferences silence before a drop (the silence scores low but the drop is the hook) | Medium | Missed "build-up → drop" hooks | Look-ahead: score the 0–2s window from `start + 0.5s` as well, take max |
+| Existing tests break (segment plans change) | High (guaranteed) | Test failures | Update `test_build_segment_plan_*` tests; add new hook-specific tests |
+| Pipeline integration — `pipeline.py` also generates shorts | Low | Pipeline shorts don't use smart start | Pass `smart_start=True` through pipeline's shorts generation loop |
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `src/core/audio_analyzer.py` | Add `find_audio_hooks()` function (~60 lines) |
+| `src/core/models.py` | Add `audio_start_offset: float` to `PacingConfig` (~3 lines) |
+| `src/core/montage.py` | Modify `build_segment_plan()` to respect `audio_start_offset` (~10 lines) |
+| `src/shorts_maker.py` | Call `find_audio_hooks()`, pass offsets, add `--smart-start` flag (~20 lines) |
+| `src/pipeline.py` | Pass smart start through to shorts generation (~5 lines) |
+| `tests/unit/test_audio_analyzer.py` | New tests for `find_audio_hooks()` (~40 lines) |
+| `tests/unit/test_montage.py` | Update segment plan tests for offset support (~15 lines) |
+
+### Scope
+- **In scope:** Audio hook scoring, per-short unique start selection, `audio_start_offset` in PacingConfig, CLI flag, pipeline integration, fallback logic.
+- **Out of scope:** Visual scene-aware start selection (see FEAT-020), user-specified start times, AI/ML-based hook detection, lyric-aware start selection.
+
+---
+
+## FEAT-020: Visual Scene-Change Detection for Smart Start
+
+| Field        | Value                                                |
+|--------------|------------------------------------------------------|
+| **Status**   | `PROPOSED`                                           |
+| **Priority** | 🟡 Medium                                            |
+| **Effort**   | Medium–High                                          |
+| **Impact**   | Medium — enhances hook quality beyond audio-only      |
+| **Depends**  | FEAT-019 (Audio Hook Detection — provides the scoring framework and `audio_start_offset` plumbing) |
+
+### Why this matters
+FEAT-019 ensures the audio hook is strong, but the **visual** component is still random — the first clip shown might be a static shot that doesn't capture attention. Additionally, around the 4-second mark, FEAT-019 can detect an audio pace shift, but there's no guarantee the *video* also has a visual change at that moment.
+
+By pre-analysing video clips for scene-change timestamps, the engine can:
+1. **Select an opening clip that starts at a visually dynamic moment** (e.g., a dancer beginning a spin rather than standing still).
+2. **Prefer clips with an internal scene change around 3–5s** so the visual pace aligns with the audio pace shift detected by FEAT-019.
+
+### Description
+Extend the video analysis pipeline to detect **scene-change timestamps** within each clip using frame-difference analysis. Store these timestamps as metadata on `VideoAnalysisResult`. During shorts generation, the segment planner uses this data to:
+
+1. Pick opening clips that have high visual energy in the first 2 seconds.
+2. Prefer clips with a natural scene change 3–5s in (or use the scene change as the clip's start offset).
+
+### Implementation Details
+
+#### Stage A — Scene-Change Detection in Video Analyzer
+
+Extend `VideoAnalyzer.analyze()` to detect scene changes:
+
+```python
+# In video_analyzer.py
+
+def _detect_scene_changes(
+    self, cap: cv2.VideoCapture, threshold: float = 30.0
+) -> list[float]:
+    """
+    Detect timestamps where significant visual changes occur.
+
+    Uses frame-to-frame absolute difference (same approach as
+    intensity scoring) but tracks per-frame spikes instead of averaging.
+
+    Args:
+        cap: OpenCV VideoCapture object (position will be reset).
+        threshold: Minimum mean absolute difference to register as a scene change.
+
+    Returns:
+        List of timestamps (seconds) where scene changes occur.
+    """
+    video_fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+    skip = max(1, int(video_fps / ANALYSIS_FPS))  # Reuse existing 3 FPS sampling
+    # ... frame diff logic, already similar to _calculate_intensity ...
+```
+
+**Key design decisions:**
+- **Reuse existing sampling rate** (`ANALYSIS_FPS = 3.0`) and resolution (`320×180`) — no new performance cost beyond what intensity analysis already does.
+- **Piggyback on the existing `_calculate_intensity()` pass** — capture scene-change timestamps during the same loop that computes motion scores, avoiding a second pass over the video.
+- **Threshold tuning:** Default `30.0` mean absolute difference works well for bachata clips (tested against FFmpeg's `select='gt(scene,0.3)'` which uses a different scale). Expose as a config param.
+
+#### Stage B — Model Updates
+
+Add scene-change data to `VideoAnalysisResult`:
+
+```python
+class VideoAnalysisResult(BaseModel):
+    # ... existing fields ...
+    scene_changes: list[float] = Field(
+        default_factory=list,
+        description="Timestamps (seconds) of detected visual scene changes within the clip"
+    )
+    opening_intensity: float = Field(
+        0.0,
+        description="Average visual motion intensity in the first 2 seconds (0.0-1.0)"
+    )
+```
+
+**`opening_intensity`** is computed during the same analysis pass — it's the mean motion score of frames sampled within the first 2 seconds. This gives the smart-start system a fast lookup for "how visually interesting is this clip's opening?"
+
+#### Stage C — Integration with Segment Planning
+
+Modify `build_segment_plan()` (or a new helper) to use scene-change data:
+
+**For the opening clip (first segment):**
+```python
+# Score candidate opening clips:
+# opening_score = (0.5 × opening_intensity) +
+#                 (0.5 × has_scene_change_near_4s)
+#
+# has_scene_change_near_4s = 1.0 if any scene_change in [3.0, 5.0], else 0.0
+
+best_opener = max(candidates, key=lambda c: opening_score(c))
+```
+
+**For within-clip start offset (existing `clip_variety_enabled` logic):**
+```python
+# Instead of pure hash-based random offset, prefer starting at a scene-change:
+if clip.scene_changes:
+    # Find scene changes that leave enough room for segment_duration
+    viable = [sc for sc in clip.scene_changes if sc + segment_duration <= clip.duration]
+    if viable:
+        # Pick the closest scene change to the hash-based offset (preserves determinism)
+        start_time = min(viable, key=lambda sc: abs(sc - hashed_offset))
+```
+
+#### Stage D — Optional FFmpeg-based Scene Detection (Alternative Approach)
+
+Instead of OpenCV-based analysis in Python, use FFmpeg's `select` filter during a pre-scan:
+
+```bash
+ffmpeg -i clip.mp4 -vf "select='gt(scene,0.3)',showinfo" -vsync vfr -f null - 2>&1 | grep showinfo
+```
+
+**Pros:** Uses FFmpeg's battle-tested scene detection; no Python loop needed.
+**Cons:** Requires spawning a subprocess per clip (~1-2s per clip); output parsing is fragile; adds FFmpeg as a hard dependency for analysis (currently only needed for rendering).
+
+**Recommendation:** Use OpenCV (Stage A) as the primary approach since it piggybacks on the existing analysis pass. Offer FFmpeg as a `--scene-detection-method ffmpeg` alternative for users who want higher accuracy.
+
+### Performance Considerations
+
+| Concern | Analysis | Budget |
+|---------|----------|--------|
+| Scene-change detection during analysis | Piggybacks on existing intensity loop — adds ~5 comparisons per sampled frame and a list append on spikes. | **< 1% slowdown** on video scan |
+| `opening_intensity` computation | Mean of first ~6 frames (2s ÷ 3 FPS analysis rate). Trivial. | **~0 additional cost** |
+| Additional model fields | Two new fields on `VideoAnalysisResult`: `scene_changes` (list of floats, typically 0–5 entries per clip) and `opening_intensity` (float). | **< 1KB per clip** |
+| Clip scoring during segment planning | Linear scan over `scene_changes` per candidate clip (typically 0–5 entries). | **< 1ms total** |
+| FFmpeg alternative (Stage D) | Spawns one subprocess per clip. At 50 clips × 2s each = 100s additional scan time. | **Significant — optional only** |
+| Memory: `scene_changes` in shared scan mode | With `--shared-scan` (FEAT-016), scene-change data is held in memory for all clips across all tracks. At 100 clips × 5 changes × 8 bytes = 4KB total. | **Negligible** |
+| Thumbnail stripping | `thumbnail_data` is already stripped before montage (`model_copy(update={"thumbnail_data": None})`). `scene_changes` and `opening_intensity` should be preserved (they're small and needed). | **No change needed** |
+
+### Risk Assessment
+
+| Risk | Likelihood | Impact | Mitigation |
+|------|-----------|--------|------------|
+| Scene-change threshold too sensitive — every clip has 20+ "changes" | Medium | Noise overwhelms signal, opener selection becomes random | Cap at top-5 strongest changes per clip; expose threshold as config |
+| Scene-change threshold too strict — no changes detected | Low | Falls back to existing hash-based offset (FEAT-006) | Graceful fallback: if `scene_changes` is empty, skip visual scoring |
+| Opening intensity doesn't correlate with "interesting" visuals | Medium | Static but colourful shots score high; dynamic but dark shots score low | Combine motion score (existing) with colour variance for a richer signal |
+| Different video codecs produce different frame-diff magnitudes | Low | Threshold calibration varies per codec | Normalise frame diffs to 0.0–1.0 range per clip (already done for intensity) |
+| Extra model field breaks existing serialization / tests | High (guaranteed) | Test failures | `scene_changes` defaults to `[]`, `opening_intensity` defaults to `0.0` — backward compatible |
+| Interaction with FEAT-008 prefix ordering — forced clip ignores scene-change | Low | Prefix clips use their natural start | Intentional: prefix ordering = editorial override; scene-change logic only applies to non-forced clips |
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `src/core/video_analyzer.py` | Extend `_calculate_intensity()` to capture scene-changes and opening_intensity (~30 lines); add `_detect_scene_changes()` if separate pass (~40 lines) |
+| `src/core/models.py` | Add `scene_changes` and `opening_intensity` to `VideoAnalysisResult` (~6 lines) |
+| `src/core/montage.py` | Modify opening clip selection logic in `build_segment_plan()` (~25 lines); modify within-clip start offset (~15 lines) |
+| `src/shorts_maker.py` | No direct changes (uses montage.py planner which handles it) |
+| `docs/configuration.md` | Document new config params |
+| `tests/unit/test_video_analyzer.py` | New tests for scene-change detection (~40 lines) |
+| `tests/unit/test_montage.py` | Update segment plan tests for scene-aware clip selection (~20 lines) |
+
+### Scope
+- **In scope:** Scene-change timestamp detection (OpenCV-based), opening_intensity scoring, scene-aware clip selection for shorts opener, scene-aware within-clip start offset, fallback to existing behaviour when no scene data exists.
+- **Out of scope:** Content-aware scene detection (e.g., "this scene shows a dancer" vs "this scene shows a crowd"), AI/ML-based visual hook detection, per-frame visual quality scoring, FFmpeg scene detection as default (optional alternative only).
+
