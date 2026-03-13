@@ -190,10 +190,11 @@ class PipelineLogger:
             lines.append(f"  [cyan]{path}[/cyan]")
 
         self.console.print()
-        self.console.print(Panel(
-            "\n".join(lines),
-            title="Summary",
-            border_style="green",
-            expand=False,
-        ))
-
+        self.console.print(
+            Panel(
+                "\n".join(lines),
+                title="Summary",
+                border_style="green",
+                expand=False,
+            )
+        )

@@ -339,21 +339,30 @@ class TestBuildSegmentPlan:
         # Distinct intensity_scores to survive deduplication
         prefixed_clips = [
             VideoAnalysisResult(
-                path="/videos/1_a.mp4", intensity_score=0.51,
-                duration=30.0, thumbnail_data=None,
+                path="/videos/1_a.mp4",
+                intensity_score=0.51,
+                duration=30.0,
+                thumbnail_data=None,
             ),
             VideoAnalysisResult(
-                path="/videos/2_b.mp4", intensity_score=0.52,
-                duration=30.0, thumbnail_data=None,
+                path="/videos/2_b.mp4",
+                intensity_score=0.52,
+                duration=30.0,
+                thumbnail_data=None,
             ),
             VideoAnalysisResult(
-                path="/videos/3_c.mp4", intensity_score=0.53,
-                duration=30.0, thumbnail_data=None,
+                path="/videos/3_c.mp4",
+                intensity_score=0.53,
+                duration=30.0,
+                thumbnail_data=None,
             ),
         ]
         audio = AudioAnalysisResult(
-            filename="rotate.wav", bpm=120.0, duration=30.0,
-            peaks=[], sections=[],
+            filename="rotate.wav",
+            bpm=120.0,
+            duration=30.0,
+            peaks=[],
+            sections=[],
             beat_times=[float(i) * 0.5 for i in range(40)],
             intensity_curve=[0.5] * 40,
         )
@@ -368,17 +377,24 @@ class TestBuildSegmentPlan:
         """FEAT-017: prefix_offset=0 keeps original prefix order."""
         prefixed_clips = [
             VideoAnalysisResult(
-                path="/videos/1_a.mp4", intensity_score=0.51,
-                duration=30.0, thumbnail_data=None,
+                path="/videos/1_a.mp4",
+                intensity_score=0.51,
+                duration=30.0,
+                thumbnail_data=None,
             ),
             VideoAnalysisResult(
-                path="/videos/2_b.mp4", intensity_score=0.52,
-                duration=30.0, thumbnail_data=None,
+                path="/videos/2_b.mp4",
+                intensity_score=0.52,
+                duration=30.0,
+                thumbnail_data=None,
             ),
         ]
         audio = AudioAnalysisResult(
-            filename="norotate.wav", bpm=120.0, duration=30.0,
-            peaks=[], sections=[],
+            filename="norotate.wav",
+            bpm=120.0,
+            duration=30.0,
+            peaks=[],
+            sections=[],
             beat_times=[float(i) * 0.5 for i in range(40)],
             intensity_curve=[0.5] * 40,
         )
@@ -393,21 +409,30 @@ class TestBuildSegmentPlan:
         """Surplus prefix clips appear in the regular intensity pool."""
         prefixed_clips = [
             VideoAnalysisResult(
-                path="/videos/1_first.mp4", intensity_score=0.91,
-                duration=30.0, thumbnail_data=None,
+                path="/videos/1_first.mp4",
+                intensity_score=0.91,
+                duration=30.0,
+                thumbnail_data=None,
             ),
             VideoAnalysisResult(
-                path="/videos/2_second.mp4", intensity_score=0.92,
-                duration=30.0, thumbnail_data=None,
+                path="/videos/2_second.mp4",
+                intensity_score=0.92,
+                duration=30.0,
+                thumbnail_data=None,
             ),
             VideoAnalysisResult(
-                path="/videos/3_third.mp4", intensity_score=0.93,
-                duration=30.0, thumbnail_data=None,
+                path="/videos/3_third.mp4",
+                intensity_score=0.93,
+                duration=30.0,
+                thumbnail_data=None,
             ),
         ]
         audio = AudioAnalysisResult(
-            filename="overflow.wav", bpm=120.0, duration=60.0,
-            peaks=[], sections=[],
+            filename="overflow.wav",
+            bpm=120.0,
+            duration=60.0,
+            peaks=[],
+            sections=[],
             beat_times=[float(i) * 0.5 for i in range(60)],
             intensity_curve=[0.9] * 60,  # high intensity → matches all clips
         )
@@ -591,7 +616,9 @@ class TestFFmpegOrchestration:
             f.write("fake video data")
 
         generator.generate(
-            audio_data, video_clips, output_path,
+            audio_data,
+            video_clips,
+            output_path,
             audio_path="/audio/song.wav",
         )
 
@@ -1285,6 +1312,7 @@ class TestVideoStyleFilters:
                         f"Unexpected color filter '{f_name}' found when "
                         f"video_style='none'"
                     )
+
 
 class TestAudioOverlay:
     """Tests for FEAT-013: Music-Synced Waveform Overlay."""

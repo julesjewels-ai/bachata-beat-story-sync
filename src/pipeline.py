@@ -39,6 +39,7 @@ logger = logging.getLogger(__name__)
 # Helpers
 # ------------------------------------------------------------------
 
+
 def _discover_audio_files(folder_path: str) -> list[str]:
     """Return sorted list of audio files in *folder_path*, excluding cache."""
     files = []
@@ -64,8 +65,7 @@ def _parse_duration(duration_str: str) -> tuple[float, float]:
         return val, val
     except ValueError:
         raise argparse.ArgumentTypeError(
-            f"Invalid duration format: '{duration_str}'."
-            " Use '60' or '10-15'."
+            f"Invalid duration format: '{duration_str}'. Use '60' or '10-15'."
         ) from None
 
 
@@ -90,9 +90,7 @@ def _build_pacing_kwargs(args: argparse.Namespace) -> dict:
     return kwargs
 
 
-def _detect_broll_dir(
-    video_dir: str, explicit_broll_dir: str | None
-) -> str | None:
+def _detect_broll_dir(video_dir: str, explicit_broll_dir: str | None) -> str | None:
     """Auto-detect B-roll subfolder, matching main.py behaviour."""
     if explicit_broll_dir:
         return explicit_broll_dir
@@ -111,9 +109,7 @@ def _scan_videos(
     """Scan main clips and optional B-roll, stripping thumbnails."""
     exclude = [broll_dir] if broll_dir else None
     with RichProgressObserver() as obs:
-        clips = engine.scan_video_library(
-            video_dir, exclude_dirs=exclude, observer=obs
-        )
+        clips = engine.scan_video_library(video_dir, exclude_dirs=exclude, observer=obs)
     logger.info("Found %d main clips.", len(clips))
 
     broll = None
@@ -139,6 +135,7 @@ def _safe_filename(path: str) -> str:
 # ------------------------------------------------------------------
 # Core Generation Helpers
 # ------------------------------------------------------------------
+
 
 def _generate_video(
     engine: BachataSyncEngine,
@@ -214,79 +211,102 @@ def _generate_shorts(
 # CLI
 # ------------------------------------------------------------------
 
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Bachata Beat-Story Sync: Full Pipeline"
     )
     parser.add_argument(
-        "--audio", required=True,
+        "--audio",
+        required=True,
         help="Folder containing audio tracks to mix",
     )
     parser.add_argument(
-        "--video-dir", required=True,
+        "--video-dir",
+        required=True,
         help="Directory containing .mp4 video clips",
     )
     parser.add_argument(
-        "--broll-dir", default=None,
+        "--broll-dir",
+        default=None,
         help="Optional B-roll directory (auto-detects broll/ inside video-dir)",
     )
     parser.add_argument(
-        "--output-dir", default="output_pipeline",
+        "--output-dir",
+        default="output_pipeline",
         help="Root output directory (default: output_pipeline)",
     )
     parser.add_argument(
-        "--skip-mix", action="store_true",
+        "--skip-mix",
+        action="store_true",
         help="Skip generation of the combined mix video",
     )
     parser.add_argument(
-        "--shorts-count", type=int, default=1,
+        "--shorts-count",
+        type=int,
+        default=1,
         help="Number of shorts per track (0 to skip shorts)",
     )
     parser.add_argument(
-        "--shorts-duration", type=str, default="60",
+        "--shorts-duration",
+        type=str,
+        default="60",
         help="Target short duration in seconds (e.g. '60' or '10-15')",
     )
     parser.add_argument(
-        "--shared-scan", action="store_true",
+        "--shared-scan",
+        action="store_true",
         help="Scan video library once and reuse for all tracks (faster, less variety)",
     )
     parser.add_argument(
-        "--test-mode", action="store_true",
+        "--test-mode",
+        action="store_true",
         help="Quick iteration (max 4 clips, 10s of music per video)",
     )
     parser.add_argument(
-        "--video-style", default=None,
+        "--video-style",
+        default=None,
         choices=["none", "bw", "vintage", "warm", "cool", "golden"],
         help="Color grading style",
     )
     parser.add_argument(
-        "--audio-overlay", default=None,
+        "--audio-overlay",
+        default=None,
         choices=["none", "waveform", "bars"],
         help="Music-synced visualizer overlay",
     )
     parser.add_argument(
-        "--audio-overlay-opacity", type=float, default=None,
+        "--audio-overlay-opacity",
+        type=float,
+        default=None,
         help="Visualizer opacity (0.0-1.0)",
     )
     parser.add_argument(
-        "--audio-overlay-position", default=None,
+        "--audio-overlay-position",
+        default=None,
         choices=["left", "center", "right"],
         help="Visualizer position",
     )
     parser.add_argument(
-        "--broll-interval", type=float, default=None,
+        "--broll-interval",
+        type=float,
+        default=None,
         help="Target interval between B-roll clips in seconds (default: 13.5)",
     )
     parser.add_argument(
-        "--broll-variance", type=float, default=None,
+        "--broll-variance",
+        type=float,
+        default=None,
         help="Allowed variance in B-roll intervals, ± seconds (default: 1.5)",
     )
     parser.add_argument(
-        "--verbose", action="store_true",
+        "--verbose",
+        action="store_true",
         help="Enable debug-level logging for troubleshooting",
     )
     parser.add_argument(
-        "--quiet", action="store_true",
+        "--quiet",
+        action="store_true",
         help="Suppress all output except errors",
     )
     return parser.parse_args()
@@ -295,6 +315,7 @@ def parse_args() -> argparse.Namespace:
 # ------------------------------------------------------------------
 # Main Pipeline
 # ------------------------------------------------------------------
+
 
 def main() -> None:
     args = parse_args()
@@ -341,9 +362,7 @@ def main() -> None:
                 + ", ".join(sorted(SUPPORTED_AUDIO_EXTENSIONS)),
             )
             sys.exit(1)
-        log.step(
-            f"Found {len(individual_tracks)} track(s) in [bold]{audio_dir}[/bold]"
-        )
+        log.step(f"Found {len(individual_tracks)} track(s) in [bold]{audio_dir}[/bold]")
 
         # ----------------------------------------------------------
         # 2. Mix tracks (via existing resolve_audio_path caching)
@@ -396,15 +415,18 @@ def main() -> None:
                 clips, broll = shared_clips, shared_broll
             else:
                 with log.status("Scanning video library…"):
-                    clips, broll = _scan_videos(
-                        engine, args.video_dir, broll_dir
-                    )
+                    clips, broll = _scan_videos(engine, args.video_dir, broll_dir)
 
             mix_out = os.path.join(args.output_dir, "mix.mp4")
             with log.status("Rendering mix video…"):
                 result = _generate_video(
-                    engine, mix_meta, clips or [], mix_out,
-                    mix_path, pacing_kwargs, broll_clips=broll,
+                    engine,
+                    mix_meta,
+                    clips or [],
+                    mix_out,
+                    mix_path,
+                    pacing_kwargs,
+                    broll_clips=broll,
                 )
             generated_files.append(result)
             log.success(f"Mix video: [bold]{result}[/bold]")
@@ -416,9 +438,7 @@ def main() -> None:
             track_name = _safe_filename(track_path)
             track_label = f"track_{idx:02d}_{track_name}"
 
-            log.phase(
-                f"🎸 Track {idx}/{len(individual_tracks)}: {track_name}"
-            )
+            log.phase(f"🎸 Track {idx}/{len(individual_tracks)}: {track_name}")
 
             # Analyze this track's audio independently
             track_input = AudioAnalysisInput(file_path=track_path)
@@ -434,9 +454,7 @@ def main() -> None:
                 clips, broll = shared_clips, shared_broll
             else:
                 with log.status("Scanning video library…"):
-                    clips, broll = _scan_videos(
-                        engine, args.video_dir, broll_dir
-                    )
+                    clips, broll = _scan_videos(engine, args.video_dir, broll_dir)
 
             # FEAT-017: rotate prefix clips per track for intro variety
             track_pacing = {**pacing_kwargs, "prefix_offset": idx - 1}
@@ -445,24 +463,31 @@ def main() -> None:
             track_out = os.path.join(args.output_dir, f"{track_label}.mp4")
             with log.status("Rendering track video…"):
                 result = _generate_video(
-                    engine, track_meta, clips or [], track_out,
-                    track_path, track_pacing, broll_clips=broll,
+                    engine,
+                    track_meta,
+                    clips or [],
+                    track_out,
+                    track_path,
+                    track_pacing,
+                    broll_clips=broll,
                 )
             generated_files.append(result)
             log.success(f"Track video: [bold]{result}[/bold]")
 
             # Generate shorts (FEAT-015)
             if args.shorts_count > 0:
-                shorts_dir = os.path.join(
-                    args.output_dir, "shorts", f"track_{idx:02d}"
-                )
-                with log.status(
-                    f"Rendering {args.shorts_count} short(s)…"
-                ):
+                shorts_dir = os.path.join(args.output_dir, "shorts", f"track_{idx:02d}")
+                with log.status(f"Rendering {args.shorts_count} short(s)…"):
                     shorts = _generate_shorts(
-                        engine, track_meta, clips or [], track_path,
-                        shorts_dir, args.shorts_count,
-                        min_dur, max_dur, track_pacing,
+                        engine,
+                        track_meta,
+                        clips or [],
+                        track_path,
+                        shorts_dir,
+                        args.shorts_count,
+                        min_dur,
+                        max_dur,
+                        track_pacing,
                         log,
                     )
                 generated_files.extend(shorts)
