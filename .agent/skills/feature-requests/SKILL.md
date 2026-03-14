@@ -52,10 +52,11 @@ PROPOSED → PLANNED → IN_PROGRESS → IMPLEMENTED → VERIFIED
 
 ## File Reference
 
-| File            | Purpose                              |
-|-----------------|--------------------------------------|
-| `SKILL.md`      | This file — workflow instructions    |
-| `features.md`   | Feature backlog and status tracker   |
+| File                     | Purpose                                          |
+|--------------------------|--------------------------------------------------|
+| `SKILL.md`               | This file — workflow instructions                |
+| `features.md`            | **Active** feature backlog (proposed/in-progress)|
+| `archive/completed.md`   | Full specs of completed features (reference only)|
 
 ## Quick Commands
 
