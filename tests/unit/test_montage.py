@@ -19,6 +19,7 @@ from src.core.models import (
     PacingConfig,
     VideoAnalysisResult,
 )
+from src.core.ffmpeg_renderer import overlay_audio
 from src.core.montage import MontageGenerator, load_pacing_config
 
 
@@ -558,7 +559,7 @@ class TestFFmpegOrchestration:
     """Tests for FFmpeg subprocess orchestration (mocked)."""
 
     @patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")
-    @patch("src.core.montage.subprocess.run")
+    @patch("src.core.ffmpeg_renderer.run_ffmpeg")
     @patch("src.core.montage.tempfile.mkdtemp")
     @patch("src.core.montage.shutil.rmtree")
     @patch("src.core.montage.os.path.exists", return_value=True)
@@ -602,7 +603,7 @@ class TestFFmpegOrchestration:
         mock_rmtree.assert_called_once_with(temp_dir, ignore_errors=True)
 
     @patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")
-    @patch("src.core.montage.subprocess.run")
+    @patch("src.core.ffmpeg_renderer.run_ffmpeg")
     @patch("src.core.montage.tempfile.mkdtemp")
     @patch("src.core.montage.shutil.rmtree")
     @patch("src.core.montage.os.path.exists", return_value=True)
@@ -659,7 +660,7 @@ class TestFFmpegOrchestration:
                 assert "fps=30" in cmd_str
 
     @patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")
-    @patch("src.core.montage.subprocess.run")
+    @patch("src.core.ffmpeg_renderer.run_ffmpeg")
     @patch("src.core.montage.tempfile.mkdtemp")
     @patch("src.core.montage.shutil.rmtree")
     def test_temp_dir_cleaned_on_error(
@@ -678,8 +679,8 @@ class TestFFmpegOrchestration:
         os.makedirs(temp_dir, exist_ok=True)
         mock_mkdtemp.return_value = temp_dir
 
-        # Simulate FFmpeg failure
-        mock_run.return_value = MagicMock(returncode=1, stderr="Encoding error")
+        # Simulate FFmpeg failure — run_ffmpeg raises on non-zero exit
+        mock_run.side_effect = RuntimeError("Encoding error")
 
         with pytest.raises(RuntimeError):
             generator.generate(
@@ -826,7 +827,7 @@ class TestTransitionPipeline:
     """Tests for the transition pipeline in generate() (mocked FFmpeg)."""
 
     @patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")
-    @patch("src.core.montage.subprocess.run")
+    @patch("src.core.ffmpeg_renderer.run_ffmpeg")
     @patch("src.core.montage.tempfile.mkdtemp")
     @patch("src.core.montage.shutil.rmtree")
     @patch("src.core.montage.os.path.exists", return_value=True)
@@ -868,7 +869,7 @@ class TestTransitionPipeline:
             assert "xfade" not in cmd_str
 
     @patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")
-    @patch("src.core.montage.subprocess.run")
+    @patch("src.core.ffmpeg_renderer.run_ffmpeg")
     @patch("src.core.montage.tempfile.mkdtemp")
     @patch("src.core.montage.shutil.rmtree")
     @patch("src.core.montage.os.path.exists", return_value=True)
@@ -890,14 +891,8 @@ class TestTransitionPipeline:
         mock_mkdtemp.return_value = temp_dir
 
         # Mock FFmpeg: return success and fake duration from ffprobe
-        def side_effect(cmd, **kwargs):
-            mock_result = MagicMock(returncode=0, stderr="")
-            # If this is an ffprobe call, return a duration
-            if cmd[0] == "ffprobe":
-                mock_result.stdout = "5.0\n"
-            else:
-                mock_result.stdout = ""
-            return mock_result
+        def side_effect(cmd, stage_name="", **kwargs):
+            return None  # run_ffmpeg returns None on success
 
         mock_run.side_effect = side_effect
 
@@ -1173,7 +1168,7 @@ class TestVideoStyleFilters:
         assert config.video_style == "warm"
 
     @patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")
-    @patch("src.core.montage.subprocess.run")
+    @patch("src.core.ffmpeg_renderer.run_ffmpeg")
     @patch("src.core.montage.tempfile.mkdtemp")
     @patch("src.core.montage.shutil.rmtree")
     @patch("src.core.montage.os.path.exists", return_value=True)
@@ -1230,7 +1225,7 @@ class TestVideoStyleFilters:
         )
 
     @patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")
-    @patch("src.core.montage.subprocess.run")
+    @patch("src.core.ffmpeg_renderer.run_ffmpeg")
     @patch("src.core.montage.tempfile.mkdtemp")
     @patch("src.core.montage.shutil.rmtree")
     @patch("src.core.montage.os.path.exists", return_value=True)
@@ -1301,13 +1296,13 @@ class TestAudioOverlay:
         with pytest.raises(ValidationError):
             PacingConfig(audio_overlay="invalid-type")
 
-    @patch("src.core.montage.subprocess.run")
+    @patch("src.core.ffmpeg_renderer.run_ffmpeg")
     def test_overlay_audio_uses_copy_when_none(self, mock_run, generator):
         """When audio_overlay is 'none', uses fast stream copy."""
         mock_run.return_value = MagicMock(returncode=0, stderr="")
         config = PacingConfig(audio_overlay="none")
 
-        generator._overlay_audio("in.mp4", "audio.wav", "out.mp4", config)
+        overlay_audio("in.mp4", "audio.wav", "out.mp4", config)
 
         cmd = mock_run.call_args[0][0]
         cmd_str = " ".join(str(x) for x in cmd)
@@ -1315,13 +1310,13 @@ class TestAudioOverlay:
         assert "-c:v copy" in cmd_str
         assert "-filter_complex" not in cmd_str
 
-    @patch("src.core.montage.subprocess.run")
+    @patch("src.core.ffmpeg_renderer.run_ffmpeg")
     def test_overlay_audio_uses_filter_complex_waveform(self, mock_run, generator):
         """When audio_overlay is 'waveform', uses filter_complex and visualizer filters."""
         mock_run.return_value = MagicMock(returncode=0, stderr="")
         config = PacingConfig(audio_overlay="waveform")
 
-        generator._overlay_audio("in.mp4", "audio.wav", "out.mp4", config)
+        overlay_audio("in.mp4", "audio.wav", "out.mp4", config)
 
         cmd = mock_run.call_args[0][0]
         cmd_str = " ".join(str(x) for x in cmd)
@@ -1332,13 +1327,13 @@ class TestAudioOverlay:
         assert "-c:v copy" not in cmd_str
         assert "-c:v libx264" in cmd_str
 
-    @patch("src.core.montage.subprocess.run")
+    @patch("src.core.ffmpeg_renderer.run_ffmpeg")
     def test_overlay_audio_seeks_to_offset(self, mock_run, generator):
         """When audio_start_offset > 0, FFmpeg command includes -ss before the audio input."""
         mock_run.return_value = MagicMock(returncode=0, stderr="")
         config = PacingConfig(audio_overlay="none", audio_start_offset=30.0)
 
-        generator._overlay_audio("in.mp4", "audio.wav", "out.mp4", config)
+        overlay_audio("in.mp4", "audio.wav", "out.mp4", config)
 
         cmd = mock_run.call_args[0][0]
         # -ss should appear before the audio -i
@@ -1351,13 +1346,13 @@ class TestAudioOverlay:
         assert ss_idx < audio_i_indices[0], "-ss must appear before audio -i"
         assert cmd[ss_idx + 1] == "30.000"
 
-    @patch("src.core.montage.subprocess.run")
+    @patch("src.core.ffmpeg_renderer.run_ffmpeg")
     def test_overlay_audio_trims_to_video_duration(self, mock_run, generator):
         """When video_duration > 0, FFmpeg command includes -t for explicit trimming."""
         mock_run.return_value = MagicMock(returncode=0, stderr="")
         config = PacingConfig(audio_overlay="none")
 
-        generator._overlay_audio(
+        overlay_audio(
             "in.mp4", "audio.wav", "out.mp4", config, video_duration=15.0,
         )
 
@@ -1365,18 +1360,18 @@ class TestAudioOverlay:
         cmd_str = " ".join(str(x) for x in cmd)
         assert "-t 15.000" in cmd_str
 
-    @patch("src.core.montage.subprocess.run")
+    @patch("src.core.ffmpeg_renderer.run_ffmpeg")
     def test_overlay_audio_no_offset_no_seek(self, mock_run, generator):
         """When audio_start_offset is 0, no -ss is added before the audio input."""
         mock_run.return_value = MagicMock(returncode=0, stderr="")
         config = PacingConfig(audio_overlay="none", audio_start_offset=0.0)
 
-        generator._overlay_audio("in.mp4", "audio.wav", "out.mp4", config)
+        overlay_audio("in.mp4", "audio.wav", "out.mp4", config)
 
         cmd = mock_run.call_args[0][0]
         assert "-ss" not in cmd
 
-    @patch("src.core.montage.subprocess.run")
+    @patch("src.core.ffmpeg_renderer.run_ffmpeg")
     def test_overlay_audio_visualizer_also_seeks(self, mock_run, generator):
         """Waveform overlay with offset also seeks into the audio file."""
         mock_run.return_value = MagicMock(returncode=0, stderr="")
@@ -1384,7 +1379,7 @@ class TestAudioOverlay:
             audio_overlay="waveform", audio_start_offset=20.0,
         )
 
-        generator._overlay_audio(
+        overlay_audio(
             "in.mp4", "audio.wav", "out.mp4", config, video_duration=10.0,
         )
 

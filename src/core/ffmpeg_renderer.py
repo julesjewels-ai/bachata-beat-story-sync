@@ -1,0 +1,417 @@
+"""FFmpeg rendering pipeline — segment extraction, concatenation, transitions, and audio overlay.
+
+Extracted from MontageGenerator to separate pure planning logic
+from FFmpeg subprocess orchestration.
+"""
+
+import logging
+import os
+import shutil
+import subprocess
+
+from src.core.ffmpeg_utils import run_ffmpeg, timeout_for_duration
+from src.core.interfaces import ProgressObserver
+from src.core.models import PacingConfig, SegmentPlan
+
+logger = logging.getLogger(__name__)
+
+# Target resolution for all extracted segments (ensures xfade compatibility)
+TARGET_WIDTH = 1920
+TARGET_HEIGHT = 1080
+TARGET_FPS = 30
+
+# Map of video_style → FFmpeg filter string (FEAT-012)
+_VIDEO_STYLE_FILTERS = {
+    "bw": "hue=s=0",
+    "vintage": "curves=vintage,vignette",
+    "warm": "colorchannelmixer=rr=1.1:gg=1.0:bb=0.9",
+    "cool": "colorchannelmixer=rr=0.9:gg=1.0:bb=1.1",
+    "golden": (
+        "colorchannelmixer=rr=1.15:rg=0.05:gg=1.05:bb=0.75,"
+        "eq=saturation=0.85:gamma=1.05,"
+        "vignette"
+    ),
+}
+
+
+def extract_segments(
+    segments: list[SegmentPlan],
+    temp_dir: str,
+    config: PacingConfig,
+    observer: ProgressObserver | None = None,
+) -> list[str]:
+    """
+    Extract each segment from its source video using FFmpeg.
+
+    Only ONE FFmpeg process runs at a time. Each completes and
+    releases all resources before the next starts.
+    """
+    segment_files: list[str] = []
+    total = len(segments)
+
+    for i, seg in enumerate(segments):
+        if not os.path.exists(seg.video_path):
+            logger.warning(
+                "Skipping segment %d/%d: source file missing: %s",
+                i + 1,
+                total,
+                seg.video_path,
+            )
+            continue
+
+        if observer:
+            observer.on_progress(i, total, f"Extracting segment {i + 1}/{total}...")
+
+        output_file = os.path.join(temp_dir, f"seg_{i:04d}.mp4")
+
+        # When speed-ramped, extract more (slow-mo) or less (fast)
+        # source material so the output fills the planned duration.
+        extract_duration = seg.duration * seg.speed_factor
+
+        cmd = [
+            "ffmpeg",
+            "-y",  # Overwrite output
+            "-ss",
+            f"{seg.start_time:.3f}",  # Seek to start
+            "-i",
+            seg.video_path,  # Input file
+            "-t",
+            f"{extract_duration:.3f}",  # Duration (adjusted for speed)
+        ]
+
+        # Build video filter chain:
+        # 1. Resolution normalization (all segments → same size for xfade)
+        # 2. Speed ramp via setpts (if needed)
+        t_width = 1080 if config.is_shorts else TARGET_WIDTH
+        t_height = 1920 if config.is_shorts else TARGET_HEIGHT
+
+        if config.is_shorts:
+            # Crop center to 9:16 aspect ratio (safe for
+            # horizontal drop-ins and vertical variances)
+            vf_parts = [
+                "crop='min(iw,ih*9/16)':'min(ih,iw*16/9)'",
+                f"scale={t_width}:{t_height}",
+            ]
+        else:
+            vf_parts = [
+                f"scale={t_width}:{t_height}:force_original_aspect_ratio=decrease",
+                f"pad={t_width}:{t_height}:(ow-iw)/2:(oh-ih)/2",
+            ]
+
+        if seg.speed_factor != 1.0:
+            vf_parts.append(f"setpts=PTS/{seg.speed_factor}")
+            # FEAT-010: Smooth Slow Motion Interpolation
+            if seg.speed_factor < 1.0 and config.interpolation_method != "none":
+                if config.interpolation_method == "mci":
+                    vf_parts.append(f"minterpolate=fps={TARGET_FPS}:mi_mode=mci")
+                else:
+                    vf_parts.append(f"minterpolate=fps={TARGET_FPS}:mi_mode=blend")
+
+        # Video Style Filter (FEAT-012)
+        style_vf = _VIDEO_STYLE_FILTERS.get(config.video_style, "")
+        if style_vf:
+            vf_parts.append(style_vf)
+
+        # Normalize frame rate for ALL segments to ensure clean concatenation
+        vf_parts.append(f"fps={TARGET_FPS}")
+
+        cmd.extend(["-vf", ",".join(vf_parts)])
+
+        cmd.extend(
+            [
+                "-c:v",
+                "libx264",  # Re-encode for consistent format
+                "-preset",
+                "fast",  # Fast encoding
+                "-crf",
+                "23",  # Good quality
+                "-an",  # Strip audio (overlaid later)
+                "-pix_fmt",
+                "yuv420p",  # Compatibility
+                "-movflags",
+                "+faststart",  # Web-friendly
+                output_file,
+            ]
+        )
+
+        run_ffmpeg(cmd, f"segment extraction {i + 1}")
+        segment_files.append(output_file)
+
+    if observer:
+        observer.on_progress(total, total, "Segment extraction complete.")
+
+    return segment_files
+
+
+def concatenate_segments(segment_files: list[str], output_path: str) -> None:
+    """
+    Concatenate extracted segments using FFmpeg concat demuxer.
+
+    Uses a file list to avoid shell argument limits.
+    """
+    concat_list_path = output_path + ".txt"
+    try:
+        with open(concat_list_path, "w") as f:
+            for seg_file in segment_files:
+                # FFmpeg concat requires escaped single quotes
+                escaped = seg_file.replace("'", "'\\''")
+                f.write(f"file '{escaped}'\n")
+
+        cmd = [
+            "ffmpeg",
+            "-y",
+            "-f",
+            "concat",
+            "-safe",
+            "0",
+            "-i",
+            concat_list_path,
+            "-c",
+            "copy",  # No re-encode (already consistent)
+            output_path,
+        ]
+
+        run_ffmpeg(cmd, "segment concatenation")
+    finally:
+        if os.path.exists(concat_list_path):
+            os.remove(concat_list_path)
+
+
+def get_video_duration(video_path: str) -> float:
+    """
+    Get the duration of a video file using ffprobe.
+
+    Returns:
+        Duration in seconds, or 0.0 if probe fails.
+    """
+    try:
+        result = subprocess.run(
+            [
+                "ffprobe",
+                "-v",
+                "error",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "csv=p=0",
+                video_path,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            shell=False,
+        )  # nosec B603
+        return float(result.stdout.strip())
+    except (ValueError, subprocess.TimeoutExpired, OSError):
+        logger.warning(
+            "Could not probe duration for %s, estimating.",
+            video_path,
+        )
+        return 0.0
+
+
+def apply_transitions(
+    group_files: list[str],
+    output_path: str,
+    transition_type: str,
+    transition_duration: float,
+) -> None:
+    """
+    Apply xfade transitions between group files.
+
+    Uses FFmpeg's xfade filter to blend between section groups.
+    Only processes pairs of files sequentially to keep memory bounded.
+
+    Args:
+        group_files: Ordered list of group video files.
+        transition_type: FFmpeg xfade transition name (e.g. 'fade').
+        transition_duration: Duration of each transition in seconds.
+        output_path: Path for the final transitioned output.
+    """
+    if len(group_files) < 2:
+        # Single group — just copy to output
+        if group_files:
+            shutil.copy2(group_files[0], output_path)
+        return
+
+    # Process transitions pairwise: A+B → AB, AB+C → ABC, etc.
+    # Each step only buffers 2 streams = bounded memory.
+    current_input = group_files[0]
+    temp_dir = os.path.dirname(output_path)
+
+    # Get duration of the first input for offset calculation
+    current_duration = get_video_duration(current_input)
+
+    for i in range(1, len(group_files)):
+        next_input = group_files[i]
+        is_last = i == len(group_files) - 1
+
+        # Offset = current duration minus transition overlap
+        offset = max(0.0, current_duration - transition_duration)
+
+        if is_last:
+            step_output = output_path
+        else:
+            step_output = os.path.join(temp_dir, f"xfade_step_{i:04d}.mp4")
+
+        cmd = [
+            "ffmpeg",
+            "-y",
+            "-i",
+            current_input,
+            "-i",
+            next_input,
+            "-filter_complex",
+            f"[0:v][1:v]xfade=transition={transition_type}"
+            f":duration={transition_duration:.3f}"
+            f":offset={offset:.3f}[v]",
+            "-map",
+            "[v]",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "fast",
+            "-crf",
+            "23",
+            "-pix_fmt",
+            "yuv420p",
+            "-an",
+            step_output,
+        ]
+
+        try:
+            run_ffmpeg(cmd, f"transition {i}/{len(group_files) - 1}")
+        except RuntimeError as e:
+            logger.warning(
+                "xfade transition %d failed, falling back to concat: %s",
+                i,
+                e,
+            )
+            # Fallback: just concatenate without transition
+            concatenate_segments([current_input, next_input], step_output)
+
+        # Eagerly clean up previous intermediate file (not a source group)
+        if current_input != group_files[0] and os.path.exists(current_input):
+            os.remove(current_input)
+
+        # Update for next iteration
+        next_duration = get_video_duration(next_input)
+        # New duration = old + new - overlap
+        current_duration = current_duration + next_duration - transition_duration
+        current_input = step_output
+
+
+def overlay_audio(
+    video_path: str,
+    audio_path: str,
+    output_path: str,
+    config: PacingConfig,
+    video_duration: float = 0.0,
+) -> None:
+    """
+    Replace the video's audio track with the original song.
+
+    If audio_overlay is configured, renders a visualizer.
+    Otherwise, stream-copies video and encodes audio to save time.
+
+    When audio_start_offset > 0, seeks into the audio file so
+    the audio segment matches the beats used to build the video.
+    Explicit -t trimming ensures the audio never exceeds the
+    video length.
+    """
+    # Compute timeout proportional to video length
+    vid_dur = video_duration or get_video_duration(video_path)
+    overlay_timeout = timeout_for_duration(vid_dur) if vid_dur > 0 else None
+
+    # Build audio input args: optional seek + input file
+    audio_input_args: list[str] = []
+    if config.audio_start_offset > 0:
+        audio_input_args.extend(["-ss", f"{config.audio_start_offset:.3f}"])
+    audio_input_args.extend(["-i", audio_path])
+
+    # Explicit duration trim (more reliable than -shortest alone)
+    trim_args: list[str] = []
+    if vid_dur > 0:
+        trim_args.extend(["-t", f"{vid_dur:.3f}"])
+
+    if config.audio_overlay == "none":
+        cmd = [
+            "ffmpeg",
+            "-y",
+            "-i",
+            video_path,  # Video (no audio)
+            *audio_input_args,  # Audio source (with optional seek)
+            "-c:v",
+            "copy",  # Don't re-encode video
+            "-c:a",
+            "aac",  # Encode audio to AAC
+            "-b:a",
+            "192k",  # Good audio quality
+            *trim_args,  # Explicit duration trim
+            "-shortest",  # Fallback safety net
+            "-movflags",
+            "+faststart",
+            output_path,
+        ]
+    else:
+        video_width = 1080 if config.is_shorts else 1920
+        # Overlay takes up ~20% of the video width
+        overlay_w = int(video_width * 0.2)
+        overlay_h = 120
+        opacity = max(0.0, min(1.0, config.audio_overlay_opacity))
+
+        # Compute X position
+        if config.audio_overlay_position == "left":
+            x_expr = "10"
+        elif config.audio_overlay_position == "center":
+            x_expr = f"(W-{overlay_w})/2"
+        else:  # right (default)
+            x_expr = f"W-{overlay_w}-10"
+
+        if config.audio_overlay == "waveform":
+            # line-based waveform
+            f_str = (
+                f"[1:a]showwaves=s={overlay_w}x{overlay_h}"
+                f":mode=line:colors=White@{opacity:.2f}[wave];"
+                f"[0:v][wave]overlay={x_expr}:H-h-10[outv]"
+            )
+        else:
+            # frequency bars
+            f_str = (
+                f"[1:a]showfreqs=s={overlay_w}x{overlay_h}"
+                f":mode=bar:colors=White@{opacity:.2f}[bars];"
+                f"[0:v][bars]overlay={x_expr}:H-h-10[outv]"
+            )
+
+        cmd = [
+            "ffmpeg",
+            "-y",
+            "-i",
+            video_path,
+            *audio_input_args,  # Audio source (with optional seek)
+            "-filter_complex",
+            f_str,
+            "-map",
+            "[outv]",
+            "-map",
+            "1:a",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "fast",
+            "-crf",
+            "23",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "192k",
+            *trim_args,  # Explicit duration trim
+            "-shortest",  # Fallback safety net
+            "-movflags",
+            "+faststart",
+            output_path,
+        ]
+
+    run_ffmpeg(cmd, "audio overlay", timeout_seconds=overlay_timeout)
