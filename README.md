@@ -1,6 +1,31 @@
 # Bachata Beat-Story Sync
 
+![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)
+![FFmpeg 4.0+](https://img.shields.io/badge/ffmpeg-4.0%2B-green.svg)
+![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)
+
 An automated video editing tool that analyzes Bachata audio tracks (`.wav` / `.mp3`) to detect rhythm, beats, and emotional peaks, then intelligently syncs video clips to the musical dynamics to produce a cohesive montage.
+
+<p align="center">
+  <img src="docs/assets/editor_banner.png" alt="Video editor compiling footage" width="100%">
+</p>
+
+---
+
+## Table of Contents
+
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [Prerequisites](#prerequisites)
+- [Getting Started](#getting-started)
+- [Available Scripts](#available-scripts)
+- [Architecture](#architecture)
+- [Testing](#testing)
+- [Documentation](#documentation)
+- [Troubleshooting](#troubleshooting)
+- [License](#license)
+
+---
 
 ## Features
 
@@ -23,73 +48,170 @@ An automated video editing tool that analyzes Bachata audio tracks (`.wav` / `.m
 | YouTube Shorts Batch Generator (FEAT-015) | ✅ |
 | Audio Track Mixing with Crossfades | ✅ |
 | Decision Explainability Log `--explain` (FEAT-025) | ✅ |
+| Intro Effects — Bloom & Vignette Breathe (FEAT-022) | ✅ |
+| Smart Start Detection | ✅ |
+| Shared Video Scan Mode | ✅ |
 | Sentiment-based Clip Matching | 🔜 Planned |
 | Narrative Arc Construction | 🔜 Planned |
 | AI Multimodal Analysis (Gemini) | 🔜 Planned |
 
+---
+
+## Tech Stack
+
+| Technology | Purpose |
+|------------|---------|
+| Python 3.11+ | Core runtime |
+| Librosa | Audio analysis (BPM, beats, sections) |
+| OpenCV | Video frame analysis & intensity scoring |
+| FFmpeg | Video/audio extraction, assembly, transitions, & visualizers |
+| Pydantic | Input validation & DTOs |
+| openpyxl | Excel report generation |
+| Rich | Console progress bars |
+| PyYAML | Configuration loading |
+| Pillow | Image processing & thumbnails |
+
+---
+
 ## Prerequisites
 
-- **Python** 3.9+
-- **ffmpeg** 4.0+ ([install guide](https://ffmpeg.org/download.html))
-- **pip** (latest)
+- **Python** 3.11+ — the Makefile targets 3.13
+- **FFmpeg** 4.0+ ([install guide](https://ffmpeg.org/download.html))
+- **uv** (recommended) or **pip** — the Makefile uses `uv` for environment setup
 
-## Quick Start
+---
 
-<p align="center">
-  <img src="docs/assets/editor_banner.png" alt="Video editor compiling footage" width="100%">
-</p>
+## Getting Started
+
+### 1. Clone and Install
 
 ```bash
-# Clone and install
-git clone <repo-url>
+git clone https://github.com/julesjewels-ai/bachata-beat-story-sync.git
 cd bachata-beat-story-sync
 make install
 source venv/bin/activate
+```
 
-# Single-track montage
+### 2. Configure Environment
+
+```bash
+cp .env.example .env   # LOG_LEVEL and FFMPEG_BINARY_PATH
+```
+
+### 3. Verify Installation
+
+```bash
+make test
+```
+
+### 4. Run Your First Montage
+
+```bash
+# Basic montage
 python main.py --audio my_track.wav --video-dir ./clips/
+
+# Test mode — 4 clips, 10s of music, fast iteration
+python main.py --audio my_track.wav --video-dir ./clips/ --test-mode
 
 # With Excel report
 python main.py --audio my_track.wav --video-dir ./clips/ --export-report report.xlsx
-
-# With B-roll and video style (options: none, bw, vintage, warm, cool, golden)
-python main.py --audio my_track.wav --video-dir ./clips/ --broll-dir ./broll/ --video-style vintage
-
-# With audio-reactive waveform overlay
-make run AUDIO=my_track.wav VIDEO_DIR=./clips/ AUDIO_OVERLAY=waveform
-
-# With frequency bars at custom opacity
-make run AUDIO=my_track.wav VIDEO_DIR=./clips/ AUDIO_OVERLAY=bars AUDIO_OVERLAY_OPACITY=0.7
-
-# Full pipeline — mix + individual videos + shorts (recommended)
-make full-pipeline AUDIO=./tracks/ VIDEO_DIR=./clips/ TEST_MODE=1
-
-# Full pipeline with vintage color grading
-make full-pipeline AUDIO=./tracks/ VIDEO_DIR=./clips/ VIDEO_STYLE=vintage
-
-# YouTube Shorts only
-make run-shorts AUDIO=my_track.wav VIDEO_DIR=./clips/ SHORTS_COUNT=3
-
-# Decision explainability log — see why each clip was chosen
-make run AUDIO=my_track.wav VIDEO_DIR=./clips/ EXPLAIN=1
-
-# Test mode (limits to max 4 clips and 10s of music)
-python main.py --audio my_track.wav --video-dir ./clips/ --test-mode
 ```
 
-## Development
+### 5. Go Further
 
 ```bash
-make install         # Create venv and install dependencies
-make run             # Run single-track montage
-make run-shorts      # Generate YouTube Shorts
-make full-pipeline   # Run full pipeline (mix + videos + shorts)
-make test            # Run test suite (pytest)
-make lint            # Lint with ruff
-make format          # Auto-format with ruff
-make check-types     # Type-check with mypy
-make clean           # Remove venv, caches, and output files
+# B-roll + vintage grading + intro effect
+make run AUDIO=my_track.wav VIDEO_DIR=./clips/ VIDEO_STYLE=vintage INTRO_EFFECT=bloom
+
+# Audio-reactive overlay
+make run AUDIO=my_track.wav VIDEO_DIR=./clips/ AUDIO_OVERLAY=waveform
+
+# Decision explainability — see why each clip was chosen
+make run AUDIO=my_track.wav VIDEO_DIR=./clips/ EXPLAIN=1
+
+# YouTube Shorts
+make run-shorts AUDIO=my_track.wav VIDEO_DIR=./clips/ SHORTS_COUNT=3
+
+# Full pipeline — mix + individual videos + shorts
+make full-pipeline AUDIO=./tracks/ VIDEO_DIR=./clips/ TEST_MODE=1
 ```
+
+---
+
+## Available Scripts
+
+| Command | Description | Key Variables |
+|---------|-------------|---------------|
+| `make install` | Create venv (uv) and install all deps | — |
+| `make run` | Single-track montage | `AUDIO`, `VIDEO_DIR`, `TEST_MODE`, `MAX_CLIPS`, `MAX_DURATION`, `VIDEO_STYLE`, `AUDIO_OVERLAY`, `EXPLAIN`, `INTRO_EFFECT`, `SMART_START` |
+| `make run-shorts` | Generate YouTube Shorts | `AUDIO`, `VIDEO_DIR`, `SHORTS_COUNT`, `SHORTS_DURATION` |
+| `make full-pipeline` | Mix + videos + shorts | All `run` vars + `OUTPUT_DIR`, `SHARED_SCAN` |
+| `make test` | Run pytest suite | — |
+| `make lint` | Lint with ruff | — |
+| `make format` | Auto-format + import sort | — |
+| `make check-types` | Type-check with mypy | — |
+| `make clean` | Remove venv, caches, outputs | — |
+
+All montage behavior is further configurable via [`montage_config.yaml`](montage_config.yaml) — see [docs/configuration.md](docs/configuration.md) for the full reference.
+
+---
+
+## Architecture
+
+```
+├── main.py                    # CLI entry point (single-track mode)
+├── montage_config.yaml        # Default pacing & effects config
+├── src/
+│   ├── core/                  # Domain logic
+│   │   ├── app.py             #   BachataSyncEngine orchestrator
+│   │   ├── audio_analyzer.py  #   Librosa beat detection & sections
+│   │   ├── video_analyzer.py  #   OpenCV motion-intensity scoring
+│   │   ├── montage.py         #   Clip selection & sequencing engine
+│   │   ├── ffmpeg_renderer.py #   FFmpeg command assembly & rendering
+│   │   ├── audio_mixer.py     #   Multi-track mixing & crossfades
+│   │   ├── models.py          #   Pydantic DTOs (PacingConfig, etc.)
+│   │   └── validation.py      #   Input guards
+│   ├── services/reporting/    #   Excel report generation
+│   ├── ui/console.py          #   Rich progress observer
+│   ├── pipeline.py            #   Full-pipeline orchestrator
+│   └── shorts_maker.py        #   YouTube Shorts generator
+├── tests/unit/                #   9 pytest test files
+└── docs/                      #   7 documentation files
+```
+
+### Data Flow
+
+```
+Audio (.wav/.mp3)                    Video Clips (.mp4)
+       │                                    │
+       ▼                                    ▼
+  Audio Analyzer                     Video Analyzer
+  (BPM, beats, sections)            (motion intensity)
+       │                                    │
+       └──────────────┬─────────────────────┘
+                      ▼
+              Montage Engine
+        (match, sequence, pace)
+                      │
+                      ▼
+              FFmpeg Renderer
+        (assemble, grade, overlay)
+                      │
+                      ▼
+               output_story.mp4
+```
+
+---
+
+## Testing
+
+```bash
+make test                              # all tests
+venv/bin/pytest tests/unit/test_montage.py   # single file
+venv/bin/pytest -k "section"           # by keyword
+```
+
+---
 
 ## Documentation
 
@@ -103,18 +225,32 @@ make clean           # Remove venv, caches, and output files
 | [Security](docs/security.md) | Stakeholders | Security posture, mitigations, risks |
 | [Audit Report](docs/audit-report.md) | Stakeholders | Full project audit findings |
 
-## Tech Stack
+---
 
-| Technology | Purpose |
-|------------|---------|
-| Python 3.9+ | Core runtime |
-| Librosa | Audio analysis (BPM, beats, sections) |
-| OpenCV | Video frame analysis & intensity scoring |
-| FFmpeg | Video/audio extraction, assembly, transitions, & visualizers |
-| Pydantic | Input validation & DTOs |
-| openpyxl | Excel report generation |
-| Rich | Console progress bars |
-| PyYAML | Configuration loading |
+## Troubleshooting
+
+### FFmpeg Not Found
+
+Verify with `ffmpeg -version`. If installed but not found, set `FFMPEG_BINARY_PATH` in `.env`:
+```
+FFMPEG_BINARY_PATH=/opt/homebrew/bin/ffmpeg
+```
+
+### Python Version Mismatch
+
+This project requires **Python 3.11+**. The Makefile targets 3.13. If `python3.13` isn't available, update the `PYTHON` variable in the `Makefile`.
+
+### Missing Audio or Video Files
+
+`--audio` must point to a valid `.wav`/`.mp3` file, `--video-dir` to a directory with `.mp4` files. B-roll is auto-detected from a `broll/` subdirectory inside `--video-dir`.
+
+### Dependency Issues
+
+```bash
+make clean && make install && source venv/bin/activate
+```
+
+---
 
 ## License
 
