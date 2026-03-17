@@ -24,7 +24,7 @@ from pydantic import ValidationError
 
 from src.core.app import BachataSyncEngine
 from src.core.audio_analyzer import AudioAnalysisInput, AudioAnalyzer, find_audio_hooks
-from src.cli_utils import build_pacing_kwargs, parse_duration
+from src.cli_utils import add_visual_args, build_pacing_kwargs, parse_duration
 from src.core.audio_mixer import (
     SUPPORTED_AUDIO_EXTENSIONS,
     resolve_audio_path,
@@ -224,33 +224,7 @@ def parse_args() -> argparse.Namespace:
         "--test-mode", action="store_true",
         help="Quick iteration (max 4 clips, 10s of music per video)",
     )
-    parser.add_argument(
-        "--video-style", default=None,
-        choices=["none", "bw", "vintage", "warm", "cool", "golden"],
-        help="Color grading style",
-    )
-    parser.add_argument(
-        "--audio-overlay", default=None,
-        choices=["none", "waveform", "bars"],
-        help="Music-synced visualizer overlay",
-    )
-    parser.add_argument(
-        "--audio-overlay-opacity", type=float, default=None,
-        help="Visualizer opacity (0.0-1.0)",
-    )
-    parser.add_argument(
-        "--audio-overlay-position", default=None,
-        choices=["left", "center", "right"],
-        help="Visualizer position",
-    )
-    parser.add_argument(
-        "--broll-interval", type=float, default=None,
-        help="Target interval between B-roll clips in seconds (default: 13.5)",
-    )
-    parser.add_argument(
-        "--broll-variance", type=float, default=None,
-        help="Allowed variance in B-roll intervals, ± seconds (default: 1.5)",
-    )
+    add_visual_args(parser)
     parser.add_argument(
         "--verbose", action="store_true",
         help="Enable debug-level logging for troubleshooting",

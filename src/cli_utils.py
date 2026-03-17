@@ -77,3 +77,91 @@ def build_pacing_kwargs(args: argparse.Namespace) -> dict:
         kwargs["broll_interval_variance"] = args.broll_variance
 
     return kwargs
+
+
+def add_visual_args(parser: argparse.ArgumentParser) -> None:
+    """Register the visual/audio style arguments shared by all entry points.
+
+    Adds: --video-style, --audio-overlay, --audio-overlay-opacity,
+    --audio-overlay-position, --broll-interval, --broll-variance.
+
+    Args:
+        parser: The ArgumentParser to add arguments to.
+    """
+    parser.add_argument(
+        "--video-style",
+        type=str,
+        default=None,
+        choices=["none", "bw", "vintage", "warm", "cool", "golden"],
+        help="Color grading style: none, bw, vintage, warm, cool, golden",
+    )
+    parser.add_argument(
+        "--audio-overlay",
+        type=str,
+        default=None,
+        choices=["none", "waveform", "bars"],
+        help="Music-synced visualizer pattern: none, waveform, bars",
+    )
+    parser.add_argument(
+        "--audio-overlay-opacity",
+        type=float,
+        default=None,
+        help="Opacity of the audio visualizer block (0.0 to 1.0)",
+    )
+    parser.add_argument(
+        "--audio-overlay-position",
+        type=str,
+        default=None,
+        choices=["left", "center", "right"],
+        help="Position of the audio overlay: left, center, right (default: right)",
+    )
+    parser.add_argument(
+        "--broll-interval",
+        type=float,
+        default=None,
+        help="Target interval between B-roll clips in seconds (default: 13.5)",
+    )
+    parser.add_argument(
+        "--broll-variance",
+        type=float,
+        default=None,
+        help="Allowed variance in B-roll intervals, ± seconds (default: 1.5)",
+    )
+
+
+def add_shorts_args(parser: argparse.ArgumentParser) -> None:
+    """Register the shorts-specific arguments.
+
+    Adds: --dynamic-flow, --human-touch, --cliffhanger,
+    --smart-start / --no-smart-start.
+
+    Args:
+        parser: The ArgumentParser to add arguments to.
+    """
+    parser.add_argument(
+        "--dynamic-flow",
+        action="store_true",
+        help="Accelerate pacing (shorter clips) towards the end",
+    )
+    parser.add_argument(
+        "--human-touch",
+        action="store_true",
+        help="Apply small random variances to speed ramps",
+    )
+    parser.add_argument(
+        "--cliffhanger",
+        action="store_true",
+        help="End abruptly for a cliffhanger effect",
+    )
+    parser.add_argument(
+        "--smart-start",
+        action="store_true",
+        default=True,
+        help="Use audio hook detection for smart start selection (default: on)",
+    )
+    parser.add_argument(
+        "--no-smart-start",
+        action="store_false",
+        dest="smart_start",
+        help="Disable smart start — all shorts start from beat 0",
+    )

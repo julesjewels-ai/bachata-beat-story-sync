@@ -6,7 +6,12 @@ import argparse
 from unittest.mock import MagicMock
 
 import pytest
-from src.cli_utils import build_pacing_kwargs, parse_duration
+from src.cli_utils import (
+    add_shorts_args,
+    add_visual_args,
+    build_pacing_kwargs,
+    parse_duration,
+)
 
 
 # ------------------------------------------------------------------
@@ -84,3 +89,72 @@ class TestBuildPacingKwargs:
         result = build_pacing_kwargs(args)
         assert result["broll_interval_seconds"] == 20.0
         assert result["broll_interval_variance"] == 3.0
+
+
+# ------------------------------------------------------------------
+# add_visual_args
+# ------------------------------------------------------------------
+
+
+class TestAddVisualArgs:
+    def test_registers_all_visual_arguments(self):
+        parser = argparse.ArgumentParser()
+        add_visual_args(parser)
+        ns = parser.parse_args([])
+        assert ns.video_style is None
+        assert ns.audio_overlay is None
+        assert ns.audio_overlay_opacity is None
+        assert ns.audio_overlay_position is None
+        assert ns.broll_interval is None
+        assert ns.broll_variance is None
+
+    def test_accepts_valid_choices(self):
+        parser = argparse.ArgumentParser()
+        add_visual_args(parser)
+        ns = parser.parse_args([
+            "--video-style", "warm",
+            "--audio-overlay", "bars",
+            "--audio-overlay-position", "center",
+        ])
+        assert ns.video_style == "warm"
+        assert ns.audio_overlay == "bars"
+        assert ns.audio_overlay_position == "center"
+
+    def test_rejects_invalid_video_style(self):
+        parser = argparse.ArgumentParser()
+        add_visual_args(parser)
+        with pytest.raises(SystemExit):
+            parser.parse_args(["--video-style", "neon"])
+
+
+# ------------------------------------------------------------------
+# add_shorts_args
+# ------------------------------------------------------------------
+
+
+class TestAddShortsArgs:
+    def test_registers_all_shorts_arguments(self):
+        parser = argparse.ArgumentParser()
+        add_shorts_args(parser)
+        ns = parser.parse_args([])
+        assert ns.dynamic_flow is False
+        assert ns.human_touch is False
+        assert ns.cliffhanger is False
+        assert ns.smart_start is True
+
+    def test_enables_flags(self):
+        parser = argparse.ArgumentParser()
+        add_shorts_args(parser)
+        ns = parser.parse_args([
+            "--dynamic-flow", "--human-touch", "--cliffhanger",
+        ])
+        assert ns.dynamic_flow is True
+        assert ns.human_touch is True
+        assert ns.cliffhanger is True
+
+    def test_no_smart_start_disables(self):
+        parser = argparse.ArgumentParser()
+        add_shorts_args(parser)
+        ns = parser.parse_args(["--no-smart-start"])
+        assert ns.smart_start is False
+
