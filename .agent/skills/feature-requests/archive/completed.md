@@ -600,3 +600,120 @@ timeline_pos = beat_times[beat_idx] - config.audio_start_offset  # normalize to 
 ### Scope
 - **In scope:** Audio hook scoring, per-short unique start selection, `audio_start_offset` in PacingConfig, CLI flag, pipeline integration, fallback logic.
 - **Out of scope:** Visual scene-aware start selection (see FEAT-020), user-specified start times, AI/ML-based hook detection, lyric-aware start selection.
+
+---
+
+## FEAT-025: Decision Explainability Log (`--explain`)
+
+| Field        | Value                                                |
+|--------------|------------------------------------------------------|
+| **Status**   | `DONE`                                               |
+| **Priority** | 🟠 High                                              |
+| **Effort**   | Medium                                               |
+| **Impact**   | High — directly addresses "transparency" in the mission statement |
+| **Depends**  | None (standalone; reads existing internal state)     |
+
+### Why this matters
+The tool makes dozens of editorial decisions during montage generation — which clip to use at each beat, what duration to assign, which speed ramp to apply, when to insert B-roll, and why a clip was skipped. Today, none of these decisions are surfaced to the user. The output is a black box: audio goes in, video comes out.
+
+For **visual technicians escaping GUI fatigue**, the transparency of the decision pipeline is the primary value proposition over a traditional NLE. They chose a CLI *because* they want to understand and control the logic. A hidden decision engine defeats that purpose.
+
+### Description
+Add an `--explain` CLI flag that produces a timestamped, human-readable decision log alongside the video output. The log documents every editorial choice the engine makes during `build_segment_plan()` and `extract_segments()`.
+
+### Output Format
+
+A plain-text / Markdown file (default: `{output_stem}_explain.md`) with entries like:
+
+```
+## Segment Plan — song.wav (128 BPM, 3m42s)
+
+| Time      | Clip              | Intensity | Section  | Duration | Speed | Reason                                  |
+|-----------|-------------------|-----------|----------|----------|-------|-----------------------------------------|
+| 00:00.0   | 1_intro.mp4       | 0.42      | intro    | 4.0s     | 1.0x  | Forced prefix ordering (FEAT-008)       |
+| 00:04.0   | dance_spin.mp4    | 0.87      | verse    | 2.5s     | 1.2x  | High intensity → matched to high section|
+| 00:06.5   | broll/sunset.mp4  | —         | —        | 2.5s     | 1.0x  | B-roll interval triggered (13.5s ± 1.5) |
+| 00:09.0   | slow_walk.mp4     | 0.22      | bridge   | 6.0s     | 0.9x  | Low intensity → slow-motion pacing      |
+| ...       |                   |           |          |          |       |                                         |
+
+### Skipped Clips
+| Clip             | Reason                                           |
+|------------------|--------------------------------------------------|
+| corrupt.mp4      | Analysis failed: could not open video capture    |
+| tiny.mp4         | Duration < min_clip_seconds (1.5s)               |
+
+### Config Applied
+| Parameter                  | Value  |
+|----------------------------|--------|
+| high_intensity_threshold   | 0.65   |
+| low_intensity_threshold    | 0.35   |
+| snap_to_beats              | true   |
+| broll_interval_seconds     | 13.5   |
+```
+
+### Implementation Details
+
+#### Data Collection
+Add an `ExplainCollector` class (or simple list) that accumulates decision records during montage generation:
+
+```python
+@dataclass
+class SegmentDecision:
+    timeline_start: float
+    clip_path: str
+    intensity_score: float
+    section_label: str
+    duration: float
+    speed: float
+    reason: str
+
+@dataclass
+class SkipDecision:
+    clip_path: str
+    reason: str
+```
+
+The `MontageGenerator.generate()` and `build_segment_plan()` functions already have all the data needed at each decision point — the collector just captures it.
+
+#### Injection Points
+1. **`build_segment_plan()`** — When a clip is selected for a segment, record why (intensity match, forced prefix, B-roll trigger).
+2. **`extract_segments()`** — When a clip is skipped or fails, record the skip reason.
+3. **`generate()`** — At the end, write the collected decisions to the explain file.
+
+#### CLI Integration
+- `--explain` flag on `main.py`, `shorts_maker.py`, `pipeline.py`
+- Output path derived from `--output`: `output_story_explain.md` for `output_story.mp4`
+- Wired through `PacingConfig` or a separate `ExplainConfig` (lightweight — just a bool + output path)
+
+### Performance Considerations
+
+| Concern | Impact |
+|---------|--------|
+| Decision collection during segment planning | **< 1% overhead** — appending dataclass instances to a list |
+| File write at end of pipeline | **< 1ms** — small text file written once |
+| Memory: holding decisions in memory | **< 10KB** for a typical 50-segment montage |
+
+### Risk Assessment
+
+| Risk | Likelihood | Impact | Mitigation |
+|------|-----------|--------|------------|
+| Decision reasons are too generic ("intensity match") | Medium | Low utility for power users | Pre-define ~10 specific reason strings; include numerical thresholds in the reason |
+| Explain file path collides with existing output | Low | Overwrites user file | Use `_explain.md` suffix; warn if file exists |
+| Section labels are placeholders (not yet implemented) | Medium | Log shows empty section column | Graceful fallback: show "—" when section data unavailable |
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `src/core/models.py` | Add `SegmentDecision`, `SkipDecision` dataclasses; add `explain: bool` to `PacingConfig` |
+| `src/core/montage.py` | Instrument `build_segment_plan()` and `generate()` to collect and write decision log |
+| `src/core/ffmpeg_renderer.py` | Capture skip reasons during `extract_segments()` |
+| `main.py` | Add `--explain` flag |
+| `src/pipeline.py` | Add `--explain` flag |
+| `src/shorts_maker.py` | Add `--explain` flag |
+| `docs/configuration.md` | Document `--explain` flag and output format |
+| `tests/unit/test_montage.py` | New `TestExplainLog` class verifying decision capture |
+
+### Scope
+- **In scope:** Timestamped decision log, skip reasons, config summary, Markdown output, CLI flag on all entry points.
+- **Out of scope:** Interactive explain mode (step-by-step approval), JSON output format (see FEAT-028), explain for audio analysis decisions, per-frame decision logging.
