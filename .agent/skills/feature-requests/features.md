@@ -224,3 +224,297 @@ Add configurable padding (margins) to the waveform / bars overlay so it doesn't 
 ### Scope
 - **In scope:** Configurable X/Y padding for waveform overlay; CLI + config support.
 - **Out of scope:** Per-axis padding (separate X and Y values), overlay repositioning to top of frame, animated margin effects.
+
+---
+
+## FEAT-022: Intro Visual Effects
+
+| Field        | Value                                                |
+|--------------|------------------------------------------------------|
+| **Status**   | `PROPOSED`                                           |
+| **Priority** | 🟠 High                                              |
+| **Effort**   | Medium                                               |
+| **Impact**   | High — first impressions drive retention              |
+| **Depends**  | None (standalone)                                    |
+
+### Why this matters
+The first 1-3 seconds determine whether a viewer keeps watching. Currently, all videos start with a hard cut to the first clip — no visual "hook" to capture attention. Social media algorithms reward strong openers, and competing dance/music channels use intro effects to stand out.
+
+### Description
+Add a configurable **intro visual effect** applied exclusively to the first segment of any generated video. Effects create a cinematic reveal that draws the eye before cutting to the main content.
+
+### Effects (Phase 1)
+
+#### Gaussian Bloom Reveal (`bloom`)
+Gaussian blur fades from σ30 → σ0 over the intro duration, creating a dreamlike reveal into sharp focus.
+
+**FFmpeg filter:** `gblur=sigma='30*(1-t/{d})':enable='lt(t,{d})'`
+
+**Technical notes:** FFmpeg `gblur` supports expression-based sigma. The `enable` clause limits the filter to the intro window. Zero performance overhead outside the intro window.
+
+#### Warm Vignette Breathe (`vignette_breathe`)
+Tight dark vignette starts at the frame edges and expands outward, creating a theatrical spotlight effect.
+
+**FFmpeg filter:** `vignette=a='PI/2-t*PI/{2d}':enable='lt(t,{d})'`
+
+**Technical notes:** FFmpeg `vignette` accepts expression-based angle. The vignette intensity decreases as the angle expression increases. Simple and elegant.
+
+### Effects (Phase 2 — requires beat timestamp helper)
+
+#### Staggered Scale Pop (`scale_pop`)
+Beat-synced zoom pops (80% → 90% → 100%) with blur during expansion, creating a rhythmic "pop-in" entrance.
+
+**Implementation:** Build a beat-to-expression helper that generates `if(between(t,b1,b2), scale, ...)` chains from audio beat timestamps. Apply `scale` + `gblur` during each pop phase. Requires `SegmentPlan.timeline_position` to compute beat-relative timing.
+
+**Risk:** Expression chains for many beats become very long. Mitigate by capping to 3-4 beats within the intro window.
+
+#### Whip Pan Slide-In (`whip_slide`)
+Frame slides in from the edge with motion blur, simulating a camera whip-pan.
+
+**Implementation:** Use `crop` with animated x expression + `tblend=all_mode=average` for synthetic motion blur. Requires two filters in sequence.
+
+**Risk:** Filter chain is more complex than other effects. The `tblend` filter combines current and previous frames, which requires specific filter ordering.
+
+### Implementation Details
+
+**Config model changes (`PacingConfig`):**
+```python
+intro_effect: Literal["none", "bloom", "vignette_breathe", "scale_pop", "whip_slide"] = "none"
+intro_effect_duration: float = 1.5
+```
+
+**Filter injection point (`extract_segments()`):** Detect `i == 0` (first segment) and prepend intro filters to `vf_parts` before the style filter. This ensures:
+1. Intro filters are processed first
+2. Style filters (color grading) still apply on top
+3. Speed ramping is unaffected
+
+**CLI args:** `--intro-effect` (choices) + `--intro-effect-duration` (float)
+
+### Performance Considerations
+
+| Concern | Impact |
+|---------|--------|
+| Intro filter only applies to segment 0 | **Zero cost** for all other segments |
+| `gblur` with expression | ~5% overhead on one segment (~2-6s of video) |
+| `vignette` with expression | ~2% overhead on one segment |
+| Phase 2 `scale_pop` | ~10% overhead on one segment (multiple filter stages) |
+
+### Risk Assessment
+
+| Risk | Likelihood | Impact | Mitigation |
+|------|-----------|--------|------------|
+| `gblur` expression syntax varies across FFmpeg versions | Low | Build failure on older FFmpeg | Test with FFmpeg 5.x+ (already required for `xfade`) |
+| Intro effect interacts with speed ramp on segment 0 | Medium | Visual artifact: blur stretches during slow-mo | Apply intro filter AFTER `setpts` in `vf_parts` order |
+| Phase 2 beat expression chain too long | Medium | FFmpeg truncation or error | Cap to 4 beats; test with long expressions |
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `src/core/models.py` | Add `intro_effect` + `intro_effect_duration` to `PacingConfig` |
+| `src/core/ffmpeg_renderer.py` | Add `_build_intro_filters()` helper; inject in `extract_segments()` for `i == 0` |
+| `src/cli_utils.py` | Add `intro_effect`, `intro_effect_duration` to `build_pacing_kwargs()` |
+| `src/pipeline.py` | Add `--intro-effect`, `--intro-effect-duration` CLI args |
+| `src/shorts_maker.py` | Add `--intro-effect`, `--intro-effect-duration` CLI args |
+| `montage_config.yaml` | Add `intro_effect`, `intro_effect_duration` under `pacing:` |
+| `tests/unit/test_montage.py` | New `TestIntroEffects` test class |
+
+### Scope
+- **In scope:** bloom + vignette_breathe (Phase 1), scale_pop + whip_slide (Phase 2), configurable duration, CLI + YAML config, all video types.
+- **Out of scope:** AI-generated visual hooks, per-clip intro customization, combining multiple intro effects (mutually exclusive).
+
+---
+
+## FEAT-023: Pacing Visual Effects
+
+| Field        | Value                                                |
+|--------------|------------------------------------------------------|
+| **Status**   | `PROPOSED`                                           |
+| **Priority** | 🟡 Medium                                            |
+| **Effort**   | Low                                                  |
+| **Impact**   | Medium — adds cinematic motion and energy             |
+| **Depends**  | None (standalone, but pairs well with FEAT-022)      |
+
+### Why this matters
+Static frame composition makes long-form videos feel flat. Subtle camera motion (drift zoom, progressive tightening) and rhythm-synced colour pulses add a professional, "alive" quality without changing the content. These are staples of professional music video editing.
+
+### Description
+Add **pacing visual effects** that apply to all segments (or a time window) to create sustained visual energy. Unlike intro effects (FEAT-022), these run throughout the video. Each effect is independently toggleable.
+
+### Effects
+
+#### Drift Zoom (`pacing_drift_zoom`)
+Slow 100% → 105% zoom over the video duration. Classic Ken Burns effect that adds gentle motion to static shots.
+
+**FFmpeg filter:** `zoompan=z='1+0.0025*in':d=1:s={w}x{h}`
+
+**Technical notes:** `d=1` outputs one frame per input frame (no frame rate change). The zoom rate `0.0025` produces ~5% zoom over ~20s of content. Applied per-segment, accumulating the subtle zoom within each clip.
+
+#### Progressive Crop Tightening (`pacing_crop_tighten`)
+Slowly zoom in over the first 10 seconds of each segment, creating a gentle "pull-in" effect.
+
+**FFmpeg filter:** `zoompan=z='if(lt(in,300),1+0.005*(in/30),1.05)':d=1:s={w}x{h}`
+
+**Technical notes:** Similar to drift zoom but with a ceiling — stops tightening at 5% zoom after ~10s. The `if()` expression prevents infinite zoom.
+
+#### Pulsing Saturation (`pacing_saturation_pulse`)
+Brief saturation surges on each beat, making the image "breathe" with the music.
+
+**FFmpeg filter:** `eq=saturation='1+0.3*{beat_expression}'`
+
+Where `{beat_expression}` is a chain of `if(between(t,B,B+0.1),1,0)` for each beat within the segment.
+
+**Technical notes:** The `eq` filter supports expressions natively. Beat timestamps are relative to the segment's timeline position. Active for only 100ms per beat (imperceptible flicker), creating a subtle "pulse" effect.
+
+### Implementation Details
+
+**Config model changes (`PacingConfig`):**
+```python
+pacing_drift_zoom: bool = False
+pacing_crop_tighten: bool = False
+pacing_saturation_pulse: bool = False
+```
+
+**Filter injection:** Add `_build_pacing_filters(config, segment)` helper that returns filter strings. Append to `vf_parts` for **every segment** in `extract_segments()`.
+
+**CLI args:** `--pacing-drift-zoom` (flag), `--pacing-crop-tighten` (flag), `--pacing-saturation-pulse` (flag)
+
+### Performance Considerations
+
+| Concern | Impact |
+|---------|--------|
+| `zoompan` with d=1 | ~3% overhead per segment (lightweight) |
+| `eq` saturation expression | ~1% overhead (simple math) |
+| Multiple pacing effects stacked | Additive — 3 effects ≈ 7% total overhead per segment |
+
+### Risk Assessment
+
+| Risk | Likelihood | Impact | Mitigation |
+|------|-----------|--------|------------|
+| `zoompan` changes output resolution | Medium | Stretched/blurry output | Explicitly set `s={w}x{h}` to match source resolution |
+| Saturation pulse looks "flickery" | Low | Distracting | Use smooth `between()` window (100ms); expose duration as future config |
+| Combining drift_zoom + crop_tighten = double zoom | Medium | Over-zoomed output | Document as mutually exclusive in config; warn in CLI help |
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `src/core/models.py` | Add 3 boolean fields to `PacingConfig` |
+| `src/core/ffmpeg_renderer.py` | Add `_build_pacing_filters()` helper; inject in `extract_segments()` for all segments |
+| `src/cli_utils.py` | Add 3 boolean keys to `build_pacing_kwargs()` |
+| `src/pipeline.py` | Add 3 `--pacing-*` flag args |
+| `src/shorts_maker.py` | Add 3 `--pacing-*` flag args |
+| `montage_config.yaml` | Add 3 pacing fields under `pacing:` |
+| `tests/unit/test_montage.py` | New `TestPacingEffects` test class |
+
+### Scope
+- **In scope:** drift_zoom, crop_tighten, saturation_pulse; each independently toggleable; CLI + YAML config; all video types.
+- **Out of scope:** Dynamic effect intensity based on audio intensity, per-section effect customization, animated colour grading shifts.
+
+---
+
+## FEAT-024: Advanced Beat-Synced Effects
+
+| Field        | Value                                                |
+|--------------|------------------------------------------------------|
+| **Status**   | `PROPOSED`                                           |
+| **Priority** | 🟡 Medium                                            |
+| **Effort**   | Medium–High                                          |
+| **Impact**   | Medium — premium polish for advanced users            |
+| **Depends**  | FEAT-022 Phase 2 (shares beat-to-expression helper)  |
+
+### Why this matters
+Beat-synced visual effects are the hallmark of professional music video editing. Micro-jitters create physical "punch" on impacts, light leaks add cinematic warmth at key moments, and alternating depth creates visual variety across clips. These effects separate amateur edits from professional ones.
+
+### Description
+Add **advanced visual effects** that leverage beat timestamps for precise synchronization. These require the `_beats_to_expression()` helper introduced in FEAT-022 Phase 2 and represent the most sophisticated tier of the effects system.
+
+### Effects
+
+#### Beat-Synced Micro-Jitters (`micro_jitters`)
+2-4 pixel random offset on each beat, creating a subtle "shake" that emphasises rhythm.
+
+**Implementation:** Use `geq` filter with beat-timed x/y offset expressions, or `overlay` with computed offset per beat. The offset alternates direction per beat for variety.
+
+**Risk:** Long beat expression chains. Mitigate by computing relative beats within each segment (typically 5-15 beats per segment).
+
+#### Light Leak Flashes (`light_leaks`)
+Warm orange/amber colour sweep at key beats, simulating analog film light leaks.
+
+**Implementation:** Use `colorbalance=rs=0.3:gs=0.1:bs=-0.1:enable='...'` with beat-timed `enable` expressions. Each flash lasts ~200ms with a 100ms fade-in/out.
+
+**Alternative:** Overlay a pre-rendered gradient PNG with timed opacity. Simpler but requires an asset file.
+
+#### Warm Wash Transitions (`warm_wash`)
+Brief amber flash between cuts — applied in the transition system rather than per-segment filters.
+
+**Implementation:** Modify `apply_transitions()` to insert a brief (~150ms) colour overlay between segment boundaries. Could use `xfade` with a custom expression or insert a short solid-colour clip.
+
+**Risk:** Changes the transition pipeline, not just `extract_segments()`. Requires careful integration with existing `transition_type` config.
+
+#### Alternating Focus Depth (`alternating_bokeh`)
+Every other segment gets a subtle background blur, creating depth variety.
+
+**Implementation:** Apply `boxblur=luma_radius=4:enable='1'` to even-numbered segments during `extract_segments()`. Toggle via segment index `i % 2 == 0`.
+
+**Technical notes:** `boxblur` is a computationally cheap alternative to true Gaussian bokeh. The luma-only blur preserves colour accuracy.
+
+### Implementation Details
+
+**Config model changes (`PacingConfig`):**
+```python
+pacing_micro_jitters: bool = False
+pacing_light_leaks: bool = False
+pacing_warm_wash: bool = False
+pacing_alternating_bokeh: bool = False
+```
+
+**Beat-to-expression helper** (shared with FEAT-022 Phase 2):
+```python
+def _beats_to_expression(
+    beat_times: list[float],
+    segment_start: float,
+    segment_duration: float,
+    pulse_duration: float = 0.1,
+) -> str:
+    """Convert absolute beat timestamps to FFmpeg time expression within a segment.
+
+    Returns a string like '(if(between(t,0.5,0.6),1,0)+if(between(t,1.0,1.1),1,0)+...)'
+    where each beat is relative to the segment start.
+    """
+```
+
+### Performance Considerations
+
+| Concern | Impact |
+|---------|--------|
+| `geq` for micro-jitters | ~8% overhead per segment (per-pixel evaluation) |
+| `colorbalance` for light leaks | ~2% overhead per segment |
+| `boxblur` for alternating bokeh | ~5% overhead for every other segment |
+| Beat expression chain length | 10-15 beats per segment → ~200 char expression (within FFmpeg limits) |
+
+### Risk Assessment
+
+| Risk | Likelihood | Impact | Mitigation |
+|------|-----------|--------|------------|
+| Micro-jitters cause motion sickness | Low | Negative viewer experience | Default 2px offset; cap at 4px; provide amplitude config later |
+| Light leaks clash with video_style colour grading | Medium | Muddy colours | Apply light leaks AFTER style filter (order in `vf_parts`) |
+| Warm wash modifies transition system | Medium | Regression in existing transitions | Isolated code path; only activated when `pacing_warm_wash=True` |
+| Expression chain exceeds FFmpeg inline limit | Low | FFmpeg error | Cap beats per expression; split into multiple filter stages if needed |
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `src/core/models.py` | Add 4 boolean fields to `PacingConfig` |
+| `src/core/ffmpeg_renderer.py` | Add `_beats_to_expression()` helper; add 4 effect builders; inject in `extract_segments()` |
+| `src/core/montage.py` | Pass `beat_times` to `extract_segments()` for beat-relative computation |
+| `src/cli_utils.py` | Add 4 boolean keys to `build_pacing_kwargs()` |
+| `src/pipeline.py` | Add 4 `--pacing-*` flag args |
+| `src/shorts_maker.py` | Add 4 `--pacing-*` flag args |
+| `montage_config.yaml` | Add 4 pacing fields under `pacing:` |
+| `tests/unit/test_montage.py` | New `TestAdvancedEffects` test class |
+
+### Scope
+- **In scope:** micro_jitters, light_leaks, warm_wash, alternating_bokeh; each independently toggleable; beat-to-expression helper; CLI + YAML config; all video types.
+- **Out of scope:** AI-driven beat detection (uses existing beat_times from audio analysis), per-beat effect intensity variation, real-time preview.
