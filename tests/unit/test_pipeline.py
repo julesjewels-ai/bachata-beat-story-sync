@@ -4,7 +4,6 @@ Unit tests for the pipeline orchestrator (src/pipeline.py).
 All tests mock BachataSyncEngine and AudioAnalyzer to avoid FFmpeg calls.
 """
 
-import argparse
 import os
 import tempfile
 from unittest.mock import MagicMock, patch
@@ -12,10 +11,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from src.core.models import AudioAnalysisResult, VideoAnalysisResult
 from src.pipeline import (
-    _build_pacing_kwargs,
     _detect_broll_dir,
     _discover_audio_files,
-    _parse_duration,
     _safe_filename,
     _scan_videos,
 )
@@ -76,82 +73,6 @@ class TestDiscoverAudioFiles:
             result = _discover_audio_files(tmpdir)
             assert len(result) == 1
 
-
-# ------------------------------------------------------------------
-# _parse_duration
-# ------------------------------------------------------------------
-
-
-class TestParseDuration:
-    def test_single_value(self):
-        assert _parse_duration("60") == (60.0, 60.0)
-
-    def test_range_value(self):
-        assert _parse_duration("10-15") == (10.0, 15.0)
-
-    def test_invalid_raises(self):
-        with pytest.raises(argparse.ArgumentTypeError):
-            _parse_duration("abc")
-
-
-# ------------------------------------------------------------------
-# _build_pacing_kwargs
-# ------------------------------------------------------------------
-
-
-class TestBuildPacingKwargs:
-    def test_empty_args(self):
-        args = MagicMock()
-        args.test_mode = False
-        args.video_style = None
-        args.audio_overlay = None
-        args.audio_overlay_opacity = None
-        args.audio_overlay_position = None
-        args.broll_interval = None
-        args.broll_variance = None
-        result = _build_pacing_kwargs(args)
-        assert result == {}
-
-    def test_test_mode(self):
-        args = MagicMock()
-        args.test_mode = True
-        args.video_style = None
-        args.audio_overlay = None
-        args.audio_overlay_opacity = None
-        args.audio_overlay_position = None
-        args.broll_interval = None
-        args.broll_variance = None
-        result = _build_pacing_kwargs(args)
-        assert result["max_clips"] == 4
-        assert result["max_duration_seconds"] == 10.0
-
-    def test_all_visual_args(self):
-        args = MagicMock()
-        args.test_mode = False
-        args.video_style = "warm"
-        args.audio_overlay = "waveform"
-        args.audio_overlay_opacity = 0.8
-        args.audio_overlay_position = "center"
-        args.broll_interval = None
-        args.broll_variance = None
-        result = _build_pacing_kwargs(args)
-        assert result["video_style"] == "warm"
-        assert result["audio_overlay"] == "waveform"
-        assert result["audio_overlay_opacity"] == 0.8
-        assert result["audio_overlay_position"] == "center"
-
-    def test_broll_interval_args(self):
-        args = MagicMock()
-        args.test_mode = False
-        args.video_style = None
-        args.audio_overlay = None
-        args.audio_overlay_opacity = None
-        args.audio_overlay_position = None
-        args.broll_interval = 20.0
-        args.broll_variance = 3.0
-        result = _build_pacing_kwargs(args)
-        assert result["broll_interval_seconds"] == 20.0
-        assert result["broll_interval_variance"] == 3.0
 
 
 # ------------------------------------------------------------------
