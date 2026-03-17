@@ -10,6 +10,7 @@ from src.cli_utils import (
     add_shorts_args,
     add_visual_args,
     build_pacing_kwargs,
+    detect_broll_dir,
     parse_duration,
 )
 
@@ -157,4 +158,29 @@ class TestAddShortsArgs:
         add_shorts_args(parser)
         ns = parser.parse_args(["--no-smart-start"])
         assert ns.smart_start is False
+
+
+# ------------------------------------------------------------------
+# detect_broll_dir
+# ------------------------------------------------------------------
+
+
+class TestDetectBrollDir:
+    def test_explicit_override(self, tmp_path):
+        """Explicit broll_dir is returned unchanged."""
+        explicit = str(tmp_path / "my_broll")
+        result = detect_broll_dir(str(tmp_path), explicit)
+        assert result == explicit
+
+    def test_auto_detect(self, tmp_path):
+        """Auto-detects 'broll' subfolder inside video_dir."""
+        broll = tmp_path / "broll"
+        broll.mkdir()
+        result = detect_broll_dir(str(tmp_path))
+        assert result == str(broll)
+
+    def test_no_broll(self, tmp_path):
+        """Returns None when no broll subfolder exists."""
+        result = detect_broll_dir(str(tmp_path))
+        assert result is None
 

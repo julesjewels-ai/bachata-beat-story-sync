@@ -7,7 +7,7 @@ import os
 import sys
 
 from pydantic import ValidationError
-from src.cli_utils import add_visual_args, analyze_audio, build_pacing_kwargs, strip_thumbnails
+from src.cli_utils import add_visual_args, analyze_audio, build_pacing_kwargs, detect_broll_dir, strip_thumbnails
 from src.core.app import BachataSyncEngine
 from src.core.models import PacingConfig
 from src.services.reporting import ExcelReportGenerator
@@ -95,12 +95,7 @@ def main() -> None:
         # 2. Scan Videos
         logger.info("Scanning video library in: %s", args.video_dir)
 
-        broll_dir = args.broll_dir
-        if not broll_dir:
-            auto_broll_path = os.path.join(args.video_dir, "broll")
-            if os.path.exists(auto_broll_path) and os.path.isdir(auto_broll_path):
-                broll_dir = auto_broll_path
-                logger.info("Auto-detected B-roll folder: %s", broll_dir)
+        broll_dir = detect_broll_dir(args.video_dir, args.broll_dir)
 
         # Build list of directories to exclude from the main video scan
         exclude_dirs = [broll_dir] if broll_dir else None

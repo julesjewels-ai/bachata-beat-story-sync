@@ -26,6 +26,7 @@ from src.cli_utils import (
     add_shorts_args,
     add_visual_args,
     build_pacing_kwargs,
+    detect_broll_dir,
     generate_shorts_batch,
     parse_duration,
     strip_thumbnails,
@@ -55,17 +56,6 @@ def _discover_audio_files(folder_path: str) -> list[str]:
     return sorted(files)
 
 
-def _detect_broll_dir(
-    video_dir: str, explicit_broll_dir: str | None
-) -> str | None:
-    """Auto-detect B-roll subfolder, matching main.py behaviour."""
-    if explicit_broll_dir:
-        return explicit_broll_dir
-    auto = os.path.join(video_dir, "broll")
-    if os.path.isdir(auto):
-        logger.info("Auto-detected B-roll folder: %s", auto)
-        return auto
-    return None
 
 
 def _scan_videos(
@@ -127,38 +117,6 @@ def _generate_video(
         )
 
 
-def _generate_shorts(
-    engine: BachataSyncEngine,
-    audio_meta,
-    clips: list,
-    audio_path: str,
-    output_dir: str,
-    count: int,
-    min_dur: float,
-    max_dur: float,
-    pacing_kwargs: dict,
-    log: PipelineLogger,
-    smart_start: bool = True,
-    dynamic_flow: bool = False,
-    human_touch: bool = False,
-    cliffhanger: bool = False,
-) -> list[str]:
-    """Generate *count* shorts into *output_dir*, returning paths."""
-    return generate_shorts_batch(
-        engine,
-        audio_meta,
-        clips,
-        audio_path,
-        output_dir,
-        count,
-        min_dur,
-        max_dur,
-        pacing_kwargs,
-        smart_start=smart_start,
-        dynamic_flow=dynamic_flow,
-        human_touch=human_touch,
-        cliffhanger=cliffhanger,
-    )
 
 
 # ------------------------------------------------------------------
@@ -283,7 +241,7 @@ def main() -> None:
         # ----------------------------------------------------------
         # 3. Detect B-roll
         # ----------------------------------------------------------
-        broll_dir = _detect_broll_dir(args.video_dir, args.broll_dir)
+        broll_dir = detect_broll_dir(args.video_dir, args.broll_dir)
         if broll_dir:
             log.step(f"B-roll directory: [bold]{broll_dir}[/bold]")
         else:
@@ -385,11 +343,11 @@ def main() -> None:
                 with log.status(
                     f"Rendering {args.shorts_count} short(s)…"
                 ):
-                    shorts = _generate_shorts(
+                    shorts = generate_shorts_batch(
                         engine, track_meta, clips, track_path,
                         shorts_dir, args.shorts_count,
                         min_dur, max_dur, track_pacing,
-                        log, smart_start=args.smart_start,
+                        smart_start=args.smart_start,
                         dynamic_flow=getattr(args, "dynamic_flow", False),
                         human_touch=getattr(args, "human_touch", False),
                         cliffhanger=getattr(args, "cliffhanger", False),

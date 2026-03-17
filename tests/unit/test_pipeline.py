@@ -9,9 +9,9 @@ import tempfile
 from unittest.mock import MagicMock, patch
 
 import pytest
+from src.cli_utils import detect_broll_dir
 from src.core.models import AudioAnalysisResult, VideoAnalysisResult
 from src.pipeline import (
-    _detect_broll_dir,
     _discover_audio_files,
     _safe_filename,
     _scan_videos,
@@ -82,17 +82,17 @@ class TestDiscoverAudioFiles:
 
 class TestDetectBrollDir:
     def test_explicit_broll_dir(self):
-        assert _detect_broll_dir("/videos", "/custom/broll") == "/custom/broll"
+        assert detect_broll_dir("/videos", "/custom/broll") == "/custom/broll"
 
     def test_auto_detect_broll_subfolder(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             broll_path = os.path.join(tmpdir, "broll")
             os.makedirs(broll_path)
-            assert _detect_broll_dir(tmpdir, None) == broll_path
+            assert detect_broll_dir(tmpdir, None) == broll_path
 
     def test_no_broll(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            assert _detect_broll_dir(tmpdir, None) is None
+            assert detect_broll_dir(tmpdir, None) is None
 
 
 # ------------------------------------------------------------------

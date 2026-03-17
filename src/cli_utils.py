@@ -16,6 +16,30 @@ import uuid
 logger = logging.getLogger(__name__)
 
 
+def detect_broll_dir(
+    video_dir: str, explicit_broll_dir: str | None = None
+) -> str | None:
+    """Auto-detect B-roll subfolder inside *video_dir*.
+
+    If *explicit_broll_dir* is provided it is returned unchanged.
+    Otherwise checks for a ``broll/`` subdirectory inside *video_dir*.
+
+    Args:
+        video_dir: Root directory of the main video clips.
+        explicit_broll_dir: Optional explicit override from the CLI.
+
+    Returns:
+        Path to the B-roll directory, or ``None`` if not found.
+    """
+    if explicit_broll_dir:
+        return explicit_broll_dir
+    auto = os.path.join(video_dir, "broll")
+    if os.path.isdir(auto):
+        logger.info("Auto-detected B-roll folder: %s", auto)
+        return auto
+    return None
+
+
 def parse_duration(duration_str: str) -> tuple[float, float]:
     """Parse a duration string like '60' or '10-15' into (min, max) floats.
 
