@@ -24,6 +24,7 @@ The tool is invoked via `python main.py` with the following arguments:
 | `--audio-overlay-position` | ❌ | `str` | `bottom` | Vertical position of the visualizer: `top`, `center`, `bottom` |
 | `--broll-interval` | ❌ | `float` | `13.5` | Target interval between B-roll clips in seconds |
 | `--broll-variance` | ❌ | `float` | `1.5` | Allowed variance in B-roll intervals (± seconds) |
+| `--explain` | ❌ | flag | `False` | Write a decision explainability log (`*_explain.md`) next to the output video |
 | `--version` | ❌ | flag | — | Display version number and exit |
 
 ### Shorts CLI (`shorts_maker.py`)
@@ -176,6 +177,7 @@ All variables below are **optional** and apply to `make run`, `make run-shorts`,
 | `OUTPUT_DIR` | `output_pipeline` | Output directory (pipeline target only) |
 | `SHARED_SCAN` | `0` | Set to `1` to share a single video scan across all tracks |
 | `SMART_START` | *(on)* | Set to `0` to disable audio hook detection for shorts |
+| `EXPLAIN` | `0` | Set to `1` to generate a decision explainability log alongside each output |
 
 **Example — montage with waveform overlay:**
 
@@ -199,6 +201,13 @@ make full-pipeline AUDIO=./tracks/ VIDEO_DIR=./clips/ VIDEO_STYLE=warm
 
 ```bash
 make full-pipeline AUDIO=./tracks/ VIDEO_DIR=./clips/ BROLL_INTERVAL=20 BROLL_VARIANCE=3
+```
+
+**Example — generate a decision explainability log:**
+
+```bash
+make run AUDIO=song.wav VIDEO_DIR=./clips/ EXPLAIN=1
+# → produces output_story.mp4 and output_story_explain.md
 ```
 
 ---

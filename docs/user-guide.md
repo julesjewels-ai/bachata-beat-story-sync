@@ -86,6 +86,7 @@ python main.py [OPTIONS]
 | `--test-mode` | No | `False` | Run in test mode (max 4 clips, 10s of music) |
 | `--max-clips INT` | No | — | Maximum number of clip segments (overrides test-mode) |
 | `--max-duration FLOAT` | No | — | Maximum montage duration in seconds (overrides test-mode) |
+| `--explain` | No | `False` | Write a decision explainability log (`*_explain.md`) alongside the output video |
 | `--version` | No | — | Show version and exit |
 
 ### Examples
@@ -105,6 +106,10 @@ python main.py --audio song.wav --video-dir ./clips/ --broll-dir ./broll/
 
 # Test mode for rapid iteration
 python main.py --audio song.wav --video-dir ./clips/ --test-mode
+
+# Generate a decision explainability log
+python main.py --audio song.wav --video-dir ./clips/ --explain
+# → produces output_story.mp4 and output_story_explain.md
 ```
 
 ---
@@ -159,6 +164,26 @@ flowchart LR
 
     style B_new fill:#4a3200,stroke:#cca300,stroke-width:2px,stroke-dasharray: 5 5,color:#fff
 ```
+
+### 🔍 Decision Explainability Log
+
+Pass `--explain` to generate a Markdown file (`*_explain.md`) alongside the output video that documents every editorial decision the engine made:
+
+- **Which clip** was selected for each segment and **why** (intensity match, forced prefix ordering, B-roll interval trigger)
+- **Intensity score**, **section label**, **duration**, and **speed multiplier** for each segment
+- **Pacing config** that was applied
+
+This is invaluable for understanding *why* the engine chose a particular edit and for tuning your clips or pacing configuration.
+
+```bash
+# Generate with explainability log
+python main.py --audio song.wav --video-dir ./clips/ --explain
+
+# Or via Makefile
+make run AUDIO=song.wav VIDEO_DIR=./clips/ EXPLAIN=1
+```
+
+The log is written to the same directory as the output video, e.g. `output_story_explain.md` for `output_story.mp4`.
 
 ---
 

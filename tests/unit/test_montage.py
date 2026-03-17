@@ -17,6 +17,7 @@ from src.core.models import (
     AudioAnalysisResult,
     MusicalSection,
     PacingConfig,
+    SegmentDecision,
     VideoAnalysisResult,
 )
 from src.core.ffmpeg_renderer import overlay_audio
@@ -1467,3 +1468,139 @@ class TestAudioStartOffset:
         total = sum(s.duration for s in segments)
         assert total <= 6.0  # small tolerance for rounding
 
+
+# ──────────────────────────────────────────────────
+#  FEAT-025: Decision Explainability Log
+# ──────────────────────────────────────────────────
+
+
+class TestExplainDecisionCollection:
+    """build_segment_plan populates _last_decisions when explain=True."""
+
+    @pytest.fixture
+    def gen(self):
+        return MontageGenerator()
+
+    @pytest.fixture
+    def clips(self):
+        return [
+            VideoAnalysisResult(
+                path="/v/a.mp4", intensity_score=0.8,
+                duration=30.0, thumbnail_data=None,
+            ),
+            VideoAnalysisResult(
+                path="/v/b.mp4", intensity_score=0.3,
+                duration=30.0, thumbnail_data=None,
+            ),
+        ]
+
+    @pytest.fixture
+    def audio(self):
+        return AudioAnalysisResult(
+            filename="t.wav", bpm=120.0, duration=10.0,
+            peaks=[], sections=[],
+            beat_times=[0.0, 0.5, 1.0, 1.5, 2.0],
+            intensity_curve=[0.8, 0.6, 0.4, 0.3, 0.2],
+        )
+
+    def test_decisions_collected_when_enabled(self, gen, audio, clips):
+        config = PacingConfig(explain=True)
+        segments = gen.build_segment_plan(audio, clips, config)
+        assert len(gen._last_decisions) > 0
+        assert len(gen._last_decisions) == len(segments)
+
+    def test_decisions_empty_when_disabled(self, gen, audio, clips):
+        config = PacingConfig(explain=False)
+        gen.build_segment_plan(audio, clips, config)
+        assert gen._last_decisions == []
+
+    def test_decision_fields_populated(self, gen, audio, clips):
+        config = PacingConfig(explain=True)
+        gen.build_segment_plan(audio, clips, config)
+        d = gen._last_decisions[0]
+        assert isinstance(d, SegmentDecision)
+        assert d.clip_path in ("/v/a.mp4", "/v/b.mp4")
+        assert d.duration > 0
+        assert d.speed > 0
+        assert d.reason  # non-empty string
+
+
+class TestWriteExplainLog:
+    """_write_explain_log produces valid Markdown with expected content."""
+
+    def test_markdown_file_created(self, tmp_path):
+        gen = MontageGenerator()
+        gen._last_decisions = [
+            SegmentDecision(
+                timeline_start=0.0,
+                clip_path="/v/a.mp4",
+                intensity_score=0.75, section_label="intro",
+                duration=1.5, speed=1.0, reason="best intensity match",
+            ),
+        ]
+        out = str(tmp_path / "output.mp4")
+        config = PacingConfig(explain=True)
+        gen._write_explain_log(out, config)
+        md_path = str(tmp_path / "output_explain.md")
+        assert os.path.exists(md_path)
+        content = open(md_path).read()
+        assert "# Decision Explainability Log" in content
+        assert "a.mp4" in content
+        assert "intro" in content
+        assert "best intensity match" in content
+        assert "## Config Applied" in content
+
+    def test_multiple_decisions_in_table(self, tmp_path):
+        gen = MontageGenerator()
+        gen._last_decisions = [
+            SegmentDecision(
+                timeline_start=float(i),
+                clip_path=f"/v/c{i}.mp4",
+                intensity_score=0.5, section_label=None,
+                duration=1.0, speed=1.0, reason="fallback",
+            )
+            for i in range(5)
+        ]
+        out = str(tmp_path / "out.mp4")
+        gen._write_explain_log(out, PacingConfig(explain=True))
+        content = open(str(tmp_path / "out_explain.md")).read()
+        # 5 data rows + header row + separator row
+        table_rows = [l for l in content.splitlines() if l.startswith("|")]
+        assert len(table_rows) == 7  # 2 header + 5 data
+
+
+class TestExplainCLIFlag:
+    """--explain flag is wired through CLI utils."""
+
+    def test_build_pacing_kwargs_includes_explain(self):
+        from src.cli_utils import build_pacing_kwargs
+        import argparse
+
+        ns = argparse.Namespace(
+            test_mode=False, video_style=None, audio_overlay=None,
+            audio_overlay_opacity=None, audio_overlay_position=None,
+            broll_interval=None, broll_variance=None, explain=True,
+        )
+        kwargs = build_pacing_kwargs(ns)
+        assert kwargs["explain"] is True
+
+    def test_build_pacing_kwargs_omits_explain_when_false(self):
+        from src.cli_utils import build_pacing_kwargs
+        import argparse
+
+        ns = argparse.Namespace(
+            test_mode=False, video_style=None, audio_overlay=None,
+            audio_overlay_opacity=None, audio_overlay_position=None,
+            broll_interval=None, broll_variance=None, explain=False,
+        )
+        kwargs = build_pacing_kwargs(ns)
+        assert "explain" not in kwargs
+
+    def test_add_visual_args_registers_explain(self):
+        from src.cli_utils import add_visual_args
+        import argparse
+
+        parser = argparse.ArgumentParser()
+        add_visual_args(parser)
+        args = parser.parse_args(["--explain"])
+        assert args.explain is True

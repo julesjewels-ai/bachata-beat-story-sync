@@ -1,4 +1,4 @@
-"""Montage generation engine — FEAT-001 through FEAT-013, FEAT-019."""
+"""Montage generation engine — FEAT-001 through FEAT-013, FEAT-019, FEAT-025."""
 
 import bisect
 import hashlib
@@ -26,6 +26,7 @@ from src.core.interfaces import ProgressObserver
 from src.core.models import (
     AudioAnalysisResult,
     PacingConfig,
+    SegmentDecision,
     SegmentPlan,
     VideoAnalysisResult,
 )
@@ -267,12 +268,12 @@ class MontageGenerator:
         pool_indices: dict,
         level: str,
         clip_idx: int,
-    ) -> tuple[VideoAnalysisResult, int, int, int, float, float]:
+    ) -> tuple[VideoAnalysisResult, int, int, int, float, float, str]:
         """Pick the next clip and advance the relevant index.
 
         Returns:
             ``(clip, forced_clip_idx, broll_idx, clip_idx,
-            last_broll_time, target_broll_interval)``.
+            last_broll_time, target_broll_interval, reason)``.
         """
         target_broll_interval = config.broll_interval_seconds + random.uniform(
             -config.broll_interval_variance, config.broll_interval_variance
@@ -280,16 +281,20 @@ class MontageGenerator:
         if forced_clip_idx < len(forced_clips):
             clip = forced_clips[forced_clip_idx]
             forced_clip_idx += 1
+            reason = "Forced prefix ordering (FEAT-008)"
         elif is_broll:
             assert broll_clips is not None
             clip = broll_clips[broll_idx % len(broll_clips)]
             broll_idx += 1
             last_broll_time = timeline_pos
+            interval = timeline_pos - (last_broll_time - timeline_pos + timeline_pos)
+            reason = f"B-roll interval triggered ({target_broll_interval:.1f}s)"
         else:
             clip = self._pick_from_pool(pools, pool_indices, level)
             clip_idx += 1
+            reason = f"Intensity matched: {level} pool (score={clip.intensity_score:.2f})"
         return (clip, forced_clip_idx, broll_idx, clip_idx,
-                last_broll_time, target_broll_interval)
+                last_broll_time, target_broll_interval, reason)
 
     @staticmethod
     def _compute_start_offset(
@@ -372,6 +377,7 @@ class MontageGenerator:
         )
 
         segments: list[SegmentPlan] = []
+        self._last_decisions: list[SegmentDecision] = []
         timeline_pos = 0.0
 
         # FEAT-019: skip beats before audio_start_offset
@@ -443,7 +449,7 @@ class MontageGenerator:
 
             # Pick clip (forced prefix → B-roll → intensity pool)
             (clip, forced_clip_idx, broll_idx, clip_idx,
-             last_broll_time, target_broll_interval) = self._select_clip(
+             last_broll_time, target_broll_interval, reason) = self._select_clip(
                 forced_clips=forced_clips,
                 forced_clip_idx=forced_clip_idx,
                 is_broll=is_broll,
@@ -484,11 +490,79 @@ class MontageGenerator:
                         section_label=section_label,
                     )
                 )
+
+                # FEAT-025: collect decision if explain mode is active
+                if config.explain:
+                    self._last_decisions.append(
+                        SegmentDecision(
+                            timeline_start=segments[-1].timeline_position,
+                            clip_path=clip.path,
+                            intensity_score=clip.intensity_score,
+                            section_label=section_label,
+                            duration=actual_duration,
+                            speed=speed,
+                            reason=reason,
+                        )
+                    )
+
                 timeline_pos += actual_duration
 
             beat_idx += beat_count
 
         return segments
+
+    def _write_explain_log(
+        self,
+        output_path: str,
+        config: PacingConfig,
+    ) -> None:
+        """Write collected decisions to a Markdown file next to output.
+
+        File is named ``{output_stem}_explain.md``.
+        """
+        stem = os.path.splitext(output_path)[0]
+        log_path = f"{stem}_explain.md"
+
+        lines: list[str] = [
+            "# Decision Explainability Log\n",
+            "",
+            "## Segment Decisions\n",
+            "",
+            "| # | Time | Clip | Intensity | Section | Duration | Speed | Reason |",
+            "|---|------|------|-----------|---------|----------|-------|--------|",
+        ]
+        for i, d in enumerate(self._last_decisions, 1):
+            clip_name = os.path.basename(d.clip_path)
+            section = d.section_label or "—"
+            lines.append(
+                f"| {i} | {d.timeline_start:.2f}s "
+                f"| {clip_name} "
+                f"| {d.intensity_score:.2f} "
+                f"| {section} "
+                f"| {d.duration:.2f}s "
+                f"| {d.speed:.2f}x "
+                f"| {d.reason} |"
+            )
+
+        lines.append("")
+        lines.append("## Config Applied\n")
+        lines.append("")
+        lines.append(f"- **Min clip duration**: {config.min_clip_seconds}s")
+        lines.append(
+            f"- **Intensity durations**: high={config.high_intensity_seconds}s "
+            f"mid={config.medium_intensity_seconds}s low={config.low_intensity_seconds}s"
+        )
+        lines.append(f"- **Max clips**: {config.max_clips}")
+        lines.append(f"- **Max duration**: {config.max_duration_seconds}")
+        if config.video_style and config.video_style != "none":
+            lines.append(f"- **Video style**: {config.video_style}")
+        if config.audio_overlay and config.audio_overlay != "none":
+            lines.append(f"- **Audio overlay**: {config.audio_overlay}")
+        lines.append("")
+
+        with open(log_path, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines))
+        logger.info("Explain log written to: %s", log_path)
 
     def generate(
         self,
@@ -558,6 +632,10 @@ class MontageGenerator:
                 config.max_clips,
                 config.max_duration_seconds or total_dur,
             )
+
+        # FEAT-025: Write decision explainability log
+        if config.explain and self._last_decisions:
+            self._write_explain_log(output_path, config)
 
         # Create temp directory for intermediate files
         temp_dir = tempfile.mkdtemp(prefix="montage_")

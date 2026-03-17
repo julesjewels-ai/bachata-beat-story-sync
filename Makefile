@@ -10,6 +10,7 @@ AUDIO_OVERLAY_OPACITY ?=
 AUDIO_OVERLAY_POSITION ?=
 BROLL_INTERVAL ?=
 BROLL_VARIANCE ?=
+EXPLAIN ?=
 
 # Pipeline optional flags
 SHORTS_COUNT ?= 1
@@ -55,6 +56,10 @@ endif
 
 ifneq ($(BROLL_VARIANCE),)
   EXTRA_FLAGS += --broll-variance $(BROLL_VARIANCE)
+endif
+
+ifeq ($(EXPLAIN),1)
+  EXTRA_FLAGS += --explain
 endif
 
 ifeq ($(SHARED_SCAN), 1)

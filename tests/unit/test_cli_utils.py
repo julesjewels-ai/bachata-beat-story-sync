@@ -47,6 +47,7 @@ class TestBuildPacingKwargs:
         args.audio_overlay_position = None
         args.broll_interval = None
         args.broll_variance = None
+        args.explain = False
         result = build_pacing_kwargs(args)
         assert result == {}
 

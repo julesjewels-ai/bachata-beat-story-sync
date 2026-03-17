@@ -3,7 +3,7 @@ Data Transfer Objects (DTOs) for Bachata Beat-Story Sync.
 These models define the strict contracts for data exchange between layers.
 """
 
-
+from dataclasses import dataclass, field
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -99,6 +99,27 @@ class SegmentPlan(BaseModel):
         description="Musical section this segment belongs to"
         " (e.g. 'intro', 'high_energy')",
     )
+
+
+@dataclass
+class SegmentDecision:
+    """Records why a particular clip was chosen for a timeline slot."""
+
+    timeline_start: float
+    clip_path: str
+    intensity_score: float
+    section_label: str | None
+    duration: float
+    speed: float
+    reason: str
+
+
+@dataclass
+class SkipDecision:
+    """Records why a clip was skipped at a given point."""
+
+    clip_path: str
+    reason: str
 
 
 class PacingConfig(BaseModel):
@@ -243,6 +264,12 @@ class PacingConfig(BaseModel):
         0.0,
         description="Start the montage from this point in the audio (seconds). "
         "Used by smart-start to shift the audio window for shorts.",
+    )
+
+    # Decision Explainability Log (FEAT-025)
+    explain: bool = Field(
+        False,
+        description="Emit a Markdown decision log alongside the output video",
     )
 
 

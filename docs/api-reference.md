@@ -19,6 +19,7 @@ Parses CLI arguments.
 | `--test-mode` | flag | No | `False` | Run in test mode (max 4 clips, 10s of music) |
 | `--max-clips` | `int` | No | `None` | Maximum number of clip segments |
 | `--max-duration`| `float`| No | `None` | Maximum montage duration in seconds |
+| `--explain` | flag | No | `False` | Write a decision explainability log (`*_explain.md`) |
 | `--version` | flag | No | — | Show version (`0.1.0`) |
 
 ### `main() → None`
@@ -122,6 +123,8 @@ Builds a video montage:
 **Raises:** `ValueError` if no video clips. `FileNotFoundError` if audio missing. `RuntimeError` if no valid segments generated.
 
 **Output:** 720p, 24fps, `libx264` codec, `aac` audio, `ultrafast` preset.
+
+When `PacingConfig.explain` is `True`, writes a `*_explain.md` Markdown file next to the output video documenting every clip selection decision.
 
 ---
 

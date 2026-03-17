@@ -107,6 +107,8 @@ def build_pacing_kwargs(args: argparse.Namespace) -> dict:
         kwargs["broll_interval_seconds"] = args.broll_interval
     if getattr(args, "broll_variance", None) is not None:
         kwargs["broll_interval_variance"] = args.broll_variance
+    if getattr(args, "explain", False):
+        kwargs["explain"] = True
 
     return kwargs
 
@@ -158,6 +160,12 @@ def add_visual_args(parser: argparse.ArgumentParser) -> None:
         type=float,
         default=None,
         help="Allowed variance in B-roll intervals, ± seconds (default: 1.5)",
+    )
+    parser.add_argument(
+        "--explain",
+        action="store_true",
+        default=False,
+        help="Emit a Markdown decision log alongside the output video",
     )
 
 

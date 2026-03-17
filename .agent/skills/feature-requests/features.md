@@ -525,7 +525,7 @@ def _beats_to_expression(
 
 | Field        | Value                                                |
 |--------------|------------------------------------------------------|
-| **Status**   | `PROPOSED`                                           |
+| **Status**   | `DONE`                                               |
 | **Priority** | 🟠 High                                              |
 | **Effort**   | Medium                                               |
 | **Impact**   | High — directly addresses "transparency" in the mission statement |

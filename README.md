@@ -22,6 +22,7 @@ An automated video editing tool that analyzes Bachata audio tracks (`.wav` / `.m
 | Full Pipeline Orchestrator (FEAT-014) | ✅ |
 | YouTube Shorts Batch Generator (FEAT-015) | ✅ |
 | Audio Track Mixing with Crossfades | ✅ |
+| Decision Explainability Log `--explain` (FEAT-025) | ✅ |
 | Sentiment-based Clip Matching | 🔜 Planned |
 | Narrative Arc Construction | 🔜 Planned |
 | AI Multimodal Analysis (Gemini) | 🔜 Planned |
@@ -68,6 +69,9 @@ make full-pipeline AUDIO=./tracks/ VIDEO_DIR=./clips/ VIDEO_STYLE=vintage
 
 # YouTube Shorts only
 make run-shorts AUDIO=my_track.wav VIDEO_DIR=./clips/ SHORTS_COUNT=3
+
+# Decision explainability log — see why each clip was chosen
+make run AUDIO=my_track.wav VIDEO_DIR=./clips/ EXPLAIN=1
 
 # Test mode (limits to max 4 clips and 10s of music)
 python main.py --audio my_track.wav --video-dir ./clips/ --test-mode
