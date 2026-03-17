@@ -5,6 +5,7 @@ from FFmpeg subprocess orchestration.
 """
 
 import logging
+from collections.abc import Callable
 import os
 import shutil
 import subprocess
@@ -32,6 +33,61 @@ _VIDEO_STYLE_FILTERS = {
         "vignette"
     ),
 }
+
+
+# ------------------------------------------------------------------
+# Intro Visual Effects Registry (FEAT-022)
+# ------------------------------------------------------------------
+# Each effect is a standalone function: (duration) → list[str] of VF filters.
+# To add a new effect: write one function, add one entry to INTRO_EFFECTS.
+# To remove an effect: delete the function and its registry entry.
+
+def _bloom_filter(d: float) -> list[str]:
+    """Bloom reveal — fades in from white over *d* seconds.
+
+    Uses FFmpeg's native ``fade`` filter with ``color=white`` to
+    produce a cinematic bright-bloom-to-clear reveal.  Neither
+    ``gblur`` nor ``boxblur`` support time-based expressions for
+    their blur radius, so a white fade is the most reliable and
+    visually striking approach.
+    """
+    return [f"fade=t=in:st=0:d={d}:color=white"]
+
+
+def _vignette_breathe_filter(d: float) -> list[str]:
+    """Theatrical spotlight — vignette opens from tight to wide by *d* seconds."""
+    return [f"vignette=a='PI/2-t*PI/(2*{d})':enable='lt(t,{d})'"]
+
+
+INTRO_EFFECTS: dict[str, Callable[[float], list[str]]] = {
+    "bloom": _bloom_filter,
+    "vignette_breathe": _vignette_breathe_filter,
+}
+
+
+def _build_intro_filters(effect: str, duration: float) -> list[str]:
+    """Look up *effect* in the registry and return VF filter strings.
+
+    Args:
+        effect: Registered effect name (or 'none' for no-op).
+        duration: Effect duration in seconds.
+
+    Returns:
+        List of FFmpeg VF filter strings, empty for 'none'.
+
+    Raises:
+        ValueError: If *effect* is not 'none' and not in the registry.
+    """
+    if effect == "none":
+        return []
+    builder = INTRO_EFFECTS.get(effect)
+    if builder is None:
+        valid = ", ".join(sorted(INTRO_EFFECTS.keys()))
+        raise ValueError(
+            f"Unknown intro effect '{effect}'. "
+            f"Valid options: none, {valid}"
+        )
+    return builder(duration)
 
 
 def extract_segments(
@@ -106,6 +162,12 @@ def extract_segments(
                     vf_parts.append(f"minterpolate=fps={TARGET_FPS}:mi_mode=mci")
                 else:
                     vf_parts.append(f"minterpolate=fps={TARGET_FPS}:mi_mode=blend")
+
+        # Intro Visual Effect — first segment only (FEAT-022)
+        if i == 0 and config.intro_effect != "none":
+            vf_parts.extend(
+                _build_intro_filters(config.intro_effect, config.intro_effect_duration)
+            )
 
         # Video Style Filter (FEAT-012)
         style_vf = _VIDEO_STYLE_FILTERS.get(config.video_style, "")

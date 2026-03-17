@@ -1604,3 +1604,211 @@ class TestExplainCLIFlag:
         add_visual_args(parser)
         args = parser.parse_args(["--explain"])
         assert args.explain is True
+
+
+class TestIntroEffects:
+    """Tests for FEAT-022: Intro Visual Effects (extensible registry)."""
+
+    @patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")
+    @patch("src.core.ffmpeg_renderer.run_ffmpeg")
+    @patch("src.core.montage.tempfile.mkdtemp")
+    @patch("src.core.montage.shutil.rmtree")
+    @patch("src.core.montage.os.path.exists", return_value=True)
+    def test_bloom_filter_applied_to_first_segment(
+        self,
+        mock_exists,
+        mock_rmtree,
+        mock_mkdtemp,
+        mock_run,
+        mock_which,
+        generator,
+        video_clips,
+        tmp_path,
+    ):
+        """When intro_effect='bloom', segment 0 FFmpeg call contains gblur."""
+        temp_dir = str(tmp_path / "montage_temp")
+        os.makedirs(temp_dir, exist_ok=True)
+        mock_mkdtemp.return_value = temp_dir
+        mock_run.return_value = MagicMock(returncode=0, stderr="")
+
+        audio = AudioAnalysisResult(
+            filename="intro.wav",
+            bpm=120.0,
+            duration=10.0,
+            peaks=[],
+            sections=[],
+            beat_times=[float(i) * 0.5 for i in range(10)],
+            intensity_curve=[0.5] * 10,
+        )
+
+        config = PacingConfig(intro_effect="bloom", intro_effect_duration=1.5)
+
+        concat_path = os.path.join(temp_dir, "concat_output.mp4")
+        with open(concat_path, "w") as f:
+            f.write("fake")
+
+        generator.generate(
+            audio,
+            video_clips,
+            str(tmp_path / "output.mp4"),
+            audio_path="/audio/song.wav",
+            pacing=config,
+        )
+
+        extraction_calls = [
+            " ".join(str(c) for c in call_args[0][0])
+            for call_args in mock_run.call_args_list
+            if call_args[0] and "-ss" in str(call_args[0][0])
+        ]
+        # First extraction call should contain gblur
+        assert "gblur" in extraction_calls[0], (
+            "Expected 'gblur' in first segment extraction"
+        )
+
+    @patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")
+    @patch("src.core.ffmpeg_renderer.run_ffmpeg")
+    @patch("src.core.montage.tempfile.mkdtemp")
+    @patch("src.core.montage.shutil.rmtree")
+    @patch("src.core.montage.os.path.exists", return_value=True)
+    def test_vignette_filter_applied_to_first_segment(
+        self,
+        mock_exists,
+        mock_rmtree,
+        mock_mkdtemp,
+        mock_run,
+        mock_which,
+        generator,
+        video_clips,
+        tmp_path,
+    ):
+        """When intro_effect='vignette_breathe', segment 0 contains vignette."""
+        temp_dir = str(tmp_path / "montage_temp")
+        os.makedirs(temp_dir, exist_ok=True)
+        mock_mkdtemp.return_value = temp_dir
+        mock_run.return_value = MagicMock(returncode=0, stderr="")
+
+        audio = AudioAnalysisResult(
+            filename="intro.wav",
+            bpm=120.0,
+            duration=10.0,
+            peaks=[],
+            sections=[],
+            beat_times=[float(i) * 0.5 for i in range(10)],
+            intensity_curve=[0.5] * 10,
+        )
+
+        config = PacingConfig(intro_effect="vignette_breathe")
+
+        concat_path = os.path.join(temp_dir, "concat_output.mp4")
+        with open(concat_path, "w") as f:
+            f.write("fake")
+
+        generator.generate(
+            audio,
+            video_clips,
+            str(tmp_path / "output.mp4"),
+            audio_path="/audio/song.wav",
+            pacing=config,
+        )
+
+        extraction_calls = [
+            " ".join(str(c) for c in call_args[0][0])
+            for call_args in mock_run.call_args_list
+            if call_args[0] and "-ss" in str(call_args[0][0])
+        ]
+        assert "vignette=a=" in extraction_calls[0], (
+            "Expected 'vignette=a=' in first segment extraction"
+        )
+
+    @patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")
+    @patch("src.core.ffmpeg_renderer.run_ffmpeg")
+    @patch("src.core.montage.tempfile.mkdtemp")
+    @patch("src.core.montage.shutil.rmtree")
+    @patch("src.core.montage.os.path.exists", return_value=True)
+    def test_intro_filter_not_applied_to_later_segments(
+        self,
+        mock_exists,
+        mock_rmtree,
+        mock_mkdtemp,
+        mock_run,
+        mock_which,
+        generator,
+        video_clips,
+        tmp_path,
+    ):
+        """Intro effect only appears in segment 0, not segments 1+."""
+        temp_dir = str(tmp_path / "montage_temp")
+        os.makedirs(temp_dir, exist_ok=True)
+        mock_mkdtemp.return_value = temp_dir
+        mock_run.return_value = MagicMock(returncode=0, stderr="")
+
+        audio = AudioAnalysisResult(
+            filename="intro.wav",
+            bpm=120.0,
+            duration=10.0,
+            peaks=[],
+            sections=[],
+            beat_times=[float(i) * 0.5 for i in range(10)],
+            intensity_curve=[0.5] * 10,
+        )
+
+        config = PacingConfig(intro_effect="bloom")
+
+        concat_path = os.path.join(temp_dir, "concat_output.mp4")
+        with open(concat_path, "w") as f:
+            f.write("fake")
+
+        generator.generate(
+            audio,
+            video_clips,
+            str(tmp_path / "output.mp4"),
+            audio_path="/audio/song.wav",
+            pacing=config,
+        )
+
+        extraction_calls = [
+            " ".join(str(c) for c in call_args[0][0])
+            for call_args in mock_run.call_args_list
+            if call_args[0] and "-ss" in str(call_args[0][0])
+        ]
+        # Later segments (1+) should NOT contain gblur
+        for cmd in extraction_calls[1:]:
+            assert "gblur" not in cmd, (
+                "Intro gblur filter must NOT appear in later segments"
+            )
+
+    def test_intro_none_applies_no_filters(self):
+        """Default intro_effect='none' produces no intro filters."""
+        from src.core.ffmpeg_renderer import _build_intro_filters
+
+        result = _build_intro_filters("none", 1.5)
+        assert result == []
+
+    def test_intro_effect_duration_propagates(self):
+        """Custom duration is embedded in the filter expression."""
+        from src.core.ffmpeg_renderer import _build_intro_filters
+
+        result = _build_intro_filters("bloom", 2.0)
+        assert len(result) == 1
+        assert "2.0" in result[0]
+
+    def test_unknown_effect_raises_valueerror(self):
+        """Unregistered effect name raises ValueError."""
+        from src.core.ffmpeg_renderer import _build_intro_filters
+
+        with pytest.raises(ValueError, match="Unknown intro effect"):
+            _build_intro_filters("sparkle", 1.0)
+
+    def test_registry_extensibility(self):
+        """A new effect can be monkey-patched into the registry and used."""
+        from src.core.ffmpeg_renderer import INTRO_EFFECTS, _build_intro_filters
+
+        def _test_effect(d: float) -> list[str]:
+            return [f"test_filter=d={d}"]
+
+        INTRO_EFFECTS["test_fx"] = _test_effect
+        try:
+            result = _build_intro_filters("test_fx", 1.0)
+            assert result == ["test_filter=d=1.0"]
+        finally:
+            del INTRO_EFFECTS["test_fx"]

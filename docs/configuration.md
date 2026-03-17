@@ -25,6 +25,8 @@ The tool is invoked via `python main.py` with the following arguments:
 | `--broll-interval` | ❌ | `float` | `13.5` | Target interval between B-roll clips in seconds |
 | `--broll-variance` | ❌ | `float` | `1.5` | Allowed variance in B-roll intervals (± seconds) |
 | `--explain` | ❌ | flag | `False` | Write a decision explainability log (`*_explain.md`) next to the output video |
+| `--intro-effect` | ❌ | `str` | `none` | Visual effect on the first clip: `none`, `bloom`, `vignette_breathe` |
+| `--intro-effect-duration` | ❌ | `float` | `1.5` | Duration of the intro effect in seconds |
 | `--version` | ❌ | flag | — | Display version number and exit |
 
 ### Shorts CLI (`shorts_maker.py`)
@@ -61,6 +63,8 @@ A YAML file in the project root that controls clip pacing — no code changes ne
 | `randomize_speed_ramps` | `false` | Apply random variance to speed ramps for a human touch |
 | `abrupt_ending` | `false` | End sharply to create a cliffhanger effect |
 | `audio_start_offset` | `0.0` | Start the montage from this point in the audio (seconds). Set automatically by smart-start hook detection. |
+| `intro_effect` | `none` | Visual effect applied to the first segment only. Options: `none`, `bloom`, `vignette_breathe` |
+| `intro_effect_duration` | `1.5` | Duration of the intro effect in seconds (0.5–3.0 recommended) |
 
 > If `montage_config.yaml` is missing, defaults above are used automatically.
 
@@ -76,6 +80,16 @@ Available presets for `--video-style`:
 | `warm` | `colorchannelmixer` | Warm tones — boosted reds, reduced blues |
 | `cool` | `colorchannelmixer` | Cool tones — boosted blues, reduced reds |
 | `golden` | `colorchannelmixer` + `eq` + `vignette` | Nostalgic golden-hour amber — warm tones, soft desaturation, vignette |
+
+### Intro Effects
+
+Applied to the first segment only (`--intro-effect`):
+
+| Effect | FFmpeg Filter | Visual |
+|--------|---------------|--------|
+| `none` | *(no filter)* | Hard cut — original footage |
+| `bloom` | `gblur` (animated sigma) | Dreamy gaussian reveal — starts fully blurred, clears over duration |
+| `vignette_breathe` | `vignette` (animated angle) | Theatrical spotlight — opens from tight circle to full frame |
 
 ---
 
@@ -208,6 +222,18 @@ make full-pipeline AUDIO=./tracks/ VIDEO_DIR=./clips/ BROLL_INTERVAL=20 BROLL_VA
 ```bash
 make run AUDIO=song.wav VIDEO_DIR=./clips/ EXPLAIN=1
 # → produces output_story.mp4 and output_story_explain.md
+```
+
+**Example — bloom intro effect on the first clip:**
+
+```bash
+make run AUDIO=song.wav VIDEO_DIR=./clips/ INTRO_EFFECT=bloom
+```
+
+**Example — vignette breathe with 2-second duration:**
+
+```bash
+make run AUDIO=song.wav VIDEO_DIR=./clips/ INTRO_EFFECT=vignette_breathe INTRO_EFFECT_DURATION=2.0
 ```
 
 ---

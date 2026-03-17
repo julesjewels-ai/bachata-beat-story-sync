@@ -43,11 +43,16 @@ pacing:
   transition_duration: 0.5        # Duration of each transition (seconds)
 
   # Video style — applies a uniform color grade to all clips
-  # Options: 'none', 'bw' (black & white), 'vintage', 'warm', 'cool'
-  video_style: warm
+  # Options: 'none', 'bw' (black & white), 'vintage', 'warm', 'cool', 'golden'
+  video_style: golden
 
   # Audio Overlay Visualizer (FEAT-013)
   # Options: 'none', 'waveform' (line), 'bars' (frequency bars)
   # audio_overlay: none
   # audio_overlay_opacity: 0.5
   # audio_overlay_position: right
+
+  # Intro effect — applies to the first segment only (FEAT-022)
+  # Options: 'none', 'bloom' (gaussian reveal), 'vignette_breathe' (spotlight)
+  intro_effect: vignette_breathe
+  intro_effect_duration: 1.5

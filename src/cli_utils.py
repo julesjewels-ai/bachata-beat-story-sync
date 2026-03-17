@@ -109,6 +109,10 @@ def build_pacing_kwargs(args: argparse.Namespace) -> dict:
         kwargs["broll_interval_variance"] = args.broll_variance
     if getattr(args, "explain", False):
         kwargs["explain"] = True
+    if getattr(args, "intro_effect", None):
+        kwargs["intro_effect"] = args.intro_effect
+    if getattr(args, "intro_effect_duration", None) is not None:
+        kwargs["intro_effect_duration"] = args.intro_effect_duration
 
     return kwargs
 
@@ -166,6 +170,24 @@ def add_visual_args(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         default=False,
         help="Emit a Markdown decision log alongside the output video",
+    )
+
+    # Intro Visual Effects (FEAT-022) — choices derived from registry
+    from src.core.ffmpeg_renderer import INTRO_EFFECTS  # noqa: WPS433
+
+    parser.add_argument(
+        "--intro-effect",
+        type=str,
+        default=None,
+        choices=["none", *sorted(INTRO_EFFECTS.keys())],
+        help="Visual effect on the first clip: none, "
+        + ", ".join(sorted(INTRO_EFFECTS.keys())),
+    )
+    parser.add_argument(
+        "--intro-effect-duration",
+        type=float,
+        default=None,
+        help="Duration of the intro effect in seconds (default: 1.5)",
     )
 
 

@@ -9,6 +9,7 @@ import sys
 from pydantic import ValidationError
 from src.cli_utils import add_visual_args, analyze_audio, build_pacing_kwargs, detect_broll_dir, strip_thumbnails
 from src.core.app import BachataSyncEngine
+from src.core.montage import load_pacing_config
 from src.core.models import PacingConfig
 from src.services.reporting import ExcelReportGenerator
 from src.ui.console import RichProgressObserver
@@ -117,26 +118,30 @@ def main() -> None:
             logger.info("Found %d suitable B-roll clips.", len(broll_clips))
 
         # 3. Sync and Generate
-        pacing = None
+        # Load YAML config as the base, then overlay CLI overrides
+        base_config = load_pacing_config()
+        pacing_kwargs = build_pacing_kwargs(args)
+
         max_clips = args.max_clips
         max_duration = args.max_duration
         if args.test_mode:
             max_clips = max_clips or 4
             max_duration = max_duration or 10.0
-
-        # Build pacing overrides from CLI args
-        pacing_kwargs = build_pacing_kwargs(args)
         if max_clips:
             pacing_kwargs["max_clips"] = max_clips
         if max_duration:
             pacing_kwargs["max_duration_seconds"] = max_duration
 
+        # Merge: YAML base + CLI overrides
         if pacing_kwargs:
-            pacing = PacingConfig(**pacing_kwargs)
+            merged = {**base_config.model_dump(), **pacing_kwargs}
+            pacing = PacingConfig(**merged)
             logger.info(
                 "Pacing overrides: %s",
                 ", ".join(f"{k}={v}" for k, v in pacing_kwargs.items()),
             )
+        else:
+            pacing = base_config
         logger.info("Syncing visual narrative to musical dynamics...")
 
         montage_clips = strip_thumbnails(video_clips)

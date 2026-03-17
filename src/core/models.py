@@ -272,6 +272,18 @@ class PacingConfig(BaseModel):
         description="Emit a Markdown decision log alongside the output video",
     )
 
+    # Intro Visual Effects (FEAT-022)
+    intro_effect: str = Field(
+        "none",
+        description="Visual effect applied to the first segment only. "
+        "Use 'none' to disable, or a registered effect name "
+        "(e.g. 'bloom', 'vignette_breathe').",
+    )
+    intro_effect_duration: float = Field(
+        1.5,
+        description="Duration of the intro effect in seconds (0.5–3.0 recommended)",
+    )
+
 
 class AudioMixConfig(BaseModel):
     """

@@ -48,6 +48,8 @@ class TestBuildPacingKwargs:
         args.broll_interval = None
         args.broll_variance = None
         args.explain = False
+        args.intro_effect = None
+        args.intro_effect_duration = None
         result = build_pacing_kwargs(args)
         assert result == {}
 
@@ -184,4 +186,54 @@ class TestDetectBrollDir:
         """Returns None when no broll subfolder exists."""
         result = detect_broll_dir(str(tmp_path))
         assert result is None
+
+
+# ------------------------------------------------------------------
+# Intro Effect CLI (FEAT-022)
+# ------------------------------------------------------------------
+
+
+class TestIntroEffectCLI:
+    def test_intro_args_registered(self):
+        """--intro-effect and --intro-effect-duration parse correctly."""
+        parser = argparse.ArgumentParser()
+        add_visual_args(parser)
+        ns = parser.parse_args([
+            "--intro-effect", "bloom",
+            "--intro-effect-duration", "2.0",
+        ])
+        assert ns.intro_effect == "bloom"
+        assert ns.intro_effect_duration == 2.0
+
+    def test_intro_args_defaults_none(self):
+        """When omitted, both intro args default to None."""
+        parser = argparse.ArgumentParser()
+        add_visual_args(parser)
+        ns = parser.parse_args([])
+        assert ns.intro_effect is None
+        assert ns.intro_effect_duration is None
+
+    def test_build_pacing_kwargs_includes_intro(self):
+        """build_pacing_kwargs forwards intro_effect when set."""
+        ns = argparse.Namespace(
+            test_mode=False, video_style=None, audio_overlay=None,
+            audio_overlay_opacity=None, audio_overlay_position=None,
+            broll_interval=None, broll_variance=None, explain=False,
+            intro_effect="bloom", intro_effect_duration=2.0,
+        )
+        kwargs = build_pacing_kwargs(ns)
+        assert kwargs["intro_effect"] == "bloom"
+        assert kwargs["intro_effect_duration"] == 2.0
+
+    def test_build_pacing_kwargs_omits_intro_when_none(self):
+        """build_pacing_kwargs omits intro fields when None."""
+        ns = argparse.Namespace(
+            test_mode=False, video_style=None, audio_overlay=None,
+            audio_overlay_opacity=None, audio_overlay_position=None,
+            broll_interval=None, broll_variance=None, explain=False,
+            intro_effect=None, intro_effect_duration=None,
+        )
+        kwargs = build_pacing_kwargs(ns)
+        assert "intro_effect" not in kwargs
+        assert "intro_effect_duration" not in kwargs
 

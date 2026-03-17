@@ -11,6 +11,8 @@ AUDIO_OVERLAY_POSITION ?=
 BROLL_INTERVAL ?=
 BROLL_VARIANCE ?=
 EXPLAIN ?=
+INTRO_EFFECT ?=
+INTRO_EFFECT_DURATION ?=
 
 # Pipeline optional flags
 SHORTS_COUNT ?= 1
@@ -60,6 +62,14 @@ endif
 
 ifeq ($(EXPLAIN),1)
   EXTRA_FLAGS += --explain
+endif
+
+ifneq ($(INTRO_EFFECT),)
+  EXTRA_FLAGS += --intro-effect $(INTRO_EFFECT)
+endif
+
+ifneq ($(INTRO_EFFECT_DURATION),)
+  EXTRA_FLAGS += --intro-effect-duration $(INTRO_EFFECT_DURATION)
 endif
 
 ifeq ($(SHARED_SCAN), 1)
