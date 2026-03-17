@@ -518,3 +518,584 @@ def _beats_to_expression(
 ### Scope
 - **In scope:** micro_jitters, light_leaks, warm_wash, alternating_bokeh; each independently toggleable; beat-to-expression helper; CLI + YAML config; all video types.
 - **Out of scope:** AI-driven beat detection (uses existing beat_times from audio analysis), per-beat effect intensity variation, real-time preview.
+
+---
+
+## FEAT-025: Decision Explainability Log (`--explain`)
+
+| Field        | Value                                                |
+|--------------|------------------------------------------------------|
+| **Status**   | `PROPOSED`                                           |
+| **Priority** | 🟠 High                                              |
+| **Effort**   | Medium                                               |
+| **Impact**   | High — directly addresses "transparency" in the mission statement |
+| **Depends**  | None (standalone; reads existing internal state)     |
+
+### Why this matters
+The tool makes dozens of editorial decisions during montage generation — which clip to use at each beat, what duration to assign, which speed ramp to apply, when to insert B-roll, and why a clip was skipped. Today, none of these decisions are surfaced to the user. The output is a black box: audio goes in, video comes out.
+
+For **visual technicians escaping GUI fatigue**, the transparency of the decision pipeline is the primary value proposition over a traditional NLE. They chose a CLI *because* they want to understand and control the logic. A hidden decision engine defeats that purpose.
+
+### Description
+Add an `--explain` CLI flag that produces a timestamped, human-readable decision log alongside the video output. The log documents every editorial choice the engine makes during `build_segment_plan()` and `extract_segments()`.
+
+### Output Format
+
+A plain-text / Markdown file (default: `{output_stem}_explain.md`) with entries like:
+
+```
+## Segment Plan — song.wav (128 BPM, 3m42s)
+
+| Time      | Clip              | Intensity | Section  | Duration | Speed | Reason                                  |
+|-----------|-------------------|-----------|----------|----------|-------|-----------------------------------------|
+| 00:00.0   | 1_intro.mp4       | 0.42      | intro    | 4.0s     | 1.0x  | Forced prefix ordering (FEAT-008)       |
+| 00:04.0   | dance_spin.mp4    | 0.87      | verse    | 2.5s     | 1.2x  | High intensity → matched to high section|
+| 00:06.5   | broll/sunset.mp4  | —         | —        | 2.5s     | 1.0x  | B-roll interval triggered (13.5s ± 1.5) |
+| 00:09.0   | slow_walk.mp4     | 0.22      | bridge   | 6.0s     | 0.9x  | Low intensity → slow-motion pacing      |
+| ...       |                   |           |          |          |       |                                         |
+
+### Skipped Clips
+| Clip             | Reason                                           |
+|------------------|--------------------------------------------------|
+| corrupt.mp4      | Analysis failed: could not open video capture    |
+| tiny.mp4         | Duration < min_clip_seconds (1.5s)               |
+
+### Config Applied
+| Parameter                  | Value  |
+|----------------------------|--------|
+| high_intensity_threshold   | 0.65   |
+| low_intensity_threshold    | 0.35   |
+| snap_to_beats              | true   |
+| broll_interval_seconds     | 13.5   |
+```
+
+### Implementation Details
+
+#### Data Collection
+Add an `ExplainCollector` class (or simple list) that accumulates decision records during montage generation:
+
+```python
+@dataclass
+class SegmentDecision:
+    timeline_start: float
+    clip_path: str
+    intensity_score: float
+    section_label: str
+    duration: float
+    speed: float
+    reason: str
+
+@dataclass
+class SkipDecision:
+    clip_path: str
+    reason: str
+```
+
+The `MontageGenerator.generate()` and `build_segment_plan()` functions already have all the data needed at each decision point — the collector just captures it.
+
+#### Injection Points
+1. **`build_segment_plan()`** — When a clip is selected for a segment, record why (intensity match, forced prefix, B-roll trigger).
+2. **`extract_segments()`** — When a clip is skipped or fails, record the skip reason.
+3. **`generate()`** — At the end, write the collected decisions to the explain file.
+
+#### CLI Integration
+- `--explain` flag on `main.py`, `shorts_maker.py`, `pipeline.py`
+- Output path derived from `--output`: `output_story_explain.md` for `output_story.mp4`
+- Wired through `PacingConfig` or a separate `ExplainConfig` (lightweight — just a bool + output path)
+
+### Performance Considerations
+
+| Concern | Impact |
+|---------|--------|
+| Decision collection during segment planning | **< 1% overhead** — appending dataclass instances to a list |
+| File write at end of pipeline | **< 1ms** — small text file written once |
+| Memory: holding decisions in memory | **< 10KB** for a typical 50-segment montage |
+
+### Risk Assessment
+
+| Risk | Likelihood | Impact | Mitigation |
+|------|-----------|--------|------------|
+| Decision reasons are too generic ("intensity match") | Medium | Low utility for power users | Pre-define ~10 specific reason strings; include numerical thresholds in the reason |
+| Explain file path collides with existing output | Low | Overwrites user file | Use `_explain.md` suffix; warn if file exists |
+| Section labels are placeholders (not yet implemented) | Medium | Log shows empty section column | Graceful fallback: show "—" when section data unavailable |
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `src/core/models.py` | Add `SegmentDecision`, `SkipDecision` dataclasses; add `explain: bool` to `PacingConfig` |
+| `src/core/montage.py` | Instrument `build_segment_plan()` and `generate()` to collect and write decision log |
+| `src/core/ffmpeg_renderer.py` | Capture skip reasons during `extract_segments()` |
+| `main.py` | Add `--explain` flag |
+| `src/pipeline.py` | Add `--explain` flag |
+| `src/shorts_maker.py` | Add `--explain` flag |
+| `docs/configuration.md` | Document `--explain` flag and output format |
+| `tests/unit/test_montage.py` | New `TestExplainLog` class verifying decision capture |
+
+### Scope
+- **In scope:** Timestamped decision log, skip reasons, config summary, Markdown output, CLI flag on all entry points.
+- **Out of scope:** Interactive explain mode (step-by-step approval), JSON output format (see FEAT-028), explain for audio analysis decisions, per-frame decision logging.
+
+---
+
+## FEAT-026: Dry-Run Plan Mode (`--dry-run`)
+
+| Field        | Value                                                |
+|--------------|------------------------------------------------------|
+| **Status**   | `PROPOSED`                                           |
+| **Priority** | 🟠 High                                              |
+| **Effort**   | Medium                                               |
+| **Impact**   | High — preview results without expensive FFmpeg rendering |
+| **Depends**  | None (standalone; partially complementary to FEAT-025) |
+
+### Why this matters
+A full pipeline render can take 5–30 minutes depending on clip count and duration. Users exhausted by GUI timelines don't want to wait for a render to discover the clip selection was wrong. They need a way to **inspect the plan before committing to the expensive FFmpeg pass**.
+
+This is the CLI equivalent of a "timeline preview" — except instead of a visual timeline, it's a structured text plan that can be reviewed, diffed, and iterated on in seconds.
+
+### Description
+Add a `--dry-run` flag that runs the full analysis pipeline (audio analysis + video scanning + segment planning) but **stops before rendering**. It outputs the complete segment plan as a human-readable table and/or machine-readable file, showing exactly what the final video would contain.
+
+### Output Format
+
+Printed to stdout (or file with `--dry-run-output PATH`):
+
+```
+DRY RUN — No video will be rendered.
+
+Audio: song.wav (128 BPM, 3m42s, 88 beats)
+Clips: 23 analyzed, 21 usable, 2 skipped
+Estimated output: 3m42s at 720p/24fps
+
+Segment Plan (32 segments):
+  #01  00:00.0 → 00:04.0  1_intro.mp4        [forced]    1.0x  4.0s
+  #02  00:04.0 → 00:06.5  dance_spin.mp4     [high 0.87] 1.2x  2.5s
+  #03  00:06.5 → 00:09.0  broll/sunset.mp4   [b-roll]    1.0x  2.5s
+  #04  00:09.0 → 00:15.0  slow_walk.mp4      [low 0.22]  0.9x  6.0s
+  ...
+
+Skipped: corrupt.mp4 (analysis failed), tiny.mp4 (< 1.5s)
+Config: montage_config.yaml (snap_to_beats=true, broll_interval=13.5s)
+
+Run without --dry-run to render.
+```
+
+### Implementation Details
+
+#### Pipeline Short-Circuit
+The `main()` function currently runs:
+1. `AudioAnalyzer.analyze()` → ✅ still runs
+2. `BachataSyncEngine.scan_video_library()` → ✅ still runs
+3. `BachataSyncEngine.generate_story()` → ❌ **skipped in dry-run**
+
+The segment plan is currently built *inside* `MontageGenerator.generate()`. To support dry-run, the planning logic needs to be **extractable** without triggering FFmpeg:
+
+```python
+# Option A: Extract plan as a separate method
+plan = montage_generator.build_plan(audio_data, video_clips, pacing)
+if not dry_run:
+    montage_generator.render(plan, output_path)
+```
+
+This is a minor refactor of `generate()` — split it into `build_plan()` + `render()`.
+
+#### CLI Integration
+- `--dry-run` flag on `main.py`, `shorts_maker.py`, `pipeline.py`
+- `--dry-run-output PATH` optional file output (default: stdout)
+- Combine with `--explain` for maximum transparency
+
+### Performance Considerations
+
+| Concern | Impact |
+|---------|--------|
+| Audio analysis still runs (~2-5s) | **Required** — plan depends on beat data |
+| Video scan still runs (~1-3s per clip) | **Required** — plan depends on intensity scores |
+| FFmpeg rendering skipped | **100% savings** — this is the expensive step (minutes) |
+| Total dry-run time | **5–30 seconds** for a typical project (vs. 5–30 minutes for full render) |
+
+### Risk Assessment
+
+| Risk | Likelihood | Impact | Mitigation |
+|------|-----------|--------|------------|
+| Refactoring `generate()` into `build_plan()` + `render()` introduces regression | Medium | Broken montage generation | Comprehensive existing test suite covers `generate()` behavior |
+| Plan output diverges from actual render due to FFmpeg-side decisions | Low | User confusion | Document that plan shows *intended* segments; FFmpeg may adjust frame boundaries |
+| Dry-run for pipeline mode (multi-track) produces overwhelming output | Medium | Hard to read | Group by track; add `--dry-run-output` for file dumps |
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `src/core/montage.py` | Refactor `generate()` → `build_plan()` + `render()`; add `SegmentPlan` data structure |
+| `src/core/models.py` | Add `SegmentPlan` model (list of planned segments with metadata) |
+| `main.py` | Add `--dry-run` and `--dry-run-output` flags; short-circuit after planning |
+| `src/pipeline.py` | Add `--dry-run` flag; skip render per track |
+| `src/shorts_maker.py` | Add `--dry-run` flag; skip render |
+| `docs/configuration.md` | Document dry-run flags and output format |
+| `tests/unit/test_montage.py` | New `TestDryRun` class; test `build_plan()` independently |
+
+### Scope
+- **In scope:** Dry-run flag, segment plan output (text), build_plan/render refactor, all entry points.
+- **Out of scope:** Interactive plan editing (approve/reject segments), visual timeline rendering, exporting plan as EDL/AAF/XML for NLE import.
+
+---
+
+## FEAT-027: Genre Preset System
+
+| Field        | Value                                                |
+|--------------|------------------------------------------------------|
+| **Status**   | `PROPOSED`                                           |
+| **Priority** | 🟡 Medium                                            |
+| **Effort**   | Low–Medium                                           |
+| **Impact**   | High — unlocks the tool for non-Bachata users        |
+| **Depends**  | None (standalone)                                    |
+
+### Why this matters
+The underlying technology (Librosa beat detection, OpenCV intensity scoring, FFmpeg assembly) is completely **genre-agnostic**. It works on hip-hop, salsa, corporate videos, wedding footage — anything with audio and video. But the project branding, config defaults, and documentation are locked to Bachata.
+
+The mission statement says *"video-audio synchronization"* broadly. Users who find this tool attractive but work with different content genres would be deterred by the Bachata-specific naming or confused by pacing defaults tuned for Latin dance (e.g., `broll_interval: 13.5s` makes no sense for a 30-second corporate reel).
+
+### Description
+Introduce a **genre preset system** that ships pre-tuned `montage_config.yaml` profiles for different content types. A `--preset` CLI flag loads a named preset, overriding default pacing, effects, and timing values. Custom user configs still override presets (layered config resolution).
+
+### Presets (Initial Set)
+
+| Preset | BPM Range | Pacing Philosophy | Key Overrides |
+|--------|-----------|-------------------|---------------|
+| `bachata` | 120–140 | Sensual, flowing, musical breathing room | Current defaults (high: 2.5s, low: 6.0s, broll: 13.5s) |
+| `salsa` | 160–220 | Fast cuts, high energy, minimal slow-motion | high: 1.5s, medium: 2.5s, low: 3.0s, speed_ramp_multiplier: 1.3, broll: 10s |
+| `hiphop` | 70–100 | Beat-heavy, staccato cuts, hard transitions | high: 2.0s, medium: 3.0s, snap_to_beats: true, transition: none (hard cuts) |
+| `cinematic` | — | Slow, emotional, long holds, dramatic pacing | high: 4.0s, medium: 6.0s, low: 10.0s, speed_ramp_enabled: false, broll: 25s |
+| `corporate` | — | Even pacing, professional, no speed ramps | high: 3.0s, medium: 4.0s, low: 5.0s, speed_ramp_enabled: false, broll: 15s |
+| `fast` | — | Quick social media cuts, maximum energy | high: 1.0s, medium: 1.5s, low: 2.0s, accelerate_pacing: true |
+
+### Implementation Details
+
+#### Preset Storage
+Ship presets as YAML files in a `presets/` directory within the package:
+
+```
+src/
+  presets/
+    bachata.yaml
+    salsa.yaml
+    hiphop.yaml
+    cinematic.yaml
+    corporate.yaml
+    fast.yaml
+```
+
+Each is a valid `montage_config.yaml` fragment containing only the fields that differ from defaults.
+
+#### Config Resolution Order
+```
+CLI args → montage_config.yaml (user file) → preset YAML → hardcoded defaults
+```
+
+This means:
+1. A `--preset salsa` loads `presets/salsa.yaml`
+2. A user's `montage_config.yaml` overrides any preset values
+3. CLI args override everything
+
+#### CLI Integration
+```bash
+# Use the salsa preset
+python main.py --audio track.wav --video-dir ./clips/ --preset salsa
+
+# Use a preset but override one value
+python main.py --audio track.wav --video-dir ./clips/ --preset cinematic --broll-interval 20
+
+# List available presets
+python main.py --list-presets
+```
+
+### Performance Considerations
+
+| Concern | Impact |
+|---------|--------|
+| Loading a YAML preset file | **< 1ms** — small file, parsed once at startup |
+| Config merge logic | **< 1ms** — dict.update() of ~15 keys |
+
+### Risk Assessment
+
+| Risk | Likelihood | Impact | Mitigation |
+|------|-----------|--------|------------|
+| Preset defaults are wrong for actual genre (e.g., "salsa" feels too fast) | Medium | Poor output quality | Document presets as starting points; encourage user overrides via `montage_config.yaml` |
+| Users expect content-aware AI (e.g., "detect this is salsa") | Low | Feature confusion | Clearly document that presets are pacing profiles, not content recognition |
+| Preset YAML format diverges from `montage_config.yaml` format | Low | Config bug | Both use the same `PacingConfig` model; presets are just partial YAML |
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `src/presets/` | **[NEW]** Directory with 6 preset YAML files |
+| `src/core/models.py` | Add `preset: Optional[str]` to config loading; add `list_presets()` helper |
+| `main.py` | Add `--preset` and `--list-presets` flags; integrate config merge |
+| `src/pipeline.py` | Add `--preset` flag |
+| `src/shorts_maker.py` | Add `--preset` flag |
+| `docs/configuration.md` | Document preset system, available presets, config resolution order |
+| `tests/unit/test_config.py` | **[NEW]** Test preset loading, merge precedence, list-presets |
+
+### Scope
+- **In scope:** 6 shipped presets, `--preset` flag, `--list-presets`, config resolution order, preset YAML files.
+- **Out of scope:** Auto-detecting genre from audio, user-defined preset directories, per-section presets (e.g., different pacing for verse vs. chorus), community preset sharing.
+
+---
+
+## FEAT-028: Structured JSON Output (`--output-json`)
+
+| Field        | Value                                                |
+|--------------|------------------------------------------------------|
+| **Status**   | `PROPOSED`                                           |
+| **Priority** | 🟡 Medium                                            |
+| **Effort**   | Low                                                  |
+| **Impact**   | Medium–High — enables scripting and pipeline composition |
+| **Depends**  | FEAT-026 (Dry-Run Mode — shares the `SegmentPlan` data structure) |
+
+### Why this matters
+Power users fighting interface fatigue often work in **scripted pipelines** — bash scripts, Makefiles, Python orchestrators. They pipe the output of one tool into the next. Currently, the tool's output is purely side-effects (writes an MP4 file) with no structured data on stdout.
+
+A JSON output mode enables:
+- Piping analysis results into custom post-processing scripts
+- Building CI/CD pipelines that conditionally render based on analysis data
+- Integrating with external tools (e.g., feeding clip intensity data into a dashboard)
+- Diff-ing analysis results between runs (`jq`, `diff`)
+
+### Description
+Add an `--output-json` flag that emits structured JSON to stdout (or file) containing the complete analysis results, segment plan, and render metadata. This makes every stage of the pipeline programmatically accessible.
+
+### Output Schema
+
+```json
+{
+  "version": "0.1.0",
+  "timestamp": "2026-03-17T16:00:00Z",
+  "audio": {
+    "file_path": "/path/to/song.wav",
+    "bpm": 128.0,
+    "duration": 222.5,
+    "beat_count": 88,
+    "peaks": [0.5, 1.0, 1.5, ...],
+    "sections": ["intro", "verse", "chorus", ...]
+  },
+  "clips": [
+    {
+      "path": "/path/to/clip.mp4",
+      "intensity_score": 0.87,
+      "duration": 12.3,
+      "status": "used"
+    }
+  ],
+  "segment_plan": [
+    {
+      "index": 0,
+      "timeline_start": 0.0,
+      "timeline_end": 4.0,
+      "clip_path": "/path/to/clip.mp4",
+      "speed": 1.2,
+      "reason": "high intensity match"
+    }
+  ],
+  "output": {
+    "path": "/path/to/output_story.mp4",
+    "duration": 222.5,
+    "resolution": "1280x720",
+    "codec": "libx264"
+  },
+  "config": {
+    "preset": null,
+    "snap_to_beats": true,
+    "broll_interval_seconds": 13.5
+  }
+}
+```
+
+### Implementation Details
+
+#### Serialisation
+All core data models (`AudioAnalysisResult`, `VideoAnalysisResult`, `SegmentPlan`) are already Pydantic `BaseModel` subclasses — they have `.model_dump()` built in. The JSON output is essentially assembling existing model dumps into a wrapper:
+
+```python
+import json
+
+output = {
+    "version": __version__,
+    "timestamp": datetime.utcnow().isoformat(),
+    "audio": audio_data.model_dump(exclude={"peaks"} if not verbose else set()),
+    "clips": [c.model_dump(exclude={"thumbnail_data"}) for c in clips],
+    "segment_plan": plan.model_dump() if plan else None,
+    "output": {"path": str(output_path), ...},
+    "config": pacing.model_dump(),
+}
+
+if args.output_json == "-":
+    print(json.dumps(output, indent=2, default=str))
+else:
+    Path(args.output_json).write_text(json.dumps(output, indent=2, default=str))
+```
+
+#### Thumbnail Exclusion
+`thumbnail_data` (bytes) must be excluded from JSON serialization — it's binary data that doesn't belong in a JSON stream. The `exclude={"thumbnail_data"}` on `model_dump()` handles this.
+
+#### CLI Integration
+```bash
+# JSON to stdout
+python main.py --audio song.wav --video-dir ./clips/ --output-json -
+
+# JSON to file
+python main.py --audio song.wav --video-dir ./clips/ --output-json analysis.json
+
+# Combine with dry-run for analysis-only JSON
+python main.py --audio song.wav --video-dir ./clips/ --dry-run --output-json -
+
+# Pipe into jq
+python main.py ... --output-json - | jq '.clips | sort_by(.intensity_score) | reverse'
+```
+
+### Performance Considerations
+
+| Concern | Impact |
+|---------|--------|
+| JSON serialisation via Pydantic | **< 10ms** — models are small |
+| File write / stdout print | **< 1ms** |
+| Excluding thumbnail_data | **Saves ~50KB per clip** from JSON output |
+
+### Risk Assessment
+
+| Risk | Likelihood | Impact | Mitigation |
+|------|-----------|--------|------------|
+| JSON schema changes break downstream scripts | Medium | User scripts fail | Include `version` field; document schema stability commitment |
+| Peaks array is very large (thousands of entries) | Low | JSON file size bloat | Default to excluding `peaks`; include with `--verbose-json` |
+| Combining `--output-json` with normal stdout logging | High | Interleaved text and JSON | Route all logs to stderr when `--output-json -` is used |
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `main.py` | Add `--output-json` flag; assemble and emit JSON at end of pipeline |
+| `src/pipeline.py` | Add `--output-json` flag; per-track JSON objects |
+| `src/shorts_maker.py` | Add `--output-json` flag |
+| `src/core/models.py` | No changes needed (Pydantic already provides `model_dump()`) |
+| `docs/configuration.md` | Document `--output-json`, output schema, `jq` examples |
+| `tests/unit/test_json_output.py` | **[NEW]** Validate JSON structure, thumbnail exclusion, version field |
+
+### Scope
+- **In scope:** JSON output to stdout/file, all analysis + plan + config data, thumbnail exclusion, version field, `--output-json` on all entry points.
+- **Out of scope:** GraphQL/REST API, streaming JSON during pipeline, binary data (thumbnails) in JSON, backwards-compatible schema versioning system.
+
+---
+
+## FEAT-029: File Watcher with Incremental Re-render (`--watch`)
+
+| Field        | Value                                                |
+|--------------|------------------------------------------------------|
+| **Status**   | `PROPOSED`                                           |
+| **Priority** | 🟢 Low                                                |
+| **Effort**   | High                                                 |
+| **Impact**   | Medium — fast iteration loop for power users         |
+| **Depends**  | FEAT-026 (Dry-Run Mode — reuses `build_plan()` / `render()` split) |
+
+### Why this matters
+GUI editors let users tweak and see results in near-real-time. The CLI equivalent is a **file watcher** that detects changes to clips, config, or audio and automatically re-runs the pipeline. Without it, every iteration requires manually re-invoking the command — friction that pushes users back toward GUIs.
+
+This is the biggest gap for converting "interface-fatigued" users: they left GUIs for speed and control, but they don't want to sacrifice the tight feedback loop.
+
+### Description
+Add a `--watch` flag that monitors the input directories and config file for changes, then automatically re-runs the pipeline when changes are detected. Combined with `--test-mode` (or `--dry-run`), this creates a near-instant iteration loop.
+
+### Watched File Types
+
+| Source | Events Watched | Action |
+|--------|----------------|--------|
+| `--video-dir` contents | File added/removed/modified | Re-scan video library + re-render |
+| `--broll-dir` contents | File added/removed/modified | Re-scan B-roll + re-render |
+| `--audio` file | File modified | Re-analyse audio + re-render |
+| `montage_config.yaml` | File modified | Reload config + re-render |
+
+### Implementation Details
+
+#### Watcher Library
+Use Python's `watchdog` library (lightweight, cross-platform):
+
+```python
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
+
+class PipelineWatcher(FileSystemEventHandler):
+    def __init__(self, pipeline_fn, debounce_seconds=2.0):
+        self.pipeline_fn = pipeline_fn
+        self.debounce_seconds = debounce_seconds
+        self._last_trigger = 0.0
+
+    def on_any_event(self, event):
+        now = time.time()
+        if now - self._last_trigger < self.debounce_seconds:
+            return  # Debounce rapid filesystem events
+        self._last_trigger = now
+        self.pipeline_fn()
+```
+
+#### Debouncing
+File saves often trigger multiple filesystem events (write, rename, metadata update). A 2-second debounce window ensures the pipeline only re-runs once per logical save.
+
+#### Incremental Re-scan (Optimisation)
+On file change, only re-analyse the changed clip (not the entire library). Cache `VideoAnalysisResult` objects by `(file_path, mtime)` and only recompute when `mtime` changes.
+
+```python
+class ScanCache:
+    _cache: dict[tuple[str, float], VideoAnalysisResult] = {}
+
+    def get_or_analyse(self, path: str, analyzer: VideoAnalyzer) -> VideoAnalysisResult:
+        mtime = os.path.getmtime(path)
+        key = (path, mtime)
+        if key not in self._cache:
+            self._cache[key] = analyzer.analyze(VideoAnalysisInput(file_path=path))
+        return self._cache[key]
+```
+
+#### CLI Integration
+```bash
+# Watch mode with test-mode for fast iteration
+python main.py --audio song.wav --video-dir ./clips/ --watch --test-mode
+
+# Watch mode with dry-run for instant plan feedback
+python main.py --audio song.wav --video-dir ./clips/ --watch --dry-run
+
+# Watch with full render (slower, but automatic)
+python main.py --audio song.wav --video-dir ./clips/ --watch
+```
+
+### Performance Considerations
+
+| Concern | Impact |
+|---------|--------|
+| `watchdog` Observer thread | **Negligible** — single background thread, event-driven |
+| Debounce window | **2s delay** between save and re-run (configurable) |
+| Full re-render on each change | **5-30 minutes** — mitigated by `--test-mode` or `--dry-run` |
+| Incremental scan cache | **Saves 1-3s per unchanged clip** on re-scan |
+| Memory: holding scan cache | **~10KB per clip** (VideoAnalysisResult without thumbnails) |
+
+### Risk Assessment
+
+| Risk | Likelihood | Impact | Mitigation |
+|------|-----------|--------|------------|
+| `watchdog` dependency adds weight | Low | New pip dependency | `watchdog` is lightweight, well-maintained, widely used |
+| Rapid saves cause multiple renders | Medium | Wasted CPU | Debounce window; cancel in-progress render on new trigger |
+| Watch mode on large directories (1000+ files) | Low | High CPU from inotify | Set `recursive=False` by default; document limitations |
+| FFmpeg process left running after Ctrl+C | Medium | Zombie process | Register signal handler to terminate subprocess on exit |
+| Stale cache entry if file is replaced with same mtime | Very Low | Wrong analysis results | Include file size in cache key alongside mtime |
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `requirements.txt` | Add `watchdog>=4.0.0` |
+| `src/core/watch.py` | **[NEW]** `PipelineWatcher`, `ScanCache`, debounce logic |
+| `main.py` | Add `--watch` flag; wrap pipeline in watch loop |
+| `src/pipeline.py` | Add `--watch` flag |
+| `src/shorts_maker.py` | Add `--watch` flag |
+| `docs/configuration.md` | Document watch mode, debounce, cache behavior |
+| `tests/unit/test_watch.py` | **[NEW]** Test debounce, cache invalidation, signal handling |
+
+### Scope
+- **In scope:** File watching for video/audio/config changes, debounce, incremental scan cache, `--watch` on all entry points, Ctrl+C cleanup.
+- **Out of scope:** Live preview (video player integration), hot-reload of Python code, network file system watching, multi-project watching, GUI file picker.
