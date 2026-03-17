@@ -7,10 +7,8 @@ import os
 import sys
 
 from pydantic import ValidationError
-from src.cli_utils import add_visual_args, build_pacing_kwargs
+from src.cli_utils import add_visual_args, analyze_audio, build_pacing_kwargs, strip_thumbnails
 from src.core.app import BachataSyncEngine
-from src.core.audio_analyzer import AudioAnalysisInput, AudioAnalyzer
-from src.core.audio_mixer import resolve_audio_path
 from src.core.models import PacingConfig
 from src.services.reporting import ExcelReportGenerator
 from src.ui.console import RichProgressObserver
@@ -89,21 +87,10 @@ def main() -> None:
     logger.info("Starting Bachata Beat-Story Sync...")
 
     engine = BachataSyncEngine()
-    audio_analyzer = AudioAnalyzer()
 
     try:
-        audio_path = args.audio
-        with RichProgressObserver() as mix_observer:
-            audio_path = resolve_audio_path(audio_path, observer=mix_observer)
-
         # 1. Analyze Audio
-        logger.info("Analyzing audio track: %s", audio_path)
-        audio_input = AudioAnalysisInput(file_path=audio_path)
-        audio_meta = audio_analyzer.analyze(audio_input)
-        logger.info(
-            "Detected BPM: %s | Emotional Peaks: %d",
-            audio_meta.bpm, len(audio_meta.peaks)
-        )
+        audio_path, audio_meta = analyze_audio(args.audio)
 
         # 2. Scan Videos
         logger.info("Scanning video library in: %s", args.video_dir)
@@ -157,17 +144,12 @@ def main() -> None:
             )
         logger.info("Syncing visual narrative to musical dynamics...")
 
-        # Strip thumbnail data before montage — it's only needed for
-        # the Excel report and would pin MBs of RAM during FFmpeg.
-        montage_clips = [
-            clip.model_copy(update={"thumbnail_data": None})
-            for clip in video_clips
-        ]
+        montage_clips = strip_thumbnails(video_clips)
         with RichProgressObserver() as observer:
             result_path = engine.generate_story(
                 audio_meta, montage_clips, args.output,
                 broll_clips=broll_clips,
-                audio_path=audio_input.file_path, observer=observer, pacing=pacing,
+                audio_path=audio_path, observer=observer, pacing=pacing,
             )
         del montage_clips  # free immediately
         logger.info("Process complete. Output saved to: %s", result_path)

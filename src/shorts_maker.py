@@ -12,13 +12,13 @@ from pydantic import ValidationError
 from src.cli_utils import (
     add_shorts_args,
     add_visual_args,
+    analyze_audio,
     build_pacing_kwargs,
     generate_shorts_batch,
     parse_duration,
+    strip_thumbnails,
 )
 from src.core.app import BachataSyncEngine
-from src.core.audio_analyzer import AudioAnalysisInput, AudioAnalyzer
-from src.core.audio_mixer import resolve_audio_path
 from src.ui.console import RichProgressObserver
 
 logger = logging.getLogger(__name__)
@@ -76,22 +76,10 @@ def main() -> None:
     os.makedirs(args.output_dir, exist_ok=True)
 
     engine = BachataSyncEngine()
-    audio_analyzer = AudioAnalyzer()
 
     try:
-        audio_path = args.audio
-        with RichProgressObserver() as mix_observer:
-            audio_path = resolve_audio_path(audio_path, observer=mix_observer)
-
         # 1. Analyze Audio (Once)
-        logger.info("Analyzing audio track: %s", audio_path)
-        audio_input = AudioAnalysisInput(file_path=audio_path)
-        audio_meta = audio_analyzer.analyze(audio_input)
-        logger.info(
-            "Detected BPM: %s | Emotional Peaks: %d",
-            audio_meta.bpm,
-            len(audio_meta.peaks),
-        )
+        audio_path, audio_meta = analyze_audio(args.audio)
 
         # 2. Scan Videos (Once)
         logger.info("Scanning video library in: %s", args.video_dir)
@@ -106,10 +94,7 @@ def main() -> None:
             len(video_clips) - vertical_count,
         )
 
-        # Free memory from thumbnails
-        montage_clips = [
-            clip.model_copy(update={"thumbnail_data": None}) for clip in video_clips
-        ]
+        montage_clips = strip_thumbnails(video_clips)
 
         # 3. Generate Shorts (delegate to shared function)
         pacing_kwargs = build_pacing_kwargs(args)

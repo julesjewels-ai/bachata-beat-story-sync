@@ -28,6 +28,7 @@ from src.cli_utils import (
     build_pacing_kwargs,
     generate_shorts_batch,
     parse_duration,
+    strip_thumbnails,
 )
 from src.core.audio_mixer import (
     SUPPORTED_AUDIO_EXTENSIONS,
@@ -86,10 +87,9 @@ def _scan_videos(
             broll = engine.scan_video_library(broll_dir, observer=obs)
         logger.info("Found %d B-roll clips.", len(broll))
 
-    # Strip thumbnails to reduce memory (matches main.py pattern)
-    clips = [c.model_copy(update={"thumbnail_data": None}) for c in clips]
+    clips = strip_thumbnails(clips)
     if broll:
-        broll = [c.model_copy(update={"thumbnail_data": None}) for c in broll]
+        broll = strip_thumbnails(broll)
 
     return clips, broll
 

@@ -176,6 +176,62 @@ def add_shorts_args(parser: argparse.ArgumentParser) -> None:
 
 
 # ------------------------------------------------------------------
+# Shared audio analysis helpers
+# ------------------------------------------------------------------
+
+
+def analyze_audio(audio_path: str) -> tuple:
+    """Resolve *audio_path* (file or folder) and run beat analysis.
+
+    Handles the full bootstrap sequence shared by ``main.py`` and
+    ``shorts_maker.py``: resolve via ``resolve_audio_path``, construct
+    an ``AudioAnalysisInput``, run ``AudioAnalyzer.analyze()``, and
+    log the key metrics.
+
+    Args:
+        audio_path: Path to an audio file **or** a folder of tracks
+            (which will be mixed automatically).
+
+    Returns:
+        ``(resolved_path, audio_meta)`` where *resolved_path* is the
+        concrete file path and *audio_meta* is the
+        ``AudioAnalysisResult``.
+    """
+    # Lazy imports to avoid circular dependencies
+    from src.core.audio_analyzer import AudioAnalysisInput, AudioAnalyzer  # noqa: WPS433
+    from src.core.audio_mixer import resolve_audio_path  # noqa: WPS433
+    from src.ui.console import RichProgressObserver  # noqa: WPS433
+
+    with RichProgressObserver() as obs:
+        resolved = resolve_audio_path(audio_path, observer=obs)
+
+    logger.info("Analyzing audio track: %s", resolved)
+    audio_input = AudioAnalysisInput(file_path=resolved)
+    audio_meta = AudioAnalyzer().analyze(audio_input)
+    logger.info(
+        "Detected BPM: %s | Emotional Peaks: %d",
+        audio_meta.bpm,
+        len(audio_meta.peaks),
+    )
+    return resolved, audio_meta
+
+
+def strip_thumbnails(clips: list) -> list:
+    """Return a copy of *clips* with ``thumbnail_data`` set to ``None``.
+
+    This frees memory from decoded thumbnail images that are only
+    needed for the preview UI, not for video generation.
+
+    Args:
+        clips: List of ``VideoAnalysisResult`` objects.
+
+    Returns:
+        New list with thumbnail data cleared on each clip.
+    """
+    return [clip.model_copy(update={"thumbnail_data": None}) for clip in clips]
+
+
+# ------------------------------------------------------------------
 # Shared shorts-generation loop
 # ------------------------------------------------------------------
 
