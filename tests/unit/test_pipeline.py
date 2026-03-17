@@ -8,7 +8,6 @@ import os
 import tempfile
 from unittest.mock import MagicMock, patch
 
-import pytest
 from src.cli_utils import detect_broll_dir
 from src.core.models import AudioAnalysisResult, VideoAnalysisResult
 from src.pipeline import (

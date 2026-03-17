@@ -7,10 +7,16 @@ import os
 import sys
 
 from pydantic import ValidationError
-from src.cli_utils import add_visual_args, analyze_audio, build_pacing_kwargs, detect_broll_dir, strip_thumbnails
+from src.cli_utils import (
+    add_visual_args,
+    analyze_audio,
+    build_pacing_kwargs,
+    detect_broll_dir,
+    strip_thumbnails,
+)
 from src.core.app import BachataSyncEngine
-from src.core.montage import load_pacing_config
 from src.core.models import PacingConfig
+from src.core.montage import load_pacing_config
 from src.services.reporting import ExcelReportGenerator
 from src.ui.console import RichProgressObserver
 

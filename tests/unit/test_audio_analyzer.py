@@ -164,8 +164,14 @@ class TestFindAudioHooks:
         # Section boundary at exactly 5.0s — candidate at 1.0s should
         # score bonus for pace_target=4.0 ± 1.0 => match at 5.0
         sections = [
-            MusicalSection(start_time=0.0, end_time=5.0, label="intro", avg_intensity=0.3),
-            MusicalSection(start_time=5.0, end_time=30.0, label="verse", avg_intensity=0.7),
+            MusicalSection(
+                start_time=0.0, end_time=5.0,
+                label="intro", avg_intensity=0.3,
+            ),
+            MusicalSection(
+                start_time=5.0, end_time=30.0,
+                label="verse", avg_intensity=0.7,
+            ),
         ]
         audio = _make_audio(
             duration=30.0, beat_count=60, sections=sections,

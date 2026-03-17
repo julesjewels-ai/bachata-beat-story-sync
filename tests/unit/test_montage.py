@@ -13,6 +13,7 @@ import os
 from unittest.mock import MagicMock, patch
 
 import pytest
+from src.core.ffmpeg_renderer import overlay_audio
 from src.core.models import (
     AudioAnalysisResult,
     MusicalSection,
@@ -20,7 +21,6 @@ from src.core.models import (
     SegmentDecision,
     VideoAnalysisResult,
 )
-from src.core.ffmpeg_renderer import overlay_audio
 from src.core.montage import MontageGenerator, load_pacing_config
 
 
@@ -333,7 +333,8 @@ class TestBuildSegmentPlan:
         assert len(segments) >= 2
         # Only the first prefix clip (1_clip) is forced; 2_clip goes to pool
         assert segments[0].video_path == "/videos/1_clip.mp4"
-        assert segments[1].video_path != "/videos/2_clip.mp4" or True  # pool order varies
+        # pool order varies — 2_clip goes to intensity pool
+        assert segments[1].video_path != "/videos/2_clip.mp4" or True
 
     def test_prefix_offset_rotates_intro_clips(self, generator):
         """FEAT-017: prefix_offset rotates the forced prefix clips."""
@@ -1307,13 +1308,15 @@ class TestAudioOverlay:
 
         cmd = mock_run.call_args[0][0]
         cmd_str = " ".join(str(x) for x in cmd)
-        
+
         assert "-c:v copy" in cmd_str
         assert "-filter_complex" not in cmd_str
 
     @patch("src.core.ffmpeg_renderer.run_ffmpeg")
-    def test_overlay_audio_uses_filter_complex_waveform(self, mock_run, generator):
-        """When audio_overlay is 'waveform', uses filter_complex and visualizer filters."""
+    def test_overlay_audio_uses_filter_complex_waveform(
+        self, mock_run, generator,
+    ):
+        """Waveform overlay uses filter_complex."""
         mock_run.return_value = MagicMock(returncode=0, stderr="")
         config = PacingConfig(audio_overlay="waveform")
 
@@ -1321,7 +1324,7 @@ class TestAudioOverlay:
 
         cmd = mock_run.call_args[0][0]
         cmd_str = " ".join(str(x) for x in cmd)
-        
+
         assert "-filter_complex" in cmd_str
         assert "showwaves=" in cmd_str
         # Does not run fast stream copy
@@ -1329,8 +1332,10 @@ class TestAudioOverlay:
         assert "-c:v libx264" in cmd_str
 
     @patch("src.core.ffmpeg_renderer.run_ffmpeg")
-    def test_overlay_audio_seeks_to_offset(self, mock_run, generator):
-        """When audio_start_offset > 0, FFmpeg command includes -ss before the audio input."""
+    def test_overlay_audio_seeks_to_offset(
+        self, mock_run, generator,
+    ):
+        """audio_start_offset > 0 adds -ss before audio input."""
         mock_run.return_value = MagicMock(returncode=0, stderr="")
         config = PacingConfig(audio_overlay="none", audio_start_offset=30.0)
 
@@ -1453,7 +1458,7 @@ class TestAudioStartOffset:
         segs_default = gen.build_segment_plan(audio, clips, config_default)
         # Same number of segments with same timeline positions
         assert len(segs_zero) == len(segs_default)
-        for a, b in zip(segs_zero, segs_default):
+        for a, b in zip(segs_zero, segs_default, strict=False):
             assert abs(a.timeline_position - b.timeline_position) < 0.01
 
     def test_offset_with_max_duration(self, gen, clips, audio):
@@ -1565,7 +1570,7 @@ class TestWriteExplainLog:
         gen._write_explain_log(out, PacingConfig(explain=True))
         content = open(str(tmp_path / "out_explain.md")).read()
         # 5 data rows + header row + separator row
-        table_rows = [l for l in content.splitlines() if l.startswith("|")]
+        table_rows = [line for line in content.splitlines() if line.startswith("|")]
         assert len(table_rows) == 7  # 2 header + 5 data
 
 
@@ -1573,8 +1578,9 @@ class TestExplainCLIFlag:
     """--explain flag is wired through CLI utils."""
 
     def test_build_pacing_kwargs_includes_explain(self):
-        from src.cli_utils import build_pacing_kwargs
         import argparse
+
+        from src.cli_utils import build_pacing_kwargs
 
         ns = argparse.Namespace(
             test_mode=False, video_style=None, audio_overlay=None,
@@ -1585,8 +1591,9 @@ class TestExplainCLIFlag:
         assert kwargs["explain"] is True
 
     def test_build_pacing_kwargs_omits_explain_when_false(self):
-        from src.cli_utils import build_pacing_kwargs
         import argparse
+
+        from src.cli_utils import build_pacing_kwargs
 
         ns = argparse.Namespace(
             test_mode=False, video_style=None, audio_overlay=None,
@@ -1597,8 +1604,9 @@ class TestExplainCLIFlag:
         assert "explain" not in kwargs
 
     def test_add_visual_args_registers_explain(self):
-        from src.cli_utils import add_visual_args
         import argparse
+
+        from src.cli_utils import add_visual_args
 
         parser = argparse.ArgumentParser()
         add_visual_args(parser)

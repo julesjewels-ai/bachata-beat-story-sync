@@ -9,7 +9,6 @@ from io import StringIO
 from unittest.mock import patch
 
 from rich.console import Console
-
 from src.ui.console import PipelineLogger
 
 

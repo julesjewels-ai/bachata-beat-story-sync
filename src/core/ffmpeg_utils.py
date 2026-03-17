@@ -48,7 +48,10 @@ def run_ffmpeg(
         RuntimeError: If FFmpeg exits with non-zero or times out.
     """
     effective_timeout = timeout_seconds or FFMPEG_TIMEOUT
-    logger.debug("FFmpeg [%s] (timeout=%ds): %s", stage_name, effective_timeout, " ".join(cmd))
+    logger.debug(
+        "FFmpeg [%s] (timeout=%ds): %s",
+        stage_name, effective_timeout, " ".join(cmd),
+    )
 
     try:
         result = subprocess.run(

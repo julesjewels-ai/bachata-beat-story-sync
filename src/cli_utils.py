@@ -252,7 +252,10 @@ def analyze_audio(audio_path: str) -> tuple:
         ``AudioAnalysisResult``.
     """
     # Lazy imports to avoid circular dependencies
-    from src.core.audio_analyzer import AudioAnalysisInput, AudioAnalyzer  # noqa: WPS433
+    from src.core.audio_analyzer import (  # noqa: WPS433
+        AudioAnalysisInput,
+        AudioAnalyzer,
+    )
     from src.core.audio_mixer import resolve_audio_path  # noqa: WPS433
     from src.ui.console import RichProgressObserver  # noqa: WPS433
 

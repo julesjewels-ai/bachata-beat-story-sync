@@ -3,7 +3,7 @@ Data Transfer Objects (DTOs) for Bachata Beat-Story Sync.
 These models define the strict contracts for data exchange between layers.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field

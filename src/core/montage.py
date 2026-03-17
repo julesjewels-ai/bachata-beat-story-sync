@@ -8,7 +8,6 @@ import os
 import random
 import re
 import shutil
-
 import tempfile
 from pathlib import Path
 
@@ -21,7 +20,6 @@ from src.core.ffmpeg_renderer import (
     get_video_duration,
     overlay_audio,
 )
-
 from src.core.interfaces import ProgressObserver
 from src.core.models import (
     AudioAnalysisResult,
@@ -287,12 +285,15 @@ class MontageGenerator:
             clip = broll_clips[broll_idx % len(broll_clips)]
             broll_idx += 1
             last_broll_time = timeline_pos
-            interval = timeline_pos - (last_broll_time - timeline_pos + timeline_pos)
+            timeline_pos - (last_broll_time - timeline_pos + timeline_pos)
             reason = f"B-roll interval triggered ({target_broll_interval:.1f}s)"
         else:
             clip = self._pick_from_pool(pools, pool_indices, level)
             clip_idx += 1
-            reason = f"Intensity matched: {level} pool (score={clip.intensity_score:.2f})"
+            reason = (
+                f"Intensity matched: {level} pool "
+                f"(score={clip.intensity_score:.2f})"
+            )
         return (clip, forced_clip_idx, broll_idx, clip_idx,
                 last_broll_time, target_broll_interval, reason)
 
@@ -549,8 +550,10 @@ class MontageGenerator:
         lines.append("")
         lines.append(f"- **Min clip duration**: {config.min_clip_seconds}s")
         lines.append(
-            f"- **Intensity durations**: high={config.high_intensity_seconds}s "
-            f"mid={config.medium_intensity_seconds}s low={config.low_intensity_seconds}s"
+            f"- **Intensity durations**: "
+            f"high={config.high_intensity_seconds}s "
+            f"mid={config.medium_intensity_seconds}s "
+            f"low={config.low_intensity_seconds}s"
         )
         lines.append(f"- **Max clips**: {config.max_clips}")
         lines.append(f"- **Max duration**: {config.max_duration_seconds}")

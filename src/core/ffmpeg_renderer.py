@@ -1,14 +1,16 @@
-"""FFmpeg rendering pipeline — segment extraction, concatenation, transitions, and audio overlay.
+"""FFmpeg rendering pipeline.
+
+Segment extraction, concatenation, transitions, and audio overlay.
 
 Extracted from MontageGenerator to separate pure planning logic
 from FFmpeg subprocess orchestration.
 """
 
 import logging
-from collections.abc import Callable
 import os
 import shutil
 import subprocess
+from collections.abc import Callable
 
 from src.core.ffmpeg_utils import run_ffmpeg, timeout_for_duration
 from src.core.interfaces import ProgressObserver

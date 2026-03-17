@@ -319,7 +319,10 @@ def find_audio_hooks(
         target_time = beat_t + pace_target
         target_idx = bisect.bisect_left(beat_times, target_time)
         target_idx = min(target_idx, len(intensity) - 1)
-        delta = abs(intensity[target_idx] - beat_intensity) if target_idx < len(intensity) else 0.0
+        delta = (
+            abs(intensity[target_idx] - beat_intensity)
+            if target_idx < len(intensity) else 0.0
+        )
 
         # 4. Section boundary bonus near pace_target (0.2)
         section_bonus = 0.0
@@ -344,7 +347,7 @@ def find_audio_hooks(
     min_sep = short_duration * 0.5
     selected: list[float] = []
 
-    for score, start in scored:
+    for _score, start in scored:
         if len(selected) >= count:
             break
         if all(abs(start - s) >= min_sep for s in selected):

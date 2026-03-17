@@ -20,8 +20,6 @@ import time
 
 from pydantic import ValidationError
 
-from src.core.app import BachataSyncEngine
-from src.core.audio_analyzer import AudioAnalysisInput, AudioAnalyzer
 from src.cli_utils import (
     add_shorts_args,
     add_visual_args,
@@ -31,6 +29,8 @@ from src.cli_utils import (
     parse_duration,
     strip_thumbnails,
 )
+from src.core.app import BachataSyncEngine
+from src.core.audio_analyzer import AudioAnalysisInput, AudioAnalyzer
 from src.core.audio_mixer import (
     SUPPORTED_AUDIO_EXTENSIONS,
     resolve_audio_path,
