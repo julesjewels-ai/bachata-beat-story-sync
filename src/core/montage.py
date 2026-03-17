@@ -252,6 +252,74 @@ class MontageGenerator:
 
         return target_beats, level, speed
 
+    def _select_clip(
+        self,
+        *,
+        forced_clips: list[VideoAnalysisResult],
+        forced_clip_idx: int,
+        is_broll: bool,
+        broll_clips: list[VideoAnalysisResult] | None,
+        broll_idx: int,
+        timeline_pos: float,
+        last_broll_time: float,
+        config: PacingConfig,
+        pools: dict,
+        pool_indices: dict,
+        level: str,
+        clip_idx: int,
+    ) -> tuple[VideoAnalysisResult, int, int, int, float, float]:
+        """Pick the next clip and advance the relevant index.
+
+        Returns:
+            ``(clip, forced_clip_idx, broll_idx, clip_idx,
+            last_broll_time, target_broll_interval)``.
+        """
+        target_broll_interval = config.broll_interval_seconds + random.uniform(
+            -config.broll_interval_variance, config.broll_interval_variance
+        )
+        if forced_clip_idx < len(forced_clips):
+            clip = forced_clips[forced_clip_idx]
+            forced_clip_idx += 1
+        elif is_broll:
+            assert broll_clips is not None
+            clip = broll_clips[broll_idx % len(broll_clips)]
+            broll_idx += 1
+            last_broll_time = timeline_pos
+        else:
+            clip = self._pick_from_pool(pools, pool_indices, level)
+            clip_idx += 1
+        return (clip, forced_clip_idx, broll_idx, clip_idx,
+                last_broll_time, target_broll_interval)
+
+    @staticmethod
+    def _compute_start_offset(
+        clip: VideoAnalysisResult,
+        segment_duration: float,
+        config: PacingConfig,
+        clip_idx: int,
+    ) -> float:
+        """Deterministic start offset within *clip* for variety."""
+        max_start = max(0.0, clip.duration - segment_duration)
+        if config.clip_variety_enabled and max_start > 0:
+            seed_str = f"{config.seed}:{clip.path}:{clip_idx}"
+            seed = int(
+                hashlib.md5(seed_str.encode()).hexdigest()[:8],
+                16,
+            )
+            return (seed % int(max_start * 1000)) / 1000.0
+        return 0.0
+
+    @staticmethod
+    def _find_section_label(
+        sections: list,
+        current_time: float,
+    ) -> str | None:
+        """Return the section label covering *current_time*, or ``None``."""
+        for sec in sections:
+            if sec.start_time <= current_time < sec.end_time:
+                return sec.label
+        return None
+
     def build_segment_plan(
         self,
         audio_data: AudioAnalysisResult,
@@ -373,35 +441,27 @@ class MontageGenerator:
                 if timeline_pos > 0.0:
                     is_broll = True
 
-            # Pick clip (forced prefix followed by round-robin)
-            if forced_clip_idx < len(forced_clips):
-                clip = forced_clips[forced_clip_idx]
-                forced_clip_idx += 1
-            elif is_broll:
-                assert broll_clips is not None
-                clip = broll_clips[broll_idx % len(broll_clips)]
-                broll_idx += 1
-                last_broll_time = timeline_pos
-                target_broll_interval = config.broll_interval_seconds + random.uniform(
-                    -config.broll_interval_variance, config.broll_interval_variance
-                )
-            else:
-                # FEAT-009: intensity-matched pool selection w/ fallback
-                clip = self._pick_from_pool(pools, pool_indices, level)
-                clip_idx += 1
+            # Pick clip (forced prefix → B-roll → intensity pool)
+            (clip, forced_clip_idx, broll_idx, clip_idx,
+             last_broll_time, target_broll_interval) = self._select_clip(
+                forced_clips=forced_clips,
+                forced_clip_idx=forced_clip_idx,
+                is_broll=is_broll,
+                broll_clips=broll_clips,
+                broll_idx=broll_idx,
+                timeline_pos=timeline_pos,
+                last_broll_time=last_broll_time,
+                config=config,
+                pools=pools,
+                pool_indices=pool_indices,
+                level=level,
+                clip_idx=clip_idx,
+            )
 
             # Compute start offset within clip
-            max_start = max(0.0, clip.duration - segment_duration)
-            if config.clip_variety_enabled and max_start > 0:
-                # Deterministic per-segment offset using clip path + usage index + seed
-                seed_str = f"{config.seed}:{clip.path}:{clip_idx}"
-                seed = int(
-                    hashlib.md5(seed_str.encode()).hexdigest()[:8],
-                    16,
-                )
-                start_time = (seed % int(max_start * 1000)) / 1000.0
-            else:
-                start_time = 0.0
+            start_time = self._compute_start_offset(
+                clip, segment_duration, config, clip_idx
+            )
 
             # Clamp segment duration to remaining clip after start offset
             actual_duration = min(segment_duration, clip.duration - start_time)
@@ -410,11 +470,7 @@ class MontageGenerator:
             current_time = (
                 beat_times[beat_idx] if beat_idx < len(beat_times) else timeline_pos
             )
-            section_label = None
-            for sec in sections:
-                if sec.start_time <= current_time < sec.end_time:
-                    section_label = sec.label
-                    break
+            section_label = self._find_section_label(sections, current_time)
 
             if actual_duration > 0:
                 segments.append(
