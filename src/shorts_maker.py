@@ -5,17 +5,20 @@ Batch Generator for YouTube Shorts.
 import argparse
 import logging
 import os
-import random
 import sys
-import uuid
 
 from pydantic import ValidationError
 
-from src.cli_utils import add_shorts_args, add_visual_args, build_pacing_kwargs, parse_duration
+from src.cli_utils import (
+    add_shorts_args,
+    add_visual_args,
+    build_pacing_kwargs,
+    generate_shorts_batch,
+    parse_duration,
+)
 from src.core.app import BachataSyncEngine
-from src.core.audio_analyzer import AudioAnalysisInput, AudioAnalyzer, find_audio_hooks
+from src.core.audio_analyzer import AudioAnalysisInput, AudioAnalyzer
 from src.core.audio_mixer import resolve_audio_path
-from src.core.models import PacingConfig
 from src.ui.console import RichProgressObserver
 
 logger = logging.getLogger(__name__)
@@ -108,60 +111,27 @@ def main() -> None:
             clip.model_copy(update={"thumbnail_data": None}) for clip in video_clips
         ]
 
-        # 3. FEAT-019: Find smart-start hooks
-        target_duration = random.uniform(min_dur, max_dur)
-        if args.smart_start:
-            hooks = find_audio_hooks(audio_meta, target_duration, args.count)
-            logger.info(
-                "Smart start: found %d hooks for %d shorts",
-                len(hooks),
-                args.count,
-            )
-        else:
-            hooks = [0.0] * args.count
-
-        # 4. Generate Shorts Sequence
-        logger.info("Generating %d shorts...", args.count)
-
-        for i in range(args.count):
-            logger.info("=== Starting short %d of %d ===", i + 1, args.count)
-
-            # Determine target duration for this specific run
-            target_duration = random.uniform(min_dur, max_dur)
-            run_seed = str(uuid.uuid4())
-            hook_offset = hooks[i] if i < len(hooks) else 0.0
-
-            pacing_kwargs: dict = {
-                **build_pacing_kwargs(args),
-                "is_shorts": True,
-                "seed": run_seed,
-                "max_duration_seconds": target_duration,
-                "accelerate_pacing": args.dynamic_flow,
-                "randomize_speed_ramps": args.human_touch,
-                "abrupt_ending": args.cliffhanger,
-                "audio_start_offset": hook_offset,
-            }
-
-            pacing = PacingConfig(**pacing_kwargs)
-
-            out_filename = f"short_{i + 1:03d}.mp4"
-            out_path = os.path.join(args.output_dir, out_filename)
-
-            with RichProgressObserver() as observer:
-                result_path = engine.generate_story(
-                    audio_meta,
-                    montage_clips,
-                    out_path,
-                    audio_path=audio_input.file_path,
-                    observer=observer,
-                    pacing=pacing,
-                )
-
-            logger.info("Short %d saved to: %s", i + 1, result_path)
+        # 3. Generate Shorts (delegate to shared function)
+        pacing_kwargs = build_pacing_kwargs(args)
+        results = generate_shorts_batch(
+            engine,
+            audio_meta,
+            montage_clips,
+            audio_path,
+            args.output_dir,
+            args.count,
+            min_dur,
+            max_dur,
+            pacing_kwargs,
+            smart_start=args.smart_start,
+            dynamic_flow=args.dynamic_flow,
+            human_touch=args.human_touch,
+            cliffhanger=args.cliffhanger,
+        )
 
         logger.info(
             "Batch generation complete! All %d shorts generated in %s",
-            args.count,
+            len(results),
             args.output_dir,
         )
 

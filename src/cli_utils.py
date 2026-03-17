@@ -5,7 +5,15 @@ Houses functions shared by main.py, pipeline.py, and shorts_maker.py
 so they don't drift out of sync.
 """
 
+from __future__ import annotations
+
 import argparse
+import logging
+import os
+import random
+import uuid
+
+logger = logging.getLogger(__name__)
 
 
 def parse_duration(duration_str: str) -> tuple[float, float]:
@@ -165,3 +173,101 @@ def add_shorts_args(parser: argparse.ArgumentParser) -> None:
         dest="smart_start",
         help="Disable smart start — all shorts start from beat 0",
     )
+
+
+# ------------------------------------------------------------------
+# Shared shorts-generation loop
+# ------------------------------------------------------------------
+
+
+def generate_shorts_batch(
+    engine,
+    audio_meta,
+    clips: list,
+    audio_path: str,
+    output_dir: str,
+    count: int,
+    min_dur: float,
+    max_dur: float,
+    pacing_kwargs: dict,
+    *,
+    smart_start: bool = True,
+    dynamic_flow: bool = False,
+    human_touch: bool = False,
+    cliffhanger: bool = False,
+) -> list[str]:
+    """Generate *count* shorts into *output_dir*, returning output paths.
+
+    This is the single source of truth for the shorts-generation loop,
+    called by both ``pipeline.py`` and ``shorts_maker.py``.
+
+    Args:
+        engine: A ``BachataSyncEngine`` instance.
+        audio_meta: ``AudioAnalysisResult`` for the audio track.
+        clips: Pre-scanned list of ``VideoAnalysisResult`` clips.
+        audio_path: Path to the audio file on disk.
+        output_dir: Directory to write shorts into (created if absent).
+        count: Number of shorts to generate.
+        min_dur: Minimum target duration in seconds.
+        max_dur: Maximum target duration in seconds.
+        pacing_kwargs: Base pacing overrides (from ``build_pacing_kwargs``).
+        smart_start: Use audio-hook detection for varied start points.
+        dynamic_flow: Accelerate pacing towards the end of each short.
+        human_touch: Apply small random variances to speed ramps.
+        cliffhanger: End abruptly for a cliffhanger effect.
+
+    Returns:
+        List of file paths for the generated shorts.
+    """
+    # Lazy imports to avoid circular dependencies
+    from src.core.audio_analyzer import find_audio_hooks  # noqa: WPS433
+    from src.core.models import PacingConfig  # noqa: WPS433
+    from src.ui.console import RichProgressObserver  # noqa: WPS433
+
+    os.makedirs(output_dir, exist_ok=True)
+    generated: list[str] = []
+
+    # FEAT-019: Find smart-start hooks for variety
+    if smart_start:
+        target_dur = (min_dur + max_dur) / 2.0
+        hooks = find_audio_hooks(audio_meta, target_dur, count)
+    else:
+        hooks = [0.0] * count
+
+    for i in range(count):
+        target_duration = random.uniform(min_dur, max_dur)
+        run_seed = str(uuid.uuid4())
+        hook_offset = hooks[i] if i < len(hooks) else 0.0
+
+        shorts_kwargs: dict = {
+            **pacing_kwargs,
+            "is_shorts": True,
+            "seed": run_seed,
+            "max_duration_seconds": target_duration,
+            "audio_start_offset": hook_offset,
+            "accelerate_pacing": dynamic_flow,
+            "randomize_speed_ramps": human_touch,
+            "abrupt_ending": cliffhanger,
+        }
+        # Remove full-video-only keys that conflict with shorts
+        shorts_kwargs.pop("max_clips", None)
+
+        pacing = PacingConfig(**shorts_kwargs)
+        out_path = os.path.join(output_dir, f"short_{i + 1:03d}.mp4")
+
+        logger.info(
+            "Short %d/%d (%.0fs, hook@%.1fs)",
+            i + 1, count, target_duration, hook_offset,
+        )
+        with RichProgressObserver() as obs:
+            result = engine.generate_story(
+                audio_meta,
+                clips,
+                out_path,
+                audio_path=audio_path,
+                observer=obs,
+                pacing=pacing,
+            )
+        generated.append(result)
+
+    return generated

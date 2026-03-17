@@ -14,17 +14,21 @@ spinners, success markers, error panels, and a structured summary.
 import argparse
 import logging
 import os
-import random
 import subprocess
 import sys
 import time
-import uuid
 
 from pydantic import ValidationError
 
 from src.core.app import BachataSyncEngine
-from src.core.audio_analyzer import AudioAnalysisInput, AudioAnalyzer, find_audio_hooks
-from src.cli_utils import add_visual_args, build_pacing_kwargs, parse_duration
+from src.core.audio_analyzer import AudioAnalysisInput, AudioAnalyzer
+from src.cli_utils import (
+    add_shorts_args,
+    add_visual_args,
+    build_pacing_kwargs,
+    generate_shorts_batch,
+    parse_duration,
+)
 from src.core.audio_mixer import (
     SUPPORTED_AUDIO_EXTENSIONS,
     resolve_audio_path,
@@ -135,49 +139,26 @@ def _generate_shorts(
     pacing_kwargs: dict,
     log: PipelineLogger,
     smart_start: bool = True,
+    dynamic_flow: bool = False,
+    human_touch: bool = False,
+    cliffhanger: bool = False,
 ) -> list[str]:
     """Generate *count* shorts into *output_dir*, returning paths."""
-    os.makedirs(output_dir, exist_ok=True)
-    generated: list[str] = []
-
-    # FEAT-019: Find smart-start hooks for variety
-    if smart_start:
-        target_dur = (min_dur + max_dur) / 2.0
-        hooks = find_audio_hooks(audio_meta, target_dur, count)
-    else:
-        hooks = [0.0] * count
-
-    for i in range(count):
-        target_duration = random.uniform(min_dur, max_dur)
-        run_seed = str(uuid.uuid4())
-        hook_offset = hooks[i] if i < len(hooks) else 0.0
-
-        shorts_kwargs = {
-            **pacing_kwargs,
-            "is_shorts": True,
-            "seed": run_seed,
-            "max_duration_seconds": target_duration,
-            "audio_start_offset": hook_offset,
-        }
-        # Remove full-video-only keys that conflict with shorts
-        shorts_kwargs.pop("max_clips", None)
-
-        pacing = PacingConfig(**shorts_kwargs)
-        out_path = os.path.join(output_dir, f"short_{i + 1:03d}.mp4")
-
-        log.detail(f"Short {i + 1}/{count} ({target_duration:.0f}s, hook@{hook_offset:.1f}s)")
-        with RichProgressObserver() as obs:
-            result = engine.generate_story(
-                audio_meta,
-                clips,
-                out_path,
-                audio_path=audio_path,
-                observer=obs,
-                pacing=pacing,
-            )
-        generated.append(result)
-
-    return generated
+    return generate_shorts_batch(
+        engine,
+        audio_meta,
+        clips,
+        audio_path,
+        output_dir,
+        count,
+        min_dur,
+        max_dur,
+        pacing_kwargs,
+        smart_start=smart_start,
+        dynamic_flow=dynamic_flow,
+        human_touch=human_touch,
+        cliffhanger=cliffhanger,
+    )
 
 
 # ------------------------------------------------------------------
@@ -233,11 +214,7 @@ def parse_args() -> argparse.Namespace:
         "--quiet", action="store_true",
         help="Suppress all output except errors",
     )
-    parser.add_argument(
-        "--smart-start", action=argparse.BooleanOptionalAction,
-        default=True,
-        help="Audio hook detection for shorts variety (default: on)",
-    )
+    add_shorts_args(parser)
     return parser.parse_args()
 
 
@@ -413,6 +390,9 @@ def main() -> None:
                         shorts_dir, args.shorts_count,
                         min_dur, max_dur, track_pacing,
                         log, smart_start=args.smart_start,
+                        dynamic_flow=getattr(args, "dynamic_flow", False),
+                        human_touch=getattr(args, "human_touch", False),
+                        cliffhanger=getattr(args, "cliffhanger", False),
                     )
                 generated_files.extend(shorts)
                 log.success(
