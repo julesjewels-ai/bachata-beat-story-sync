@@ -1,4 +1,4 @@
-"""Montage generation engine — FEAT-001 through FEAT-013, FEAT-019, FEAT-025."""
+"""Montage generation engine — FEAT-001 through FEAT-013, FEAT-019, FEAT-020, FEAT-025."""
 
 import bisect
 import hashlib
@@ -10,6 +10,7 @@ import re
 import shutil
 import tempfile
 from pathlib import Path
+from typing import NamedTuple
 
 import yaml
 
@@ -31,6 +32,17 @@ from src.core.models import (
 
 logger = logging.getLogger(__name__)
 
+
+class ClipSelection(NamedTuple):
+    """Return value of _select_clip — typed for readability."""
+
+    clip: VideoAnalysisResult
+    forced_clip_idx: int
+    broll_idx: int
+    clip_idx: int
+    last_broll_time: float
+    target_broll_interval: float
+    reason: str
 
 
 # Default config file location (project root)
@@ -281,7 +293,7 @@ class MontageGenerator:
         pool_indices: dict,
         level: str,
         clip_idx: int,
-    ) -> tuple[VideoAnalysisResult, int, int, int, float, float, str]:
+    ) -> ClipSelection:
         """Pick the next clip and advance the relevant index.
 
         Returns:
@@ -300,7 +312,6 @@ class MontageGenerator:
             clip = broll_clips[broll_idx % len(broll_clips)]
             broll_idx += 1
             last_broll_time = timeline_pos
-            timeline_pos - (last_broll_time - timeline_pos + timeline_pos)
             reason = f"B-roll interval triggered ({target_broll_interval:.1f}s)"
         else:
             clip = self._pick_from_pool(pools, pool_indices, level)
@@ -309,8 +320,15 @@ class MontageGenerator:
                 f"Intensity matched: {level} pool "
                 f"(score={clip.intensity_score:.2f})"
             )
-        return (clip, forced_clip_idx, broll_idx, clip_idx,
-                last_broll_time, target_broll_interval, reason)
+        return ClipSelection(
+            clip=clip,
+            forced_clip_idx=forced_clip_idx,
+            broll_idx=broll_idx,
+            clip_idx=clip_idx,
+            last_broll_time=last_broll_time,
+            target_broll_interval=target_broll_interval,
+            reason=reason,
+        )
 
     @staticmethod
     def _compute_start_offset(
@@ -478,9 +496,7 @@ class MontageGenerator:
                 if timeline_pos > 0.0:
                     is_broll = True
 
-            # Pick clip (forced prefix → B-roll → intensity pool)
-            (clip, forced_clip_idx, broll_idx, clip_idx,
-             last_broll_time, target_broll_interval, reason) = self._select_clip(
+            selection = self._select_clip(
                 forced_clips=forced_clips,
                 forced_clip_idx=forced_clip_idx,
                 is_broll=is_broll,
@@ -494,6 +510,13 @@ class MontageGenerator:
                 level=level,
                 clip_idx=clip_idx,
             )
+            clip = selection.clip
+            forced_clip_idx = selection.forced_clip_idx
+            broll_idx = selection.broll_idx
+            clip_idx = selection.clip_idx
+            last_broll_time = selection.last_broll_time
+            target_broll_interval = selection.target_broll_interval
+            reason = selection.reason
 
             # Compute start offset within clip
             start_time = self._compute_start_offset(

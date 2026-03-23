@@ -4,6 +4,7 @@ Video analysis module for Bachata Beat-Story Sync.
 
 import logging
 from collections.abc import Iterator
+from typing import NamedTuple
 
 import cv2
 import numpy as np
@@ -31,6 +32,14 @@ ANALYSIS_RESOLUTION = (320, 180)
 SCENE_CHANGE_THRESHOLD = 30.0  # Mean pixel diff to flag a scene change
 MAX_SCENE_CHANGES = 5  # Keep only the strongest N changes per clip
 OPENING_WINDOW_SECONDS = 2.0  # Window for computing opening_intensity
+
+
+class IntensityResult(NamedTuple):
+    """Return value of _calculate_intensity — typed for readability."""
+
+    mean_motion: float
+    scene_changes: list[float]
+    opening_intensity: float
 
 
 class VideoAnalysisInput(BaseModel):
@@ -82,18 +91,16 @@ class VideoAnalyzer:
             if not cap.set(cv2.CAP_PROP_POS_FRAMES, 0):
                 logger.warning("Could not reset frame position for %s", file_path)
 
-            intensity_score, scene_changes, opening_intensity = (
-                self._calculate_intensity(cap)
-            )
+            result = self._calculate_intensity(cap)
 
             return VideoAnalysisResult(
                 path=file_path,
-                intensity_score=intensity_score / NORMALIZATION_FACTOR,
+                intensity_score=result.mean_motion / NORMALIZATION_FACTOR,
                 duration=duration,
                 is_vertical=is_vertical,
                 thumbnail_data=thumbnail_data,
-                scene_changes=scene_changes,
-                opening_intensity=opening_intensity,
+                scene_changes=result.scene_changes,
+                opening_intensity=result.opening_intensity,
             )
         finally:
             cap.release()
@@ -163,14 +170,14 @@ class VideoAnalyzer:
 
     def _calculate_intensity(
         self, cap: cv2.VideoCapture,
-    ) -> tuple[float, list[float], float]:
+    ) -> IntensityResult:
         """Calculates motion intensity, scene changes, and opening intensity.
 
         Samples frames at ANALYSIS_FPS and downscales to
         ANALYSIS_RESOLUTION to minimise memory usage.
 
         Returns:
-            Tuple of (mean_motion, scene_change_timestamps, opening_intensity).
+            IntensityResult with mean_motion, scene_changes, opening_intensity.
         """
         video_fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
         skip = max(1, int(video_fps / ANALYSIS_FPS))
@@ -222,7 +229,11 @@ class VideoAnalyzer:
             else 0.0
         )
 
-        return mean_motion, scene_changes, opening_intensity
+        return IntensityResult(
+            mean_motion=mean_motion,
+            scene_changes=scene_changes,
+            opening_intensity=opening_intensity,
+        )
 
     def _yield_frames(self, cap: cv2.VideoCapture) -> Iterator[np.ndarray]:
         """Yields frames from the video capture until end of stream."""
