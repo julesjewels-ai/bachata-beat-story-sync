@@ -102,6 +102,26 @@ class BachataSyncEngine:
 
         return None
 
+    def plan_story(
+        self,
+        audio_data: AudioAnalysisResult,
+        video_clips: list[VideoAnalysisResult],
+        pacing: PacingConfig | None = None,
+    ) -> list:
+        """Build the segment plan without rendering (FEAT-026 dry-run).
+
+        Args:
+            audio_data: Analyzed audio features.
+            video_clips: Analyzed video clips with intensity scores.
+            pacing: Optional pacing configuration.
+
+        Returns:
+            List of ``SegmentPlan`` objects describing the planned montage.
+        """
+        return self.montage_generator.build_segment_plan(
+            audio_data, video_clips, pacing,
+        )
+
     def generate_story(
         self,
         audio_data: AudioAnalysisResult,

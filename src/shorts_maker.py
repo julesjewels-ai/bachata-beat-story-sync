@@ -98,6 +98,24 @@ def main() -> None:
 
         # 3. Generate Shorts (delegate to shared function)
         pacing_kwargs = build_pacing_kwargs(args)
+
+        # FEAT-026: Dry-run — preview plan without rendering
+        if pacing_kwargs.get("dry_run"):
+            from src.core.models import PacingConfig
+            from src.services.plan_report import format_plan_report, write_plan_report
+            dry_pacing = PacingConfig(
+                **{**pacing_kwargs, "is_shorts": True}
+            )
+            segments = engine.plan_story(
+                audio_meta, montage_clips, pacing=dry_pacing,
+            )
+            report = format_plan_report(
+                audio_meta, segments, montage_clips, dry_pacing,
+            )
+            write_plan_report(report, getattr(args, "dry_run_output", None))
+            logger.info("Dry-run complete — no shorts rendered.")
+            return
+
         results = generate_shorts_batch(
             engine,
             audio_meta,

@@ -219,6 +219,7 @@ class TestIntroEffectCLI:
             audio_overlay_opacity=None, audio_overlay_position=None,
             broll_interval=None, broll_variance=None, explain=False,
             intro_effect="bloom", intro_effect_duration=2.0,
+            dry_run=False,
         )
         kwargs = build_pacing_kwargs(ns)
         assert kwargs["intro_effect"] == "bloom"
@@ -231,8 +232,61 @@ class TestIntroEffectCLI:
             audio_overlay_opacity=None, audio_overlay_position=None,
             broll_interval=None, broll_variance=None, explain=False,
             intro_effect=None, intro_effect_duration=None,
+            dry_run=False,
         )
         kwargs = build_pacing_kwargs(ns)
         assert "intro_effect" not in kwargs
         assert "intro_effect_duration" not in kwargs
+
+
+# ------------------------------------------------------------------
+# Dry-Run CLI (FEAT-026)
+# ------------------------------------------------------------------
+
+
+class TestDryRunCLI:
+    def test_dry_run_flag_parsed(self):
+        """--dry-run registers as True."""
+        parser = argparse.ArgumentParser()
+        add_visual_args(parser)
+        ns = parser.parse_args(["--dry-run"])
+        assert ns.dry_run is True
+
+    def test_dry_run_default_false(self):
+        """Without --dry-run, default is False."""
+        parser = argparse.ArgumentParser()
+        add_visual_args(parser)
+        ns = parser.parse_args([])
+        assert ns.dry_run is False
+
+    def test_dry_run_output_flag(self):
+        """--dry-run-output stores a path."""
+        parser = argparse.ArgumentParser()
+        add_visual_args(parser)
+        ns = parser.parse_args(["--dry-run-output", "/tmp/plan.txt"])
+        assert ns.dry_run_output == "/tmp/plan.txt"
+
+    def test_build_pacing_kwargs_includes_dry_run(self):
+        """build_pacing_kwargs includes dry_run when set."""
+        ns = argparse.Namespace(
+            test_mode=False, video_style=None, audio_overlay=None,
+            audio_overlay_opacity=None, audio_overlay_position=None,
+            broll_interval=None, broll_variance=None, explain=False,
+            intro_effect=None, intro_effect_duration=None,
+            dry_run=True,
+        )
+        kwargs = build_pacing_kwargs(ns)
+        assert kwargs["dry_run"] is True
+
+    def test_build_pacing_kwargs_omits_dry_run_when_false(self):
+        """build_pacing_kwargs omits dry_run when False."""
+        ns = argparse.Namespace(
+            test_mode=False, video_style=None, audio_overlay=None,
+            audio_overlay_opacity=None, audio_overlay_position=None,
+            broll_interval=None, broll_variance=None, explain=False,
+            intro_effect=None, intro_effect_duration=None,
+            dry_run=False,
+        )
+        kwargs = build_pacing_kwargs(ns)
+        assert "dry_run" not in kwargs
 

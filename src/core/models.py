@@ -284,6 +284,12 @@ class PacingConfig(BaseModel):
         description="Duration of the intro effect in seconds (0.5–3.0 recommended)",
     )
 
+    # Dry-Run Plan Mode (FEAT-026)
+    dry_run: bool = Field(
+        False,
+        description="Run analysis and planning only — skip FFmpeg rendering",
+    )
+
 
 class AudioMixConfig(BaseModel):
     """

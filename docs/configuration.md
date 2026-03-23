@@ -27,6 +27,8 @@ The tool is invoked via `python main.py` with the following arguments:
 | `--explain` | ❌ | flag | `False` | Write a decision explainability log (`*_explain.md`) next to the output video |
 | `--intro-effect` | ❌ | `str` | `none` | Visual effect on the first clip: `none`, `bloom`, `vignette_breathe` |
 | `--intro-effect-duration` | ❌ | `float` | `1.5` | Duration of the intro effect in seconds |
+| `--dry-run` | ❌ | flag | `False` | Run analysis and planning only — skip FFmpeg rendering |
+| `--dry-run-output` | ❌ | `str` | `None` | Write the dry-run plan to a file instead of stdout |
 | `--version` | ❌ | flag | — | Display version number and exit |
 
 ### Shorts CLI (`shorts_maker.py`)
@@ -192,6 +194,8 @@ All variables below are **optional** and apply to `make run`, `make run-shorts`,
 | `SHARED_SCAN` | `0` | Set to `1` to share a single video scan across all tracks |
 | `SMART_START` | *(on)* | Set to `0` to disable audio hook detection for shorts |
 | `EXPLAIN` | `0` | Set to `1` to generate a decision explainability log alongside each output |
+| `DRY_RUN` | `0` | Set to `1` to run analysis + planning only — no FFmpeg rendering |
+| `DRY_RUN_OUTPUT` | — | Path to write the dry-run plan to a file instead of stdout |
 
 **Example — montage with waveform overlay:**
 
@@ -234,6 +238,18 @@ make run AUDIO=song.wav VIDEO_DIR=./clips/ INTRO_EFFECT=bloom
 
 ```bash
 make run AUDIO=song.wav VIDEO_DIR=./clips/ INTRO_EFFECT=vignette_breathe INTRO_EFFECT_DURATION=2.0
+```
+
+**Example — dry-run to preview the segment plan without rendering:**
+
+```bash
+make run AUDIO=song.wav VIDEO_DIR=./clips/ DRY_RUN=1
+```
+
+**Example — dry-run with output saved to a file:**
+
+```bash
+make run AUDIO=song.wav VIDEO_DIR=./clips/ DRY_RUN=1 DRY_RUN_OUTPUT=plan.txt
 ```
 
 ---

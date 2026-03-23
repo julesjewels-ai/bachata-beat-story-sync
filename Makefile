@@ -13,6 +13,8 @@ BROLL_VARIANCE ?=
 EXPLAIN ?=
 INTRO_EFFECT ?=
 INTRO_EFFECT_DURATION ?=
+DRY_RUN ?=
+DRY_RUN_OUTPUT ?=
 
 # Pipeline optional flags
 SHORTS_COUNT ?= 1
@@ -78,6 +80,14 @@ endif
 
 ifeq ($(SMART_START), 0)
   EXTRA_FLAGS += --no-smart-start
+endif
+
+ifeq ($(DRY_RUN),1)
+  EXTRA_FLAGS += --dry-run
+endif
+
+ifneq ($(DRY_RUN_OUTPUT),)
+  EXTRA_FLAGS += --dry-run-output $(DRY_RUN_OUTPUT)
 endif
 
 .PHONY: install run run-shorts full-pipeline test lint format check-types clean

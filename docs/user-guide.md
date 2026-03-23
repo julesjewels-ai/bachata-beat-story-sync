@@ -87,6 +87,8 @@ python main.py [OPTIONS]
 | `--max-clips INT` | No | — | Maximum number of clip segments (overrides test-mode) |
 | `--max-duration FLOAT` | No | — | Maximum montage duration in seconds (overrides test-mode) |
 | `--explain` | No | `False` | Write a decision explainability log (`*_explain.md`) alongside the output video |
+| `--dry-run` | No | `False` | Run analysis + planning only — skip rendering, print segment plan |
+| `--dry-run-output PATH` | No | — | Write the dry-run plan to a file instead of stdout |
 | `--version` | No | — | Show version and exit |
 
 ### Examples
@@ -110,6 +112,12 @@ python main.py --audio song.wav --video-dir ./clips/ --test-mode
 # Generate a decision explainability log
 python main.py --audio song.wav --video-dir ./clips/ --explain
 # → produces output_story.mp4 and output_story_explain.md
+
+# Dry-run: preview the segment plan without rendering
+python main.py --audio song.wav --video-dir ./clips/ --dry-run
+
+# Dry-run with plan saved to a file
+python main.py --audio song.wav --video-dir ./clips/ --dry-run --dry-run-output plan.txt
 ```
 
 ---
@@ -184,6 +192,28 @@ make run AUDIO=song.wav VIDEO_DIR=./clips/ EXPLAIN=1
 ```
 
 The log is written to the same directory as the output video, e.g. `output_story_explain.md` for `output_story.mp4`.
+
+### 📋 Dry-Run Plan Preview
+
+Pass `--dry-run` to run the full audio analysis and video scan but **skip rendering entirely**. The engine prints a structured plan showing every segment it *would* generate:
+
+- **Audio summary** — filename, BPM, duration, beat count
+- **Clip stats** — how many clips were analysed, used, and unused
+- **Segment table** — clip name, timeline position, speed factor, duration, tag
+- **Config summary** — the active pacing overrides
+
+This is the CLI equivalent of a "timeline preview" — review, iterate, and tweak your clips in seconds instead of waiting 5–30 minutes for a full render.
+
+```bash
+# Dry-run to stdout
+python main.py --audio song.wav --video-dir ./clips/ --dry-run
+
+# Save the plan to a file
+python main.py --audio song.wav --video-dir ./clips/ --dry-run --dry-run-output plan.txt
+
+# Or via Makefile
+make run AUDIO=song.wav VIDEO_DIR=./clips/ DRY_RUN=1
+```
 
 ---
 

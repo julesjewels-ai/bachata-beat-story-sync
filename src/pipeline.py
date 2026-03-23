@@ -264,6 +264,66 @@ def main() -> None:
             log.step(clip_msg)
 
         # ----------------------------------------------------------
+        # 4b. FEAT-026: Dry-run — plan-only, skip all rendering
+        # ----------------------------------------------------------
+        if pacing_kwargs.get("dry_run"):
+            from src.core.models import PacingConfig
+            from src.services.plan_report import format_plan_report, write_plan_report
+
+            reports: list[str] = []
+
+            # Plan for mix
+            if not args.skip_mix:
+                mix_audio_input = AudioAnalysisInput(file_path=mix_path)
+                with log.status("Analyzing mix audio…"):
+                    mix_meta = analyzer.analyze(mix_audio_input)
+                clips_for_mix = shared_clips if args.shared_scan else _scan_videos(
+                    engine, args.video_dir, broll_dir
+                )[0]
+                mix_pacing = PacingConfig(**pacing_kwargs)
+                mix_segments = engine.plan_story(
+                    mix_meta, strip_thumbnails(clips_for_mix), pacing=mix_pacing,
+                )
+                reports.append(
+                    "=== Mix ===\n"
+                    + format_plan_report(
+                        mix_meta, mix_segments,
+                        strip_thumbnails(clips_for_mix), mix_pacing,
+                    )
+                )
+
+            # Plan per track
+            for idx, track_path in enumerate(individual_tracks, start=1):
+                track_name = _safe_filename(track_path)
+                track_input = AudioAnalysisInput(file_path=track_path)
+                with log.status(f"Analyzing track {idx} audio…"):
+                    track_meta = analyzer.analyze(track_input)
+                clips_for_track = shared_clips if args.shared_scan else _scan_videos(
+                    engine, args.video_dir, broll_dir
+                )[0]
+                track_pacing = PacingConfig(
+                    **{**pacing_kwargs, "prefix_offset": idx - 1}
+                )
+                track_segments = engine.plan_story(
+                    track_meta, strip_thumbnails(clips_for_track),
+                    pacing=track_pacing,
+                )
+                reports.append(
+                    f"=== Track {idx}: {track_name} ===\n"
+                    + format_plan_report(
+                        track_meta, track_segments,
+                        strip_thumbnails(clips_for_track), track_pacing,
+                    )
+                )
+
+            combined = "\n\n".join(reports)
+            write_plan_report(
+                combined, getattr(args, "dry_run_output", None),
+            )
+            log.step("Dry-run complete — no videos rendered.")
+            return
+
+        # ----------------------------------------------------------
         # 5. Generate mix video
         # ----------------------------------------------------------
         if not args.skip_mix:

@@ -4,7 +4,7 @@
 >
 > **📋 Review (2026-02-23):** Backlog critically reviewed for end-user value. FEAT-010 (Structural Segmentation) removed — marginal visual impact vs. high complexity/dependency cost. Remaining features re-ordered by dependency and value.
 >
-> **📦 Archive (2026-03-22):** Completed features (FEAT-001 through FEAT-019, FEAT-022, FEAT-025) moved to [`archive/completed.md`](archive/completed.md) to reduce agent context usage. Only active/proposed features remain below.
+> **📦 Archive (2026-03-23):** Completed features (FEAT-001 through FEAT-019, FEAT-022, FEAT-025, FEAT-026) moved to [`archive/completed.md`](archive/completed.md) to reduce agent context usage. Only active/proposed features remain below.
 
 ---
 
@@ -35,6 +35,7 @@ The following features are fully implemented and archived. See [`archive/complet
 | FEAT-019 | Audio Hook Detection for Smart Start Selection | `IMPLEMENTED` |
 | FEAT-022 | Intro Visual Effects | `IMPLEMENTED` |
 | FEAT-025 | Decision Explainability Log (`--explain`) | `DONE` |
+| FEAT-026 | Dry-Run Plan Mode (`--dry-run`) | `DONE` |
 
 ---
 
@@ -422,107 +423,6 @@ def _beats_to_expression(
 ### Scope
 - **In scope:** micro_jitters, light_leaks, warm_wash, alternating_bokeh; each independently toggleable; beat-to-expression helper; CLI + YAML config; all video types.
 - **Out of scope:** AI-driven beat detection (uses existing beat_times from audio analysis), per-beat effect intensity variation, real-time preview.
-
----
-
-## FEAT-026: Dry-Run Plan Mode (`--dry-run`)
-
-| Field        | Value                                                |
-|--------------|------------------------------------------------------|
-| **Status**   | `PROPOSED`                                           |
-| **Priority** | 🟠 High                                              |
-| **Effort**   | Medium                                               |
-| **Impact**   | High — preview results without expensive FFmpeg rendering |
-| **Depends**  | None (standalone; partially complementary to FEAT-025) |
-
-### Why this matters
-A full pipeline render can take 5–30 minutes depending on clip count and duration. Users exhausted by GUI timelines don't want to wait for a render to discover the clip selection was wrong. They need a way to **inspect the plan before committing to the expensive FFmpeg pass**.
-
-This is the CLI equivalent of a "timeline preview" — except instead of a visual timeline, it's a structured text plan that can be reviewed, diffed, and iterated on in seconds.
-
-### Description
-Add a `--dry-run` flag that runs the full analysis pipeline (audio analysis + video scanning + segment planning) but **stops before rendering**. It outputs the complete segment plan as a human-readable table and/or machine-readable file, showing exactly what the final video would contain.
-
-### Output Format
-
-Printed to stdout (or file with `--dry-run-output PATH`):
-
-```
-DRY RUN — No video will be rendered.
-
-Audio: song.wav (128 BPM, 3m42s, 88 beats)
-Clips: 23 analyzed, 21 usable, 2 skipped
-Estimated output: 3m42s at 720p/24fps
-
-Segment Plan (32 segments):
-  #01  00:00.0 → 00:04.0  1_intro.mp4        [forced]    1.0x  4.0s
-  #02  00:04.0 → 00:06.5  dance_spin.mp4     [high 0.87] 1.2x  2.5s
-  #03  00:06.5 → 00:09.0  broll/sunset.mp4   [b-roll]    1.0x  2.5s
-  #04  00:09.0 → 00:15.0  slow_walk.mp4      [low 0.22]  0.9x  6.0s
-  ...
-
-Skipped: corrupt.mp4 (analysis failed), tiny.mp4 (< 1.5s)
-Config: montage_config.yaml (snap_to_beats=true, broll_interval=13.5s)
-
-Run without --dry-run to render.
-```
-
-### Implementation Details
-
-#### Pipeline Short-Circuit
-The `main()` function currently runs:
-1. `AudioAnalyzer.analyze()` → ✅ still runs
-2. `BachataSyncEngine.scan_video_library()` → ✅ still runs
-3. `BachataSyncEngine.generate_story()` → ❌ **skipped in dry-run**
-
-The segment plan is currently built *inside* `MontageGenerator.generate()`. To support dry-run, the planning logic needs to be **extractable** without triggering FFmpeg:
-
-```python
-# Option A: Extract plan as a separate method
-plan = montage_generator.build_plan(audio_data, video_clips, pacing)
-if not dry_run:
-    montage_generator.render(plan, output_path)
-```
-
-This is a minor refactor of `generate()` — split it into `build_plan()` + `render()`.
-
-#### CLI Integration
-- `--dry-run` flag on `main.py`, `shorts_maker.py`, `pipeline.py`
-- `--dry-run-output PATH` optional file output (default: stdout)
-- Combine with `--explain` for maximum transparency
-
-### Performance Considerations
-
-| Concern | Impact |
-|---------|--------|
-| Audio analysis still runs (~2-5s) | **Required** — plan depends on beat data |
-| Video scan still runs (~1-3s per clip) | **Required** — plan depends on intensity scores |
-| FFmpeg rendering skipped | **100% savings** — this is the expensive step (minutes) |
-| Total dry-run time | **5–30 seconds** for a typical project (vs. 5–30 minutes for full render) |
-
-### Risk Assessment
-
-| Risk | Likelihood | Impact | Mitigation |
-|------|-----------|--------|------------|
-| Refactoring `generate()` into `build_plan()` + `render()` introduces regression | Medium | Broken montage generation | Comprehensive existing test suite covers `generate()` behavior |
-| Plan output diverges from actual render due to FFmpeg-side decisions | Low | User confusion | Document that plan shows *intended* segments; FFmpeg may adjust frame boundaries |
-| Dry-run for pipeline mode (multi-track) produces overwhelming output | Medium | Hard to read | Group by track; add `--dry-run-output` for file dumps |
-
-### Files Changed
-
-| File | Change |
-|------|--------|
-| `src/core/montage.py` | Refactor `generate()` → `build_plan()` + `render()`; add `SegmentPlan` data structure |
-| `src/core/models.py` | Add `SegmentPlan` model (list of planned segments with metadata) |
-| `main.py` | Add `--dry-run` and `--dry-run-output` flags; short-circuit after planning |
-| `src/pipeline.py` | Add `--dry-run` flag; skip render per track |
-| `src/shorts_maker.py` | Add `--dry-run` flag; skip render |
-| `docs/configuration.md` | Document dry-run flags and output format |
-| `tests/unit/test_montage.py` | New `TestDryRun` class; test `build_plan()` independently |
-
-### Scope
-- **In scope:** Dry-run flag, segment plan output (text), build_plan/render refactor, all entry points.
-- **Out of scope:** Interactive plan editing (approve/reject segments), visual timeline rendering, exporting plan as EDL/AAF/XML for NLE import.
 
 ---
 

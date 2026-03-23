@@ -151,6 +151,16 @@ def main() -> None:
         logger.info("Syncing visual narrative to musical dynamics...")
 
         montage_clips = strip_thumbnails(video_clips)
+
+        # FEAT-026: Dry-run — preview plan without rendering
+        if pacing.dry_run:
+            segments = engine.plan_story(audio_meta, montage_clips, pacing=pacing)
+            from src.services.plan_report import format_plan_report, write_plan_report
+            report = format_plan_report(audio_meta, segments, montage_clips, pacing)
+            write_plan_report(report, getattr(args, "dry_run_output", None))
+            logger.info("Dry-run complete — no video rendered.")
+            return
+
         with RichProgressObserver() as observer:
             result_path = engine.generate_story(
                 audio_meta, montage_clips, args.output,

@@ -747,3 +747,49 @@ Configurable **intro visual effect** applied exclusively to the first segment of
 ### Scope
 - **In scope:** bloom + vignette_breathe (Phase 1), configurable duration, CLI + YAML config, all video types.
 - **Out of scope:** Phase 2 effects (scale_pop, whip_slide — require beat-to-expression helper), AI-generated visual hooks, per-clip intro customization.
+
+---
+
+## FEAT-026: Dry-Run Plan Mode (`--dry-run`)
+
+| Field        | Value                                                |
+|--------------|------------------------------------------------------|
+| **Status**   | `DONE`                                               |
+| **Priority** | 🟠 High                                              |
+| **Effort**   | Medium                                               |
+| **Impact**   | High — preview results without expensive FFmpeg rendering |
+| **Depends**  | None (standalone; partially complementary to FEAT-025) |
+
+### Description
+`--dry-run` runs the full analysis pipeline (audio analysis + video scanning + segment planning) but **stops before rendering**. Outputs the complete segment plan as a human-readable table showing exactly what the final video would contain.
+
+### Implementation Summary
+- **`src/core/models.py`** — Added `SegmentPlan` dataclass and `dry_run` / `dry_run_output` fields to `PacingConfig`
+- **`src/core/montage.py`** — Refactored `generate()` into `build_segment_plan()` (pure planning) + `generate()` (rendering). `plan_story()` facade provides the public API for dry-run callers.
+- **`src/services/plan_report.py`** — **[NEW]** `format_plan_report()` and `write_plan_report()` produce the human-readable dry-run report (audio summary, clip stats, segment table, config summary)
+- **`main.py`** — Added `--dry-run` and `--dry-run-output` flags; short-circuits after planning
+- **`src/pipeline.py`** — Added `--dry-run` flag; skips render per track
+- **`src/shorts_maker.py`** — Added `--dry-run` flag; skips render
+- **`src/cli_utils.py`** — Added `dry_run` and `dry_run_output` to `build_pacing_kwargs()`
+- **`tests/unit/test_plan_report.py`** — **[NEW]** Full test suite for plan report formatting and file output
+
+### Output Example
+```
+DRY RUN — No video will be rendered.
+
+Audio: song.wav (129 BPM, 02:44.6, 347 beats)
+Clips: 28 analyzed, 2 used in plan, 26 unused
+Estimated output: 00:05.0
+
+Segment Plan (2 segments):
+  #001  00:00.0 → 00:03.6  clip_1.mp4           [medium]     1.0x  3.6s
+  #002  00:03.6 → 00:05.0  clip_2.mp4           [medium]     1.0x  1.4s
+
+Config: snap_to_beats=True, broll_interval=13.5s, video_style=golden, max_clips=2, max_duration=5.0s
+
+Run without --dry-run to render.
+```
+
+### Scope
+- **In scope:** Dry-run flag, segment plan output (text), build_plan/render refactor, all entry points (`main.py`, `pipeline.py`, `shorts_maker.py`), optional file output via `--dry-run-output`.
+- **Out of scope:** Interactive plan editing, visual timeline rendering, EDL/AAF/XML export.

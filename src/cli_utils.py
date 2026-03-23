@@ -113,6 +113,8 @@ def build_pacing_kwargs(args: argparse.Namespace) -> dict:
         kwargs["intro_effect"] = args.intro_effect
     if getattr(args, "intro_effect_duration", None) is not None:
         kwargs["intro_effect_duration"] = args.intro_effect_duration
+    if getattr(args, "dry_run", False):
+        kwargs["dry_run"] = True
 
     return kwargs
 
@@ -188,6 +190,20 @@ def add_visual_args(parser: argparse.ArgumentParser) -> None:
         type=float,
         default=None,
         help="Duration of the intro effect in seconds (default: 1.5)",
+    )
+
+    # Dry-Run Plan Mode (FEAT-026)
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        default=False,
+        help="Preview the segment plan without rendering video",
+    )
+    parser.add_argument(
+        "--dry-run-output",
+        type=str,
+        default=None,
+        help="Write dry-run plan to a file instead of stdout",
     )
 
 
