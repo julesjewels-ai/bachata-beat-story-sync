@@ -4,7 +4,7 @@
 >
 > **📋 Review (2026-02-23):** Backlog critically reviewed for end-user value. FEAT-010 (Structural Segmentation) removed — marginal visual impact vs. high complexity/dependency cost. Remaining features re-ordered by dependency and value.
 >
-> **📦 Archive (2026-03-17):** Completed features (FEAT-001 through FEAT-019, FEAT-025) moved to [`archive/completed.md`](archive/completed.md) to reduce agent context usage. Only active/proposed features remain below.
+> **📦 Archive (2026-03-22):** Completed features (FEAT-001 through FEAT-019, FEAT-022, FEAT-025) moved to [`archive/completed.md`](archive/completed.md) to reduce agent context usage. Only active/proposed features remain below.
 
 ---
 
@@ -33,6 +33,7 @@ The following features are fully implemented and archived. See [`archive/complet
 | FEAT-017 | Per-Track Intro Variety (Pipeline) | `DONE` |
 | FEAT-018 | CLI Logging & UX System | `IMPLEMENTED` |
 | FEAT-019 | Audio Hook Detection for Smart Start Selection | `IMPLEMENTED` |
+| FEAT-022 | Intro Visual Effects | `IMPLEMENTED` |
 | FEAT-025 | Decision Explainability Log (`--explain`) | `DONE` |
 
 ---
@@ -225,104 +226,6 @@ Add configurable padding (margins) to the waveform / bars overlay so it doesn't 
 ### Scope
 - **In scope:** Configurable X/Y padding for waveform overlay; CLI + config support.
 - **Out of scope:** Per-axis padding (separate X and Y values), overlay repositioning to top of frame, animated margin effects.
-
----
-
-## FEAT-022: Intro Visual Effects
-
-| Field        | Value                                                |
-|--------------|------------------------------------------------------|
-| **Status**   | `PROPOSED`                                           |
-| **Priority** | 🟠 High                                              |
-| **Effort**   | Medium                                               |
-| **Impact**   | High — first impressions drive retention              |
-| **Depends**  | None (standalone)                                    |
-
-### Why this matters
-The first 1-3 seconds determine whether a viewer keeps watching. Currently, all videos start with a hard cut to the first clip — no visual "hook" to capture attention. Social media algorithms reward strong openers, and competing dance/music channels use intro effects to stand out.
-
-### Description
-Add a configurable **intro visual effect** applied exclusively to the first segment of any generated video. Effects create a cinematic reveal that draws the eye before cutting to the main content.
-
-### Effects (Phase 1)
-
-#### Gaussian Bloom Reveal (`bloom`)
-Gaussian blur fades from σ30 → σ0 over the intro duration, creating a dreamlike reveal into sharp focus.
-
-**FFmpeg filter:** `gblur=sigma='30*(1-t/{d})':enable='lt(t,{d})'`
-
-**Technical notes:** FFmpeg `gblur` supports expression-based sigma. The `enable` clause limits the filter to the intro window. Zero performance overhead outside the intro window.
-
-#### Warm Vignette Breathe (`vignette_breathe`)
-Tight dark vignette starts at the frame edges and expands outward, creating a theatrical spotlight effect.
-
-**FFmpeg filter:** `vignette=a='PI/2-t*PI/{2d}':enable='lt(t,{d})'`
-
-**Technical notes:** FFmpeg `vignette` accepts expression-based angle. The vignette intensity decreases as the angle expression increases. Simple and elegant.
-
-### Effects (Phase 2 — requires beat timestamp helper)
-
-#### Staggered Scale Pop (`scale_pop`)
-Beat-synced zoom pops (80% → 90% → 100%) with blur during expansion, creating a rhythmic "pop-in" entrance.
-
-**Implementation:** Build a beat-to-expression helper that generates `if(between(t,b1,b2), scale, ...)` chains from audio beat timestamps. Apply `scale` + `gblur` during each pop phase. Requires `SegmentPlan.timeline_position` to compute beat-relative timing.
-
-**Risk:** Expression chains for many beats become very long. Mitigate by capping to 3-4 beats within the intro window.
-
-#### Whip Pan Slide-In (`whip_slide`)
-Frame slides in from the edge with motion blur, simulating a camera whip-pan.
-
-**Implementation:** Use `crop` with animated x expression + `tblend=all_mode=average` for synthetic motion blur. Requires two filters in sequence.
-
-**Risk:** Filter chain is more complex than other effects. The `tblend` filter combines current and previous frames, which requires specific filter ordering.
-
-### Implementation Details
-
-**Config model changes (`PacingConfig`):**
-```python
-intro_effect: Literal["none", "bloom", "vignette_breathe", "scale_pop", "whip_slide"] = "none"
-intro_effect_duration: float = 1.5
-```
-
-**Filter injection point (`extract_segments()`):** Detect `i == 0` (first segment) and prepend intro filters to `vf_parts` before the style filter. This ensures:
-1. Intro filters are processed first
-2. Style filters (color grading) still apply on top
-3. Speed ramping is unaffected
-
-**CLI args:** `--intro-effect` (choices) + `--intro-effect-duration` (float)
-
-### Performance Considerations
-
-| Concern | Impact |
-|---------|--------|
-| Intro filter only applies to segment 0 | **Zero cost** for all other segments |
-| `gblur` with expression | ~5% overhead on one segment (~2-6s of video) |
-| `vignette` with expression | ~2% overhead on one segment |
-| Phase 2 `scale_pop` | ~10% overhead on one segment (multiple filter stages) |
-
-### Risk Assessment
-
-| Risk | Likelihood | Impact | Mitigation |
-|------|-----------|--------|------------|
-| `gblur` expression syntax varies across FFmpeg versions | Low | Build failure on older FFmpeg | Test with FFmpeg 5.x+ (already required for `xfade`) |
-| Intro effect interacts with speed ramp on segment 0 | Medium | Visual artifact: blur stretches during slow-mo | Apply intro filter AFTER `setpts` in `vf_parts` order |
-| Phase 2 beat expression chain too long | Medium | FFmpeg truncation or error | Cap to 4 beats; test with long expressions |
-
-### Files Changed
-
-| File | Change |
-|------|--------|
-| `src/core/models.py` | Add `intro_effect` + `intro_effect_duration` to `PacingConfig` |
-| `src/core/ffmpeg_renderer.py` | Add `_build_intro_filters()` helper; inject in `extract_segments()` for `i == 0` |
-| `src/cli_utils.py` | Add `intro_effect`, `intro_effect_duration` to `build_pacing_kwargs()` |
-| `src/pipeline.py` | Add `--intro-effect`, `--intro-effect-duration` CLI args |
-| `src/shorts_maker.py` | Add `--intro-effect`, `--intro-effect-duration` CLI args |
-| `montage_config.yaml` | Add `intro_effect`, `intro_effect_duration` under `pacing:` |
-| `tests/unit/test_montage.py` | New `TestIntroEffects` test class |
-
-### Scope
-- **In scope:** bloom + vignette_breathe (Phase 1), scale_pop + whip_slide (Phase 2), configurable duration, CLI + YAML config, all video types.
-- **Out of scope:** AI-generated visual hooks, per-clip intro customization, combining multiple intro effects (mutually exclusive).
 
 ---
 

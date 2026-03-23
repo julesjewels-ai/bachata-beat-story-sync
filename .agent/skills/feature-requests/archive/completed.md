@@ -717,3 +717,33 @@ The `MontageGenerator.generate()` and `build_segment_plan()` functions already h
 ### Scope
 - **In scope:** Timestamped decision log, skip reasons, config summary, Markdown output, CLI flag on all entry points.
 - **Out of scope:** Interactive explain mode (step-by-step approval), JSON output format (see FEAT-028), explain for audio analysis decisions, per-frame decision logging.
+
+---
+
+## FEAT-022: Intro Visual Effects
+
+| Field        | Value                                                |
+|--------------|------------------------------------------------------|
+| **Status**   | `IMPLEMENTED`                                        |
+| **Priority** | 🟠 High                                              |
+| **Effort**   | Medium                                               |
+| **Impact**   | High — first impressions drive retention              |
+| **Depends**  | None (standalone)                                    |
+
+### Description
+Configurable **intro visual effect** applied exclusively to the first segment of any generated video. Effects create a cinematic reveal that draws the eye before cutting to the main content.
+
+### Effects Implemented (Phase 1)
+- **Gaussian Bloom Reveal (`bloom`):** Gaussian blur fades from heavy to clear over the intro duration, creating a dreamlike reveal into sharp focus.
+- **Warm Vignette Breathe (`vignette_breathe`):** Tight dark vignette starts at the frame edges and expands outward, creating a theatrical spotlight effect.
+
+### Implementation Details
+- `intro_effect` and `intro_effect_duration` fields on `PacingConfig` (`src/core/models.py`)
+- `_bloom_filter()`, `_vignette_breathe_filter()`, `_build_intro_filters()` in `src/core/ffmpeg_renderer.py`
+- CLI args `--intro-effect` and `--intro-effect-duration` via `src/cli_utils.py`
+- Full test suite (`TestIntroEffects` class in `tests/unit/test_montage.py`)
+- Documented in `docs/configuration.md`
+
+### Scope
+- **In scope:** bloom + vignette_breathe (Phase 1), configurable duration, CLI + YAML config, all video types.
+- **Out of scope:** Phase 2 effects (scale_pop, whip_slide — require beat-to-expression helper), AI-generated visual hooks, per-clip intro customization.
