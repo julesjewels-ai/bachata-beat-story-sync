@@ -71,6 +71,14 @@ class VideoAnalysisResult(BaseModel):
     thumbnail_data: bytes | None = Field(
         None, description="Binary data of the video thumbnail (PNG format)"
     )
+    scene_changes: list[float] = Field(
+        default_factory=list,
+        description="Timestamps (seconds) of detected visual scene changes",
+    )
+    opening_intensity: float = Field(
+        0.0,
+        description="Average visual motion intensity in the first 2 seconds (0.0-1.0)",
+    )
 
 
 class SegmentPlan(BaseModel):

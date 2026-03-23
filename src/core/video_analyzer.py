@@ -27,6 +27,11 @@ ANALYSIS_FPS = 3.0
 # Performance: downscale frames to this resolution for analysis
 ANALYSIS_RESOLUTION = (320, 180)
 
+# Scene-change detection (FEAT-020)
+SCENE_CHANGE_THRESHOLD = 30.0  # Mean pixel diff to flag a scene change
+MAX_SCENE_CHANGES = 5  # Keep only the strongest N changes per clip
+OPENING_WINDOW_SECONDS = 2.0  # Window for computing opening_intensity
+
 
 class VideoAnalysisInput(BaseModel):
     """
@@ -77,7 +82,9 @@ class VideoAnalyzer:
             if not cap.set(cv2.CAP_PROP_POS_FRAMES, 0):
                 logger.warning("Could not reset frame position for %s", file_path)
 
-            intensity_score = self._calculate_intensity(cap)
+            intensity_score, scene_changes, opening_intensity = (
+                self._calculate_intensity(cap)
+            )
 
             return VideoAnalysisResult(
                 path=file_path,
@@ -85,6 +92,8 @@ class VideoAnalyzer:
                 duration=duration,
                 is_vertical=is_vertical,
                 thumbnail_data=thumbnail_data,
+                scene_changes=scene_changes,
+                opening_intensity=opening_intensity,
             )
         finally:
             cap.release()
@@ -152,17 +161,25 @@ class VideoAnalyzer:
 
         return duration
 
-    def _calculate_intensity(self, cap: cv2.VideoCapture) -> float:
-        """Calculates the average motion intensity of the video.
+    def _calculate_intensity(
+        self, cap: cv2.VideoCapture,
+    ) -> tuple[float, list[float], float]:
+        """Calculates motion intensity, scene changes, and opening intensity.
 
         Samples frames at ANALYSIS_FPS and downscales to
         ANALYSIS_RESOLUTION to minimise memory usage.
+
+        Returns:
+            Tuple of (mean_motion, scene_change_timestamps, opening_intensity).
         """
         video_fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
         skip = max(1, int(video_fps / ANALYSIS_FPS))
 
         prev_frame = None
-        motion_scores = []
+        motion_scores: list[float] = []
+        # FEAT-020: collect (timestamp, score) for scene-change candidates
+        scene_candidates: list[tuple[float, float]] = []
+        opening_scores: list[float] = []
         frame_idx = 0
 
         for frame in self._yield_frames(cap):
@@ -170,18 +187,42 @@ class VideoAnalyzer:
                 frame_idx += 1
                 continue
 
+            timestamp = frame_idx / video_fps
+
             # Downscale to small resolution before processing
             small = cv2.resize(frame, ANALYSIS_RESOLUTION)
             processed_frame = self._preprocess_frame(small)
 
             if prev_frame is not None:
                 frame_delta = cv2.absdiff(prev_frame, processed_frame)
-                motion_scores.append(np.mean(frame_delta))
+                score = float(np.mean(frame_delta))
+                motion_scores.append(score)
+
+                # FEAT-020: scene-change detection
+                if score >= SCENE_CHANGE_THRESHOLD:
+                    scene_candidates.append((timestamp, score))
+
+                # FEAT-020: opening intensity (first N seconds)
+                if timestamp <= OPENING_WINDOW_SECONDS:
+                    opening_scores.append(score)
 
             prev_frame = processed_frame
             frame_idx += 1
 
-        return np.mean(motion_scores) if motion_scores else 0.0
+        mean_motion = float(np.mean(motion_scores)) if motion_scores else 0.0
+
+        # Keep only the strongest scene changes, sorted by timestamp
+        scene_candidates.sort(key=lambda x: x[1], reverse=True)
+        top_changes = scene_candidates[:MAX_SCENE_CHANGES]
+        scene_changes = sorted(t for t, _ in top_changes)
+
+        opening_intensity = (
+            float(np.mean(opening_scores)) / NORMALIZATION_FACTOR
+            if opening_scores
+            else 0.0
+        )
+
+        return mean_motion, scene_changes, opening_intensity
 
     def _yield_frames(self, cap: cv2.VideoCapture) -> Iterator[np.ndarray]:
         """Yields frames from the video capture until end of stream."""

@@ -44,7 +44,7 @@ The following features are fully implemented and archived. See [`archive/complet
 
 | Field        | Value                                                |
 |--------------|------------------------------------------------------|
-| **Status**   | `PROPOSED`                                           |
+| **Status**   | `IMPLEMENTED`                                        |
 | **Priority** | 🟡 Medium                                            |
 | **Effort**   | Medium–High                                          |
 | **Impact**   | Medium — enhances hook quality beyond audio-only      |

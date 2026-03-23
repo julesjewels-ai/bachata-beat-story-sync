@@ -138,10 +138,17 @@ class MontageGenerator:
 
         # Sort clips by intensity score (highest first) for matching
         if config.is_shorts:
-            # Prioritise vertical clips first
+            # FEAT-020: Prioritise vertical clips first, then score by opener
+            # quality (opening_intensity + scene change near 4s mark).
+            def _opener_score(c: VideoAnalysisResult) -> float:
+                has_scene_near_4s = 1.0 if any(
+                    3.0 <= t <= 5.0 for t in c.scene_changes
+                ) else 0.0
+                return 0.5 * c.opening_intensity + 0.5 * has_scene_near_4s
+
             sorted_clips = sorted(
                 unique_clips,
-                key=lambda c: (c.is_vertical, c.intensity_score),
+                key=lambda c: (c.is_vertical, _opener_score(c), c.intensity_score),
                 reverse=True,
             )
         else:
@@ -312,16 +319,31 @@ class MontageGenerator:
         config: PacingConfig,
         clip_idx: int,
     ) -> float:
-        """Deterministic start offset within *clip* for variety."""
+        """Deterministic start offset within *clip* for variety.
+
+        FEAT-020: when the clip has scene_changes, snap the offset to
+        the nearest viable scene-change boundary.
+        """
         max_start = max(0.0, clip.duration - segment_duration)
-        if config.clip_variety_enabled and max_start > 0:
-            seed_str = f"{config.seed}:{clip.path}:{clip_idx}"
-            seed = int(
-                hashlib.md5(seed_str.encode()).hexdigest()[:8],
-                16,
-            )
-            return (seed % int(max_start * 1000)) / 1000.0
-        return 0.0
+        if not (config.clip_variety_enabled and max_start > 0):
+            return 0.0
+
+        # Hash-based base offset (deterministic)
+        seed_str = f"{config.seed}:{clip.path}:{clip_idx}"
+        seed = int(
+            hashlib.md5(seed_str.encode()).hexdigest()[:8],
+            16,
+        )
+        base_offset = (seed % int(max_start * 1000)) / 1000.0
+
+        # FEAT-020: prefer a scene-change boundary close to base_offset
+        if clip.scene_changes:
+            viable = [t for t in clip.scene_changes if t <= max_start]
+            if viable:
+                best = min(viable, key=lambda t: abs(t - base_offset))
+                return best
+
+        return base_offset
 
     @staticmethod
     def _find_section_label(

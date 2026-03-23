@@ -327,3 +327,125 @@ def test_small_video_no_resize(analyzer, mock_video_capture, mock_exists, mock_i
     result = analyzer.analyze(input_data)
 
     assert result.thumbnail_data is not None
+
+
+# ---------------------------------------------------------------------------
+# FEAT-020: Scene-change detection and opening intensity
+# ---------------------------------------------------------------------------
+
+from src.core.video_analyzer import (
+    SCENE_CHANGE_THRESHOLD,
+    MAX_SCENE_CHANGES,
+    OPENING_WINDOW_SECONDS,
+)
+
+
+def _create_scene_change_cap(
+    fps=30.0,
+    frame_count=300,
+    change_interval=5,
+):
+    """Create a mock cap that alternates black/white frames every N frames.
+
+    This produces large absdiff values at every ``change_interval`` boundary,
+    simulating scene changes.  The ``change_interval`` is in *raw* frame
+    indices (not sampled frames).
+    """
+    mock_cap = MagicMock()
+    mock_cap.isOpened.return_value = True
+
+    props = {
+        cv2.CAP_PROP_FPS: fps,
+        cv2.CAP_PROP_FRAME_COUNT: frame_count,
+        cv2.CAP_PROP_FRAME_WIDTH: 320.0,
+        cv2.CAP_PROP_FRAME_HEIGHT: 180.0,
+    }
+    mock_cap.get.side_effect = lambda p: props.get(p, 0.0)
+    mock_cap.set.return_value = True
+
+    # Build frame sequence: alternate black / white at change_interval
+    black = np.zeros((180, 320, 3), dtype=np.uint8)
+    white = np.full((180, 320, 3), 255, dtype=np.uint8)
+
+    reads = []
+    # First read is for thumbnail extraction
+    reads.append((True, black.copy()))
+    # Remaining reads for intensity / scene-change loop
+    for i in range(int(frame_count)):
+        is_white = (i // change_interval) % 2 == 1
+        reads.append((True, white.copy() if is_white else black.copy()))
+    reads.append((False, None))
+
+    mock_cap.read.side_effect = reads
+    return mock_cap
+
+
+def test_scene_changes_detected(analyzer, mock_video_capture, mock_exists, mock_isdir):
+    """FEAT-020: Alternating black/white frames produce scene-change timestamps."""
+    # change_interval=10 at fps=30 → scene change every ~0.33s
+    mock_cap = _create_scene_change_cap(fps=30.0, frame_count=90, change_interval=10)
+    mock_video_capture.return_value = mock_cap
+
+    input_data = VideoAnalysisInput(file_path="scene_test.mp4")
+    result = analyzer.analyze(input_data)
+
+    assert len(result.scene_changes) > 0, "Expected at least one scene change"
+    # Timestamps should be positive floats
+    for t in result.scene_changes:
+        assert t > 0.0
+
+
+def test_scene_changes_capped_at_max(
+    analyzer, mock_video_capture, mock_exists, mock_isdir,
+):
+    """FEAT-020: At most MAX_SCENE_CHANGES entries are returned."""
+    # Many rapid changes to exceed cap
+    mock_cap = _create_scene_change_cap(
+        fps=30.0, frame_count=600, change_interval=10,
+    )
+    mock_video_capture.return_value = mock_cap
+
+    input_data = VideoAnalysisInput(file_path="many_changes.mp4")
+    result = analyzer.analyze(input_data)
+
+    assert len(result.scene_changes) <= MAX_SCENE_CHANGES
+
+
+def test_no_scene_changes_for_uniform_video(
+    analyzer, mock_video_capture, mock_exists, mock_isdir,
+):
+    """FEAT-020: All-black frames produce no scene changes."""
+    mock_cap = create_mock_cap()  # All identical black frames
+    mock_video_capture.return_value = mock_cap
+
+    input_data = VideoAnalysisInput(file_path="uniform.mp4")
+    result = analyzer.analyze(input_data)
+
+    assert result.scene_changes == []
+
+
+def test_opening_intensity_computed(
+    analyzer, mock_video_capture, mock_exists, mock_isdir,
+):
+    """FEAT-020: opening_intensity is non-zero for frames with motion in first 2s."""
+    # Scene changes in the first 2 seconds produce high opening_intensity
+    mock_cap = _create_scene_change_cap(fps=30.0, frame_count=90, change_interval=10)
+    mock_video_capture.return_value = mock_cap
+
+    input_data = VideoAnalysisInput(file_path="opener.mp4")
+    result = analyzer.analyze(input_data)
+
+    assert result.opening_intensity > 0.0
+
+
+def test_opening_intensity_zero_for_static(
+    analyzer, mock_video_capture, mock_exists, mock_isdir,
+):
+    """FEAT-020: Static frames produce opening_intensity == 0.0."""
+    mock_cap = create_mock_cap()
+    mock_video_capture.return_value = mock_cap
+
+    input_data = VideoAnalysisInput(file_path="static.mp4")
+    result = analyzer.analyze(input_data)
+
+    assert result.opening_intensity == 0.0

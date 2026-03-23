@@ -1820,3 +1820,112 @@ class TestIntroEffects:
             assert result == ["test_filter=d=1.0"]
         finally:
             del INTRO_EFFECTS["test_fx"]
+
+
+# ---------------------------------------------------------------------------
+# FEAT-020: Scene-aware start offset and shorts opener scoring
+# ---------------------------------------------------------------------------
+
+
+class TestSceneAwareStartOffset:
+    """FEAT-020: _compute_start_offset snaps to nearest scene-change boundary."""
+
+    def test_scene_aware_start_offset(self, generator, default_pacing):
+        """When clip has scene_changes, start_time aligns to a scene boundary."""
+        clip = VideoAnalysisResult(
+            path="/videos/scene_clip.mp4",
+            intensity_score=0.7,
+            duration=30.0,
+            thumbnail_data=None,
+            scene_changes=[2.0, 5.0, 10.0, 15.0],
+        )
+        config = default_pacing.model_copy(
+            update={"clip_variety_enabled": True, "seed": 42}
+        )
+        offset = MontageGenerator._compute_start_offset(
+            clip, segment_duration=4.0, config=config, clip_idx=0,
+        )
+        # Offset must be one of the viable scene-change timestamps
+        max_start = clip.duration - 4.0  # 26.0
+        viable = [t for t in clip.scene_changes if t <= max_start]
+        assert offset in viable
+
+    def test_no_scene_changes_falls_back_to_hash(
+        self, generator, default_pacing,
+    ):
+        """Empty scene_changes → same hash-based offset as before."""
+        clip = VideoAnalysisResult(
+            path="/videos/no_scenes.mp4",
+            intensity_score=0.5,
+            duration=30.0,
+            thumbnail_data=None,
+            scene_changes=[],
+        )
+        config = default_pacing.model_copy(
+            update={"clip_variety_enabled": True, "seed": 42}
+        )
+        offset = MontageGenerator._compute_start_offset(
+            clip, segment_duration=4.0, config=config, clip_idx=0,
+        )
+        # Should be a float in [0, max_start)
+        assert 0.0 <= offset < (clip.duration - 4.0)
+
+
+class TestShortsOpenerScoring:
+    """FEAT-020: Shorts opener clip selection uses scene data."""
+
+    def test_shorts_opener_prefers_high_opening_intensity(
+        self, generator, default_pacing,
+    ):
+        """In shorts mode, _prepare_clips ranks clips by opener score."""
+        clip_low = VideoAnalysisResult(
+            path="/videos/low.mp4",
+            intensity_score=0.9,
+            duration=30.0,
+            thumbnail_data=None,
+            is_vertical=True,
+            opening_intensity=0.1,
+            scene_changes=[],
+        )
+        clip_high = VideoAnalysisResult(
+            path="/videos/high.mp4",
+            intensity_score=0.3,
+            duration=30.0,
+            thumbnail_data=None,
+            is_vertical=True,
+            opening_intensity=0.9,
+            scene_changes=[4.0],  # near the 3-5s window
+        )
+        config = default_pacing.model_copy(update={"is_shorts": True})
+        sorted_clips, _ = generator._prepare_clips(
+            [clip_low, clip_high], config,
+        )
+        # clip_high has better opener score and should come first
+        assert sorted_clips[0].path == "/videos/high.mp4"
+
+    def test_non_shorts_opener_ignores_scene_data(
+        self, generator, default_pacing,
+    ):
+        """Non-shorts mode sorts purely by intensity_score."""
+        clip_low_intensity = VideoAnalysisResult(
+            path="/videos/low_int.mp4",
+            intensity_score=0.3,
+            duration=30.0,
+            thumbnail_data=None,
+            opening_intensity=0.9,
+            scene_changes=[4.0],
+        )
+        clip_high_intensity = VideoAnalysisResult(
+            path="/videos/high_int.mp4",
+            intensity_score=0.9,
+            duration=30.0,
+            thumbnail_data=None,
+            opening_intensity=0.1,
+            scene_changes=[],
+        )
+        config = default_pacing.model_copy(update={"is_shorts": False})
+        sorted_clips, _ = generator._prepare_clips(
+            [clip_low_intensity, clip_high_intensity], config,
+        )
+        # Higher intensity_score first
+        assert sorted_clips[0].path == "/videos/high_int.mp4"
