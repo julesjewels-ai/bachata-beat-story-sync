@@ -15,6 +15,7 @@ INTRO_EFFECT ?=
 INTRO_EFFECT_DURATION ?=
 DRY_RUN ?=
 DRY_RUN_OUTPUT ?=
+GENRE ?=
 
 # Pipeline optional flags
 SHORTS_COUNT ?= 1
@@ -36,6 +37,10 @@ endif
 
 ifneq ($(MAX_DURATION),)
   EXTRA_FLAGS += --max-duration $(MAX_DURATION)
+endif
+
+ifneq ($(GENRE),)
+  EXTRA_FLAGS += --genre $(GENRE)
 endif
 
 ifneq ($(VIDEO_STYLE),)

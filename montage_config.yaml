@@ -3,6 +3,10 @@
 # All durations are in seconds.
 
 pacing:
+  # Genre preset — applies tuned defaults for a music style (FEAT-027)
+  # Options: bachata, salsa, reggaeton, kizomba, merengue, pop
+  # Explicit values below will override the preset.
+  # genre: bachata
   # Hard floor — no clip will ever be shorter than this
   min_clip_seconds: 1.5
 

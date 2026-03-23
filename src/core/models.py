@@ -290,6 +290,13 @@ class PacingConfig(BaseModel):
         description="Run analysis and planning only — skip FFmpeg rendering",
     )
 
+    # Genre Preset (FEAT-027)
+    genre: str | None = Field(
+        None,
+        description="Genre preset name (e.g. 'bachata', 'salsa', 'reggaeton'). "
+        "Applies tuned defaults; explicit field values still override.",
+    )
+
 
 class AudioMixConfig(BaseModel):
     """

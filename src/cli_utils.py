@@ -95,6 +95,8 @@ def build_pacing_kwargs(args: argparse.Namespace) -> dict:
         kwargs["max_clips"] = 4
         kwargs["max_duration_seconds"] = 10.0
 
+    if getattr(args, "genre", None):
+        kwargs["genre"] = args.genre
     if getattr(args, "video_style", None):
         kwargs["video_style"] = args.video_style
     if getattr(args, "audio_overlay", None):
@@ -128,6 +130,16 @@ def add_visual_args(parser: argparse.ArgumentParser) -> None:
     Args:
         parser: The ArgumentParser to add arguments to.
     """
+    # Genre Preset (FEAT-027) — choices derived from registry
+    from src.core.genre_presets import list_genres  # noqa: WPS433
+
+    parser.add_argument(
+        "--genre",
+        type=str,
+        default=None,
+        choices=list_genres(),
+        help="Genre preset: " + ", ".join(list_genres()),
+    )
     parser.add_argument(
         "--video-style",
         type=str,

@@ -36,6 +36,7 @@ The following features are fully implemented and archived. See [`archive/complet
 | FEAT-022 | Intro Visual Effects | `IMPLEMENTED` |
 | FEAT-025 | Decision Explainability Log (`--explain`) | `DONE` |
 | FEAT-026 | Dry-Run Plan Mode (`--dry-run`) | `DONE` |
+| FEAT-027 | Genre Preset System (`--genre`) | `DONE` |
 
 ---
 
@@ -430,7 +431,7 @@ def _beats_to_expression(
 
 | Field        | Value                                                |
 |--------------|------------------------------------------------------|
-| **Status**   | `PROPOSED`                                           |
+| **Status**   | `DONE`                                               |
 | **Priority** | 🟡 Medium                                            |
 | **Effort**   | Low–Medium                                           |
 | **Impact**   | High — unlocks the tool for non-Bachata users        |

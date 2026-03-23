@@ -58,6 +58,14 @@ def load_pacing_config(
             with open(path) as f:
                 raw = yaml.safe_load(f) or {}
             pacing_data = raw.get("pacing", {})
+
+            # FEAT-027: apply genre preset if specified
+            genre = pacing_data.get("genre")
+            if genre:
+                from src.core.genre_presets import apply_genre_preset  # noqa: WPS433
+
+                pacing_data = apply_genre_preset(genre, pacing_data)
+
             config = PacingConfig(**pacing_data)
             logger.info("Loaded pacing config from %s", path)
             return config
