@@ -793,3 +793,29 @@ Run without --dry-run to render.
 ### Scope
 - **In scope:** Dry-run flag, segment plan output (text), build_plan/render refactor, all entry points (`main.py`, `pipeline.py`, `shorts_maker.py`), optional file output via `--dry-run-output`.
 - **Out of scope:** Interactive plan editing, visual timeline rendering, EDL/AAF/XML export.
+
+---
+
+## FEAT-027: Genre Preset System (`--genre`)
+
+| Field        | Value                                                |
+|--------------|------------------------------------------------------|
+| **Status**   | `DONE`                                               |
+| **Priority** | 🟡 Medium                                            |
+| **Effort**   | Low–Medium                                           |
+| **Impact**   | High — unlocks the tool for non-Bachata users        |
+| **Depends**  | None (standalone)                                    |
+
+### Description
+Genre preset system that ships pre-tuned `PacingConfig` overrides for different music genres. A `--genre` CLI flag loads a named preset, setting pacing, effects, and timing values appropriate for the genre. Custom user configs and CLI flags still override presets (layered config resolution).
+
+### Implementation Summary
+- **`src/core/genre_presets.py`** — `GENRE_PRESETS` dict with 6 presets: `bachata`, `salsa`, `reggaeton`, `kizomba`, `merengue`, `pop`. Each preset defines `high/medium/low_intensity_seconds`, `high/medium/low_intensity_speed`, `video_style`, `transition_type`, `transition_duration`, and `intro_effect`.
+- **`apply_genre_preset(genre, base)`** — Merges preset as defaults under user-supplied overrides. Resolution order: `PacingConfig defaults < YAML file < Genre preset < CLI flags`.
+- **`list_genres()`** — Returns sorted list of available genre names.
+- **`src/cli_utils.py`** — Added `--genre` flag with `choices=list_genres()`.
+- **`src/core/models.py`** — Added `genre: Optional[str]` field to `PacingConfig`.
+
+### Scope
+- **In scope:** 6 shipped presets (bachata, salsa, reggaeton, kizomba, merengue, pop), `--genre` flag, config resolution order, Python dict storage.
+- **Out of scope:** Auto-detecting genre from audio, user-defined preset directories, YAML-based preset files, per-section presets.
