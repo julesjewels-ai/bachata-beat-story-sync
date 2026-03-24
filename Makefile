@@ -16,6 +16,7 @@ INTRO_EFFECT_DURATION ?=
 DRY_RUN ?=
 DRY_RUN_OUTPUT ?=
 GENRE ?=
+WATCH ?=
 
 # Pipeline optional flags
 SHORTS_COUNT ?= 1
@@ -89,6 +90,10 @@ endif
 
 ifeq ($(DRY_RUN),1)
   EXTRA_FLAGS += --dry-run
+endif
+
+ifeq ($(WATCH),1)
+  EXTRA_FLAGS += --watch
 endif
 
 ifneq ($(DRY_RUN_OUTPUT),)

@@ -29,6 +29,7 @@ The tool is invoked via `python main.py` with the following arguments:
 | `--intro-effect-duration` | ❌ | `float` | `1.5` | Duration of the intro effect in seconds |
 | `--dry-run` | ❌ | flag | `False` | Run analysis and planning only — skip FFmpeg rendering |
 | `--dry-run-output` | ❌ | `str` | `None` | Write the dry-run plan to a file instead of stdout |
+| `--watch` | ❌ | flag | `False` | Watch input directories and config for changes and incrementally re-render |
 | `--version` | ❌ | flag | — | Display version number and exit |
 
 ### Shorts CLI (`shorts_maker.py`)
@@ -196,6 +197,7 @@ All variables below are **optional** and apply to `make run`, `make run-shorts`,
 | `EXPLAIN` | `0` | Set to `1` to generate a decision explainability log alongside each output |
 | `DRY_RUN` | `0` | Set to `1` to run analysis + planning only — no FFmpeg rendering |
 | `DRY_RUN_OUTPUT` | — | Path to write the dry-run plan to a file instead of stdout |
+| `WATCH` | `0` | Set to `1` to watch input directories and config for changes and incrementally re-render |
 
 **Example — montage with waveform overlay:**
 
@@ -250,6 +252,12 @@ make run AUDIO=song.wav VIDEO_DIR=./clips/ DRY_RUN=1
 
 ```bash
 make run AUDIO=song.wav VIDEO_DIR=./clips/ DRY_RUN=1 DRY_RUN_OUTPUT=plan.txt
+```
+
+**Example — run in watch mode with test mode for fast iterations on configuration:**
+
+```bash
+make run AUDIO=song.wav VIDEO_DIR=./clips/ WATCH=1 TEST_MODE=1
 ```
 
 ---
