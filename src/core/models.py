@@ -294,6 +294,20 @@ class PacingConfig(BaseModel):
         description="Duration of the intro effect in seconds (0.5–3.0 recommended)",
     )
 
+    # Pacing Visual Effects (FEAT-023)
+    pacing_drift_zoom: bool = Field(
+        False,
+        description="Slow 100→105% zoom over each segment (Ken Burns drift)",
+    )
+    pacing_crop_tighten: bool = Field(
+        False,
+        description="Zoom in over first 10s of each segment, caps at 105%",
+    )
+    pacing_saturation_pulse: bool = Field(
+        False,
+        description="Brief saturation surge on each detected beat",
+    )
+
     # Dry-Run Plan Mode (FEAT-026)
     dry_run: bool = Field(
         False,

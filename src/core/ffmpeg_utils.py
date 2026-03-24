@@ -6,6 +6,8 @@ handling, and error formatting used by both MontageGenerator and
 AudioMixer.
 """
 
+from __future__ import annotations
+
 import logging
 import subprocess
 

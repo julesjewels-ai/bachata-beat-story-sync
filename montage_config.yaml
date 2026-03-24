@@ -60,3 +60,8 @@ pacing:
   # Options: 'none', 'bloom' (gaussian reveal), 'vignette_breathe' (spotlight)
   intro_effect: vignette_breathe
   intro_effect_duration: 1.5
+
+  # Pacing visual effects — applied to EVERY segment (FEAT-023)
+  # pacing_drift_zoom: false         # Ken Burns slow zoom drift
+  # pacing_crop_tighten: false       # Zoom-in over first 10s
+  # pacing_saturation_pulse: false   # Beat-synced saturation surge

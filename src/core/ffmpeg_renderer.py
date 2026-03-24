@@ -6,6 +6,8 @@ Extracted from MontageGenerator to separate pure planning logic
 from FFmpeg subprocess orchestration.
 """
 
+from __future__ import annotations
+
 import logging
 import os
 import shutil
@@ -92,11 +94,73 @@ def _build_intro_filters(effect: str, duration: float) -> list[str]:
     return builder(duration)
 
 
+def _build_pacing_filters(
+    config: PacingConfig,
+    seg: SegmentPlan,
+    beat_times: list[float] | None,
+    target_w: int,
+    target_h: int,
+) -> list[str]:
+    """Return VF filter strings for the enabled pacing effects (FEAT-023).
+
+    Args:
+        config: Current pacing configuration.
+        seg: The segment being extracted (for timeline position / duration).
+        beat_times: Global beat timestamps from audio analysis.
+        target_w: Target output width.
+        target_h: Target output height.
+
+    Returns:
+        List of FFmpeg VF filter strings, empty when no effects are active.
+    """
+    filters: list[str] = []
+
+    if config.pacing_drift_zoom:
+        # Ken Burns — slow 100→105% drift over the segment.
+        # zoompan needs explicit size; d=1 means 1 output frame per input.
+        filters.append(
+            f"zoompan=z='1+0.0025*in':d=1:s={target_w}x{target_h}"
+        )
+
+    if config.pacing_crop_tighten and not config.pacing_drift_zoom:
+        # Mutually exclusive with drift_zoom — both use zoompan and
+        # chaining two zoompan filters produces broken output.
+        # Zoom in over ~10s (300 frames @30fps), cap at 105%.
+        filters.append(
+            f"zoompan=z='if(lt(in,300),1+0.005*(in/30),1.05)'"
+            f":d=1:s={target_w}x{target_h}"
+        )
+
+    if config.pacing_saturation_pulse and beat_times:
+        # Build a beat-relative pulse expression.
+        # For each beat inside this segment's window, emit a brief
+        # +0.3 saturation bump that decays over 0.15s.
+        seg_start = seg.timeline_position
+        seg_end = seg_start + seg.duration
+        local_beats = [
+            bt - seg_start
+            for bt in beat_times
+            if seg_start <= bt < seg_end
+        ]
+        if local_beats:
+            # Cap at 16 terms to keep the FFmpeg expression under the
+            # command-line length limit.  A typical 5s segment at 130 BPM
+            # yields ~10 beats, so this is generous.
+            terms = [
+                f"max(0,1-(t-{b:.3f})/0.15)" for b in local_beats[:16]
+            ]
+            pulse_expr = "+".join(terms)
+            filters.append(f"eq=saturation='1+0.3*({pulse_expr})'")
+
+    return filters
+
+
 def extract_segments(
     segments: list[SegmentPlan],
     temp_dir: str,
     config: PacingConfig,
     observer: ProgressObserver | None = None,
+    beat_times: list[float] | None = None,
 ) -> list[str]:
     """
     Extract each segment from its source video using FFmpeg.
@@ -170,6 +234,11 @@ def extract_segments(
             vf_parts.extend(
                 _build_intro_filters(config.intro_effect, config.intro_effect_duration)
             )
+
+        # Pacing Visual Effects — all segments (FEAT-023)
+        vf_parts.extend(
+            _build_pacing_filters(config, seg, beat_times, t_width, t_height)
+        )
 
         # Video Style Filter (FEAT-012)
         style_vf = _VIDEO_STYLE_FILTERS.get(config.video_style, "")

@@ -1929,3 +1929,172 @@ class TestShortsOpenerScoring:
         )
         # Higher intensity_score first
         assert sorted_clips[0].path == "/videos/high_int.mp4"
+
+
+class TestPacingEffects:
+    """Tests for FEAT-023: Pacing Visual Effects (drift zoom, crop tighten, saturation pulse)."""
+
+    @staticmethod
+    def _audio_for_test(beats: int = 10) -> AudioAnalysisResult:
+        """Helper returning simple audio data with the given number of beats."""
+        return AudioAnalysisResult(
+            filename="pacing_test.wav",
+            bpm=120.0,
+            duration=beats * 0.5,
+            peaks=[],
+            sections=[],
+            beat_times=[float(i) * 0.5 for i in range(beats)],
+            intensity_curve=[0.5] * beats,
+        )
+
+    @staticmethod
+    def _clips_for_test() -> list[VideoAnalysisResult]:
+        return [
+            VideoAnalysisResult(
+                path="/videos/clip1.mp4",
+                intensity_score=0.5,
+                duration=30.0,
+                thumbnail_data=None,
+            ),
+        ]
+
+    @patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")
+    @patch("src.core.ffmpeg_renderer.run_ffmpeg")
+    @patch("src.core.montage.tempfile.mkdtemp")
+    @patch("src.core.montage.shutil.rmtree")
+    @patch("src.core.montage.os.path.exists", return_value=True)
+    def test_drift_zoom_filter_in_extraction(
+        self, mock_exists, mock_rmtree, mock_mkdtemp, mock_run, mock_which, tmp_path,
+    ):
+        """pacing_drift_zoom adds zoompan with '1+0.0025*in' to extraction calls."""
+        temp_dir = str(tmp_path / "montage_temp")
+        os.makedirs(temp_dir, exist_ok=True)
+        mock_mkdtemp.return_value = temp_dir
+        mock_run.return_value = MagicMock(returncode=0, stderr="")
+
+        config = PacingConfig(pacing_drift_zoom=True)
+        MontageGenerator().generate(
+            self._audio_for_test(), self._clips_for_test(),
+            str(tmp_path / "out.mp4"), audio_path="/audio/song.wav", pacing=config,
+        )
+
+        found = False
+        for call_args in mock_run.call_args_list:
+            cmd = call_args[0][0] if call_args[0] else call_args[1].get("cmd", [])
+            cmd_str = " ".join(str(c) for c in cmd)
+            if "-ss" in cmd_str and "zoompan" in cmd_str:
+                assert "1+0.0025*in" in cmd_str
+                found = True
+        assert found, "Expected zoompan drift zoom filter in FFmpeg extraction call"
+
+    @patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")
+    @patch("src.core.ffmpeg_renderer.run_ffmpeg")
+    @patch("src.core.montage.tempfile.mkdtemp")
+    @patch("src.core.montage.shutil.rmtree")
+    @patch("src.core.montage.os.path.exists", return_value=True)
+    def test_crop_tighten_filter_in_extraction(
+        self, mock_exists, mock_rmtree, mock_mkdtemp, mock_run, mock_which, tmp_path,
+    ):
+        """pacing_crop_tighten adds zoompan with the tighten expression."""
+        temp_dir = str(tmp_path / "montage_temp")
+        os.makedirs(temp_dir, exist_ok=True)
+        mock_mkdtemp.return_value = temp_dir
+        mock_run.return_value = MagicMock(returncode=0, stderr="")
+
+        config = PacingConfig(pacing_crop_tighten=True)
+        MontageGenerator().generate(
+            self._audio_for_test(), self._clips_for_test(),
+            str(tmp_path / "out.mp4"), audio_path="/audio/song.wav", pacing=config,
+        )
+
+        found = False
+        for call_args in mock_run.call_args_list:
+            cmd = call_args[0][0] if call_args[0] else call_args[1].get("cmd", [])
+            cmd_str = " ".join(str(c) for c in cmd)
+            if "-ss" in cmd_str and "zoompan" in cmd_str:
+                assert "1+0.005*(in/30)" in cmd_str
+                found = True
+        assert found, "Expected zoompan crop-tighten filter in FFmpeg extraction call"
+
+    @patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")
+    @patch("src.core.ffmpeg_renderer.run_ffmpeg")
+    @patch("src.core.montage.tempfile.mkdtemp")
+    @patch("src.core.montage.shutil.rmtree")
+    @patch("src.core.montage.os.path.exists", return_value=True)
+    def test_saturation_pulse_filter_in_extraction(
+        self, mock_exists, mock_rmtree, mock_mkdtemp, mock_run, mock_which, tmp_path,
+    ):
+        """pacing_saturation_pulse adds eq=saturation= to extraction calls."""
+        temp_dir = str(tmp_path / "montage_temp")
+        os.makedirs(temp_dir, exist_ok=True)
+        mock_mkdtemp.return_value = temp_dir
+        mock_run.return_value = MagicMock(returncode=0, stderr="")
+
+        config = PacingConfig(pacing_saturation_pulse=True)
+        MontageGenerator().generate(
+            self._audio_for_test(), self._clips_for_test(),
+            str(tmp_path / "out.mp4"), audio_path="/audio/song.wav", pacing=config,
+        )
+
+        found = False
+        for call_args in mock_run.call_args_list:
+            cmd = call_args[0][0] if call_args[0] else call_args[1].get("cmd", [])
+            cmd_str = " ".join(str(c) for c in cmd)
+            if "-ss" in cmd_str and "eq=saturation=" in cmd_str:
+                found = True
+        assert found, "Expected eq=saturation= filter in FFmpeg extraction call"
+
+    def test_pacing_effects_disabled_by_default(self):
+        """Default PacingConfig produces no pacing filter strings."""
+        from src.core.ffmpeg_renderer import _build_pacing_filters
+        from src.core.models import SegmentPlan
+
+        seg = SegmentPlan(
+            video_path="/v/a.mp4", start_time=0, duration=3,
+            timeline_position=0, intensity_level="medium",
+        )
+        config = PacingConfig()
+        filters = _build_pacing_filters(config, seg, [0.5, 1.0, 1.5], 1920, 1080)
+        assert filters == [], "Default config should produce no pacing filters"
+
+    @patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")
+    @patch("src.core.ffmpeg_renderer.run_ffmpeg")
+    @patch("src.core.montage.tempfile.mkdtemp")
+    @patch("src.core.montage.shutil.rmtree")
+    @patch("src.core.montage.os.path.exists", return_value=True)
+    def test_multiple_pacing_effects_stacked(
+        self, mock_exists, mock_rmtree, mock_mkdtemp, mock_run, mock_which, tmp_path,
+    ):
+        """drift_zoom takes precedence over crop_tighten (both use zoompan); saturation_pulse stacks."""
+        temp_dir = str(tmp_path / "montage_temp")
+        os.makedirs(temp_dir, exist_ok=True)
+        mock_mkdtemp.return_value = temp_dir
+        mock_run.return_value = MagicMock(returncode=0, stderr="")
+
+        config = PacingConfig(
+            pacing_drift_zoom=True,
+            pacing_crop_tighten=True,
+            pacing_saturation_pulse=True,
+        )
+        MontageGenerator().generate(
+            self._audio_for_test(), self._clips_for_test(),
+            str(tmp_path / "out.mp4"), audio_path="/audio/song.wav", pacing=config,
+        )
+
+        found_drift = False
+        found_tighten = False
+        found_sat = False
+        for call_args in mock_run.call_args_list:
+            cmd = call_args[0][0] if call_args[0] else call_args[1].get("cmd", [])
+            cmd_str = " ".join(str(c) for c in cmd)
+            if "-ss" in cmd_str:
+                if "1+0.0025*in" in cmd_str:
+                    found_drift = True
+                if "1+0.005*(in/30)" in cmd_str:
+                    found_tighten = True
+                if "eq=saturation=" in cmd_str:
+                    found_sat = True
+
+        assert found_drift, "Expected drift zoom filter"
+        assert not found_tighten, "crop_tighten should be skipped when drift_zoom is active"
+        assert found_sat, "Expected saturation pulse filter"

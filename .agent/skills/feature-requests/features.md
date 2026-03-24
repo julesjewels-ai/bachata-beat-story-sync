@@ -85,7 +85,7 @@ Add configurable padding (margins) to the waveform / bars overlay so it doesn't 
 
 | Field        | Value                                                |
 |--------------|------------------------------------------------------|
-| **Status**   | `PROPOSED`                                           |
+| **Status**   | `IMPLEMENTED`                                        |
 | **Priority** | 🟡 Medium                                            |
 | **Effort**   | Low                                                  |
 | **Impact**   | Medium — adds cinematic motion and energy             |

@@ -1,5 +1,7 @@
 """Montage generation engine — FEAT-001 through FEAT-013, FEAT-019, FEAT-020, FEAT-025."""
 
+from __future__ import annotations
+
 import bisect
 import hashlib
 import logging
@@ -698,7 +700,10 @@ class MontageGenerator:
 
         try:
             # 2. Extract segments (one FFmpeg process at a time)
-            segment_files = extract_segments(segments, temp_dir, config, observer)
+            segment_files = extract_segments(
+                segments, temp_dir, config, observer,
+                beat_times=audio_data.beat_times,
+            )
 
             # 3. Group-and-transition or simple concat
             transitions_enabled = (

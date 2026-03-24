@@ -117,6 +117,12 @@ def build_pacing_kwargs(args: argparse.Namespace) -> dict:
         kwargs["intro_effect_duration"] = args.intro_effect_duration
     if getattr(args, "dry_run", False):
         kwargs["dry_run"] = True
+    if getattr(args, "pacing_drift_zoom", False):
+        kwargs["pacing_drift_zoom"] = True
+    if getattr(args, "pacing_crop_tighten", False):
+        kwargs["pacing_crop_tighten"] = True
+    if getattr(args, "pacing_saturation_pulse", False):
+        kwargs["pacing_saturation_pulse"] = True
 
     return kwargs
 
@@ -216,6 +222,27 @@ def add_visual_args(parser: argparse.ArgumentParser) -> None:
         type=str,
         default=None,
         help="Write dry-run plan to a file instead of stdout",
+    )
+
+    # Pacing Visual Effects (FEAT-023)
+    parser.add_argument(
+        "--pacing-drift-zoom",
+        action="store_true",
+        default=False,
+        help="Slow 100→105% Ken Burns zoom drift on every segment",
+    )
+    parser.add_argument(
+        "--pacing-crop-tighten",
+        action="store_true",
+        default=False,
+        help="Zoom in over first 10s of each segment (caps at 105%); "
+        "mutually exclusive with --pacing-drift-zoom (both use zoompan)",
+    )
+    parser.add_argument(
+        "--pacing-saturation-pulse",
+        action="store_true",
+        default=False,
+        help="Brief saturation surge on each detected beat",
     )
 
     # Structured JSON Output (FEAT-028)
