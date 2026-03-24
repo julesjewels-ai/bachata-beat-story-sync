@@ -16,6 +16,7 @@ from src.cli_utils import (
     build_pacing_kwargs,
     generate_shorts_batch,
     parse_duration,
+    run_dry_run_handler,
     strip_thumbnails,
 )
 from src.core.app import BachataSyncEngine
@@ -66,10 +67,18 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
-    logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-    )
     args = parse_args()
+
+    # FEAT-028: Route logs to stderr when JSON goes to stdout
+    log_stream = {}
+    if getattr(args, "output_json", None) == "-":
+        log_stream["stream"] = sys.stderr
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        **log_stream,
+    )
 
     min_dur, max_dur = parse_duration(args.duration)
 
@@ -99,22 +108,22 @@ def main() -> None:
         # 3. Generate Shorts (delegate to shared function)
         pacing_kwargs = build_pacing_kwargs(args)
 
-        # FEAT-026: Dry-run — preview plan without rendering
+        # FEAT-026 + FEAT-028: Dry-run — preview plan without rendering.
+        # Logic lives in cli_utils.run_dry_run_handler to avoid duplication
+        # with pipeline.py.
         if pacing_kwargs.get("dry_run"):
-            from src.core.models import PacingConfig
-            from src.services.plan_report import format_plan_report, write_plan_report
-            dry_pacing = PacingConfig(
-                **{**pacing_kwargs, "is_shorts": True}
+            run_dry_run_handler(
+                engine,
+                audio_meta,
+                montage_clips,
+                pacing_kwargs,
+                dry_run_output=getattr(args, "dry_run_output", None),
+                output_json=getattr(args, "output_json", None),
+                pacing_is_shorts=True,
             )
-            segments = engine.plan_story(
-                audio_meta, montage_clips, pacing=dry_pacing,
-            )
-            report = format_plan_report(
-                audio_meta, segments, montage_clips, dry_pacing,
-            )
-            write_plan_report(report, getattr(args, "dry_run_output", None))
             logger.info("Dry-run complete — no shorts rendered.")
             return
+
 
         results = generate_shorts_batch(
             engine,
@@ -137,6 +146,17 @@ def main() -> None:
             len(results),
             args.output_dir,
         )
+
+        # FEAT-028: Emit structured JSON output
+        if getattr(args, "output_json", None):
+            from src.services.json_output import build_json_output, write_json_output
+            from src.core.models import PacingConfig as _PC
+            data = build_json_output(
+                audio_meta, montage_clips, None,
+                _PC(**{**pacing_kwargs, "is_shorts": True}),
+            )
+            data["shorts"] = results
+            write_json_output(data, args.output_json)
 
     except ValidationError as e:
         logger.error("Input validation error: %s", e)

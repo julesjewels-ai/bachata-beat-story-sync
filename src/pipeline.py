@@ -27,6 +27,7 @@ from src.cli_utils import (
     detect_broll_dir,
     generate_shorts_batch,
     parse_duration,
+    run_dry_run_handler,
     strip_thumbnails,
 )
 from src.core.app import BachataSyncEngine
@@ -183,10 +184,16 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
 
+    # FEAT-028: Route logs to stderr when JSON goes to stdout
+    log_kwargs = {}
+    if getattr(args, "output_json", None) == "-":
+        log_kwargs["stream"] = sys.stderr
+
     # Configure standard logging (for internal debug messages only)
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.WARNING,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        **log_kwargs,
     )
 
     log = PipelineLogger(quiet=args.quiet)
@@ -264,12 +271,11 @@ def main() -> None:
             log.step(clip_msg)
 
         # ----------------------------------------------------------
-        # 4b. FEAT-026: Dry-run — plan-only, skip all rendering
+        # 4b. FEAT-026 + FEAT-028: Dry-run — plan-only, skip all rendering.
+        # Logic delegated to cli_utils.run_dry_run_handler to avoid
+        # duplication with shorts_maker.py.
         # ----------------------------------------------------------
         if pacing_kwargs.get("dry_run"):
-            from src.core.models import PacingConfig
-            from src.services.plan_report import format_plan_report, write_plan_report
-
             reports: list[str] = []
 
             # Plan for mix
@@ -280,17 +286,16 @@ def main() -> None:
                 clips_for_mix = shared_clips if args.shared_scan else _scan_videos(
                     engine, args.video_dir, broll_dir
                 )[0]
-                mix_pacing = PacingConfig(**pacing_kwargs)
-                mix_segments = engine.plan_story(
-                    mix_meta, strip_thumbnails(clips_for_mix), pacing=mix_pacing,
+                report = run_dry_run_handler(
+                    engine,
+                    mix_meta,
+                    clips_for_mix,
+                    pacing_kwargs,
+                    dry_run_output=None,  # collect; write combined below
+                    output_json=getattr(args, "output_json", None),
+                    report_prefix="=== Mix ===\n",
                 )
-                reports.append(
-                    "=== Mix ===\n"
-                    + format_plan_report(
-                        mix_meta, mix_segments,
-                        strip_thumbnails(clips_for_mix), mix_pacing,
-                    )
-                )
+                reports.append(report)
 
             # Plan per track
             for idx, track_path in enumerate(individual_tracks, start=1):
@@ -301,25 +306,24 @@ def main() -> None:
                 clips_for_track = shared_clips if args.shared_scan else _scan_videos(
                     engine, args.video_dir, broll_dir
                 )[0]
-                track_pacing = PacingConfig(
-                    **{**pacing_kwargs, "prefix_offset": idx - 1}
+                track_pacing_kwargs = {**pacing_kwargs, "prefix_offset": idx - 1}
+                report = run_dry_run_handler(
+                    engine,
+                    track_meta,
+                    clips_for_track,
+                    track_pacing_kwargs,
+                    dry_run_output=None,  # collect; write combined below
+                    output_json=getattr(args, "output_json", None) if not reports else None,
+                    report_prefix=f"=== Track {idx}: {track_name} ===\n",
                 )
-                track_segments = engine.plan_story(
-                    track_meta, strip_thumbnails(clips_for_track),
-                    pacing=track_pacing,
-                )
-                reports.append(
-                    f"=== Track {idx}: {track_name} ===\n"
-                    + format_plan_report(
-                        track_meta, track_segments,
-                        strip_thumbnails(clips_for_track), track_pacing,
-                    )
-                )
+                reports.append(report)
 
-            combined = "\n\n".join(reports)
+            from src.services.plan_report import write_plan_report  # noqa: WPS433
             write_plan_report(
-                combined, getattr(args, "dry_run_output", None),
+                "\n\n".join(reports),
+                getattr(args, "dry_run_output", None),
             )
+
             log.step("Dry-run complete — no videos rendered.")
             return
 
@@ -434,6 +438,18 @@ def main() -> None:
             summary_lines.append(f"  {f}")
         with open(summary_path, "w") as fh:
             fh.write("\n".join(summary_lines) + "\n")
+
+        # FEAT-028: Emit structured JSON output
+        if getattr(args, "output_json", None):
+            from src.services.json_output import build_json_output, write_json_output
+            data = build_json_output(
+                mix_meta if not args.skip_mix else track_meta,
+                strip_thumbnails(clips) if clips else [],
+                None,
+                PacingConfig(**pacing_kwargs),
+            )
+            data["generated_files"] = generated_files
+            write_json_output(data, args.output_json)
 
     except FileNotFoundError as e:
         log.error(

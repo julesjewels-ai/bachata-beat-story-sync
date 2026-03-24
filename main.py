@@ -84,11 +84,18 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    args = parse_args()
+
+    # FEAT-028: Route logs to stderr when JSON goes to stdout
+    log_stream = {}
+    if getattr(args, "output_json", None) == "-":
+        log_stream["stream"] = sys.stderr
+
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s'
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        **log_stream,
     )
-    args = parse_args()
 
     logger = logging.getLogger(__name__)
     logger.info("Starting Bachata Beat-Story Sync...")
@@ -158,6 +165,15 @@ def main() -> None:
             from src.services.plan_report import format_plan_report, write_plan_report
             report = format_plan_report(audio_meta, segments, montage_clips, pacing)
             write_plan_report(report, getattr(args, "dry_run_output", None))
+
+            # FEAT-028: Emit JSON alongside dry-run
+            if getattr(args, "output_json", None):
+                from src.services.json_output import build_json_output, write_json_output
+                data = build_json_output(
+                    audio_meta, video_clips, segments, pacing,
+                )
+                write_json_output(data, args.output_json)
+
             logger.info("Dry-run complete — no video rendered.")
             return
 
@@ -169,6 +185,14 @@ def main() -> None:
             )
         del montage_clips  # free immediately
         logger.info("Process complete. Output saved to: %s", result_path)
+
+        # FEAT-028: Emit structured JSON output
+        if getattr(args, "output_json", None):
+            from src.services.json_output import build_json_output, write_json_output
+            data = build_json_output(
+                audio_meta, video_clips, None, pacing, result_path,
+            )
+            write_json_output(data, args.output_json)
 
         # 4. Generate Report
         if args.export_report:

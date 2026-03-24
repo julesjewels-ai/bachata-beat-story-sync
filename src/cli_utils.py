@@ -218,6 +218,15 @@ def add_visual_args(parser: argparse.ArgumentParser) -> None:
         help="Write dry-run plan to a file instead of stdout",
     )
 
+    # Structured JSON Output (FEAT-028)
+    parser.add_argument(
+        "--output-json",
+        type=str,
+        default=None,
+        metavar="PATH",
+        help="Emit structured JSON output to a file or '-' for stdout",
+    )
+
 
 def add_shorts_args(parser: argparse.ArgumentParser) -> None:
     """Register the shorts-specific arguments.
@@ -314,6 +323,58 @@ def strip_thumbnails(clips: list) -> list:
         New list with thumbnail data cleared on each clip.
     """
     return [clip.model_copy(update={"thumbnail_data": None}) for clip in clips]
+
+
+# ------------------------------------------------------------------
+# Shared dry-run handler
+# ------------------------------------------------------------------
+
+
+def run_dry_run_handler(
+    engine,
+    audio_meta,
+    clips: list,
+    pacing_kwargs: dict,
+    *,
+    dry_run_output: str | None,
+    output_json: str | None,
+    pacing_is_shorts: bool = False,
+    report_prefix: str = "",
+) -> str:
+    """Plan-only mode: emit the segment plan report without rendering video.
+
+    Extracted from ``shorts_maker.py`` and ``pipeline.py`` to keep the
+    dry-run + JSON-output logic in one place.
+
+    Args:
+        engine: A ``BachataSyncEngine`` instance.
+        audio_meta: ``AudioAnalysisResult`` for the audio track.
+        clips: Pre-stripped list of ``VideoAnalysisResult`` clips.
+        pacing_kwargs: Base pacing overrides (from ``build_pacing_kwargs``).
+        dry_run_output: Path to write the plan report, or ``None`` for stdout.
+        output_json: Path to write JSON output (or ``'-'`` for stdout), or ``None``.
+        pacing_is_shorts: When ``True``, sets ``is_shorts=True`` on PacingConfig.
+        report_prefix: Optional heading prepended to the plan text (e.g. ``"=== Mix ===\\n"``).
+
+    Returns:
+        The formatted plan report string.
+    """
+    from src.core.models import PacingConfig  # noqa: WPS433
+    from src.services.plan_report import format_plan_report, write_plan_report  # noqa: WPS433
+
+    pacing = PacingConfig(**{**pacing_kwargs, "is_shorts": pacing_is_shorts})
+    segments = engine.plan_story(audio_meta, clips, pacing=pacing)
+    report = format_plan_report(audio_meta, segments, clips, pacing)
+    full_report = (report_prefix + report) if report_prefix else report
+    write_plan_report(full_report, dry_run_output)
+
+    if output_json:
+        from src.services.json_output import build_json_output, write_json_output  # noqa: WPS433
+
+        data = build_json_output(audio_meta, clips, segments, pacing)
+        write_json_output(data, output_json)
+
+    return full_report
 
 
 # ------------------------------------------------------------------

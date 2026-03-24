@@ -3,8 +3,10 @@ Data Transfer Objects (DTOs) for Bachata Beat-Story Sync.
 These models define the strict contracts for data exchange between layers.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -68,7 +70,7 @@ class VideoAnalysisResult(BaseModel):
     is_vertical: bool = Field(
         False, description="Whether the video is vertical (height > width)"
     )
-    thumbnail_data: bytes | None = Field(
+    thumbnail_data: Optional[bytes] = Field(
         None, description="Binary data of the video thumbnail (PNG format)"
     )
     scene_changes: list[float] = Field(
@@ -102,7 +104,7 @@ class SegmentPlan(BaseModel):
     speed_factor: float = Field(
         1.0, description="Playback speed multiplier (>1 = fast, <1 = slow-mo)"
     )
-    section_label: str | None = Field(
+    section_label: Optional[str] = Field(
         None,
         description="Musical section this segment belongs to"
         " (e.g. 'intro', 'high_energy')",
@@ -116,7 +118,7 @@ class SegmentDecision:
     timeline_start: float
     clip_path: str
     intensity_score: float
-    section_label: str | None
+    section_label: Optional[str]
     duration: float
     speed: float
     reason: str
@@ -173,10 +175,10 @@ class PacingConfig(BaseModel):
     low_intensity_speed: float = Field(
         0.9, description="Speed multiplier for low-intensity clips (<1 = slow-mo)"
     )
-    max_clips: int | None = Field(
+    max_clips: Optional[int] = Field(
         None, description="Maximum number of clip segments (None = unlimited)"
     )
-    max_duration_seconds: float | None = Field(
+    max_duration_seconds: Optional[float] = Field(
         None, description="Maximum total montage duration in seconds (None = unlimited)"
     )
 
@@ -299,7 +301,7 @@ class PacingConfig(BaseModel):
     )
 
     # Genre Preset (FEAT-027)
-    genre: str | None = Field(
+    genre: Optional[str] = Field(
         None,
         description="Genre preset name (e.g. 'bachata', 'salsa', 'reggaeton'). "
         "Applies tuned defaults; explicit field values still override.",
