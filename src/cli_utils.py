@@ -66,8 +66,7 @@ def parse_duration(duration_str: str) -> tuple[float, float]:
         return val, val
     except ValueError:
         raise argparse.ArgumentTypeError(
-            f"Invalid duration format: '{duration_str}'."
-            " Use '60' or '10-15'."
+            f"Invalid duration format: '{duration_str}'. Use '60' or '10-15'."
         ) from None
 
 
@@ -95,34 +94,34 @@ def build_pacing_kwargs(args: argparse.Namespace) -> dict:
         kwargs["max_clips"] = 4
         kwargs["max_duration_seconds"] = 10.0
 
-    if getattr(args, "genre", None):
-        kwargs["genre"] = args.genre
-    if getattr(args, "video_style", None):
-        kwargs["video_style"] = args.video_style
-    if getattr(args, "audio_overlay", None):
-        kwargs["audio_overlay"] = args.audio_overlay
-    if getattr(args, "audio_overlay_opacity", None) is not None:
-        kwargs["audio_overlay_opacity"] = args.audio_overlay_opacity
-    if getattr(args, "audio_overlay_position", None):
-        kwargs["audio_overlay_position"] = args.audio_overlay_position
-    if getattr(args, "broll_interval", None) is not None:
-        kwargs["broll_interval_seconds"] = args.broll_interval
-    if getattr(args, "broll_variance", None) is not None:
-        kwargs["broll_interval_variance"] = args.broll_variance
-    if getattr(args, "explain", False):
-        kwargs["explain"] = True
-    if getattr(args, "intro_effect", None):
-        kwargs["intro_effect"] = args.intro_effect
-    if getattr(args, "intro_effect_duration", None) is not None:
-        kwargs["intro_effect_duration"] = args.intro_effect_duration
-    if getattr(args, "dry_run", False):
-        kwargs["dry_run"] = True
-    if getattr(args, "pacing_drift_zoom", False):
-        kwargs["pacing_drift_zoom"] = True
-    if getattr(args, "pacing_crop_tighten", False):
-        kwargs["pacing_crop_tighten"] = True
-    if getattr(args, "pacing_saturation_pulse", False):
-        kwargs["pacing_saturation_pulse"] = True
+    # Map of argparse attribute names to PacingConfig keys
+    attr_map = {
+        "genre": "genre",
+        "video_style": "video_style",
+        "audio_overlay": "audio_overlay",
+        "audio_overlay_opacity": "audio_overlay_opacity",
+        "audio_overlay_position": "audio_overlay_position",
+        "broll_interval": "broll_interval_seconds",
+        "broll_variance": "broll_interval_variance",
+        "intro_effect": "intro_effect",
+        "intro_effect_duration": "intro_effect_duration",
+    }
+    for arg_attr, config_key in attr_map.items():
+        val = getattr(args, arg_attr, None)
+        if val is not None:
+            kwargs[config_key] = val
+
+    # Boolean flags
+    flags = [
+        "explain",
+        "dry_run",
+        "pacing_drift_zoom",
+        "pacing_crop_tighten",
+        "pacing_saturation_pulse",
+    ]
+    for flag in flags:
+        if getattr(args, flag, False):
+            kwargs[flag] = True
 
     return kwargs
 
@@ -387,7 +386,10 @@ def run_dry_run_handler(
         The formatted plan report string.
     """
     from src.core.models import PacingConfig  # noqa: WPS433
-    from src.services.plan_report import format_plan_report, write_plan_report  # noqa: WPS433
+    from src.services.plan_report import (  # noqa: WPS433
+        format_plan_report,
+        write_plan_report,
+    )
 
     pacing = PacingConfig(**{**pacing_kwargs, "is_shorts": pacing_is_shorts})
     segments = engine.plan_story(audio_meta, clips, pacing=pacing)
@@ -396,7 +398,10 @@ def run_dry_run_handler(
     write_plan_report(full_report, dry_run_output)
 
     if output_json:
-        from src.services.json_output import build_json_output, write_json_output  # noqa: WPS433
+        from src.services.json_output import (  # noqa: WPS433
+            build_json_output,
+            write_json_output,
+        )
 
         data = build_json_output(audio_meta, clips, segments, pacing)
         write_json_output(data, output_json)
@@ -486,7 +491,10 @@ def generate_shorts_batch(
 
         logger.info(
             "Short %d/%d (%.0fs, hook@%.1fs)",
-            i + 1, count, target_duration, hook_offset,
+            i + 1,
+            count,
+            target_duration,
+            hook_offset,
         )
         with RichProgressObserver() as obs:
             result = engine.generate_story(
