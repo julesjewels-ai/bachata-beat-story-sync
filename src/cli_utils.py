@@ -86,6 +86,10 @@ def build_pacing_kwargs(args: argparse.Namespace) -> dict:
         dry_run, pacing_drift_zoom, pacing_crop_tighten,
         pacing_saturation_pulse.
 
+    All padding values are integers (pixels ≥ 0). All opacity values are
+    floats clamped to 0.0–1.0 by the renderer. Unrecognised/missing
+    attributes are silently ignored via ``getattr`` with a safe default.
+
     Args:
         args: Parsed argparse.Namespace from any entry point.
 

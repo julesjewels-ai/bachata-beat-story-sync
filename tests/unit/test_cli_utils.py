@@ -38,31 +38,46 @@ class TestParseDuration:
 
 class TestBuildPacingKwargs:
     def test_empty_args(self):
-        args = MagicMock()
-        args.test_mode = False
-        args.video_style = None
-        args.audio_overlay = None
-        args.audio_overlay_opacity = None
-        args.audio_overlay_position = None
-        args.audio_overlay_padding = None
-        args.broll_interval = None
-        args.broll_variance = None
-        args.explain = False
-        args.intro_effect = None
-        args.intro_effect_duration = None
+        args = argparse.Namespace(
+            test_mode=False,
+            genre=None,
+            video_style=None,
+            audio_overlay=None,
+            audio_overlay_opacity=None,
+            audio_overlay_position=None,
+            audio_overlay_padding=None,
+            broll_interval=None,
+            broll_variance=None,
+            explain=False,
+            intro_effect=None,
+            intro_effect_duration=None,
+            dry_run=False,
+            pacing_drift_zoom=False,
+            pacing_crop_tighten=False,
+            pacing_saturation_pulse=False,
+        )
         result = build_pacing_kwargs(args)
         assert result == {}
 
     def test_test_mode(self):
-        args = MagicMock()
-        args.test_mode = True
-        args.video_style = None
-        args.audio_overlay = None
-        args.audio_overlay_opacity = None
-        args.audio_overlay_position = None
-        args.audio_overlay_padding = None
-        args.broll_interval = None
-        args.broll_variance = None
+        args = argparse.Namespace(
+            test_mode=True,
+            genre=None,
+            video_style=None,
+            audio_overlay=None,
+            audio_overlay_opacity=None,
+            audio_overlay_position=None,
+            audio_overlay_padding=None,
+            broll_interval=None,
+            broll_variance=None,
+            explain=False,
+            intro_effect=None,
+            intro_effect_duration=None,
+            dry_run=False,
+            pacing_drift_zoom=False,
+            pacing_crop_tighten=False,
+            pacing_saturation_pulse=False,
+        )
         result = build_pacing_kwargs(args)
         assert result["max_clips"] == 4
         assert result["max_duration_seconds"] == 10.0
