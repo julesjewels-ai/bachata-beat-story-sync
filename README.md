@@ -44,6 +44,7 @@ An automated video editing tool that analyzes Bachata audio tracks (`.wav` / `.m
 | Section-Aware Transitions / xfade (FEAT-011) | ✅ |
 | Video Style / Color Grading (FEAT-012) | ✅ |
 | Audio-Reactive Visualizer Overlay (FEAT-013) | ✅ |
+| Waveform Overlay Padding / Margins (FEAT-021) | ✅ |
 | Full Pipeline Orchestrator (FEAT-014) | ✅ |
 | YouTube Shorts Batch Generator (FEAT-015) | ✅ |
 | Audio Track Mixing with Crossfades | ✅ |

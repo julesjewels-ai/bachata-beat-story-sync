@@ -51,7 +51,7 @@ The following features are fully implemented and archived. See [`archive/complet
 
 | Field        | Value                                                |
 |--------------|------------------------------------------------------|
-| **Status**   | `PROPOSED`                                           |
+| **Status**   | `VERIFIED`                                           |
 | **Priority** | 🟢 Low                                                |
 | **Effort**   | Low                                                  |
 | **Impact**   | Low–Medium — visual polish for the audio overlay     |

@@ -55,6 +55,7 @@ pacing:
   # audio_overlay: none
   # audio_overlay_opacity: 0.5
   # audio_overlay_position: right
+  # audio_overlay_padding: 10  # Distance in pixels from screen edge (default: 10, min: 0)
 
   # Intro effect — applies to the first segment only (FEAT-022)
   # Options: 'none', 'bloom' (gaussian reveal), 'vignette_breathe' (spotlight)

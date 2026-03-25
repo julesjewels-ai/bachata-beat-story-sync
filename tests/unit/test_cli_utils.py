@@ -44,6 +44,7 @@ class TestBuildPacingKwargs:
         args.audio_overlay = None
         args.audio_overlay_opacity = None
         args.audio_overlay_position = None
+        args.audio_overlay_padding = None
         args.broll_interval = None
         args.broll_variance = None
         args.explain = False
@@ -59,6 +60,7 @@ class TestBuildPacingKwargs:
         args.audio_overlay = None
         args.audio_overlay_opacity = None
         args.audio_overlay_position = None
+        args.audio_overlay_padding = None
         args.broll_interval = None
         args.broll_variance = None
         result = build_pacing_kwargs(args)
@@ -72,6 +74,7 @@ class TestBuildPacingKwargs:
         args.audio_overlay = "waveform"
         args.audio_overlay_opacity = 0.8
         args.audio_overlay_position = "center"
+        args.audio_overlay_padding = 20
         args.broll_interval = None
         args.broll_variance = None
         result = build_pacing_kwargs(args)
@@ -79,6 +82,7 @@ class TestBuildPacingKwargs:
         assert result["audio_overlay"] == "waveform"
         assert result["audio_overlay_opacity"] == 0.8
         assert result["audio_overlay_position"] == "center"
+        assert result["audio_overlay_padding"] == 20
 
     def test_broll_interval_args(self):
         args = MagicMock()
@@ -87,6 +91,7 @@ class TestBuildPacingKwargs:
         args.audio_overlay = None
         args.audio_overlay_opacity = None
         args.audio_overlay_position = None
+        args.audio_overlay_padding = None
         args.broll_interval = 20.0
         args.broll_variance = 3.0
         result = build_pacing_kwargs(args)
@@ -108,6 +113,7 @@ class TestAddVisualArgs:
         assert ns.audio_overlay is None
         assert ns.audio_overlay_opacity is None
         assert ns.audio_overlay_position is None
+        assert ns.audio_overlay_padding is None
         assert ns.broll_interval is None
         assert ns.broll_variance is None
 
@@ -118,10 +124,12 @@ class TestAddVisualArgs:
             "--video-style", "warm",
             "--audio-overlay", "bars",
             "--audio-overlay-position", "center",
+            "--audio-overlay-padding", "30",
         ])
         assert ns.video_style == "warm"
         assert ns.audio_overlay == "bars"
         assert ns.audio_overlay_position == "center"
+        assert ns.audio_overlay_padding == 30
 
     def test_rejects_invalid_video_style(self):
         parser = argparse.ArgumentParser()

@@ -80,8 +80,11 @@ def build_pacing_kwargs(args: argparse.Namespace) -> dict:
     constructing a ``PacingConfig``.
 
     Supported attributes on *args* (all optional):
-        test_mode, video_style, audio_overlay, audio_overlay_opacity,
-        audio_overlay_position, broll_interval, broll_variance.
+        test_mode, genre, video_style, audio_overlay, audio_overlay_opacity,
+        audio_overlay_position, audio_overlay_padding, broll_interval,
+        broll_variance, explain, intro_effect, intro_effect_duration,
+        dry_run, pacing_drift_zoom, pacing_crop_tighten,
+        pacing_saturation_pulse.
 
     Args:
         args: Parsed argparse.Namespace from any entry point.
@@ -105,6 +108,8 @@ def build_pacing_kwargs(args: argparse.Namespace) -> dict:
         kwargs["audio_overlay_opacity"] = args.audio_overlay_opacity
     if getattr(args, "audio_overlay_position", None):
         kwargs["audio_overlay_position"] = args.audio_overlay_position
+    if getattr(args, "audio_overlay_padding", None) is not None:
+        kwargs["audio_overlay_padding"] = args.audio_overlay_padding
     if getattr(args, "broll_interval", None) is not None:
         kwargs["broll_interval_seconds"] = args.broll_interval
     if getattr(args, "broll_variance", None) is not None:
@@ -131,7 +136,8 @@ def add_visual_args(parser: argparse.ArgumentParser) -> None:
     """Register the visual/audio style arguments shared by all entry points.
 
     Adds: --video-style, --audio-overlay, --audio-overlay-opacity,
-    --audio-overlay-position, --broll-interval, --broll-variance.
+    --audio-overlay-position, --audio-overlay-padding, --broll-interval,
+    --broll-variance.
 
     Args:
         parser: The ArgumentParser to add arguments to.
@@ -172,6 +178,12 @@ def add_visual_args(parser: argparse.ArgumentParser) -> None:
         default=None,
         choices=["left", "center", "right"],
         help="Position of the audio overlay: left, center, right (default: right)",
+    )
+    parser.add_argument(
+        "--audio-overlay-padding",
+        type=int,
+        default=None,
+        help="Distance in pixels from the screen edge for the audio overlay (default: 10)",
     )
     parser.add_argument(
         "--broll-interval",

@@ -1290,6 +1290,7 @@ class TestAudioOverlay:
         config = PacingConfig()
         assert config.audio_overlay == "none"
         assert config.audio_overlay_opacity == 0.5
+        assert config.audio_overlay_padding == 10
 
     def test_validates_audio_overlay_literals(self):
         """Invalid audio_overlay values are rejected by Pydantic."""
@@ -1330,6 +1331,24 @@ class TestAudioOverlay:
         # Does not run fast stream copy
         assert "-c:v copy" not in cmd_str
         assert "-c:v libx264" in cmd_str
+
+    @patch("src.core.ffmpeg_renderer.run_ffmpeg")
+    def test_overlay_audio_padding_in_filter(
+        self, mock_run, generator,
+    ):
+        """Custom audio_overlay_padding is embedded in the FFmpeg filter string."""
+        mock_run.return_value = MagicMock(returncode=0, stderr="")
+        config = PacingConfig(audio_overlay="waveform", audio_overlay_padding=30)
+
+        overlay_audio("in.mp4", "audio.wav", "out.mp4", config)
+
+        cmd = mock_run.call_args[0][0]
+        # The filter string is the value following -filter_complex
+        fc_idx = cmd.index("-filter_complex")
+        filter_str = cmd[fc_idx + 1]
+
+        # Padding should appear in both overlay x-expression and y-expression
+        assert "30" in filter_str
 
     @patch("src.core.ffmpeg_renderer.run_ffmpeg")
     def test_overlay_audio_seeks_to_offset(
@@ -1585,6 +1604,7 @@ class TestExplainCLIFlag:
         ns = argparse.Namespace(
             test_mode=False, video_style=None, audio_overlay=None,
             audio_overlay_opacity=None, audio_overlay_position=None,
+            audio_overlay_padding=None,
             broll_interval=None, broll_variance=None, explain=True,
         )
         kwargs = build_pacing_kwargs(ns)
@@ -1598,6 +1618,7 @@ class TestExplainCLIFlag:
         ns = argparse.Namespace(
             test_mode=False, video_style=None, audio_overlay=None,
             audio_overlay_opacity=None, audio_overlay_position=None,
+            audio_overlay_padding=None,
             broll_interval=None, broll_variance=None, explain=False,
         )
         kwargs = build_pacing_kwargs(ns)

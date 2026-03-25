@@ -24,6 +24,7 @@
 | FEAT-018 | CLI Logging & UX System | `IMPLEMENTED` | Rich-based `PipelineLogger` with spinners/panels |
 | FEAT-019 | Audio Hook Detection | `IMPLEMENTED` | `--smart-start` scores candidate start positions for shorts |
 | FEAT-020 | Visual Scene-Change Detection | `IMPLEMENTED` | `scene_changes` + `opening_intensity` on clips; scene-aware start offsets |
+| FEAT-021 | Waveform Overlay Padding / Margins | `VERIFIED` | `--audio-overlay-padding` (px from screen edge, default 10); flows through `PacingConfig` → `ffmpeg_renderer` |
 | FEAT-022 | Intro Visual Effects | `IMPLEMENTED` | `--intro-effect` (bloom, vignette_breathe) |
 | FEAT-025 | Decision Explainability Log | `DONE` | `--explain` outputs timestamped decision log |
 | FEAT-026 | Dry-Run Plan Mode | `DONE` | `--dry-run` previews segment plan without rendering |

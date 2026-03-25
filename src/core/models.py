@@ -268,6 +268,10 @@ class PacingConfig(BaseModel):
         description="Horizontal position of the audio overlay: "
         "'left', 'center', 'right'",
     )
+    audio_overlay_padding: int = Field(
+        10,
+        description="Distance in pixels from the screen edge (FEAT-021)",
+    )
 
     # Audio Hook Detection (FEAT-019)
     audio_start_offset: float = Field(
