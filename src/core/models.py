@@ -312,6 +312,24 @@ class PacingConfig(BaseModel):
         description="Brief saturation surge on each detected beat",
     )
 
+    # Advanced Beat-Synced Effects (FEAT-024)
+    pacing_micro_jitters: bool = Field(
+        False,
+        description="Beat-synced 2-4px random shake for rhythmic punch",
+    )
+    pacing_light_leaks: bool = Field(
+        False,
+        description="Warm amber colour sweep on key beats (200ms flash)",
+    )
+    pacing_warm_wash: bool = Field(
+        False,
+        description="Brief amber flash at transition boundaries",
+    )
+    pacing_alternating_bokeh: bool = Field(
+        False,
+        description="Subtle background blur on alternating segments",
+    )
+
     # Dry-Run Plan Mode (FEAT-026)
     dry_run: bool = Field(
         False,

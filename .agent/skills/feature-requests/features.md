@@ -173,7 +173,7 @@ pacing_saturation_pulse: bool = False
 
 | Field        | Value                                                |
 |--------------|------------------------------------------------------|
-| **Status**   | `PROPOSED`                                           |
+| **Status**   | `IMPLEMENTED`                                        |
 | **Priority** | 🟡 Medium                                            |
 | **Effort**   | Medium–High                                          |
 | **Impact**   | Medium — premium polish for advanced users            |

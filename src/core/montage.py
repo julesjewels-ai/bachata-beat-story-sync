@@ -738,6 +738,7 @@ class MontageGenerator:
                         concat_path,
                         config.transition_type,
                         config.transition_duration,
+                        warm_wash=config.pacing_warm_wash,
                     )
                 else:
                     # Only one section — fall back to simple concat

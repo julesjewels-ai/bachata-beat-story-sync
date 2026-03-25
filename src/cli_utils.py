@@ -84,7 +84,8 @@ def build_pacing_kwargs(args: argparse.Namespace) -> dict:
         audio_overlay_position, audio_overlay_padding, broll_interval,
         broll_variance, explain, intro_effect, intro_effect_duration,
         dry_run, pacing_drift_zoom, pacing_crop_tighten,
-        pacing_saturation_pulse.
+        pacing_saturation_pulse, pacing_micro_jitters, pacing_light_leaks,
+        pacing_warm_wash, pacing_alternating_bokeh.
 
     All padding values are integers (pixels ≥ 0). All opacity values are
     floats clamped to 0.0–1.0 by the renderer. Unrecognised/missing
@@ -132,6 +133,14 @@ def build_pacing_kwargs(args: argparse.Namespace) -> dict:
         kwargs["pacing_crop_tighten"] = True
     if getattr(args, "pacing_saturation_pulse", False):
         kwargs["pacing_saturation_pulse"] = True
+    if getattr(args, "pacing_micro_jitters", False):
+        kwargs["pacing_micro_jitters"] = True
+    if getattr(args, "pacing_light_leaks", False):
+        kwargs["pacing_light_leaks"] = True
+    if getattr(args, "pacing_warm_wash", False):
+        kwargs["pacing_warm_wash"] = True
+    if getattr(args, "pacing_alternating_bokeh", False):
+        kwargs["pacing_alternating_bokeh"] = True
 
     return kwargs
 
@@ -259,6 +268,32 @@ def add_visual_args(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         default=False,
         help="Brief saturation surge on each detected beat",
+    )
+
+    # Advanced Beat-Synced Effects (FEAT-024)
+    parser.add_argument(
+        "--pacing-micro-jitters",
+        action="store_true",
+        default=False,
+        help="Beat-synced 2px shake for rhythmic punch",
+    )
+    parser.add_argument(
+        "--pacing-light-leaks",
+        action="store_true",
+        default=False,
+        help="Warm amber colour flash on key beats (~200ms)",
+    )
+    parser.add_argument(
+        "--pacing-warm-wash",
+        action="store_true",
+        default=False,
+        help="Brief amber flash at transition boundaries",
+    )
+    parser.add_argument(
+        "--pacing-alternating-bokeh",
+        action="store_true",
+        default=False,
+        help="Subtle background blur on alternating segments",
     )
 
     # Structured JSON Output (FEAT-028)

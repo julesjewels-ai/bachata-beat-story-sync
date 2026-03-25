@@ -67,3 +67,9 @@ pacing:
   # pacing_drift_zoom: false         # Ken Burns slow zoom drift
   # pacing_crop_tighten: false       # Zoom-in over first 10s
   # pacing_saturation_pulse: false   # Beat-synced saturation surge
+
+  # Advanced beat-synced effects (FEAT-024)
+  # pacing_micro_jitters: false        # Beat-synced 2px shake
+  # pacing_light_leaks: false          # Warm amber flashes on beats
+  # pacing_warm_wash: false            # Amber flash at transitions
+  # pacing_alternating_bokeh: false    # Blur on alternating segments

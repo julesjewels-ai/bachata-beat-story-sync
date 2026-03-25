@@ -2119,3 +2119,188 @@ class TestPacingEffects:
         assert found_drift, "Expected drift zoom filter"
         assert not found_tighten, "crop_tighten should be skipped when drift_zoom is active"
         assert found_sat, "Expected saturation pulse filter"
+
+
+class TestAdvancedEffects:
+    """Tests for FEAT-024: Advanced Beat-Synced Effects."""
+
+    @staticmethod
+    def _audio_for_test(beats: int = 10) -> AudioAnalysisResult:
+        """Helper returning simple audio data with the given number of beats."""
+        return AudioAnalysisResult(
+            filename="advanced_test.wav",
+            bpm=120.0,
+            duration=beats * 0.5,
+            peaks=[],
+            sections=[],
+            beat_times=[float(i) * 0.5 for i in range(beats)],
+            intensity_curve=[0.5] * beats,
+        )
+
+    @staticmethod
+    def _clips_for_test() -> list[VideoAnalysisResult]:
+        return [
+            VideoAnalysisResult(
+                path="/videos/clip1.mp4",
+                intensity_score=0.5,
+                duration=30.0,
+                thumbnail_data=None,
+            ),
+        ]
+
+    @patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")
+    @patch("src.core.ffmpeg_renderer.run_ffmpeg")
+    @patch("src.core.montage.tempfile.mkdtemp")
+    @patch("src.core.montage.shutil.rmtree")
+    @patch("src.core.montage.os.path.exists", return_value=True)
+    def test_micro_jitters_filter_in_extraction(
+        self, mock_exists, mock_rmtree, mock_mkdtemp, mock_run, mock_which, tmp_path,
+    ):
+        """pacing_micro_jitters adds geq filter to extraction calls."""
+        temp_dir = str(tmp_path / "montage_temp")
+        os.makedirs(temp_dir, exist_ok=True)
+        mock_mkdtemp.return_value = temp_dir
+        mock_run.return_value = MagicMock(returncode=0, stderr="")
+
+        config = PacingConfig(pacing_micro_jitters=True)
+        MontageGenerator().generate(
+            self._audio_for_test(), self._clips_for_test(),
+            str(tmp_path / "out.mp4"), audio_path="/audio/song.wav", pacing=config,
+        )
+
+        found = False
+        for call_args in mock_run.call_args_list:
+            cmd = call_args[0][0] if call_args[0] else call_args[1].get("cmd", [])
+            cmd_str = " ".join(str(c) for c in cmd)
+            if "-ss" in cmd_str and "geq=" in cmd_str:
+                found = True
+        assert found, "Expected geq micro-jitters filter in FFmpeg extraction call"
+
+    @patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")
+    @patch("src.core.ffmpeg_renderer.run_ffmpeg")
+    @patch("src.core.montage.tempfile.mkdtemp")
+    @patch("src.core.montage.shutil.rmtree")
+    @patch("src.core.montage.os.path.exists", return_value=True)
+    def test_light_leaks_filter_in_extraction(
+        self, mock_exists, mock_rmtree, mock_mkdtemp, mock_run, mock_which, tmp_path,
+    ):
+        """pacing_light_leaks adds colorbalance with enable= to extraction calls."""
+        temp_dir = str(tmp_path / "montage_temp")
+        os.makedirs(temp_dir, exist_ok=True)
+        mock_mkdtemp.return_value = temp_dir
+        mock_run.return_value = MagicMock(returncode=0, stderr="")
+
+        config = PacingConfig(pacing_light_leaks=True)
+        MontageGenerator().generate(
+            self._audio_for_test(), self._clips_for_test(),
+            str(tmp_path / "out.mp4"), audio_path="/audio/song.wav", pacing=config,
+        )
+
+        found = False
+        for call_args in mock_run.call_args_list:
+            cmd = call_args[0][0] if call_args[0] else call_args[1].get("cmd", [])
+            cmd_str = " ".join(str(c) for c in cmd)
+            if "-ss" in cmd_str and "colorbalance=" in cmd_str and "enable=" in cmd_str:
+                found = True
+        assert found, "Expected colorbalance light-leak filter in FFmpeg extraction call"
+
+    @patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")
+    @patch("src.core.ffmpeg_renderer.run_ffmpeg")
+    @patch("src.core.montage.tempfile.mkdtemp")
+    @patch("src.core.montage.shutil.rmtree")
+    @patch("src.core.montage.os.path.exists", return_value=True)
+    def test_alternating_bokeh_on_even_segments(
+        self, mock_exists, mock_rmtree, mock_mkdtemp, mock_run, mock_which, tmp_path,
+    ):
+        """pacing_alternating_bokeh adds boxblur on even-indexed segments."""
+        temp_dir = str(tmp_path / "montage_temp")
+        os.makedirs(temp_dir, exist_ok=True)
+        mock_mkdtemp.return_value = temp_dir
+        mock_run.return_value = MagicMock(returncode=0, stderr="")
+
+        config = PacingConfig(pacing_alternating_bokeh=True)
+        MontageGenerator().generate(
+            self._audio_for_test(), self._clips_for_test(),
+            str(tmp_path / "out.mp4"), audio_path="/audio/song.wav", pacing=config,
+        )
+
+        extraction_calls = []
+        for call_args in mock_run.call_args_list:
+            cmd = call_args[0][0] if call_args[0] else call_args[1].get("cmd", [])
+            cmd_str = " ".join(str(c) for c in cmd)
+            if "-ss" in cmd_str:
+                extraction_calls.append(cmd_str)
+
+        # At least one extraction call should have boxblur (even-index segments)
+        found = any("boxblur" in c for c in extraction_calls)
+        assert found, "Expected boxblur alternating-bokeh filter on some extraction calls"
+
+    def test_advanced_effects_disabled_by_default(self):
+        """Default PacingConfig produces no FEAT-024 filter strings."""
+        from src.core.ffmpeg_renderer import _build_pacing_filters
+        from src.core.models import SegmentPlan
+
+        seg = SegmentPlan(
+            video_path="/v/a.mp4", start_time=0, duration=3,
+            timeline_position=0, intensity_level="medium",
+        )
+        config = PacingConfig()
+        filters = _build_pacing_filters(config, seg, [0.5, 1.0, 1.5], 1920, 1080)
+        assert filters == [], "Default config should produce no pacing filters"
+
+    def test_effects_stack_with_feat023(self):
+        """FEAT-024 effects coexist with FEAT-023 effects in filter output."""
+        from src.core.ffmpeg_renderer import _build_pacing_filters
+        from src.core.models import SegmentPlan
+
+        seg = SegmentPlan(
+            video_path="/v/a.mp4", start_time=0, duration=3,
+            timeline_position=0, intensity_level="medium",
+        )
+        config = PacingConfig(
+            pacing_saturation_pulse=True,
+            pacing_micro_jitters=True,
+            pacing_light_leaks=True,
+            pacing_alternating_bokeh=True,
+        )
+        filters = _build_pacing_filters(
+            config, seg, [0.5, 1.0, 1.5], 1920, 1080, seg_index=0,
+        )
+
+        filter_str = " ".join(filters)
+        assert "eq=saturation=" in filter_str, "Expected FEAT-023 saturation pulse"
+        assert "geq=" in filter_str, "Expected FEAT-024 micro-jitters"
+        assert "colorbalance=" in filter_str, "Expected FEAT-024 light leaks"
+        assert "boxblur" in filter_str, "Expected FEAT-024 alternating bokeh (even index)"
+
+    @patch("src.core.ffmpeg_renderer.get_video_duration", return_value=5.0)
+    @patch("src.core.ffmpeg_renderer.run_ffmpeg")
+    def test_warm_wash_in_transitions(self, mock_run, mock_dur, tmp_path):
+        """pacing_warm_wash adds colorbalance to xfade commands."""
+        from src.core.ffmpeg_renderer import apply_transitions
+
+        mock_run.return_value = MagicMock(returncode=0, stderr="")
+
+        # Create fake group files that "exist"
+        g1 = str(tmp_path / "group_0.mp4")
+        g2 = str(tmp_path / "group_1.mp4")
+        for p in (g1, g2):
+            with open(p, "w") as f:
+                f.write("fake")
+
+        output = str(tmp_path / "out.mp4")
+        apply_transitions(
+            [g1, g2], output,
+            transition_type="fade",
+            transition_duration=0.5,
+            warm_wash=True,
+        )
+
+        found = False
+        for call_args in mock_run.call_args_list:
+            cmd = call_args[0][0] if call_args[0] else call_args[1].get("cmd", [])
+            cmd_str = " ".join(str(c) for c in cmd)
+            if "xfade" in cmd_str and "colorbalance" in cmd_str:
+                found = True
+        assert found, "Expected colorbalance warm-wash in xfade transition calls"
+

@@ -100,8 +100,10 @@ def _build_pacing_filters(
     beat_times: list[float] | None,
     target_w: int,
     target_h: int,
+    seg_index: int = 0,
 ) -> list[str]:
-    """Return VF filter strings for the enabled pacing effects (FEAT-023).
+    """Return VF filter strings for pacing effects (FEAT-023) and advanced
+    beat-synced effects (FEAT-024).
 
     Args:
         config: Current pacing configuration.
@@ -109,6 +111,8 @@ def _build_pacing_filters(
         beat_times: Global beat timestamps from audio analysis.
         target_w: Target output width.
         target_h: Target output height.
+        seg_index: Zero-based index of this segment in the timeline
+            (used by alternating bokeh to pick even/odd segments).
 
     Returns:
         List of FFmpeg VF filter strings, empty when no effects are active.
@@ -131,26 +135,60 @@ def _build_pacing_filters(
             f":d=1:s={target_w}x{target_h}"
         )
 
-    if config.pacing_saturation_pulse and beat_times:
-        # Build a beat-relative pulse expression.
-        # For each beat inside this segment's window, emit a brief
-        # +0.3 saturation bump that decays over 0.15s.
-        seg_start = seg.timeline_position
-        seg_end = seg_start + seg.duration
+    # -- Helper: extract local beats relative to this segment's window --
+    seg_start = seg.timeline_position
+    seg_end = seg_start + seg.duration
+    local_beats: list[float] = []
+    if beat_times:
         local_beats = [
             bt - seg_start
             for bt in beat_times
             if seg_start <= bt < seg_end
+        ][:16]  # Cap at 16 terms for FFmpeg expression length safety
+
+    if config.pacing_saturation_pulse and local_beats:
+        # Build a beat-relative pulse expression.
+        # For each beat inside this segment's window, emit a brief
+        # +0.3 saturation bump that decays over 0.15s.
+        terms = [
+            f"max(0,1-(t-{b:.3f})/0.15)" for b in local_beats
         ]
-        if local_beats:
-            # Cap at 16 terms to keep the FFmpeg expression under the
-            # command-line length limit.  A typical 5s segment at 130 BPM
-            # yields ~10 beats, so this is generous.
-            terms = [
-                f"max(0,1-(t-{b:.3f})/0.15)" for b in local_beats[:16]
-            ]
-            pulse_expr = "+".join(terms)
-            filters.append(f"eq=saturation='1+0.3*({pulse_expr})'")
+        pulse_expr = "+".join(terms)
+        filters.append(f"eq=saturation='1+0.3*({pulse_expr})'")
+
+    # ------- FEAT-024: Advanced Beat-Synced Effects -------
+
+    if config.pacing_micro_jitters and local_beats:
+        # 2-pixel random offset on each beat — alternates direction for
+        # variety.  Uses geq to shift x/y per beat.
+        jitter_terms = []
+        for j, b in enumerate(local_beats):
+            direction = 1 if j % 2 == 0 else -1
+            jitter_terms.append(
+                f"if(between(t,{b:.3f},{b + 0.1:.3f}),{2 * direction},0)"
+            )
+        jitter_expr = "+".join(jitter_terms)
+        filters.append(
+            f"geq=lum='lum(X-({jitter_expr}),Y-({jitter_expr}))'"
+            f":cb='cb(X-({jitter_expr}),Y-({jitter_expr}))'"
+            f":cr='cr(X-({jitter_expr}),Y-({jitter_expr}))'"
+        )
+
+    if config.pacing_light_leaks and local_beats:
+        # Warm amber colour sweep — colorbalance enabled for ~200ms per
+        # beat.  Each flash simulates an analog film light leak.
+        enable_parts = [
+            f"between(t,{b:.3f},{b + 0.2:.3f})" for b in local_beats
+        ]
+        enable_expr = "+".join(enable_parts)
+        filters.append(
+            f"colorbalance=rs=0.3:gs=0.1:bs=-0.1:enable='{enable_expr}'"
+        )
+
+    if config.pacing_alternating_bokeh and seg_index % 2 == 0:
+        # Subtle luma-only blur on even-numbered segments.
+        # boxblur is cheaper than true Gaussian and preserves colours.
+        filters.append("boxblur=luma_radius=4")
 
     return filters
 
@@ -235,9 +273,11 @@ def extract_segments(
                 _build_intro_filters(config.intro_effect, config.intro_effect_duration)
             )
 
-        # Pacing Visual Effects — all segments (FEAT-023)
+        # Pacing Visual Effects — all segments (FEAT-023 / FEAT-024)
         vf_parts.extend(
-            _build_pacing_filters(config, seg, beat_times, t_width, t_height)
+            _build_pacing_filters(
+                config, seg, beat_times, t_width, t_height, seg_index=i,
+            )
         )
 
         # Video Style Filter (FEAT-012)
@@ -348,6 +388,7 @@ def apply_transitions(
     output_path: str,
     transition_type: str,
     transition_duration: float,
+    warm_wash: bool = False,
 ) -> None:
     """
     Apply xfade transitions between group files.
@@ -360,6 +401,8 @@ def apply_transitions(
         transition_type: FFmpeg xfade transition name (e.g. 'fade').
         transition_duration: Duration of each transition in seconds.
         output_path: Path for the final transitioned output.
+        warm_wash: When True, add a brief amber flash at each transition
+            boundary (FEAT-024).
     """
     if len(group_files) < 2:
         # Single group — just copy to output
@@ -387,6 +430,23 @@ def apply_transitions(
         else:
             step_output = os.path.join(temp_dir, f"xfade_step_{i:04d}.mp4")
 
+        # Build the filter_complex expression
+        xfade_expr = (
+            f"[0:v][1:v]xfade=transition={transition_type}"
+            f":duration={transition_duration:.3f}"
+            f":offset={offset:.3f}"
+        )
+        if warm_wash:
+            # Amber flash for the first 150ms after the transition starts.
+            # colorbalance warms the reds/yellows and cools the blues.
+            wash_start = offset
+            wash_end = offset + 0.15
+            xfade_expr += (
+                f"[v0];[v0]colorbalance=rs=0.3:gs=0.1:bs=-0.1"
+                f":enable='between(t,{wash_start:.3f},{wash_end:.3f})'"
+            )
+        xfade_expr += "[v]"
+
         cmd = [
             "ffmpeg",
             "-y",
@@ -395,9 +455,7 @@ def apply_transitions(
             "-i",
             next_input,
             "-filter_complex",
-            f"[0:v][1:v]xfade=transition={transition_type}"
-            f":duration={transition_duration:.3f}"
-            f":offset={offset:.3f}[v]",
+            xfade_expr,
             "-map",
             "[v]",
             "-c:v",
