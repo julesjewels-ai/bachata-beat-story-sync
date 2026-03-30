@@ -14,7 +14,11 @@ import shutil
 import subprocess
 from collections.abc import Callable
 
-from src.core.ffmpeg_utils import run_ffmpeg, timeout_for_duration
+from src.core.ffmpeg_utils import (
+    get_h264_encoder_args,
+    run_ffmpeg,
+    timeout_for_duration,
+)
 from src.core.interfaces import ProgressObserver
 from src.core.models import PacingConfig, SegmentPlan
 
@@ -290,17 +294,10 @@ def extract_segments(
 
         cmd.extend(["-vf", ",".join(vf_parts)])
 
+        cmd.extend(get_h264_encoder_args())
         cmd.extend(
             [
-                "-c:v",
-                "libx264",  # Re-encode for consistent format
-                "-preset",
-                "fast",  # Fast encoding
-                "-crf",
-                "23",  # Good quality
                 "-an",  # Strip audio (overlaid later)
-                "-pix_fmt",
-                "yuv420p",  # Compatibility
                 "-movflags",
                 "+faststart",  # Web-friendly
                 output_file,
@@ -458,14 +455,7 @@ def apply_transitions(
             xfade_expr,
             "-map",
             "[v]",
-            "-c:v",
-            "libx264",
-            "-preset",
-            "fast",
-            "-crf",
-            "23",
-            "-pix_fmt",
-            "yuv420p",
+            *get_h264_encoder_args(),
             "-an",
             step_output,
         ]
@@ -587,14 +577,7 @@ def overlay_audio(
             "[outv]",
             "-map",
             "1:a",
-            "-c:v",
-            "libx264",
-            "-preset",
-            "fast",
-            "-crf",
-            "23",
-            "-pix_fmt",
-            "yuv420p",
+            *get_h264_encoder_args(),
             "-c:a",
             "aac",
             "-b:a",

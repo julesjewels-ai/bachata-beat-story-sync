@@ -9,7 +9,9 @@ AudioMixer.
 from __future__ import annotations
 
 import logging
+import platform
 import subprocess
+import sys
 
 logger = logging.getLogger(__name__)
 
@@ -77,3 +79,33 @@ def run_ffmpeg(
             f"FFmpeg timed out during {stage_name} "
             f"(>{effective_timeout}s). The input file may be too large."
         ) from None
+
+
+def get_h264_encoder_args() -> list[str]:
+    """
+    Return the optimal H.264 encoder arguments for the current hardware.
+
+    Leverages Apple Silicon VideoToolbox hardware acceleration if available,
+    otherwise falls back to libx264 software encoding.
+
+    Returns:
+        List of FFmpeg command-line arguments.
+    """
+    is_mac = platform.system() == "Darwin"
+    is_arm = platform.machine() == "arm64"
+
+    if is_mac and is_arm:
+        # Hardware acceleration for M1/M2/M3 chips
+        return [
+            "-c:v", "h264_videotoolbox",
+            "-b:v", "8M",  # High quality target for 1080p
+            "-pix_fmt", "yuv420p",  # Universal compatibility
+        ]
+
+    # Standard software encoding fallback
+    return [
+        "-c:v", "libx264",
+        "-preset", "fast",
+        "-crf", "23",
+        "-pix_fmt", "yuv420p",
+    ]

@@ -1025,7 +1025,7 @@ class TestClipVariety:
         config = PacingConfig(clip_variety_enabled=True)
         plan_a = gen.build_segment_plan(medium_audio, single_clip_30s, config)
         plan_b = gen.build_segment_plan(medium_audio, single_clip_30s, config)
-        for a, b in zip(plan_a, plan_b, strict=False):
+        for a, b in zip(plan_a, plan_b):
             assert a.start_time == b.start_time
 
     def test_clip_variety_disabled_uses_zero(self, gen, medium_audio, single_clip_30s):
@@ -1330,7 +1330,10 @@ class TestAudioOverlay:
         assert "showwaves=" in cmd_str
         # Does not run fast stream copy
         assert "-c:v copy" not in cmd_str
-        assert "-c:v libx264" in cmd_str
+        # Dynamic check for encoder based on platform
+        import platform
+        expected_encoder = "h264_videotoolbox" if platform.system() == "Darwin" and platform.machine() == "arm64" else "libx264"
+        assert f"-c:v {expected_encoder}" in cmd_str
 
     @patch("src.core.ffmpeg_renderer.run_ffmpeg")
     def test_overlay_audio_padding_in_filter(
@@ -1477,7 +1480,7 @@ class TestAudioStartOffset:
         segs_default = gen.build_segment_plan(audio, clips, config_default)
         # Same number of segments with same timeline positions
         assert len(segs_zero) == len(segs_default)
-        for a, b in zip(segs_zero, segs_default, strict=False):
+        for a, b in zip(segs_zero, segs_default):
             assert abs(a.timeline_position - b.timeline_position) < 0.01
 
     def test_offset_with_max_duration(self, gen, clips, audio):
@@ -1689,10 +1692,9 @@ class TestIntroEffects:
             for call_args in mock_run.call_args_list
             if call_args[0] and "-ss" in str(call_args[0][0])
         ]
-        # First extraction call should contain gblur
-        assert "gblur" in extraction_calls[0], (
-            "Expected 'gblur' in first segment extraction"
-        )
+        # First extraction call should contain fade intro effect
+        assert "fade=" in extraction_calls[0]
+        assert "color=white" in extraction_calls[0]
 
     @patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")
     @patch("src.core.ffmpeg_renderer.run_ffmpeg")
