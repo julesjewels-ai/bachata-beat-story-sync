@@ -17,6 +17,7 @@ DRY_RUN ?=
 DRY_RUN_OUTPUT ?=
 GENRE ?=
 WATCH ?=
+ZOOM ?=
 
 # Pipeline optional flags
 SHORTS_COUNT ?= 1
@@ -98,6 +99,10 @@ endif
 
 ifneq ($(DRY_RUN_OUTPUT),)
   EXTRA_FLAGS += --dry-run-output $(DRY_RUN_OUTPUT)
+endif
+
+ifneq ($(ZOOM),)
+  EXTRA_FLAGS += --zoom $(ZOOM)
 endif
 
 .PHONY: install run run-shorts full-pipeline test lint format check-types clean

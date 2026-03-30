@@ -692,6 +692,50 @@ class TestFFmpegOrchestration:
         # Cleanup MUST still happen
         mock_rmtree.assert_called_once_with(temp_dir, ignore_errors=True)
 
+    @patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")
+    @patch("src.core.ffmpeg_renderer.run_ffmpeg")
+    @patch("src.core.montage.tempfile.mkdtemp")
+    @patch("src.core.montage.shutil.rmtree")
+    @patch("src.core.montage.os.path.exists", return_value=True)
+    def test_extract_includes_zoom_crop(
+        self,
+        mock_exists,
+        mock_rmtree,
+        mock_mkdtemp,
+        mock_run,
+        mock_which,
+        generator,
+        audio_data,
+        video_clips,
+        tmp_path,
+    ):
+        """When zoom_factor is < 1.0, a crop filter should be applied."""
+        temp_dir = str(tmp_path / "zoom_temp")
+        os.makedirs(temp_dir, exist_ok=True)
+        mock_mkdtemp.return_value = temp_dir
+        mock_run.return_value = MagicMock(returncode=0, stderr="")
+
+        config = PacingConfig(zoom_factor=0.88)
+
+        generator.generate(
+            audio_data,
+            video_clips,
+            str(tmp_path / "zoom_out.mp4"),
+            audio_path="/audio/song.wav",
+            pacing=config,
+        )
+
+        # Check the FFmpeg calls for the segment extraction
+        found_crop = False
+        for call_args in mock_run.call_args_list:
+            cmd = call_args[0][0] if call_args[0] else call_args[1].get("cmd", [])
+            cmd_str = " ".join(str(c) for c in cmd)
+            if "crop=iw*0.88:ih*0.88" in cmd_str:
+                found_crop = True
+                break
+        
+        assert found_crop, "Expected crop=iw*0.88:ih*0.88 in FFmpeg command"
+
 
 class TestGroupSegmentsBySection:
     """Tests for _group_segments_by_section (pure Python, no FFmpeg)."""

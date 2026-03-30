@@ -343,6 +343,12 @@ class PacingConfig(BaseModel):
         "Applies tuned defaults; explicit field values still override.",
     )
 
+    # Static Zoom / Crop Factor (FEAT-029)
+    zoom_factor: float = Field(
+        1.0,
+        description="Static zoom/crop factor. 1.0 = full frame, 0.88 = crop center 88% and scale up.",
+    )
+
 
 class AudioMixConfig(BaseModel):
     """

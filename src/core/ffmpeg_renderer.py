@@ -249,18 +249,24 @@ def extract_segments(
         t_width = 1080 if config.is_shorts else TARGET_WIDTH
         t_height = 1920 if config.is_shorts else TARGET_HEIGHT
 
+        vf_parts = []
+
+        # FEAT-029: Static Zoom / Crop Factor (applied first)
+        if config.zoom_factor != 1.0:
+            vf_parts.append(f"crop=iw*{config.zoom_factor}:ih*{config.zoom_factor}")
+
         if config.is_shorts:
             # Crop center to 9:16 aspect ratio (safe for
             # horizontal drop-ins and vertical variances)
-            vf_parts = [
+            vf_parts.extend([
                 "crop='min(iw,ih*9/16)':'min(ih,iw*16/9)'",
                 f"scale={t_width}:{t_height}",
-            ]
+            ])
         else:
-            vf_parts = [
+            vf_parts.extend([
                 f"scale={t_width}:{t_height}:force_original_aspect_ratio=decrease",
                 f"pad={t_width}:{t_height}:(ow-iw)/2:(oh-ih)/2",
-            ]
+            ])
 
         if seg.speed_factor != 1.0:
             vf_parts.append(f"setpts=PTS/{seg.speed_factor}")

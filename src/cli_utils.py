@@ -142,6 +142,9 @@ def build_pacing_kwargs(args: argparse.Namespace) -> dict:
     if getattr(args, "pacing_alternating_bokeh", False):
         kwargs["pacing_alternating_bokeh"] = True
 
+    if getattr(args, "zoom", None) is not None:
+        kwargs["zoom_factor"] = args.zoom
+
     return kwargs
 
 
@@ -294,6 +297,12 @@ def add_visual_args(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         default=False,
         help="Subtle background blur on alternating segments",
+    )
+    parser.add_argument(
+        "--zoom",
+        type=float,
+        default=None,
+        help="Static zoom/crop factor (e.g. 0.88 to clip outer 12% of edges)",
     )
 
     # Structured JSON Output (FEAT-028)
