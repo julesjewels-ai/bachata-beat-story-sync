@@ -25,7 +25,7 @@ Before you begin, make sure you have:
 
 | Requirement | Minimum Version | Check Command |
 |-------------|----------------|---------------|
-| **Python** | 3.9+ | `python3 --version` |
+| **Python** | 3.11+ | `python3 --version` |
 | **pip** | Latest | `pip --version` |
 | **ffmpeg** | 4.0+ | `ffmpeg -version` |
 | **Git** | Any | `git --version` |
@@ -86,9 +86,13 @@ python main.py [OPTIONS]
 | `--test-mode` | No | `False` | Run in test mode (max 4 clips, 10s of music) |
 | `--max-clips INT` | No | — | Maximum number of clip segments (overrides test-mode) |
 | `--max-duration FLOAT` | No | — | Maximum montage duration in seconds (overrides test-mode) |
-| `--explain` | No | `False` | Write a decision explainability log (`*_explain.md`) alongside the output video |
-| `--dry-run` | No | `False` | Run analysis + planning only — skip rendering, print segment plan |
-| `--dry-run-output PATH` | No | — | Write the dry-run plan to a file instead of stdout |
+| `--genre NAME` | No | — | Apply genre-specific pacing preset (e.g., `bachata`, `salsa`) |
+| `--video-style STYLE` | No | — | Apply color grading (e.g., `vintage`, `warm`, `golden`) |
+| `--audio-overlay TYPE` | No | — | Music-synced visualizer (`waveform` or `bars`) |
+| `--output-json PATH` | No | — | Emit structured JSON analysis and plan |
+| `--explain` | No | `False` | Write a decision explainability log (`*_explain.md`) |
+| `--dry-run` | No | `False` | Run analysis + planning only — skip rendering |
+| `--watch` | No | `False` | Watch for file changes and auto-re-render |
 | `--version` | No | — | Show version and exit |
 
 ### Examples
@@ -118,6 +122,18 @@ python main.py --audio song.wav --video-dir ./clips/ --dry-run
 
 # Dry-run with plan saved to a file
 python main.py --audio song.wav --video-dir ./clips/ --dry-run --dry-run-output plan.txt
+
+# Use a genre preset with golden-hour color grading
+python main.py --audio song.wav --video-dir ./clips/ --genre salsa --video-style golden
+
+# Enable Ken Burns drift zoom and saturation pulsing
+python main.py --audio song.wav --video-dir ./clips/ --pacing-drift-zoom --pacing-saturation-pulse
+
+# Watch mode for fast configuration iteration
+python main.py --audio song.wav --video-dir ./clips/ --watch --test-mode
+
+# Export analysis as JSON for integration
+python main.py --audio song.wav --video-dir ./clips/ --output-json analysis.json
 ```
 
 ---

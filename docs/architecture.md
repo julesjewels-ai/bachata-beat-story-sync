@@ -113,22 +113,30 @@ bachata-beat-story-sync/
 │   │   ├── app.py                   # BachataSyncEngine (orchestrator)
 │   │   ├── audio_analyzer.py        # Librosa-based audio analysis
 │   │   ├── video_analyzer.py        # OpenCV-based video analysis
-│   │   ├── montage.py               # MoviePy-based montage generation
-│   │   ├── models.py                # Pydantic DTOs
+│   │   ├── montage.py               # Montage planning and logic
+│   │   ├── ffmpeg_renderer.py       # FFmpeg command assembly & rendering
+│   │   ├── ffmpeg_utils.py          # Shared FFmpeg filter builders
+│   │   ├── audio_mixer.py           # Multi-track mixing & resolve
+│   │   ├── genre_presets.py         # Genre-specific defaults
+│   │   ├── models.py                # Pydantic DTOs (PacingConfig)
 │   │   ├── interfaces.py            # Protocol definitions
 │   │   └── validation.py            # Input validation & security
 │   │
 │   ├── services/                    # External service integrations
+│   │   ├── json_output.py           # FEAT-028 JSON serialization
+│   │   ├── plan_report.py           # FEAT-026 Dry-run formatting
 │   │   └── reporting/
 │   │       ├── __init__.py
 │   │       ├── generator.py         # ExcelReportGenerator
 │   │       ├── formatting.py        # ReportFormatter (styles)
 │   │       └── components.py        # ChartBuilder, ThumbnailEmbedder
 │   │
-│   └── ui/                          # User interface
-│       └── console.py               # RichProgressObserver
-│
-├── tests/                           # Test suite
+│   ├── ui/                          # User interface
+│   │   └── console.py               # RichProgressObserver
+│   │
+│   ├── cli_utils.py                 # Shared CLI argument handlers
+│   ├── pipeline.py                  # Full-pipeline orchestrator
+│   └── shorts_maker.py              # YouTube Shorts generator
 │   ├── test_core.py
 │   ├── test_core_progress.py
 │   ├── test_reporting.py
@@ -156,8 +164,11 @@ bachata-beat-story-sync/
 | `app.py` | `BachataSyncEngine` | Orchestrates the full pipeline: video scanning → story generation |
 | `audio_analyzer.py` | `AudioAnalyzer` | Extracts BPM, beats, and onsets from audio using Librosa |
 | `video_analyzer.py` | `VideoAnalyzer` | Computes motion-intensity scores and thumbnails using OpenCV |
-| `montage.py` | `MontageGenerator` | Extracts and concatenates segments synced to beats using direct FFmpeg subprocesses |
-| `models.py` | `AudioAnalysisResult`, `VideoAnalysisResult` | Pydantic DTOs for inter-layer data transfer |
+| `montage.py` | `MontageGenerator` | Calculates segment sequences based on audio/video analysis |
+| `ffmpeg_renderer.py` | `FFmpegRenderer` | Assembles complex FFmpeg filter chains and executes rendering |
+| `ffmpeg_utils.py` | — | Shared utility functions for building FFmpeg filter strings |
+| `genre_presets.py` | — | Registry of genre-specific pacing and style defaults |
+| `models.py` | `AudioAnalysisResult`, `VideoAnalysisResult`, `PacingConfig` | Pydantic DTOs for inter-layer data transfer |
 | `interfaces.py` | `ProgressObserver` | Protocol (structural typing) for progress callbacks |
 | `validation.py` | `validate_file_path()` | Shared input validation with security checks |
 
@@ -214,6 +225,17 @@ classDiagram
         +intensity_score: float
         +duration: float
         +thumbnail_data: Optional~bytes~
+        +scene_changes: List~float~
+        +opening_intensity: float
+    }
+
+    class PacingConfig {
+        +min_clip_seconds: float
+        +snap_to_beats: bool
+        +video_style: str
+        +audio_overlay: str
+        +intro_effect: str
+        +genre: Optional~str~
     }
 
     class ProgressObserver {
@@ -237,6 +259,7 @@ classDiagram
     VideoAnalyzer --> VideoAnalysisResult
     MontageGenerator --> AudioAnalysisResult
     MontageGenerator --> VideoAnalysisResult
+    MontageGenerator --> PacingConfig
     ExcelReportGenerator --> AudioAnalysisResult
     ExcelReportGenerator --> VideoAnalysisResult
 ```

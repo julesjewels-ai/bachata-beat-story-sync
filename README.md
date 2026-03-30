@@ -50,6 +50,12 @@ An automated video editing tool that analyzes Bachata audio tracks (`.wav` / `.m
 | Audio Track Mixing with Crossfades | ✅ |
 | Decision Explainability Log `--explain` (FEAT-025) | ✅ |
 | Intro Effects — Bloom & Vignette Breathe (FEAT-022) | ✅ |
+| Pacing Visual Effects (FEAT-023) | ✅ |
+| Advanced Beat-Synced Effects (FEAT-024) | ✅ |
+| Dry-Run Plan Mode `--dry-run` (FEAT-026) | ✅ |
+| Genre Preset System `--genre` (FEAT-027) | ✅ |
+| Structured JSON Output `--output-json` (FEAT-028) | ✅ |
+| File Watcher `--watch` (FEAT-029) | ✅ |
 | Smart Start Detection | ✅ |
 | Shared Video Scan Mode | ✅ |
 | Sentiment-based Clip Matching | 🔜 Planned |
@@ -169,11 +175,15 @@ All montage behavior is further configurable via [`montage_config.yaml`](montage
 │   │   ├── video_analyzer.py  #   OpenCV motion-intensity scoring
 │   │   ├── montage.py         #   Clip selection & sequencing engine
 │   │   ├── ffmpeg_renderer.py #   FFmpeg command assembly & rendering
+│   │   ├── ffmpeg_utils.py    #   Shared FFmpeg filter helpers
 │   │   ├── audio_mixer.py     #   Multi-track mixing & crossfades
+│   │   ├── genre_presets.py   #   Genre-specific default configurations
 │   │   ├── models.py          #   Pydantic DTOs (PacingConfig, etc.)
+│   │   ├── interfaces.py      #   Observer protocols
 │   │   └── validation.py      #   Input guards
 │   ├── services/reporting/    #   Excel report generation
 │   ├── ui/console.py          #   Rich progress observer
+│   ├── cli_utils.py           #   Shared CLI argument building
 │   ├── pipeline.py            #   Full-pipeline orchestrator
 │   └── shorts_maker.py        #   YouTube Shorts generator
 ├── tests/unit/                #   9 pytest test files

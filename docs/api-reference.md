@@ -131,24 +131,41 @@ When `PacingConfig.explain` is `True`, writes a `*_explain.md` Markdown file nex
 ## `src.core.models` — Data Transfer Objects
 
 ### `AudioAnalysisResult(BaseModel)`
-
 | Field | Type | Description |
 |-------|------|-------------|
-| `file_path` | `str` | Absolute path to audio file |
 | `filename` | `str` | Audio file basename |
 | `bpm` | `float` | Beats per minute |
 | `duration` | `float` | Duration in seconds |
-| `peaks` | `List[float]` | Timestamps of intensity peaks |
-| `sections` | `List[str]` | Musical sections (currently placeholder) |
+| `peaks` | `List[float]` | Timestamps of high intensity peaks |
+| `sections` | `List[MusicalSection]` | Detected musical sections with labels and timestamps |
+| `beat_times` | `List[float]` | Precise timestamps of each detected beat |
+| `intensity_curve` | `List[float]` | Normalised RMS energy (0.0–1.0) at each beat position |
 
 ### `VideoAnalysisResult(BaseModel)`
-
 | Field | Type | Description |
 |-------|------|-------------|
 | `path` | `str` | Absolute path to video file |
 | `intensity_score` | `float` | Visual motion intensity (0.0–1.0) |
 | `duration` | `float` | Duration in seconds |
+| `is_vertical` | `bool` | Whether the video is in vertical (9:16) format |
 | `thumbnail_data` | `Optional[bytes]` | PNG thumbnail binary data |
+| `scene_changes` | `List[float]` | Timestamps of detected visual cuts |
+| `opening_intensity` | `float` | Visual motion intensity in the first 2 seconds |
+
+### `PacingConfig(BaseModel)`
+Controls montage clip pacing, effects, and transitions.
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `min_clip_seconds` | `1.5` | Hard floor for clip duration |
+| `high_intensity_seconds` | `2.5` | Target duration for high-intensity clips |
+| `speed_ramp_enabled` | `True` | Enable intensity-based speed ramping |
+| `video_style` | `'none'` | Color grading style (`bw`, `vintage`, etc.) |
+| `audio_overlay` | `'none'` | Visualizer pattern (`waveform`, `bars`) |
+| `pacing_drift_zoom` | `False` | Enable Ken Burns drift zoom |
+| `intro_effect` | `'none'` | Visual effect on the first segment |
+| `dry_run` | `False` | Skip rendering, output plan only |
+| `genre` | `None` | Active genre preset |
 
 ---
 

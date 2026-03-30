@@ -21,7 +21,17 @@ The tool is invoked via `python main.py` with the following arguments:
 | `--video-style` | ❌ | `str` | `none` | Color grading preset (see [Video Styles](#video-styles) below) |
 | `--audio-overlay` | ❌ | `str` | `none` | Music-synced visualizer: `none`, `waveform` (lines), `bars` (frequency bars) |
 | `--audio-overlay-opacity` | ❌ | `float` | `0.5` | Opacity of the audio visualizer (0.0–1.0) |
-| `--audio-overlay-position` | ❌ | `str` | `bottom` | Vertical position of the visualizer: `top`, `center`, `bottom` |
+| `--audio-overlay-position` | ❌ | `str` | `right` | Horizontal position: `left`, `center`, `right` |
+| `--audio-overlay-padding` | ❌ | `int` | `10` | Padding from screen edge in pixels |
+| `--genre` | ❌ | `str` | `None` | Genre preset: `bachata`, `salsa`, `reggaeton`, `kizomba`, `merengue`, `pop` |
+| `--output-json` | ❌ | `str` | `None` | Emit structured JSON output to a file or '-' for stdout |
+| `--pacing-drift-zoom` | ❌ | flag | `False` | Slow 100→105% Ken Burns zoom drift on every segment |
+| `--pacing-crop-tighten` | ❌ | flag | `False` | Zoom in over first 10s of each segment (caps at 105%) |
+| `--pacing-saturation-pulse` | ❌ | flag | `False` | Brief saturation surge on each detected beat |
+| `--pacing-micro-jitters` | ❌ | flag | `False` | Beat-synced 2px shake for rhythmic punch |
+| `--pacing-light-leaks` | ❌ | flag | `False` | Warm amber colour flash on key beats (~200ms) |
+| `--pacing-warm-wash` | ❌ | flag | `False` | Brief amber flash at transition boundaries |
+| `--pacing-alternating-bokeh` | ❌ | flag | `False` | Subtle background blur on alternating segments |
 | `--broll-interval` | ❌ | `float` | `13.5` | Target interval between B-roll clips in seconds |
 | `--broll-variance` | ❌ | `float` | `1.5` | Allowed variance in B-roll intervals (± seconds) |
 | `--explain` | ❌ | flag | `False` | Write a decision explainability log (`*_explain.md`) next to the output video |
@@ -68,6 +78,18 @@ A YAML file in the project root that controls clip pacing — no code changes ne
 | `audio_start_offset` | `0.0` | Start the montage from this point in the audio (seconds). Set automatically by smart-start hook detection. |
 | `intro_effect` | `none` | Visual effect applied to the first segment only. Options: `none`, `bloom`, `vignette_breathe` |
 | `intro_effect_duration` | `1.5` | Duration of the intro effect in seconds (0.5–3.0 recommended) |
+| `audio_overlay_opacity` | `0.5` | Default opacity for the visualizer |
+| `audio_overlay_position` | `right` | Default horizontal position (`left`, `center`, `right`) |
+| `audio_overlay_padding` | `10` | Default padding from screen edge (pixels) |
+| `pacing_drift_zoom` | `false` | Enable/disable drift zoom (Ken Burns) |
+| `pacing_crop_tighten` | `false` | Enable/disable crop tightening |
+| `pacing_saturation_pulse` | `false` | Enable/disable intensity-based saturation pulsing |
+| `pacing_micro_jitters` | `false` | Enable/disable beat-synced micro-jitters |
+| `pacing_light_leaks` | `false` | Enable/disable beat-synced light leaks |
+| `pacing_warm_wash` | `false` | Enable/disable transition warm wash |
+| `pacing_alternating_bokeh` | `false` | Enable/disable alternating segment blur |
+| `dry_run` | `false` | If true, skip rendering and only output the plan |
+| `genre` | `null` | Active genre preset name |
 
 > If `montage_config.yaml` is missing, defaults above are used automatically.
 
@@ -198,6 +220,15 @@ All variables below are **optional** and apply to `make run`, `make run-shorts`,
 | `DRY_RUN` | `0` | Set to `1` to run analysis + planning only — no FFmpeg rendering |
 | `DRY_RUN_OUTPUT` | — | Path to write the dry-run plan to a file instead of stdout |
 | `WATCH` | `0` | Set to `1` to watch input directories and config for changes and incrementally re-render |
+| `GENRE` | — | Genre preset: `bachata`, `salsa`, `reggaeton`, `kizomba`, `merengue`, `pop` |
+| `OUTPUT_JSON` | — | Path for structured JSON output |
+| `PACING_DRIFT_ZOOM` | `0` | Set to `1` to enable Ken Burns drift zoom |
+| `PACING_CROP_TIGHTEN` | `0` | Set to `1` to enable crop tightening |
+| `PACING_SATURATION_PULSE` | `0` | Set to `1` to enable saturation pulsing |
+| `PACING_MICRO_JITTERS` | `0` | Set to `1` to enable micro-jitters |
+| `PACING_LIGHT_LEAKS` | `0` | Set to `1` to enable light leaks |
+| `PACING_WARM_WASH` | `0` | Set to `1` to enable warm wash |
+| `PACING_ALTERNATING_BOKEH` | `0` | Set to `1` to enable alternating bokeh |
 
 **Example — montage with waveform overlay:**
 
