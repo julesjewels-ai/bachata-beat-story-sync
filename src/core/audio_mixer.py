@@ -1,7 +1,15 @@
 """
 Audio mixer for combining multiple audio tracks.
+
+Supports BPM-matched crossfades (Phase 1) via FFmpeg's atempo time-stretch
+filter, which prevents rhythmic clashing at track boundaries without altering
+pitch. Beat-phase alignment is deferred to Phase 2.
 """
 
+from __future__ import annotations
+
+import hashlib
+import json
 import logging
 import os
 import shutil
@@ -21,6 +29,14 @@ DEFAULT_CONFIG_PATH = os.path.join(
 )
 SUPPORTED_AUDIO_EXTENSIONS = {".mp3", ".wav", ".flac", ".aac"}
 
+# Sidecar file stored alongside _mixed_audio.wav to detect config changes
+_CACHE_PARAMS_SUFFIX = ".mix_params"
+
+
+# ------------------------------------------------------------------
+# Config loading
+# ------------------------------------------------------------------
+
 
 def load_audio_mix_config(config_path: str | None = None) -> AudioMixConfig:
     """
@@ -39,6 +55,11 @@ def load_audio_mix_config(config_path: str | None = None) -> AudioMixConfig:
                 "Failed to load audio mix config from %s: %s. Using defaults.", path, e
             )
     return AudioMixConfig()
+
+
+# ------------------------------------------------------------------
+# Path resolution
+# ------------------------------------------------------------------
 
 
 def resolve_audio_path(
@@ -83,9 +104,101 @@ def resolve_audio_path(
     return audio_path
 
 
+# ------------------------------------------------------------------
+# Pure helper functions (easily unit-testable)
+# ------------------------------------------------------------------
+
+
+def _config_fingerprint(config: AudioMixConfig) -> str:
+    """Return an MD5 hash of the mix-relevant config fields.
+
+    Used as a cache key so that changing tempo_sync or sync_threshold
+    triggers a fresh mix rather than serving a stale cached file.
+    """
+    data = {
+        "crossfade": config.crossfade_duration_seconds,
+        "tempo_sync": config.tempo_sync,
+        "sync_threshold": config.sync_threshold,
+    }
+    return hashlib.md5(
+        json.dumps(data, sort_keys=True).encode(), usedforsecurity=False
+    ).hexdigest()
+
+
+def _calculate_atempo_ratio(
+    source_bpm: float,
+    target_bpm: float,
+    threshold: float,
+) -> float | None:
+    """Calculate the FFmpeg atempo ratio to align *source_bpm* to *target_bpm*.
+
+    Returns ``None`` when the difference is negligible (< 1 BPM) or when
+    the required stretch exceeds the safety *threshold* — in both cases
+    no filter should be applied.
+
+    Args:
+        source_bpm: BPM of the incoming track to be stretched.
+        target_bpm: BPM of the current mix (the target tempo).
+        threshold: Maximum fractional shift allowed (e.g. 0.10 for ±10%).
+
+    Returns:
+        The ``atempo`` ratio as a float, or ``None`` to skip stretching.
+    """
+    if abs(source_bpm - target_bpm) < 1.0:
+        logger.debug(
+            "BPM diff < 1 BPM (%.1f→%.1f); skipping tempo sync.", source_bpm, target_bpm
+        )
+        return None
+
+    ratio = target_bpm / source_bpm
+
+    if not (1.0 - threshold) <= ratio <= (1.0 + threshold):
+        logger.warning(
+            "BPM diff %.1f→%.1f (ratio %.3f) exceeds threshold %.0f%%; "
+            "tempo sync skipped to preserve audio quality.",
+            source_bpm,
+            target_bpm,
+            ratio,
+            threshold * 100,
+        )
+        return None
+
+    return ratio
+
+
+def _build_filter_complex(
+    atempo_ratio: float | None,
+    crossfade_duration: float,
+) -> str:
+    """Build the FFmpeg filter_complex string for a crossfade step.
+
+    When *atempo_ratio* is provided, the second input stream is first
+    time-stretched to match the current mix tempo, then crossfaded with
+    the first stream.  When it is ``None`` the plain acrossfade filter is
+    used — identical to the pre-Phase-1 behaviour.
+
+    Args:
+        atempo_ratio: Stretch ratio for the incoming track, or ``None``.
+        crossfade_duration: Duration of the crossfade overlap in seconds.
+
+    Returns:
+        A filter_complex string ready to pass to ``ffmpeg -filter_complex``.
+    """
+    cf = f"acrossfade=d={crossfade_duration:.3f}:c1=tri:c2=tri[a]"
+    if atempo_ratio is not None:
+        return f"[1:a]atempo={atempo_ratio:.6f}[a1];[0:a][a1]{cf}"
+    return f"[0:a][1:a]{cf}"
+
+
+# ------------------------------------------------------------------
+# AudioMixer class
+# ------------------------------------------------------------------
+
+
 class AudioMixer:
     """
-    Combines multiple audio files into a single continuous mix with crossfades.
+    Combines multiple audio files into a single continuous mix with BPM-matched
+    crossfades.
     """
 
     def mix_audio_folder(
@@ -96,10 +209,12 @@ class AudioMixer:
     ) -> str:
         """
         Discovers supported audio files in the given folder, sorts them
-        alphanumerically, and concatenates them with crossfades.
+        alphanumerically, and concatenates them with BPM-matched crossfades.
 
-        If the final output file already exists, it skips generation and
-        returns the existing file, providing a simple cache.
+        If the final output file already exists **and** its config fingerprint
+        matches the current config, the cached file is reused.  If the config
+        has changed (e.g. ``tempo_sync`` was just enabled), the cache is
+        invalidated and the mix is regenerated.
 
         Args:
             folder_path: Path to directory containing audio files.
@@ -109,11 +224,30 @@ class AudioMixer:
         Returns:
             The path to the output mixed audio file.
         """
+        config = load_audio_mix_config()
+
+        # --- Cache validation with config fingerprint ---
+        params_path = output_path + _CACHE_PARAMS_SUFFIX
         if os.path.exists(output_path):
+            current_fp = _config_fingerprint(config)
+            cached_fp = None
+            if os.path.exists(params_path):
+                try:
+                    with open(params_path) as f:
+                        cached_fp = f.read().strip()
+                except OSError:
+                    pass
+            if cached_fp == current_fp:
+                logger.info(
+                    "Mixed audio cache hit at %s (config unchanged).", output_path
+                )
+                return output_path
             logger.info(
-                "Mixed audio file already exists at %s, using cache.", output_path
+                "Mix config changed (cached=%s, current=%s); regenerating mix.",
+                cached_fp,
+                current_fp,
             )
-            return output_path
+            os.remove(output_path)
 
         audio_files = self._discover_audio_files(folder_path)
         if not audio_files:
@@ -121,10 +255,68 @@ class AudioMixer:
 
         logger.info("Found %d audio files in %s", len(audio_files), folder_path)
 
-        config = load_audio_mix_config()
-        return self._mix_files(
-            audio_files, output_path, config.crossfade_duration_seconds, observer
+        # --- Pre-analyse all source files for BPM (before any FFmpeg work) ---
+        bpm_map: dict[str, float] = {}
+        if config.tempo_sync and len(audio_files) > 1:
+            bpm_map = self._analyse_bpm(audio_files, observer)
+
+        result = self._mix_files(
+            audio_files,
+            output_path,
+            config,
+            bpm_map,
+            observer,
         )
+
+        # Write config fingerprint sidecar
+        try:
+            with open(params_path, "w") as f:
+                f.write(_config_fingerprint(config))
+        except OSError as e:
+            logger.warning("Could not write mix params sidecar: %s", e)
+
+        return result
+
+    # ------------------------------------------------------------------
+    # Private helpers
+    # ------------------------------------------------------------------
+
+    def _analyse_bpm(
+        self,
+        audio_files: list[str],
+        observer: ProgressObserver | None = None,
+    ) -> dict[str, float]:
+        """Run BPM analysis on all source files and return a path→BPM map.
+
+        This must be called on **original source files only**, never on
+        intermediate mix files, to ensure reliable BPM detection.
+        """
+        # Lazy import to avoid circular dependencies at module load time
+        from src.core.audio_analyzer import AudioAnalysisInput, AudioAnalyzer  # noqa: WPS433
+
+        analyzer = AudioAnalyzer()
+        bpm_map: dict[str, float] = {}
+        total = len(audio_files)
+
+        for idx, path in enumerate(audio_files):
+            if observer:
+                observer.on_progress(
+                    idx, total, f"Analysing BPM [{idx + 1}/{total}]: {os.path.basename(path)}"
+                )
+            try:
+                result = analyzer.analyze(AudioAnalysisInput(file_path=path))
+                bpm_map[path] = result.bpm
+                logger.info(
+                    "BPM detected: %s → %.1f BPM", os.path.basename(path), result.bpm
+                )
+            except Exception as e:
+                logger.warning(
+                    "BPM analysis failed for %s: %s — tempo sync will be skipped for this track.",
+                    os.path.basename(path),
+                    e,
+                )
+
+        return bpm_map
 
     def _discover_audio_files(self, folder_path: str) -> list[str]:
         """
@@ -144,11 +336,13 @@ class AudioMixer:
         self,
         audio_files: list[str],
         output_path: str,
-        crossfade_duration: float,
+        config: AudioMixConfig,
+        bpm_map: dict[str, float],
         observer: ProgressObserver | None = None,
     ) -> str:
         """
-        Sequentially concatenates audio files using FFmpeg 'acrossfade' filter.
+        Sequentially concatenates audio files using FFmpeg 'acrossfade' filter,
+        applying atempo time-stretching when BPM maps are available.
         """
         if not shutil.which("ffmpeg"):
             raise RuntimeError("FFmpeg is not installed or not on PATH.")
@@ -158,12 +352,18 @@ class AudioMixer:
             shutil.copy2(audio_files[0], output_path)
             return output_path
 
+        crossfade_duration = config.crossfade_duration_seconds
+        sync_threshold = config.sync_threshold
+
         temp_dir = tempfile.mkdtemp(prefix="audio_mix_")
         try:
             current_input = audio_files[0]
+            # Track the outgoing BPM using original source BPM values only
+            current_bpm: float | None = bpm_map.get(audio_files[0])
 
             for i in range(1, len(audio_files)):
-                next_input = audio_files[i]
+                next_source = audio_files[i]
+                next_bpm: float | None = bpm_map.get(next_source)
                 is_last = i == len(audio_files) - 1
 
                 if observer:
@@ -177,24 +377,29 @@ class AudioMixer:
                     else os.path.join(temp_dir, f"mix_step_{i:04d}.wav")
                 )
 
-                # We need exact crossfade because acrossfade
-                # handles overlap automatically if duration
-                # is specified. Filter form:
-                # [0:a][1:a]acrossfade=d=duration:c1=tri:c2=tri[a]
+                # Calculate tempo ratio for this transition
+                atempo_ratio: float | None = None
+                if current_bpm is not None and next_bpm is not None:
+                    atempo_ratio = _calculate_atempo_ratio(
+                        next_bpm, current_bpm, sync_threshold
+                    )
+                    if atempo_ratio is not None:
+                        logger.info(
+                            "Tempo sync: %.1f→%.1f BPM (atempo=%.4f) for track %d→%d",
+                            next_bpm, current_bpm, atempo_ratio, i, i + 1,
+                        )
+
+                filter_complex = _build_filter_complex(atempo_ratio, crossfade_duration)
+
                 cmd = [
                     "ffmpeg",
                     "-y",
-                    "-i",
-                    current_input,
-                    "-i",
-                    next_input,
-                    "-filter_complex",
-                    f"[0:a][1:a]acrossfade=d={crossfade_duration:.3f}:c1=tri:c2=tri[a]",
-                    "-map",
-                    "[a]",
+                    "-i", current_input,
+                    "-i", next_source,
+                    "-filter_complex", filter_complex,
+                    "-map", "[a]",
                     # Always output as wav internally for lossless intermediates
-                    "-c:a",
-                    "pcm_s16le",
+                    "-c:a", "pcm_s16le",
                     step_output,
                 ]
 
@@ -204,6 +409,8 @@ class AudioMixer:
                     os.remove(current_input)
 
                 current_input = step_output
+                # Advance the outgoing BPM to the source BPM of the track we just merged in
+                current_bpm = next_bpm
 
             if observer:
                 observer.on_progress(
@@ -217,6 +424,6 @@ class AudioMixer:
     @staticmethod
     def _run_ffmpeg(cmd: list[str], stage_name: str) -> None:
         """Delegate to the shared FFmpeg runner."""
-        from src.core.ffmpeg_utils import run_ffmpeg
+        from src.core.ffmpeg_utils import run_ffmpeg  # noqa: WPS433
 
         run_ffmpeg(cmd, stage_name)

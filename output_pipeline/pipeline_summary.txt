@@ -1,16 +1,16 @@
-Pipeline complete in 5932s
+Pipeline complete in 1299s
 Total files generated: 13
 
   output_pipeline/mix.mp4
-  output_pipeline/track_01_BBB_-_Orch_-_31_-_Beach_love_Spanish_-_Besos_en_la_Playa_-_La_Bachata_más_Romántica_del_2026_🌙🌹_#BachataNueva_#MusicaLatina_#ParaBailar.mp4
+  output_pipeline/track_01_AE_1__“Amanecer_en_Tus_Ojos”_–_The_First_Glance_Short.mp4
   output_pipeline/shorts/track_01/short_001.mp4
-  output_pipeline/track_02_BBB_-_Orch_-_32_-_Beach_meeting_Spanish_-_Bachata_Romántica_2026_-_Cuentos_de_Playa_🌊_(Música_Suave_y_Nostálgica_para_Recordar).mp4
+  output_pipeline/track_02_AE_2_-_“Bajo_el_Sol_Ardiente”_–_Growing_Connection.mp4
   output_pipeline/shorts/track_02/short_001.mp4
-  output_pipeline/track_03_BBB_-_Orch_-_33_-_Couple_sea_Spanish_-_Vuelvo_a_la_Mar_-_Bachata_Romántica_y_Cello_Profundo_🌊_(Para_Bailar_y_Recordar).mp4
+  output_pipeline/track_03_AE_3_-_“Brisa_del_Mediodía”_–_Moments_of_Reflection.mp4
   output_pipeline/shorts/track_03/short_001.mp4
-  output_pipeline/track_04_BBB_-_Orch_-_34_-_Life_near_the_sea_Spanish_-_La_Mar_Me_Llama_-_Bachata_Acústica_para_Recordar_y_Sentir_el_Alma_🌊_|_Música_con_Sentimiento_#BachataRomantica.mp4
+  output_pipeline/track_04_AE_4__“Entre_la_Arena_y_el_Sol”_–_Shared_Promise.mp4
   output_pipeline/shorts/track_04/short_001.mp4
-  output_pipeline/track_05_BBB_-_Orch_-_35_-_Beach_encounter_-_Tan_Azul_Como_el_Mar_🌊_Bachata_Romántica_2026_(Para_Bailar_y_Recordar)_#BachataVieja_#Romantica.mp4
+  output_pipeline/track_05_AE_5_-_“Tormenta_Clara”_–_The_Challenge.mp4
   output_pipeline/shorts/track_05/short_001.mp4
-  output_pipeline/track_06_BBB_-_Orch_-_36_-_Beach_vibes_-_Bachata_Romántica_2026_-_Amor_en_la_Playa_🌅_(Música_para_Bailar_y_Recordar).mp4
+  output_pipeline/track_06_AE_6_-_“Sol_de_Siempre”_–_Eternal_Love.mp4
   output_pipeline/shorts/track_06/short_001.mp4

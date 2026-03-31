@@ -360,3 +360,22 @@ class AudioMixConfig(BaseModel):
     crossfade_duration_seconds: float = Field(
         2.0, description="Duration in seconds for the crossfades between tracks"
     )
+
+    # Tempo synchronisation (Phase 1)
+    tempo_sync: bool = Field(
+        True,
+        description="Automatically match each incoming track's BPM to the "
+        "current mix tempo using FFmpeg atempo filter",
+    )
+    sync_threshold: float = Field(
+        0.10,
+        description="Maximum fractional tempo shift allowed before sync is "
+        "skipped to avoid audio artifacts (0.10 = ±10%)",
+    )
+
+    # Phase 2 placeholder — not yet implemented
+    tempo_ramp: bool = Field(
+        False,
+        description="[Phase 2 — not yet active] Gradually ramp tempo within "
+        "the crossfade window rather than applying a fixed stretch",
+    )

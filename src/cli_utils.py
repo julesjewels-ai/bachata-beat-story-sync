@@ -251,6 +251,13 @@ def add_visual_args(parser: argparse.ArgumentParser) -> None:
         default=None,
         help="Write dry-run plan to a file instead of stdout",
     )
+    parser.add_argument(
+        "--no-tempo-sync",
+        action="store_true",
+        default=False,
+        dest="no_tempo_sync",
+        help="Disable BPM tempo matching between audio tracks (useful for debugging transitions)",
+    )
 
     # Pacing Visual Effects (FEAT-023)
     parser.add_argument(

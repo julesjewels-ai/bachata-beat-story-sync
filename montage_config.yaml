@@ -73,3 +73,24 @@ pacing:
   # pacing_light_leaks: false          # Warm amber flashes on beats
   # pacing_warm_wash: false            # Amber flash at transitions
   # pacing_alternating_bokeh: false    # Blur on alternating segments
+
+# Audio Mix Configuration
+# Controls how multiple audio tracks are mixed when --audio points to a folder.
+audio_mix:
+  # Duration in seconds for the crossfade overlap between tracks.
+  crossfade_duration_seconds: 2.0
+
+  # BPM Tempo Sync (Phase 1) — DJ-style beat matching at track boundaries.
+  # When enabled, the mixer pre-analyses each source track's BPM and applies
+  # an FFmpeg atempo time-stretch to the incoming track so its tempo matches
+  # the outgoing mix. This eliminates rhythmic clashing without pitch-shifting.
+  # Disable with --no-tempo-sync on the CLI (or set to false here).
+  tempo_sync: true
+
+  # Maximum fractional tempo shift allowed. If the BPM difference would require
+  # a larger stretch than this, sync is skipped for that transition to prevent
+  # audio quality loss. 0.10 = up to ±10% (handles most real-world track pairs).
+  sync_threshold: 0.10
+
+  # [Phase 2 — not yet active] Gradually ramp tempo within the crossfade window.
+  # tempo_ramp: false
