@@ -22,3 +22,19 @@ output_pipeline/
 
 # Security Reports
 bandit-report.json
+
+# Distribution
+dist/
+out_shorts/
+
+# Caches and Tools
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+.claude/
+
+# Reports and logs
+*.xlsx
+output_story_explain.md
+refactor_progress.txt
+

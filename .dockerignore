@@ -1,0 +1,34 @@
+**/.git
+**/.DS_Store
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+.env
+
+# Development & AI Context Constraints (Keep Out of Container)
+.benchmarks/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.agent/
+.claude/
+.Jules/
+memory/
+docs/
+tests/
+Makefile
+mypy.ini
+pyrightconfig.json
+ockham.md
+refactor_progress.txt
+
+# Media Outputs & Generated Files (Keep Out of Container)
+*.mp4
+*.wav
+*.mov
+output_pipeline/
+out_shorts/
+*_explain.md
+pipeline_summary.txt
