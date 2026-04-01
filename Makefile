@@ -105,7 +105,7 @@ ifneq ($(ZOOM),)
   EXTRA_FLAGS += --zoom $(ZOOM)
 endif
 
-.PHONY: install run run-shorts full-pipeline test lint format check-types clean
+.PHONY: install run run-shorts full-pipeline mcp-serve test lint format check-types clean
 
 install:
 	[ -d $(VENV) ] || uv venv $(VENV) --python 3.13
@@ -120,6 +120,9 @@ run-shorts:
 
 full-pipeline:
 	$(BIN)/python -m src.pipeline --audio "$(AUDIO)" --video-dir "$(VIDEO_DIR)" --output-dir "$(OUTPUT_DIR)" --shorts-count $(SHORTS_COUNT) --shorts-duration "$(SHORTS_DURATION)" $(EXTRA_FLAGS)
+
+mcp-serve:
+	$(BIN)/python mcp_server.py
 
 test:
 	$(BIN)/pytest
