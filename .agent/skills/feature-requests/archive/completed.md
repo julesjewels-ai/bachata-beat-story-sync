@@ -26,6 +26,8 @@
 | FEAT-020 | Visual Scene-Change Detection | `IMPLEMENTED` | `scene_changes` + `opening_intensity` on clips; scene-aware start offsets |
 | FEAT-021 | Waveform Overlay Padding / Margins | `VERIFIED` | `--audio-overlay-padding` (px from screen edge, default 10); flows through `PacingConfig` → `ffmpeg_renderer` |
 | FEAT-022 | Intro Visual Effects | `IMPLEMENTED` | `--intro-effect` (bloom, vignette_breathe) |
+| FEAT-023 | Pacing Visual Effects | `IMPLEMENTED` | `--pacing-drift-zoom`, `--pacing-crop-tighten`, `--pacing-saturation-pulse`; sustained cinematic motion effects applied per-segment via `_build_pacing_filters()` |
+| FEAT-024 | Advanced Beat-Synced Effects | `IMPLEMENTED` | `--pacing-micro-jitters`, `--pacing-light-leaks`, `--pacing-warm-wash`, `--pacing-alternating-bokeh`; beat-synced visual effects using `_beats_to_expression()` helper |
 | FEAT-025 | Decision Explainability Log | `DONE` | `--explain` outputs timestamped decision log |
 | FEAT-026 | Dry-Run Plan Mode | `DONE` | `--dry-run` previews segment plan without rendering |
 | FEAT-027 | Genre Preset System | `DONE` | `--genre` (bachata, salsa, reggaeton, kizomba, merengue, pop) |
