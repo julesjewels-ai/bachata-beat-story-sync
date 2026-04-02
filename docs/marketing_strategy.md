@@ -4,6 +4,47 @@
 
 ---
 
+## 0. Phase 1 Reality (Current Constraints)
+
+*This section captures what is true today and overrides aspirational sections below until the product evolves.*
+
+### Product State
+- The tool is a **CLI only**. A minimal UI (Streamlit or Gradio wrapper) is planned within days — alpha/beta.
+- Until a UI exists, non-technical users cannot use this tool. Marketing to casual creators before then is premature.
+
+### Audience Right Now
+The Persona 1 (casual dance creator filming on phone) and Persona 3 (dance instructor, low technical skill) from section 2 **cannot be reached yet**. The critical workflow mismatch:
+
+- Most dance creators film on a phone and upload directly to social — they do not have an organized clip folder or a separate audio WAV file.
+- This tool requires both. That gap is a product roadmap problem, not a marketing problem.
+
+**The reachable audience today** is a subset of Persona 2:
+- Dance studios running proper video shoots (multiple takes, organized footage)
+- Event videographers covering socials or showcases — already have clip libraries
+- Choreographers assembling rehearsal footage into highlight reels
+
+These users have the right workflow *right now* and experience a real, painful editing problem.
+
+### Channel Strategy
+- **Primary:** YouTube — demo-first content showing real montage output. The tool generates its own proof.
+- **Secondary:** LinkedIn — occasional personal brand cross-posts ("here's what I've been building"). No separate brand page needed.
+- **Not yet:** TikTok, Instagram Reels, paid ads — too early without a non-technical product.
+
+### Go-to-Market Sequence
+1. Build minimal UI wrapper (days)
+2. Recruit 3–5 beta testers from dance studios or event videography communities
+3. Record them using it — that footage is the first YouTube content
+4. Their output montages are the social proof
+5. Expand persona targeting once UI removes the technical barrier
+
+### Genre Strategy
+- Lead with **bachata** — lower competition, passionate tight-knit community, matches tool name
+- The tool already supports salsa, reggaeton, kizomba, merengue, pop via genre presets
+- Expand through content ("does this work on salsa?"), not product changes
+- Tagline for this phase: *"Built for bachata. Works for all dance music."*
+
+---
+
 ## 1. Strategic Overview
 
 **Bachata Beat-Story Sync** occupies a unique, uncontested niche: *beat-aware, dance-optimized, batch-ready, explainable video montage automation.* No direct competitor combines music-structure analysis + motion-intensity matching + genre presets + transparent decision logs in a single local-first tool.
