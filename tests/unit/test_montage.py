@@ -1096,7 +1096,7 @@ class TestClipVariety:
         config = PacingConfig(clip_variety_enabled=True)
         plan_a = gen.build_segment_plan(medium_audio, single_clip_30s, config)
         plan_b = gen.build_segment_plan(medium_audio, single_clip_30s, config)
-        for a, b in zip(plan_a, plan_b):
+        for a, b in zip(plan_a, plan_b, strict=True):
             assert a.start_time == b.start_time
 
     def test_clip_variety_disabled_uses_zero(self, gen, medium_audio, single_clip_30s):
@@ -1574,7 +1574,7 @@ class TestAudioStartOffset:
         segs_default = gen.build_segment_plan(audio, clips, config_default)
         # Same number of segments with same timeline positions
         assert len(segs_zero) == len(segs_default)
-        for a, b in zip(segs_zero, segs_default):
+        for a, b in zip(segs_zero, segs_default, strict=True):
             assert abs(a.timeline_position - b.timeline_position) < 0.01
 
     def test_offset_with_max_duration(self, gen, clips, audio):
@@ -2086,7 +2086,10 @@ class TestShortsOpenerScoring:
 
 
 class TestPacingEffects:
-    """Tests for FEAT-023: Pacing Visual Effects (drift zoom, crop tighten, saturation pulse)."""
+    """Tests for FEAT-023: Pacing Visual Effects.
+
+    Covers drift zoom, crop tighten, and saturation pulse.
+    """
 
     @staticmethod
     def _audio_for_test(beats: int = 10) -> AudioAnalysisResult:
@@ -2255,7 +2258,7 @@ class TestPacingEffects:
         mock_which,
         tmp_path,
     ):
-        """drift_zoom takes precedence over crop_tighten (both use zoompan); saturation_pulse stacks."""
+        """drift_zoom takes precedence over crop_tighten; saturation_pulse stacks."""
         temp_dir = str(tmp_path / "montage_temp")
         os.makedirs(temp_dir, exist_ok=True)
         mock_mkdtemp.return_value = temp_dir

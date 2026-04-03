@@ -33,3 +33,8 @@
 | FEAT-027 | Genre Preset System | `DONE` | `--genre` (bachata, salsa, reggaeton, kizomba, merengue, pop) |
 | FEAT-028 | Structured JSON Output | `IMPLEMENTED` | `--output-json` emits analysis + plan as JSON |
 | FEAT-029 | File Watcher | `DONE` | `--watch` monitors inputs and auto-re-renders |
+| FEAT-030 | Per-Track Video Clip Pools | `IMPLEMENTED` | `pipeline.track_clips` YAML config allows per-song clip folders + fallback to global |
+| FEAT-031 | Per-Track Video Style Filter | `IMPLEMENTED` | `pipeline.track_styles` YAML config per-song `video_style` overrides |
+| FEAT-032 | Native Folder Picker in Streamlit UI | `IMPLEMENTED` | `tkinter.filedialog` integration for audio/video dir selection |
+| FEAT-033 | Smart B-Roll Insertion with Clip Boundary Respect | `IMPLEMENTED` | `b_roll_interval` config respects clip boundaries; seamless insertion logic |
+| FEAT-034 | Persistent Status Bar with ETA in Streamlit UI | `IMPLEMENTED` | Real-time progress bar, elapsed time, ETA, stage names in sticky header |

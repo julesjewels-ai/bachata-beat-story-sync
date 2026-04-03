@@ -10,6 +10,7 @@ import cv2
 import numpy as np
 import pytest
 from src.core.video_analyzer import (
+    MAX_SCENE_CHANGES,
     MAX_VIDEO_DURATION_SECONDS,
     MAX_VIDEO_FRAMES,
     VideoAnalysisInput,
@@ -332,12 +333,6 @@ def test_small_video_no_resize(analyzer, mock_video_capture, mock_exists, mock_i
 # ---------------------------------------------------------------------------
 # FEAT-020: Scene-change detection and opening intensity
 # ---------------------------------------------------------------------------
-
-from src.core.video_analyzer import (
-    MAX_SCENE_CHANGES,
-    OPENING_WINDOW_SECONDS,
-    SCENE_CHANGE_THRESHOLD,
-)
 
 
 def _create_scene_change_cap(

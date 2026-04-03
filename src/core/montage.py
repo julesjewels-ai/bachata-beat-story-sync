@@ -1,4 +1,7 @@
-"""Montage generation engine — FEAT-001 through FEAT-013, FEAT-019, FEAT-020, FEAT-025."""
+"""Montage generation engine.
+
+Features: FEAT-001, FEAT-002, ..., FEAT-025.
+"""
 
 from __future__ import annotations
 
@@ -553,10 +556,10 @@ class MontageGenerator:
 
                 # FEAT-033: Update the boundary-respecting flag
                 if is_broll:
-                    # We just inserted B-roll, so we need a regular clip before the next B-roll
+                    # Need regular clip before next B-roll
                     has_regular_clip_since_broll = False
                 else:
-                    # We just inserted a regular clip, which means we can use B-roll next if threshold met
+                    # Can use B-roll next if threshold is met
                     has_regular_clip_since_broll = True
 
                 # FEAT-025: collect decision if explain mode is active

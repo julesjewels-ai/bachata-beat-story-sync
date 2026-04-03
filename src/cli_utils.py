@@ -198,7 +198,7 @@ def add_visual_args(parser: argparse.ArgumentParser) -> None:
         "--audio-overlay-padding",
         type=int,
         default=None,
-        help="Distance in pixels from the screen edge for the audio overlay (default: 10)",
+        help="Distance in pixels from screen edge for audio overlay (default: 10)",
     )
     parser.add_argument(
         "--broll-interval",
@@ -255,7 +255,7 @@ def add_visual_args(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         default=False,
         dest="no_tempo_sync",
-        help="Disable BPM tempo matching between audio tracks (useful for debugging transitions)",
+        help="Disable BPM tempo matching between audio tracks (debug transitions)",
     )
 
     # Pacing Visual Effects (FEAT-023)
@@ -447,7 +447,7 @@ def run_dry_run_handler(
         dry_run_output: Path to write the plan report, or ``None`` for stdout.
         output_json: Path to write JSON output (or ``'-'`` for stdout), or ``None``.
         pacing_is_shorts: When ``True``, sets ``is_shorts=True`` on PacingConfig.
-        report_prefix: Optional heading prepended to the plan text (e.g. ``"=== Mix ===\\n"``).
+        report_prefix: Optional heading prepended to plan text (e.g. ``"=== Mix ===\\n"``).
 
     Returns:
         The formatted plan report string.

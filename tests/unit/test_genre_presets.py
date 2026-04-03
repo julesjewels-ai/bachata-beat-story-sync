@@ -8,7 +8,6 @@ list_genres(), YAML integration via load_pacing_config(), and CLI arg parsing.
 import argparse
 import textwrap
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 from src.core.genre_presets import GENRE_PRESETS, apply_genre_preset, list_genres

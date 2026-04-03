@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from src.core.models import (
@@ -67,7 +67,7 @@ def build_json_output(
     """
     result: dict[str, Any] = {
         "version": version,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "audio": _serialise_audio(audio_meta),
         "clips": [_serialise_clip(c) for c in clips],
         "segment_plan": (

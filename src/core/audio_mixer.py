@@ -314,7 +314,7 @@ class AudioMixer:
                 )
             except Exception as e:
                 logger.warning(
-                    "BPM analysis failed for %s: %s — tempo sync will be skipped for this track.",
+                    "BPM analysis failed for %s: %s — tempo sync will be skipped.",
                     os.path.basename(path),
                     e,
                 )
@@ -421,7 +421,7 @@ class AudioMixer:
                     os.remove(current_input)
 
                 current_input = step_output
-                # Advance the outgoing BPM to the source BPM of the track we just merged in
+                # Update the outgoing BPM to the source BPM of the track we merged
                 current_bpm = next_bpm
 
             if observer:

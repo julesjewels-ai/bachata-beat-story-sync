@@ -6,7 +6,7 @@ These models define the strict contracts for data exchange between layers.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -70,7 +70,7 @@ class VideoAnalysisResult(BaseModel):
     is_vertical: bool = Field(
         False, description="Whether the video is vertical (height > width)"
     )
-    thumbnail_data: Optional[bytes] = Field(
+    thumbnail_data: bytes | None = Field(
         None, description="Binary data of the video thumbnail (PNG format)"
     )
     scene_changes: list[float] = Field(
@@ -104,7 +104,7 @@ class SegmentPlan(BaseModel):
     speed_factor: float = Field(
         1.0, description="Playback speed multiplier (>1 = fast, <1 = slow-mo)"
     )
-    section_label: Optional[str] = Field(
+    section_label: str | None = Field(
         None,
         description="Musical section this segment belongs to"
         " (e.g. 'intro', 'high_energy')",
@@ -118,7 +118,7 @@ class SegmentDecision:
     timeline_start: float
     clip_path: str
     intensity_score: float
-    section_label: Optional[str]
+    section_label: str | None
     duration: float
     speed: float
     reason: str
@@ -175,10 +175,10 @@ class PacingConfig(BaseModel):
     low_intensity_speed: float = Field(
         0.9, description="Speed multiplier for low-intensity clips (<1 = slow-mo)"
     )
-    max_clips: Optional[int] = Field(
+    max_clips: int | None = Field(
         None, description="Maximum number of clip segments (None = unlimited)"
     )
-    max_duration_seconds: Optional[float] = Field(
+    max_duration_seconds: float | None = Field(
         None, description="Maximum total montage duration in seconds (None = unlimited)"
     )
 
@@ -336,7 +336,7 @@ class PacingConfig(BaseModel):
     )
 
     # Genre Preset (FEAT-027)
-    genre: Optional[str] = Field(
+    genre: str | None = Field(
         None,
         description="Genre preset name (e.g. 'bachata', 'salsa', 'reggaeton'). "
         "Applies tuned defaults; explicit field values still override.",
@@ -345,25 +345,32 @@ class PacingConfig(BaseModel):
     # Static Zoom / Crop Factor (FEAT-029)
     zoom_factor: float = Field(
         1.0,
-        description="Static zoom/crop factor. 1.0 = full frame, 0.88 = crop center 88% and scale up.",
+        description=(
+            "Static zoom/crop factor. 1.0 = full frame, "
+            "0.88 = crop center 88% and scale up."
+        ),
     )
 
     # Per-Track Video Clip Pools (FEAT-030)
     per_track_clips: dict[str, str] = Field(
         default_factory=dict,
-        description="Per-track clip folder mapping (filename → clip folder path). "
-        "Example: {'track1.wav': 'clips/track1/', 'track2.wav': 'clips/track2/'}. "
-        "If specified, overrides global --video-dir for that track's per-track video and Shorts. "
-        "Global pool is used for mix and fallback.",
+        description=(
+            "Per-track clip folder mapping (filename → clip folder path). "
+            "Example: {'track1.wav': 'clips/track1/', 'track2.wav': 'clips/track2/'}. "
+            "If specified, overrides global --video-dir for per-track video and Shorts. "
+            "Global pool is used for mix and fallback."
+        ),
     )
 
     # Per-Track Video Style Filter (FEAT-031)
     per_track_styles: dict[str, str] = Field(
         default_factory=dict,
-        description="Per-track video style mapping (filename → style name). "
-        "Example: {'track1.wav': 'vintage', 'track2.wav': 'bw'}. "
-        "If specified, overrides global video_style for that track's per-track video and Shorts. "
-        "Valid styles: 'none', 'bw', 'vintage', 'warm', 'cool', 'golden'.",
+        description=(
+            "Per-track video style mapping (filename → style name). "
+            "Example: {'track1.wav': 'vintage', 'track2.wav': 'bw'}. "
+            "If specified, overrides global video_style for per-track video and Shorts. "
+            "Valid styles: 'none', 'bw', 'vintage', 'warm', 'cool', 'golden'."
+        ),
     )
 
     @field_validator("per_track_styles", mode="after")

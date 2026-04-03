@@ -9,7 +9,6 @@ import shutil
 import tempfile
 from unittest.mock import patch
 
-import pytest
 from src.core.audio_mixer import (
     AudioMixer,
     _build_filter_complex,
