@@ -119,7 +119,9 @@ class BachataSyncEngine:
             List of ``SegmentPlan`` objects describing the planned montage.
         """
         return self.montage_generator.build_segment_plan(
-            audio_data, video_clips, pacing,
+            audio_data,
+            video_clips,
+            pacing,
         )
 
     def generate_story(

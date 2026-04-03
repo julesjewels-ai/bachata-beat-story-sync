@@ -96,9 +96,7 @@ def resolve_audio_path(
         logger.info("Multiple audio files detected. Mixing tracks...")
         mixed_output = os.path.join(audio_path, "_mixed_audio.wav")
         mixer = AudioMixer()
-        audio_path = mixer.mix_audio_folder(
-            audio_path, mixed_output, observer=observer
-        )
+        audio_path = mixer.mix_audio_folder(audio_path, mixed_output, observer=observer)
         logger.info("Mixed audio saved to: %s", audio_path)
 
     return audio_path
@@ -292,7 +290,10 @@ class AudioMixer:
         intermediate mix files, to ensure reliable BPM detection.
         """
         # Lazy import to avoid circular dependencies at module load time
-        from src.core.audio_analyzer import AudioAnalysisInput, AudioAnalyzer  # noqa: WPS433
+        from src.core.audio_analyzer import (  # noqa: WPS433
+            AudioAnalysisInput,
+            AudioAnalyzer,
+        )
 
         analyzer = AudioAnalyzer()
         bpm_map: dict[str, float] = {}
@@ -301,7 +302,9 @@ class AudioMixer:
         for idx, path in enumerate(audio_files):
             if observer:
                 observer.on_progress(
-                    idx, total, f"Analysing BPM [{idx + 1}/{total}]: {os.path.basename(path)}"
+                    idx,
+                    total,
+                    f"Analysing BPM [{idx + 1}/{total}]: {os.path.basename(path)}",
                 )
             try:
                 result = analyzer.analyze(AudioAnalysisInput(file_path=path))
@@ -386,7 +389,11 @@ class AudioMixer:
                     if atempo_ratio is not None:
                         logger.info(
                             "Tempo sync: %.1f→%.1f BPM (atempo=%.4f) for track %d→%d",
-                            next_bpm, current_bpm, atempo_ratio, i, i + 1,
+                            next_bpm,
+                            current_bpm,
+                            atempo_ratio,
+                            i,
+                            i + 1,
                         )
 
                 filter_complex = _build_filter_complex(atempo_ratio, crossfade_duration)
@@ -394,12 +401,17 @@ class AudioMixer:
                 cmd = [
                     "ffmpeg",
                     "-y",
-                    "-i", current_input,
-                    "-i", next_source,
-                    "-filter_complex", filter_complex,
-                    "-map", "[a]",
+                    "-i",
+                    current_input,
+                    "-i",
+                    next_source,
+                    "-filter_complex",
+                    filter_complex,
+                    "-map",
+                    "[a]",
                     # Always output as wav internally for lossless intermediates
-                    "-c:a", "pcm_s16le",
+                    "-c:a",
+                    "pcm_s16le",
                     step_output,
                 ]
 

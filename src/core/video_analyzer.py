@@ -169,7 +169,8 @@ class VideoAnalyzer:
         return duration
 
     def _calculate_intensity(
-        self, cap: cv2.VideoCapture,
+        self,
+        cap: cv2.VideoCapture,
     ) -> IntensityResult:
         """Calculates motion intensity, scene changes, and opening intensity.
 

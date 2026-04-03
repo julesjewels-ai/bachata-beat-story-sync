@@ -64,3 +64,67 @@ _No active feature requests. Add new `PROPOSED` features below this line._
 - Shorts inherit the style of their source track.
 
 **Scope:** `src/pipeline.py`, `src/core/models.py` (`PacingConfig`), `montage_config.yaml` schema, CLI docs.
+
+---
+
+## FEAT-032 — Native Folder Picker in Streamlit UI
+
+**Status:** `IMPLEMENTED`
+
+**Summary:** Update the Streamlit UI to include a native file/folder picker allowing users to select input and output directories via a graphical file browser rather than manually typing paths.
+
+**Motivation:** Manually typing or pasting system paths for audio, video, and output directories is error-prone and tedious. A graphical folder picker provides a more intuitive, familiar, and desktop-like experience, significantly reducing friction for users.
+
+**Proposed Behaviour:**
+- Add "Select Folder" buttons next to the directory input fields in the Streamlit UI.
+- When clicked, the button launches a system-native folder selection dialog (using `tkinter.filedialog` or similar since this runs locally).
+- The selected path automatically populates the corresponding input field so the user can review it before executing the pipeline.
+
+**Scope:** `app_ui.py`, potential integration of tkinter or a dedicated streamlit-file-browser extension.
+
+---
+
+## FEAT-033 — Smart B-Roll Insertion with Clip Boundary Respect
+
+**Status:** `PROPOSED`
+
+**Summary:** Improve B-roll clip insertion timing by respecting clip boundaries — wait for the current main clip to finish before switching to a B-roll clip, even if the time threshold has been reached.
+
+**Motivation:** Currently, B-roll clips are inserted at predefined moments (e.g., every 20 seconds), which can cause jarring visual jumps if a main clip hasn't finished playing. By waiting for the current clip to finish naturally, transitions feel smoother and more intentional.
+
+**Proposed Behaviour:**
+- Set a B-roll insertion threshold (e.g., `b_roll_interval: 20` seconds in config or CLI flag).
+- The system checks if the threshold has been reached, BUT only switches to B-roll once the currently playing main clip finishes.
+- This prevents mid-clip switches and ensures smooth, boundary-respecting transitions.
+- Example: If threshold is 20 seconds and the current clip ends at 23 seconds, wait until 23 seconds to insert B-roll rather than forcing a switch at the 20-second mark.
+
+**Scope:** `src/core/montage.py` (`MontageGenerator` segment planning logic), `src/core/models.py` (add `b_roll_interval` to `PacingConfig`), `montage_config.yaml` schema.
+
+---
+
+## FEAT-034 — Persistent Status Bar with ETA in Streamlit UI
+
+**Status:** `IMPLEMENTED`
+
+**Summary:** Add a persistent top-level status bar in the Streamlit UI showing real-time progress, stage name, elapsed time, and estimated time remaining (ETA). Replace disappearing logs with a structured status display.
+
+**Motivation:** Currently, log output disappears during long pipeline runs, leaving users uncertain about progress. A persistent status bar provides immediate, at-a-glance visibility into the current operation and how much longer to expect, reducing anxiety during long video renders.
+
+**Proposed Behaviour:**
+- Display a sticky header or sidebar status card showing:
+  - Current stage (e.g., "Analyzing audio...", "Generating montage...", "Rendering video...")
+  - Progress bar (0–100%) for current stage
+  - Elapsed time (HH:MM:SS)
+  - Estimated time remaining (ETA, HH:MM:SS)
+  - Overall progress (e.g., "Step 2 of 4")
+- Update in real-time as `ProgressObserver` callbacks fire from the pipeline.
+- Use Streamlit's `st.status()` container for collapsible detail logs beneath the status bar.
+- Log lines appear in the status container; they do not disappear — history is retained for the session.
+
+**Implementation Notes:**
+- Timing model: Use stage heuristics (audio analysis ~10%, montage building ~10%, rendering ~70%, export ~10%) as baseline.
+- For more accurate ETAs, optionally track run history (per-clip render time, per-stage averages) in a lightweight cache.
+- Hook into existing `ProgressObserver` interface; emit stage name and progress % from `BachataSyncEngine.generate()` and sub-stages.
+
+**Scope:** `app_ui.py` (status bar layout, ETA calculation), `src/ui/console.py` (optional: factor out timing/stage logic into a shared `ProgressTracker` class), `src/core/app.py` (emit finer-grained progress with stage names).
+

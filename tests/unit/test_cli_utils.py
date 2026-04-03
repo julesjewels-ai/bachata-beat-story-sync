@@ -135,12 +135,18 @@ class TestAddVisualArgs:
     def test_accepts_valid_choices(self):
         parser = argparse.ArgumentParser()
         add_visual_args(parser)
-        ns = parser.parse_args([
-            "--video-style", "warm",
-            "--audio-overlay", "bars",
-            "--audio-overlay-position", "center",
-            "--audio-overlay-padding", "30",
-        ])
+        ns = parser.parse_args(
+            [
+                "--video-style",
+                "warm",
+                "--audio-overlay",
+                "bars",
+                "--audio-overlay-position",
+                "center",
+                "--audio-overlay-padding",
+                "30",
+            ]
+        )
         assert ns.video_style == "warm"
         assert ns.audio_overlay == "bars"
         assert ns.audio_overlay_position == "center"
@@ -171,9 +177,13 @@ class TestAddShortsArgs:
     def test_enables_flags(self):
         parser = argparse.ArgumentParser()
         add_shorts_args(parser)
-        ns = parser.parse_args([
-            "--dynamic-flow", "--human-touch", "--cliffhanger",
-        ])
+        ns = parser.parse_args(
+            [
+                "--dynamic-flow",
+                "--human-touch",
+                "--cliffhanger",
+            ]
+        )
         assert ns.dynamic_flow is True
         assert ns.human_touch is True
         assert ns.cliffhanger is True
@@ -220,10 +230,14 @@ class TestIntroEffectCLI:
         """--intro-effect and --intro-effect-duration parse correctly."""
         parser = argparse.ArgumentParser()
         add_visual_args(parser)
-        ns = parser.parse_args([
-            "--intro-effect", "bloom",
-            "--intro-effect-duration", "2.0",
-        ])
+        ns = parser.parse_args(
+            [
+                "--intro-effect",
+                "bloom",
+                "--intro-effect-duration",
+                "2.0",
+            ]
+        )
         assert ns.intro_effect == "bloom"
         assert ns.intro_effect_duration == 2.0
 
@@ -238,10 +252,16 @@ class TestIntroEffectCLI:
     def test_build_pacing_kwargs_includes_intro(self):
         """build_pacing_kwargs forwards intro_effect when set."""
         ns = argparse.Namespace(
-            test_mode=False, video_style=None, audio_overlay=None,
-            audio_overlay_opacity=None, audio_overlay_position=None,
-            broll_interval=None, broll_variance=None, explain=False,
-            intro_effect="bloom", intro_effect_duration=2.0,
+            test_mode=False,
+            video_style=None,
+            audio_overlay=None,
+            audio_overlay_opacity=None,
+            audio_overlay_position=None,
+            broll_interval=None,
+            broll_variance=None,
+            explain=False,
+            intro_effect="bloom",
+            intro_effect_duration=2.0,
             dry_run=False,
         )
         kwargs = build_pacing_kwargs(ns)
@@ -251,10 +271,16 @@ class TestIntroEffectCLI:
     def test_build_pacing_kwargs_omits_intro_when_none(self):
         """build_pacing_kwargs omits intro fields when None."""
         ns = argparse.Namespace(
-            test_mode=False, video_style=None, audio_overlay=None,
-            audio_overlay_opacity=None, audio_overlay_position=None,
-            broll_interval=None, broll_variance=None, explain=False,
-            intro_effect=None, intro_effect_duration=None,
+            test_mode=False,
+            video_style=None,
+            audio_overlay=None,
+            audio_overlay_opacity=None,
+            audio_overlay_position=None,
+            broll_interval=None,
+            broll_variance=None,
+            explain=False,
+            intro_effect=None,
+            intro_effect_duration=None,
             dry_run=False,
         )
         kwargs = build_pacing_kwargs(ns)
@@ -292,10 +318,16 @@ class TestDryRunCLI:
     def test_build_pacing_kwargs_includes_dry_run(self):
         """build_pacing_kwargs includes dry_run when set."""
         ns = argparse.Namespace(
-            test_mode=False, video_style=None, audio_overlay=None,
-            audio_overlay_opacity=None, audio_overlay_position=None,
-            broll_interval=None, broll_variance=None, explain=False,
-            intro_effect=None, intro_effect_duration=None,
+            test_mode=False,
+            video_style=None,
+            audio_overlay=None,
+            audio_overlay_opacity=None,
+            audio_overlay_position=None,
+            broll_interval=None,
+            broll_variance=None,
+            explain=False,
+            intro_effect=None,
+            intro_effect_duration=None,
             dry_run=True,
         )
         kwargs = build_pacing_kwargs(ns)
@@ -304,12 +336,17 @@ class TestDryRunCLI:
     def test_build_pacing_kwargs_omits_dry_run_when_false(self):
         """build_pacing_kwargs omits dry_run when False."""
         ns = argparse.Namespace(
-            test_mode=False, video_style=None, audio_overlay=None,
-            audio_overlay_opacity=None, audio_overlay_position=None,
-            broll_interval=None, broll_variance=None, explain=False,
-            intro_effect=None, intro_effect_duration=None,
+            test_mode=False,
+            video_style=None,
+            audio_overlay=None,
+            audio_overlay_opacity=None,
+            audio_overlay_position=None,
+            broll_interval=None,
+            broll_variance=None,
+            explain=False,
+            intro_effect=None,
+            intro_effect_duration=None,
             dry_run=False,
         )
         kwargs = build_pacing_kwargs(ns)
         assert "dry_run" not in kwargs
-

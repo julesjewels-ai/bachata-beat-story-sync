@@ -20,6 +20,7 @@ from src.pipeline import (
 # Fixtures
 # ------------------------------------------------------------------
 
+
 def _make_audio_result(bpm: float = 128.0, duration: float = 180.0):
     return AudioAnalysisResult(
         filename="test.wav",
@@ -71,7 +72,6 @@ class TestDiscoverAudioFiles:
             open(os.path.join(tmpdir, "song.mp3"), "w").close()
             result = _discover_audio_files(tmpdir)
             assert len(result) == 1
-
 
 
 # ------------------------------------------------------------------

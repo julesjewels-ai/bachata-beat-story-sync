@@ -50,6 +50,7 @@ _VIDEO_STYLE_FILTERS = {
 # To add a new effect: write one function, add one entry to INTRO_EFFECTS.
 # To remove an effect: delete the function and its registry entry.
 
+
 def _bloom_filter(d: float) -> list[str]:
     """Bloom reveal — fades in from white over *d* seconds.
 
@@ -92,8 +93,7 @@ def _build_intro_filters(effect: str, duration: float) -> list[str]:
     if builder is None:
         valid = ", ".join(sorted(INTRO_EFFECTS.keys()))
         raise ValueError(
-            f"Unknown intro effect '{effect}'. "
-            f"Valid options: none, {valid}"
+            f"Unknown intro effect '{effect}'. Valid options: none, {valid}"
         )
     return builder(duration)
 
@@ -126,9 +126,7 @@ def _build_pacing_filters(
     if config.pacing_drift_zoom:
         # Ken Burns — slow 100→105% drift over the segment.
         # zoompan needs explicit size; d=1 means 1 output frame per input.
-        filters.append(
-            f"zoompan=z='1+0.0025*in':d=1:s={target_w}x{target_h}"
-        )
+        filters.append(f"zoompan=z='1+0.0025*in':d=1:s={target_w}x{target_h}")
 
     if config.pacing_crop_tighten and not config.pacing_drift_zoom:
         # Mutually exclusive with drift_zoom — both use zoompan and
@@ -145,18 +143,14 @@ def _build_pacing_filters(
     local_beats: list[float] = []
     if beat_times:
         local_beats = [
-            bt - seg_start
-            for bt in beat_times
-            if seg_start <= bt < seg_end
+            bt - seg_start for bt in beat_times if seg_start <= bt < seg_end
         ][:16]  # Cap at 16 terms for FFmpeg expression length safety
 
     if config.pacing_saturation_pulse and local_beats:
         # Build a beat-relative pulse expression.
         # For each beat inside this segment's window, emit a brief
         # +0.3 saturation bump that decays over 0.15s.
-        terms = [
-            f"max(0,1-(t-{b:.3f})/0.15)" for b in local_beats
-        ]
+        terms = [f"max(0,1-(t-{b:.3f})/0.15)" for b in local_beats]
         pulse_expr = "+".join(terms)
         filters.append(f"eq=saturation='1+0.3*({pulse_expr})'")
 
@@ -181,13 +175,9 @@ def _build_pacing_filters(
     if config.pacing_light_leaks and local_beats:
         # Warm amber colour sweep — colorbalance enabled for ~200ms per
         # beat.  Each flash simulates an analog film light leak.
-        enable_parts = [
-            f"between(t,{b:.3f},{b + 0.2:.3f})" for b in local_beats
-        ]
+        enable_parts = [f"between(t,{b:.3f},{b + 0.2:.3f})" for b in local_beats]
         enable_expr = "+".join(enable_parts)
-        filters.append(
-            f"colorbalance=rs=0.3:gs=0.1:bs=-0.1:enable='{enable_expr}'"
-        )
+        filters.append(f"colorbalance=rs=0.3:gs=0.1:bs=-0.1:enable='{enable_expr}'")
 
     if config.pacing_alternating_bokeh and seg_index % 2 == 0:
         # Subtle luma-only blur on even-numbered segments.
@@ -258,15 +248,19 @@ def extract_segments(
         if config.is_shorts:
             # Crop center to 9:16 aspect ratio (safe for
             # horizontal drop-ins and vertical variances)
-            vf_parts.extend([
-                "crop='min(iw,ih*9/16)':'min(ih,iw*16/9)'",
-                f"scale={t_width}:{t_height}",
-            ])
+            vf_parts.extend(
+                [
+                    "crop='min(iw,ih*9/16)':'min(ih,iw*16/9)'",
+                    f"scale={t_width}:{t_height}",
+                ]
+            )
         else:
-            vf_parts.extend([
-                f"scale={t_width}:{t_height}:force_original_aspect_ratio=decrease",
-                f"pad={t_width}:{t_height}:(ow-iw)/2:(oh-ih)/2",
-            ])
+            vf_parts.extend(
+                [
+                    f"scale={t_width}:{t_height}:force_original_aspect_ratio=decrease",
+                    f"pad={t_width}:{t_height}:(ow-iw)/2:(oh-ih)/2",
+                ]
+            )
 
         if seg.speed_factor != 1.0:
             vf_parts.append(f"setpts=PTS/{seg.speed_factor}")
@@ -286,7 +280,12 @@ def extract_segments(
         # Pacing Visual Effects — all segments (FEAT-023 / FEAT-024)
         vf_parts.extend(
             _build_pacing_filters(
-                config, seg, beat_times, t_width, t_height, seg_index=i,
+                config,
+                seg,
+                beat_times,
+                t_width,
+                t_height,
+                seg_index=i,
             )
         )
 

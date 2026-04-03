@@ -114,12 +114,10 @@ def apply_genre_preset(genre: str, base: dict) -> dict:
     preset = GENRE_PRESETS.get(genre)
     if preset is None:
         available = ", ".join(list_genres())
-        raise ValueError(
-            f"Unknown genre '{genre}'. Available presets: {available}"
-        )
+        raise ValueError(f"Unknown genre '{genre}'. Available presets: {available}")
 
     merged = dict(preset)  # start with preset defaults
-    merged.update(base)    # overlay user-supplied values on top
+    merged.update(base)  # overlay user-supplied values on top
     # Carry the genre tag through so PacingConfig stores it
     merged["genre"] = genre
     return merged

@@ -25,9 +25,6 @@ from src.ui.console import RichProgressObserver
 logger = logging.getLogger(__name__)
 
 
-
-
-
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Bachata Beat-Story Sync: Shorts Batch Generator"
@@ -124,7 +121,6 @@ def main() -> None:
             logger.info("Dry-run complete — no shorts rendered.")
             return
 
-
         results = generate_shorts_batch(
             engine,
             audio_meta,
@@ -149,10 +145,13 @@ def main() -> None:
 
         # FEAT-028: Emit structured JSON output
         if getattr(args, "output_json", None):
-            from src.services.json_output import build_json_output, write_json_output
             from src.core.models import PacingConfig as _PC
+            from src.services.json_output import build_json_output, write_json_output
+
             data = build_json_output(
-                audio_meta, montage_clips, None,
+                audio_meta,
+                montage_clips,
+                None,
                 _PC(**{**pacing_kwargs, "is_shorts": True}),
             )
             data["shorts"] = results

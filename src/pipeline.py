@@ -46,6 +46,7 @@ logger = logging.getLogger(__name__)
 # Helpers
 # ------------------------------------------------------------------
 
+
 def _discover_audio_files(folder_path: str) -> list[str]:
     """Return sorted list of audio files in *folder_path*, excluding cache."""
     files = []
@@ -57,8 +58,6 @@ def _discover_audio_files(folder_path: str) -> list[str]:
     return sorted(files)
 
 
-
-
 def _scan_videos(
     engine: BachataSyncEngine,
     video_dir: str,
@@ -67,9 +66,7 @@ def _scan_videos(
     """Scan main clips and optional B-roll, stripping thumbnails."""
     exclude = [broll_dir] if broll_dir else None
     with RichProgressObserver() as obs:
-        clips = engine.scan_video_library(
-            video_dir, exclude_dirs=exclude, observer=obs
-        )
+        clips = engine.scan_video_library(video_dir, exclude_dirs=exclude, observer=obs)
     logger.info("Found %d main clips.", len(clips))
 
     broll = None
@@ -95,6 +92,7 @@ def _safe_filename(path: str) -> str:
 # Core Generation Helpers
 # ------------------------------------------------------------------
 
+
 def _generate_video(
     engine: BachataSyncEngine,
     audio_meta,
@@ -118,59 +116,71 @@ def _generate_video(
         )
 
 
-
-
 # ------------------------------------------------------------------
 # CLI
 # ------------------------------------------------------------------
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Bachata Beat-Story Sync: Full Pipeline"
     )
     parser.add_argument(
-        "--audio", required=True,
+        "--audio",
+        required=True,
         help="Folder containing audio tracks to mix",
     )
     parser.add_argument(
-        "--video-dir", required=True,
+        "--video-dir",
+        required=True,
         help="Directory containing .mp4 video clips",
     )
     parser.add_argument(
-        "--broll-dir", default=None,
+        "--broll-dir",
+        default=None,
         help="Optional B-roll directory (auto-detects broll/ inside video-dir)",
     )
     parser.add_argument(
-        "--output-dir", default="output_pipeline",
+        "--output-dir",
+        default="output_pipeline",
         help="Root output directory (default: output_pipeline)",
     )
     parser.add_argument(
-        "--skip-mix", action="store_true",
+        "--skip-mix",
+        action="store_true",
         help="Skip generation of the combined mix video",
     )
     parser.add_argument(
-        "--shorts-count", type=int, default=1,
+        "--shorts-count",
+        type=int,
+        default=1,
         help="Number of shorts per track (0 to skip shorts)",
     )
     parser.add_argument(
-        "--shorts-duration", type=str, default="60",
+        "--shorts-duration",
+        type=str,
+        default="60",
         help="Target short duration in seconds (e.g. '60' or '10-15')",
     )
     parser.add_argument(
-        "--shared-scan", action="store_true",
+        "--shared-scan",
+        action="store_true",
         help="Scan video library once and reuse for all tracks (faster, less variety)",
     )
     parser.add_argument(
-        "--test-mode", action="store_true",
+        "--test-mode",
+        action="store_true",
         help="Quick iteration (max 4 clips, 10s of music per video)",
     )
     add_visual_args(parser)
     parser.add_argument(
-        "--verbose", action="store_true",
+        "--verbose",
+        action="store_true",
         help="Enable debug-level logging for troubleshooting",
     )
     parser.add_argument(
-        "--quiet", action="store_true",
+        "--quiet",
+        action="store_true",
         help="Suppress all output except errors",
     )
     add_shorts_args(parser)
@@ -180,6 +190,7 @@ def parse_args() -> argparse.Namespace:
 # ------------------------------------------------------------------
 # Main Pipeline
 # ------------------------------------------------------------------
+
 
 def main() -> None:
     args = parse_args()
@@ -232,9 +243,7 @@ def main() -> None:
                 + ", ".join(sorted(SUPPORTED_AUDIO_EXTENSIONS)),
             )
             sys.exit(1)
-        log.step(
-            f"Found {len(individual_tracks)} track(s) in [bold]{audio_dir}[/bold]"
-        )
+        log.step(f"Found {len(individual_tracks)} track(s) in [bold]{audio_dir}[/bold]")
 
         # ----------------------------------------------------------
         # 2. Mix tracks (via existing resolve_audio_path caching)
@@ -283,9 +292,11 @@ def main() -> None:
                 mix_audio_input = AudioAnalysisInput(file_path=mix_path)
                 with log.status("Analyzing mix audio…"):
                     mix_meta = analyzer.analyze(mix_audio_input)
-                clips_for_mix = shared_clips if args.shared_scan else _scan_videos(
-                    engine, args.video_dir, broll_dir
-                )[0]
+                clips_for_mix = (
+                    shared_clips
+                    if args.shared_scan
+                    else _scan_videos(engine, args.video_dir, broll_dir)[0]
+                )
                 report = run_dry_run_handler(
                     engine,
                     mix_meta,
@@ -303,9 +314,11 @@ def main() -> None:
                 track_input = AudioAnalysisInput(file_path=track_path)
                 with log.status(f"Analyzing track {idx} audio…"):
                     track_meta = analyzer.analyze(track_input)
-                clips_for_track = shared_clips if args.shared_scan else _scan_videos(
-                    engine, args.video_dir, broll_dir
-                )[0]
+                clips_for_track = (
+                    shared_clips
+                    if args.shared_scan
+                    else _scan_videos(engine, args.video_dir, broll_dir)[0]
+                )
                 track_pacing_kwargs = {**pacing_kwargs, "prefix_offset": idx - 1}
                 report = run_dry_run_handler(
                     engine,
@@ -313,12 +326,15 @@ def main() -> None:
                     clips_for_track,
                     track_pacing_kwargs,
                     dry_run_output=None,  # collect; write combined below
-                    output_json=getattr(args, "output_json", None) if not reports else None,
+                    output_json=getattr(args, "output_json", None)
+                    if not reports
+                    else None,
                     report_prefix=f"=== Track {idx}: {track_name} ===\n",
                 )
                 reports.append(report)
 
             from src.services.plan_report import write_plan_report  # noqa: WPS433
+
             write_plan_report(
                 "\n\n".join(reports),
                 getattr(args, "dry_run_output", None),
@@ -344,15 +360,18 @@ def main() -> None:
                 clips, broll = shared_clips, shared_broll
             else:
                 with log.status("Scanning video library…"):
-                    clips, broll = _scan_videos(
-                        engine, args.video_dir, broll_dir
-                    )
+                    clips, broll = _scan_videos(engine, args.video_dir, broll_dir)
 
             mix_out = os.path.join(args.output_dir, "mix.mp4")
             with log.status("Rendering mix video…"):
                 result = _generate_video(
-                    engine, mix_meta, clips, mix_out,
-                    mix_path, pacing_kwargs, broll_clips=broll,
+                    engine,
+                    mix_meta,
+                    clips,
+                    mix_out,
+                    mix_path,
+                    pacing_kwargs,
+                    broll_clips=broll,
                 )
             generated_files.append(result)
             log.success(f"Mix video: [bold]{result}[/bold]")
@@ -364,9 +383,7 @@ def main() -> None:
             track_name = _safe_filename(track_path)
             track_label = f"track_{idx:02d}_{track_name}"
 
-            log.phase(
-                f"🎸 Track {idx}/{len(individual_tracks)}: {track_name}"
-            )
+            log.phase(f"🎸 Track {idx}/{len(individual_tracks)}: {track_name}")
 
             # Analyze this track's audio independently
             track_input = AudioAnalysisInput(file_path=track_path)
@@ -382,9 +399,7 @@ def main() -> None:
                 clips, broll = shared_clips, shared_broll
             else:
                 with log.status("Scanning video library…"):
-                    clips, broll = _scan_videos(
-                        engine, args.video_dir, broll_dir
-                    )
+                    clips, broll = _scan_videos(engine, args.video_dir, broll_dir)
 
             # FEAT-017: rotate prefix clips per track for intro variety
             track_pacing = {**pacing_kwargs, "prefix_offset": idx - 1}
@@ -393,24 +408,31 @@ def main() -> None:
             track_out = os.path.join(args.output_dir, f"{track_label}.mp4")
             with log.status("Rendering track video…"):
                 result = _generate_video(
-                    engine, track_meta, clips, track_out,
-                    track_path, track_pacing, broll_clips=broll,
+                    engine,
+                    track_meta,
+                    clips,
+                    track_out,
+                    track_path,
+                    track_pacing,
+                    broll_clips=broll,
                 )
             generated_files.append(result)
             log.success(f"Track video: [bold]{result}[/bold]")
 
             # Generate shorts (FEAT-015)
             if args.shorts_count > 0:
-                shorts_dir = os.path.join(
-                    args.output_dir, "shorts", f"track_{idx:02d}"
-                )
-                with log.status(
-                    f"Rendering {args.shorts_count} short(s)…"
-                ):
+                shorts_dir = os.path.join(args.output_dir, "shorts", f"track_{idx:02d}")
+                with log.status(f"Rendering {args.shorts_count} short(s)…"):
                     shorts = generate_shorts_batch(
-                        engine, track_meta, clips, track_path,
-                        shorts_dir, args.shorts_count,
-                        min_dur, max_dur, track_pacing,
+                        engine,
+                        track_meta,
+                        clips,
+                        track_path,
+                        shorts_dir,
+                        args.shorts_count,
+                        min_dur,
+                        max_dur,
+                        track_pacing,
                         smart_start=args.smart_start,
                         dynamic_flow=getattr(args, "dynamic_flow", False),
                         human_touch=getattr(args, "human_touch", False),
@@ -442,6 +464,7 @@ def main() -> None:
         # FEAT-028: Emit structured JSON output
         if getattr(args, "output_json", None):
             from src.services.json_output import build_json_output, write_json_output
+
             data = build_json_output(
                 mix_meta if not args.skip_mix else track_meta,
                 strip_thumbnails(clips) if clips else [],

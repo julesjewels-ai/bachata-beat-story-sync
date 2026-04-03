@@ -334,9 +334,9 @@ def test_small_video_no_resize(analyzer, mock_video_capture, mock_exists, mock_i
 # ---------------------------------------------------------------------------
 
 from src.core.video_analyzer import (
-    SCENE_CHANGE_THRESHOLD,
     MAX_SCENE_CHANGES,
     OPENING_WINDOW_SECONDS,
+    SCENE_CHANGE_THRESHOLD,
 )
 
 
@@ -396,12 +396,17 @@ def test_scene_changes_detected(analyzer, mock_video_capture, mock_exists, mock_
 
 
 def test_scene_changes_capped_at_max(
-    analyzer, mock_video_capture, mock_exists, mock_isdir,
+    analyzer,
+    mock_video_capture,
+    mock_exists,
+    mock_isdir,
 ):
     """FEAT-020: At most MAX_SCENE_CHANGES entries are returned."""
     # Many rapid changes to exceed cap
     mock_cap = _create_scene_change_cap(
-        fps=30.0, frame_count=600, change_interval=10,
+        fps=30.0,
+        frame_count=600,
+        change_interval=10,
     )
     mock_video_capture.return_value = mock_cap
 
@@ -412,7 +417,10 @@ def test_scene_changes_capped_at_max(
 
 
 def test_no_scene_changes_for_uniform_video(
-    analyzer, mock_video_capture, mock_exists, mock_isdir,
+    analyzer,
+    mock_video_capture,
+    mock_exists,
+    mock_isdir,
 ):
     """FEAT-020: All-black frames produce no scene changes."""
     mock_cap = create_mock_cap()  # All identical black frames
@@ -425,7 +433,10 @@ def test_no_scene_changes_for_uniform_video(
 
 
 def test_opening_intensity_computed(
-    analyzer, mock_video_capture, mock_exists, mock_isdir,
+    analyzer,
+    mock_video_capture,
+    mock_exists,
+    mock_isdir,
 ):
     """FEAT-020: opening_intensity is non-zero for frames with motion in first 2s."""
     # Scene changes in the first 2 seconds produce high opening_intensity
@@ -439,7 +450,10 @@ def test_opening_intensity_computed(
 
 
 def test_opening_intensity_zero_for_static(
-    analyzer, mock_video_capture, mock_exists, mock_isdir,
+    analyzer,
+    mock_video_capture,
+    mock_exists,
+    mock_isdir,
 ):
     """FEAT-020: Static frames produce opening_intensity == 0.0."""
     mock_cap = create_mock_cap()

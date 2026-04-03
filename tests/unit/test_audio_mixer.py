@@ -10,7 +10,6 @@ import tempfile
 from unittest.mock import patch
 
 import pytest
-
 from src.core.audio_mixer import (
     AudioMixer,
     _build_filter_complex,
@@ -19,7 +18,6 @@ from src.core.audio_mixer import (
     resolve_audio_path,
 )
 from src.core.models import AudioMixConfig
-
 
 # ==================================================================
 # _calculate_atempo_ratio
@@ -58,6 +56,7 @@ class TestCalculateAtempoRatio:
     def test_exceeds_threshold_logs_warning(self, caplog):
         """A warning must be emitted when sync is skipped due to threshold."""
         import logging
+
         with caplog.at_level(logging.WARNING, logger="src.core.audio_mixer"):
             _calculate_atempo_ratio(120.0, 145.0, 0.10)
         assert "exceeds threshold" in caplog.text
@@ -323,8 +322,12 @@ def test_mix_audio_folder_cache_invalidated_on_config_change():
         assert old_fp != new_fp  # sanity check
 
         # Patch load_audio_mix_config to return the new config, and _mix_files to spy
-        with patch("src.core.audio_mixer.load_audio_mix_config", return_value=new_config):
-            with patch.object(mixer, "_mix_files", return_value=output_file) as mock_mix:
+        with patch(
+            "src.core.audio_mixer.load_audio_mix_config", return_value=new_config
+        ):
+            with patch.object(
+                mixer, "_mix_files", return_value=output_file
+            ) as mock_mix:
                 with patch.object(mixer, "_analyse_bpm", return_value={}):
                     mixer.mix_audio_folder(temp_dir, output_file)
 

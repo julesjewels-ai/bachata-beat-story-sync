@@ -97,6 +97,7 @@ class TestAudioAnalyzer:
 # FEAT-019: find_audio_hooks() tests
 # ------------------------------------------------------------------
 
+
 def _make_audio(
     duration: float = 120.0,
     bpm: float = 120.0,
@@ -153,9 +154,7 @@ class TestFindAudioHooks:
     def test_prefers_high_intensity(self):
         # First half low, second half high
         intensities = [0.1] * 120 + [0.9] * 120
-        audio = _make_audio(
-            duration=120.0, beat_count=240, intensity=intensities
-        )
+        audio = _make_audio(duration=120.0, beat_count=240, intensity=intensities)
         hooks = find_audio_hooks(audio, short_duration=10.0, count=1)
         # Best hook should be in the high-intensity second half
         assert hooks[0] >= 60.0
@@ -165,16 +164,22 @@ class TestFindAudioHooks:
         # score bonus for pace_target=4.0 ± 1.0 => match at 5.0
         sections = [
             MusicalSection(
-                start_time=0.0, end_time=5.0,
-                label="intro", avg_intensity=0.3,
+                start_time=0.0,
+                end_time=5.0,
+                label="intro",
+                avg_intensity=0.3,
             ),
             MusicalSection(
-                start_time=5.0, end_time=30.0,
-                label="verse", avg_intensity=0.7,
+                start_time=5.0,
+                end_time=30.0,
+                label="verse",
+                avg_intensity=0.7,
             ),
         ]
         audio = _make_audio(
-            duration=30.0, beat_count=60, sections=sections,
+            duration=30.0,
+            beat_count=60,
+            sections=sections,
             intensity=[0.5] * 60,
         )
         hooks = find_audio_hooks(audio, short_duration=10.0, count=1)
@@ -199,4 +204,3 @@ class TestFindAudioHooks:
         hooks = find_audio_hooks(audio, short_duration=10.0, count=1)
         assert len(hooks) == 1
         assert isinstance(hooks[0], float)
-

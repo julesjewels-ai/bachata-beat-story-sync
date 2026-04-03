@@ -260,8 +260,7 @@ class PacingConfig(BaseModel):
         "Options: 'none', 'waveform' (lines), 'bars' (frequency bars)",
     )
     audio_overlay_opacity: float = Field(
-        0.5,
-        description="Opacity of the audio visualizer block (0.0 to 1.0)"
+        0.5, description="Opacity of the audio visualizer block (0.0 to 1.0)"
     )
     audio_overlay_position: Literal["left", "center", "right"] = Field(
         "right",

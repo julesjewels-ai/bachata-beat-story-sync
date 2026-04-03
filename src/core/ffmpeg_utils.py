@@ -54,7 +54,9 @@ def run_ffmpeg(
     effective_timeout = timeout_seconds or FFMPEG_TIMEOUT
     logger.debug(
         "FFmpeg [%s] (timeout=%ds): %s",
-        stage_name, effective_timeout, " ".join(cmd),
+        stage_name,
+        effective_timeout,
+        " ".join(cmd),
     )
 
     try:
@@ -97,15 +99,22 @@ def get_h264_encoder_args() -> list[str]:
     if is_mac and is_arm:
         # Hardware acceleration for M1/M2/M3 chips
         return [
-            "-c:v", "h264_videotoolbox",
-            "-b:v", "8M",  # High quality target for 1080p
-            "-pix_fmt", "yuv420p",  # Universal compatibility
+            "-c:v",
+            "h264_videotoolbox",
+            "-b:v",
+            "8M",  # High quality target for 1080p
+            "-pix_fmt",
+            "yuv420p",  # Universal compatibility
         ]
 
     # Standard software encoding fallback
     return [
-        "-c:v", "libx264",
-        "-preset", "fast",
-        "-crf", "23",
-        "-pix_fmt", "yuv420p",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "fast",
+        "-crf",
+        "23",
+        "-pix_fmt",
+        "yuv420p",
     ]

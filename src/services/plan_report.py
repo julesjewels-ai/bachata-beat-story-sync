@@ -64,8 +64,7 @@ def format_plan_report(
     dur_str = _fmt_time(audio.duration)
     beat_count = len(audio.beat_times)
     lines.append(
-        f"Audio: {audio.filename} ({audio.bpm:.0f} BPM, {dur_str}, "
-        f"{beat_count} beats)"
+        f"Audio: {audio.filename} ({audio.bpm:.0f} BPM, {dur_str}, {beat_count} beats)"
     )
 
     # Clip stats
@@ -73,9 +72,7 @@ def format_plan_report(
     usable = len(used_paths)
     total = len(clips)
     skipped = total - usable
-    lines.append(
-        f"Clips: {total} analyzed, {usable} used in plan, {skipped} unused"
-    )
+    lines.append(f"Clips: {total} analyzed, {usable} used in plan, {skipped} unused")
 
     # Estimated output duration
     if segments:

@@ -11,7 +11,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-
 from src.core.genre_presets import GENRE_PRESETS, apply_genre_preset, list_genres
 from src.core.models import PacingConfig
 

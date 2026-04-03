@@ -155,9 +155,9 @@ class MontageGenerator:
             # FEAT-020: Prioritise vertical clips first, then score by opener
             # quality (opening_intensity + scene change near 4s mark).
             def _opener_score(c: VideoAnalysisResult) -> float:
-                has_scene_near_4s = 1.0 if any(
-                    3.0 <= t <= 5.0 for t in c.scene_changes
-                ) else 0.0
+                has_scene_near_4s = (
+                    1.0 if any(3.0 <= t <= 5.0 for t in c.scene_changes) else 0.0
+                )
                 return 0.5 * c.opening_intensity + 0.5 * has_scene_near_4s
 
             sorted_clips = sorted(
@@ -319,8 +319,7 @@ class MontageGenerator:
             clip = self._pick_from_pool(pools, pool_indices, level)
             clip_idx += 1
             reason = (
-                f"Intensity matched: {level} pool "
-                f"(score={clip.intensity_score:.2f})"
+                f"Intensity matched: {level} pool (score={clip.intensity_score:.2f})"
             )
         return ClipSelection(
             clip=clip,
@@ -433,9 +432,7 @@ class MontageGenerator:
 
         # FEAT-019: skip beats before audio_start_offset
         if config.audio_start_offset > 0:
-            beat_idx = bisect.bisect_left(
-                beat_times, config.audio_start_offset
-            )
+            beat_idx = bisect.bisect_left(beat_times, config.audio_start_offset)
         else:
             beat_idx = 0
         clip_idx = 0
@@ -446,6 +443,9 @@ class MontageGenerator:
         last_broll_time = (
             -config.broll_interval_seconds
         )  # Allow B-roll early on if configured
+        # FEAT-033: Track if we've had a regular (non-B-roll) clip since last B-roll
+        # This ensures B-roll only inserts after clip boundaries, not mid-stream
+        has_regular_clip_since_broll = True
         target_broll_interval = config.broll_interval_seconds + random.uniform(
             -config.broll_interval_variance, config.broll_interval_variance
         )
@@ -489,10 +489,14 @@ class MontageGenerator:
                 segment_duration = min(segment_duration, remaining)
 
             # Determine if this segment should be B-Roll
+            # FEAT-033: Respect clip boundaries — only switch to B-roll after we've
+            # completed at least one regular clip since the last B-roll. This prevents
+            # inserting B-roll immediately and ensures a natural transition.
             is_broll = False
             if (
                 broll_clips
                 and (timeline_pos - last_broll_time) >= target_broll_interval
+                and has_regular_clip_since_broll
             ):
                 # Don't use B-roll for the very first clip if possible
                 if timeline_pos > 0.0:
@@ -546,6 +550,14 @@ class MontageGenerator:
                         section_label=section_label,
                     )
                 )
+
+                # FEAT-033: Update the boundary-respecting flag
+                if is_broll:
+                    # We just inserted B-roll, so we need a regular clip before the next B-roll
+                    has_regular_clip_since_broll = False
+                else:
+                    # We just inserted a regular clip, which means we can use B-roll next if threshold met
+                    has_regular_clip_since_broll = True
 
                 # FEAT-025: collect decision if explain mode is active
                 if config.explain:
@@ -701,7 +713,10 @@ class MontageGenerator:
         try:
             # 2. Extract segments (one FFmpeg process at a time)
             segment_files = extract_segments(
-                segments, temp_dir, config, observer,
+                segments,
+                temp_dir,
+                config,
+                observer,
                 beat_times=audio_data.beat_times,
             )
 
@@ -753,7 +768,10 @@ class MontageGenerator:
             if audio_path and os.path.exists(audio_path):
                 video_dur = get_video_duration(concat_path)
                 overlay_audio(
-                    concat_path, audio_path, output_path, config,
+                    concat_path,
+                    audio_path,
+                    output_path,
+                    config,
                     video_duration=video_dur,
                 )
             else:
@@ -792,4 +810,3 @@ class MontageGenerator:
 
         groups.append(current_group)
         return groups
-

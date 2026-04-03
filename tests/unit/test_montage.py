@@ -341,21 +341,30 @@ class TestBuildSegmentPlan:
         # Distinct intensity_scores to survive deduplication
         prefixed_clips = [
             VideoAnalysisResult(
-                path="/videos/1_a.mp4", intensity_score=0.51,
-                duration=30.0, thumbnail_data=None,
+                path="/videos/1_a.mp4",
+                intensity_score=0.51,
+                duration=30.0,
+                thumbnail_data=None,
             ),
             VideoAnalysisResult(
-                path="/videos/2_b.mp4", intensity_score=0.52,
-                duration=30.0, thumbnail_data=None,
+                path="/videos/2_b.mp4",
+                intensity_score=0.52,
+                duration=30.0,
+                thumbnail_data=None,
             ),
             VideoAnalysisResult(
-                path="/videos/3_c.mp4", intensity_score=0.53,
-                duration=30.0, thumbnail_data=None,
+                path="/videos/3_c.mp4",
+                intensity_score=0.53,
+                duration=30.0,
+                thumbnail_data=None,
             ),
         ]
         audio = AudioAnalysisResult(
-            filename="rotate.wav", bpm=120.0, duration=30.0,
-            peaks=[], sections=[],
+            filename="rotate.wav",
+            bpm=120.0,
+            duration=30.0,
+            peaks=[],
+            sections=[],
             beat_times=[float(i) * 0.5 for i in range(40)],
             intensity_curve=[0.5] * 40,
         )
@@ -370,17 +379,24 @@ class TestBuildSegmentPlan:
         """FEAT-017: prefix_offset=0 keeps original prefix order."""
         prefixed_clips = [
             VideoAnalysisResult(
-                path="/videos/1_a.mp4", intensity_score=0.51,
-                duration=30.0, thumbnail_data=None,
+                path="/videos/1_a.mp4",
+                intensity_score=0.51,
+                duration=30.0,
+                thumbnail_data=None,
             ),
             VideoAnalysisResult(
-                path="/videos/2_b.mp4", intensity_score=0.52,
-                duration=30.0, thumbnail_data=None,
+                path="/videos/2_b.mp4",
+                intensity_score=0.52,
+                duration=30.0,
+                thumbnail_data=None,
             ),
         ]
         audio = AudioAnalysisResult(
-            filename="norotate.wav", bpm=120.0, duration=30.0,
-            peaks=[], sections=[],
+            filename="norotate.wav",
+            bpm=120.0,
+            duration=30.0,
+            peaks=[],
+            sections=[],
             beat_times=[float(i) * 0.5 for i in range(40)],
             intensity_curve=[0.5] * 40,
         )
@@ -395,21 +411,30 @@ class TestBuildSegmentPlan:
         """Surplus prefix clips appear in the regular intensity pool."""
         prefixed_clips = [
             VideoAnalysisResult(
-                path="/videos/1_first.mp4", intensity_score=0.91,
-                duration=30.0, thumbnail_data=None,
+                path="/videos/1_first.mp4",
+                intensity_score=0.91,
+                duration=30.0,
+                thumbnail_data=None,
             ),
             VideoAnalysisResult(
-                path="/videos/2_second.mp4", intensity_score=0.92,
-                duration=30.0, thumbnail_data=None,
+                path="/videos/2_second.mp4",
+                intensity_score=0.92,
+                duration=30.0,
+                thumbnail_data=None,
             ),
             VideoAnalysisResult(
-                path="/videos/3_third.mp4", intensity_score=0.93,
-                duration=30.0, thumbnail_data=None,
+                path="/videos/3_third.mp4",
+                intensity_score=0.93,
+                duration=30.0,
+                thumbnail_data=None,
             ),
         ]
         audio = AudioAnalysisResult(
-            filename="overflow.wav", bpm=120.0, duration=60.0,
-            peaks=[], sections=[],
+            filename="overflow.wav",
+            bpm=120.0,
+            duration=60.0,
+            peaks=[],
+            sections=[],
             beat_times=[float(i) * 0.5 for i in range(60)],
             intensity_curve=[0.9] * 60,  # high intensity → matches all clips
         )
@@ -593,7 +618,9 @@ class TestFFmpegOrchestration:
             f.write("fake video data")
 
         generator.generate(
-            audio_data, video_clips, output_path,
+            audio_data,
+            video_clips,
+            output_path,
             audio_path="/audio/song.wav",
         )
 
@@ -733,7 +760,7 @@ class TestFFmpegOrchestration:
             if "crop=iw*0.88:ih*0.88" in cmd_str:
                 found_crop = True
                 break
-        
+
         assert found_crop, "Expected crop=iw*0.88:ih*0.88 in FFmpeg command"
 
 
@@ -1326,6 +1353,7 @@ class TestVideoStyleFilters:
                         f"video_style='none'"
                     )
 
+
 class TestAudioOverlay:
     """Tests for FEAT-013: Music-Synced Waveform Overlay."""
 
@@ -1359,7 +1387,9 @@ class TestAudioOverlay:
 
     @patch("src.core.ffmpeg_renderer.run_ffmpeg")
     def test_overlay_audio_uses_filter_complex_waveform(
-        self, mock_run, generator,
+        self,
+        mock_run,
+        generator,
     ):
         """Waveform overlay uses filter_complex."""
         mock_run.return_value = MagicMock(returncode=0, stderr="")
@@ -1376,12 +1406,19 @@ class TestAudioOverlay:
         assert "-c:v copy" not in cmd_str
         # Dynamic check for encoder based on platform
         import platform
-        expected_encoder = "h264_videotoolbox" if platform.system() == "Darwin" and platform.machine() == "arm64" else "libx264"
+
+        expected_encoder = (
+            "h264_videotoolbox"
+            if platform.system() == "Darwin" and platform.machine() == "arm64"
+            else "libx264"
+        )
         assert f"-c:v {expected_encoder}" in cmd_str
 
     @patch("src.core.ffmpeg_renderer.run_ffmpeg")
     def test_overlay_audio_padding_in_filter(
-        self, mock_run, generator,
+        self,
+        mock_run,
+        generator,
     ):
         """Custom audio_overlay_padding is embedded in the FFmpeg filter string."""
         mock_run.return_value = MagicMock(returncode=0, stderr="")
@@ -1399,7 +1436,9 @@ class TestAudioOverlay:
 
     @patch("src.core.ffmpeg_renderer.run_ffmpeg")
     def test_overlay_audio_seeks_to_offset(
-        self, mock_run, generator,
+        self,
+        mock_run,
+        generator,
     ):
         """audio_start_offset > 0 adds -ss before audio input."""
         mock_run.return_value = MagicMock(returncode=0, stderr="")
@@ -1411,7 +1450,8 @@ class TestAudioOverlay:
         # -ss should appear before the audio -i
         ss_idx = cmd.index("-ss")
         audio_i_indices = [
-            i for i, v in enumerate(cmd)
+            i
+            for i, v in enumerate(cmd)
             if v == "-i" and i + 1 < len(cmd) and cmd[i + 1] == "audio.wav"
         ]
         assert len(audio_i_indices) == 1
@@ -1425,7 +1465,11 @@ class TestAudioOverlay:
         config = PacingConfig(audio_overlay="none")
 
         overlay_audio(
-            "in.mp4", "audio.wav", "out.mp4", config, video_duration=15.0,
+            "in.mp4",
+            "audio.wav",
+            "out.mp4",
+            config,
+            video_duration=15.0,
         )
 
         cmd = mock_run.call_args[0][0]
@@ -1448,11 +1492,16 @@ class TestAudioOverlay:
         """Waveform overlay with offset also seeks into the audio file."""
         mock_run.return_value = MagicMock(returncode=0, stderr="")
         config = PacingConfig(
-            audio_overlay="waveform", audio_start_offset=20.0,
+            audio_overlay="waveform",
+            audio_start_offset=20.0,
         )
 
         overlay_audio(
-            "in.mp4", "audio.wav", "out.mp4", config, video_duration=10.0,
+            "in.mp4",
+            "audio.wav",
+            "out.mp4",
+            config,
+            video_duration=10.0,
         )
 
         cmd = mock_run.call_args[0][0]
@@ -1466,6 +1515,7 @@ class TestAudioOverlay:
 # ------------------------------------------------------------------
 # FEAT-019: audio_start_offset tests
 # ------------------------------------------------------------------
+
 
 class TestAudioStartOffset:
     """Verify that build_segment_plan respects audio_start_offset."""
@@ -1556,20 +1606,27 @@ class TestExplainDecisionCollection:
     def clips(self):
         return [
             VideoAnalysisResult(
-                path="/v/a.mp4", intensity_score=0.8,
-                duration=30.0, thumbnail_data=None,
+                path="/v/a.mp4",
+                intensity_score=0.8,
+                duration=30.0,
+                thumbnail_data=None,
             ),
             VideoAnalysisResult(
-                path="/v/b.mp4", intensity_score=0.3,
-                duration=30.0, thumbnail_data=None,
+                path="/v/b.mp4",
+                intensity_score=0.3,
+                duration=30.0,
+                thumbnail_data=None,
             ),
         ]
 
     @pytest.fixture
     def audio(self):
         return AudioAnalysisResult(
-            filename="t.wav", bpm=120.0, duration=10.0,
-            peaks=[], sections=[],
+            filename="t.wav",
+            bpm=120.0,
+            duration=10.0,
+            peaks=[],
+            sections=[],
             beat_times=[0.0, 0.5, 1.0, 1.5, 2.0],
             intensity_curve=[0.8, 0.6, 0.4, 0.3, 0.2],
         )
@@ -1605,8 +1662,11 @@ class TestWriteExplainLog:
             SegmentDecision(
                 timeline_start=0.0,
                 clip_path="/v/a.mp4",
-                intensity_score=0.75, section_label="intro",
-                duration=1.5, speed=1.0, reason="best intensity match",
+                intensity_score=0.75,
+                section_label="intro",
+                duration=1.5,
+                speed=1.0,
+                reason="best intensity match",
             ),
         ]
         out = str(tmp_path / "output.mp4")
@@ -1627,8 +1687,11 @@ class TestWriteExplainLog:
             SegmentDecision(
                 timeline_start=float(i),
                 clip_path=f"/v/c{i}.mp4",
-                intensity_score=0.5, section_label=None,
-                duration=1.0, speed=1.0, reason="fallback",
+                intensity_score=0.5,
+                section_label=None,
+                duration=1.0,
+                speed=1.0,
+                reason="fallback",
             )
             for i in range(5)
         ]
@@ -1649,10 +1712,15 @@ class TestExplainCLIFlag:
         from src.cli_utils import build_pacing_kwargs
 
         ns = argparse.Namespace(
-            test_mode=False, video_style=None, audio_overlay=None,
-            audio_overlay_opacity=None, audio_overlay_position=None,
+            test_mode=False,
+            video_style=None,
+            audio_overlay=None,
+            audio_overlay_opacity=None,
+            audio_overlay_position=None,
             audio_overlay_padding=None,
-            broll_interval=None, broll_variance=None, explain=True,
+            broll_interval=None,
+            broll_variance=None,
+            explain=True,
         )
         kwargs = build_pacing_kwargs(ns)
         assert kwargs["explain"] is True
@@ -1663,10 +1731,15 @@ class TestExplainCLIFlag:
         from src.cli_utils import build_pacing_kwargs
 
         ns = argparse.Namespace(
-            test_mode=False, video_style=None, audio_overlay=None,
-            audio_overlay_opacity=None, audio_overlay_position=None,
+            test_mode=False,
+            video_style=None,
+            audio_overlay=None,
+            audio_overlay_opacity=None,
+            audio_overlay_position=None,
             audio_overlay_padding=None,
-            broll_interval=None, broll_variance=None, explain=False,
+            broll_interval=None,
+            broll_variance=None,
+            explain=False,
         )
         kwargs = build_pacing_kwargs(ns)
         assert "explain" not in kwargs
@@ -1910,7 +1983,10 @@ class TestSceneAwareStartOffset:
             update={"clip_variety_enabled": True, "seed": 42}
         )
         offset = MontageGenerator._compute_start_offset(
-            clip, segment_duration=4.0, config=config, clip_idx=0,
+            clip,
+            segment_duration=4.0,
+            config=config,
+            clip_idx=0,
         )
         # Offset must be one of the viable scene-change timestamps
         max_start = clip.duration - 4.0  # 26.0
@@ -1918,7 +1994,9 @@ class TestSceneAwareStartOffset:
         assert offset in viable
 
     def test_no_scene_changes_falls_back_to_hash(
-        self, generator, default_pacing,
+        self,
+        generator,
+        default_pacing,
     ):
         """Empty scene_changes → same hash-based offset as before."""
         clip = VideoAnalysisResult(
@@ -1932,7 +2010,10 @@ class TestSceneAwareStartOffset:
             update={"clip_variety_enabled": True, "seed": 42}
         )
         offset = MontageGenerator._compute_start_offset(
-            clip, segment_duration=4.0, config=config, clip_idx=0,
+            clip,
+            segment_duration=4.0,
+            config=config,
+            clip_idx=0,
         )
         # Should be a float in [0, max_start)
         assert 0.0 <= offset < (clip.duration - 4.0)
@@ -1942,7 +2023,9 @@ class TestShortsOpenerScoring:
     """FEAT-020: Shorts opener clip selection uses scene data."""
 
     def test_shorts_opener_prefers_high_opening_intensity(
-        self, generator, default_pacing,
+        self,
+        generator,
+        default_pacing,
     ):
         """In shorts mode, _prepare_clips ranks clips by opener score."""
         clip_low = VideoAnalysisResult(
@@ -1965,13 +2048,16 @@ class TestShortsOpenerScoring:
         )
         config = default_pacing.model_copy(update={"is_shorts": True})
         sorted_clips, _ = generator._prepare_clips(
-            [clip_low, clip_high], config,
+            [clip_low, clip_high],
+            config,
         )
         # clip_high has better opener score and should come first
         assert sorted_clips[0].path == "/videos/high.mp4"
 
     def test_non_shorts_opener_ignores_scene_data(
-        self, generator, default_pacing,
+        self,
+        generator,
+        default_pacing,
     ):
         """Non-shorts mode sorts purely by intensity_score."""
         clip_low_intensity = VideoAnalysisResult(
@@ -1992,7 +2078,8 @@ class TestShortsOpenerScoring:
         )
         config = default_pacing.model_copy(update={"is_shorts": False})
         sorted_clips, _ = generator._prepare_clips(
-            [clip_low_intensity, clip_high_intensity], config,
+            [clip_low_intensity, clip_high_intensity],
+            config,
         )
         # Higher intensity_score first
         assert sorted_clips[0].path == "/videos/high_int.mp4"
@@ -2031,7 +2118,13 @@ class TestPacingEffects:
     @patch("src.core.montage.shutil.rmtree")
     @patch("src.core.montage.os.path.exists", return_value=True)
     def test_drift_zoom_filter_in_extraction(
-        self, mock_exists, mock_rmtree, mock_mkdtemp, mock_run, mock_which, tmp_path,
+        self,
+        mock_exists,
+        mock_rmtree,
+        mock_mkdtemp,
+        mock_run,
+        mock_which,
+        tmp_path,
     ):
         """pacing_drift_zoom adds zoompan with '1+0.0025*in' to extraction calls."""
         temp_dir = str(tmp_path / "montage_temp")
@@ -2041,8 +2134,11 @@ class TestPacingEffects:
 
         config = PacingConfig(pacing_drift_zoom=True)
         MontageGenerator().generate(
-            self._audio_for_test(), self._clips_for_test(),
-            str(tmp_path / "out.mp4"), audio_path="/audio/song.wav", pacing=config,
+            self._audio_for_test(),
+            self._clips_for_test(),
+            str(tmp_path / "out.mp4"),
+            audio_path="/audio/song.wav",
+            pacing=config,
         )
 
         found = False
@@ -2060,7 +2156,13 @@ class TestPacingEffects:
     @patch("src.core.montage.shutil.rmtree")
     @patch("src.core.montage.os.path.exists", return_value=True)
     def test_crop_tighten_filter_in_extraction(
-        self, mock_exists, mock_rmtree, mock_mkdtemp, mock_run, mock_which, tmp_path,
+        self,
+        mock_exists,
+        mock_rmtree,
+        mock_mkdtemp,
+        mock_run,
+        mock_which,
+        tmp_path,
     ):
         """pacing_crop_tighten adds zoompan with the tighten expression."""
         temp_dir = str(tmp_path / "montage_temp")
@@ -2070,8 +2172,11 @@ class TestPacingEffects:
 
         config = PacingConfig(pacing_crop_tighten=True)
         MontageGenerator().generate(
-            self._audio_for_test(), self._clips_for_test(),
-            str(tmp_path / "out.mp4"), audio_path="/audio/song.wav", pacing=config,
+            self._audio_for_test(),
+            self._clips_for_test(),
+            str(tmp_path / "out.mp4"),
+            audio_path="/audio/song.wav",
+            pacing=config,
         )
 
         found = False
@@ -2089,7 +2194,13 @@ class TestPacingEffects:
     @patch("src.core.montage.shutil.rmtree")
     @patch("src.core.montage.os.path.exists", return_value=True)
     def test_saturation_pulse_filter_in_extraction(
-        self, mock_exists, mock_rmtree, mock_mkdtemp, mock_run, mock_which, tmp_path,
+        self,
+        mock_exists,
+        mock_rmtree,
+        mock_mkdtemp,
+        mock_run,
+        mock_which,
+        tmp_path,
     ):
         """pacing_saturation_pulse adds eq=saturation= to extraction calls."""
         temp_dir = str(tmp_path / "montage_temp")
@@ -2099,8 +2210,11 @@ class TestPacingEffects:
 
         config = PacingConfig(pacing_saturation_pulse=True)
         MontageGenerator().generate(
-            self._audio_for_test(), self._clips_for_test(),
-            str(tmp_path / "out.mp4"), audio_path="/audio/song.wav", pacing=config,
+            self._audio_for_test(),
+            self._clips_for_test(),
+            str(tmp_path / "out.mp4"),
+            audio_path="/audio/song.wav",
+            pacing=config,
         )
 
         found = False
@@ -2117,8 +2231,11 @@ class TestPacingEffects:
         from src.core.models import SegmentPlan
 
         seg = SegmentPlan(
-            video_path="/v/a.mp4", start_time=0, duration=3,
-            timeline_position=0, intensity_level="medium",
+            video_path="/v/a.mp4",
+            start_time=0,
+            duration=3,
+            timeline_position=0,
+            intensity_level="medium",
         )
         config = PacingConfig()
         filters = _build_pacing_filters(config, seg, [0.5, 1.0, 1.5], 1920, 1080)
@@ -2130,7 +2247,13 @@ class TestPacingEffects:
     @patch("src.core.montage.shutil.rmtree")
     @patch("src.core.montage.os.path.exists", return_value=True)
     def test_multiple_pacing_effects_stacked(
-        self, mock_exists, mock_rmtree, mock_mkdtemp, mock_run, mock_which, tmp_path,
+        self,
+        mock_exists,
+        mock_rmtree,
+        mock_mkdtemp,
+        mock_run,
+        mock_which,
+        tmp_path,
     ):
         """drift_zoom takes precedence over crop_tighten (both use zoompan); saturation_pulse stacks."""
         temp_dir = str(tmp_path / "montage_temp")
@@ -2144,8 +2267,11 @@ class TestPacingEffects:
             pacing_saturation_pulse=True,
         )
         MontageGenerator().generate(
-            self._audio_for_test(), self._clips_for_test(),
-            str(tmp_path / "out.mp4"), audio_path="/audio/song.wav", pacing=config,
+            self._audio_for_test(),
+            self._clips_for_test(),
+            str(tmp_path / "out.mp4"),
+            audio_path="/audio/song.wav",
+            pacing=config,
         )
 
         found_drift = False
@@ -2163,7 +2289,9 @@ class TestPacingEffects:
                     found_sat = True
 
         assert found_drift, "Expected drift zoom filter"
-        assert not found_tighten, "crop_tighten should be skipped when drift_zoom is active"
+        assert not found_tighten, (
+            "crop_tighten should be skipped when drift_zoom is active"
+        )
         assert found_sat, "Expected saturation pulse filter"
 
 
@@ -2200,7 +2328,13 @@ class TestAdvancedEffects:
     @patch("src.core.montage.shutil.rmtree")
     @patch("src.core.montage.os.path.exists", return_value=True)
     def test_micro_jitters_filter_in_extraction(
-        self, mock_exists, mock_rmtree, mock_mkdtemp, mock_run, mock_which, tmp_path,
+        self,
+        mock_exists,
+        mock_rmtree,
+        mock_mkdtemp,
+        mock_run,
+        mock_which,
+        tmp_path,
     ):
         """pacing_micro_jitters adds geq filter to extraction calls."""
         temp_dir = str(tmp_path / "montage_temp")
@@ -2210,8 +2344,11 @@ class TestAdvancedEffects:
 
         config = PacingConfig(pacing_micro_jitters=True)
         MontageGenerator().generate(
-            self._audio_for_test(), self._clips_for_test(),
-            str(tmp_path / "out.mp4"), audio_path="/audio/song.wav", pacing=config,
+            self._audio_for_test(),
+            self._clips_for_test(),
+            str(tmp_path / "out.mp4"),
+            audio_path="/audio/song.wav",
+            pacing=config,
         )
 
         found = False
@@ -2228,7 +2365,13 @@ class TestAdvancedEffects:
     @patch("src.core.montage.shutil.rmtree")
     @patch("src.core.montage.os.path.exists", return_value=True)
     def test_light_leaks_filter_in_extraction(
-        self, mock_exists, mock_rmtree, mock_mkdtemp, mock_run, mock_which, tmp_path,
+        self,
+        mock_exists,
+        mock_rmtree,
+        mock_mkdtemp,
+        mock_run,
+        mock_which,
+        tmp_path,
     ):
         """pacing_light_leaks adds colorbalance with enable= to extraction calls."""
         temp_dir = str(tmp_path / "montage_temp")
@@ -2238,8 +2381,11 @@ class TestAdvancedEffects:
 
         config = PacingConfig(pacing_light_leaks=True)
         MontageGenerator().generate(
-            self._audio_for_test(), self._clips_for_test(),
-            str(tmp_path / "out.mp4"), audio_path="/audio/song.wav", pacing=config,
+            self._audio_for_test(),
+            self._clips_for_test(),
+            str(tmp_path / "out.mp4"),
+            audio_path="/audio/song.wav",
+            pacing=config,
         )
 
         found = False
@@ -2248,7 +2394,9 @@ class TestAdvancedEffects:
             cmd_str = " ".join(str(c) for c in cmd)
             if "-ss" in cmd_str and "colorbalance=" in cmd_str and "enable=" in cmd_str:
                 found = True
-        assert found, "Expected colorbalance light-leak filter in FFmpeg extraction call"
+        assert found, (
+            "Expected colorbalance light-leak filter in FFmpeg extraction call"
+        )
 
     @patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")
     @patch("src.core.ffmpeg_renderer.run_ffmpeg")
@@ -2256,7 +2404,13 @@ class TestAdvancedEffects:
     @patch("src.core.montage.shutil.rmtree")
     @patch("src.core.montage.os.path.exists", return_value=True)
     def test_alternating_bokeh_on_even_segments(
-        self, mock_exists, mock_rmtree, mock_mkdtemp, mock_run, mock_which, tmp_path,
+        self,
+        mock_exists,
+        mock_rmtree,
+        mock_mkdtemp,
+        mock_run,
+        mock_which,
+        tmp_path,
     ):
         """pacing_alternating_bokeh adds boxblur on even-indexed segments."""
         temp_dir = str(tmp_path / "montage_temp")
@@ -2266,8 +2420,11 @@ class TestAdvancedEffects:
 
         config = PacingConfig(pacing_alternating_bokeh=True)
         MontageGenerator().generate(
-            self._audio_for_test(), self._clips_for_test(),
-            str(tmp_path / "out.mp4"), audio_path="/audio/song.wav", pacing=config,
+            self._audio_for_test(),
+            self._clips_for_test(),
+            str(tmp_path / "out.mp4"),
+            audio_path="/audio/song.wav",
+            pacing=config,
         )
 
         extraction_calls = []
@@ -2279,7 +2436,9 @@ class TestAdvancedEffects:
 
         # At least one extraction call should have boxblur (even-index segments)
         found = any("boxblur" in c for c in extraction_calls)
-        assert found, "Expected boxblur alternating-bokeh filter on some extraction calls"
+        assert found, (
+            "Expected boxblur alternating-bokeh filter on some extraction calls"
+        )
 
     def test_advanced_effects_disabled_by_default(self):
         """Default PacingConfig produces no FEAT-024 filter strings."""
@@ -2287,8 +2446,11 @@ class TestAdvancedEffects:
         from src.core.models import SegmentPlan
 
         seg = SegmentPlan(
-            video_path="/v/a.mp4", start_time=0, duration=3,
-            timeline_position=0, intensity_level="medium",
+            video_path="/v/a.mp4",
+            start_time=0,
+            duration=3,
+            timeline_position=0,
+            intensity_level="medium",
         )
         config = PacingConfig()
         filters = _build_pacing_filters(config, seg, [0.5, 1.0, 1.5], 1920, 1080)
@@ -2300,8 +2462,11 @@ class TestAdvancedEffects:
         from src.core.models import SegmentPlan
 
         seg = SegmentPlan(
-            video_path="/v/a.mp4", start_time=0, duration=3,
-            timeline_position=0, intensity_level="medium",
+            video_path="/v/a.mp4",
+            start_time=0,
+            duration=3,
+            timeline_position=0,
+            intensity_level="medium",
         )
         config = PacingConfig(
             pacing_saturation_pulse=True,
@@ -2310,14 +2475,21 @@ class TestAdvancedEffects:
             pacing_alternating_bokeh=True,
         )
         filters = _build_pacing_filters(
-            config, seg, [0.5, 1.0, 1.5], 1920, 1080, seg_index=0,
+            config,
+            seg,
+            [0.5, 1.0, 1.5],
+            1920,
+            1080,
+            seg_index=0,
         )
 
         filter_str = " ".join(filters)
         assert "eq=saturation=" in filter_str, "Expected FEAT-023 saturation pulse"
         assert "geq=" in filter_str, "Expected FEAT-024 micro-jitters"
         assert "colorbalance=" in filter_str, "Expected FEAT-024 light leaks"
-        assert "boxblur" in filter_str, "Expected FEAT-024 alternating bokeh (even index)"
+        assert "boxblur" in filter_str, (
+            "Expected FEAT-024 alternating bokeh (even index)"
+        )
 
     @patch("src.core.ffmpeg_renderer.get_video_duration", return_value=5.0)
     @patch("src.core.ffmpeg_renderer.run_ffmpeg")
@@ -2336,7 +2508,8 @@ class TestAdvancedEffects:
 
         output = str(tmp_path / "out.mp4")
         apply_transitions(
-            [g1, g2], output,
+            [g1, g2],
+            output,
             transition_type="fade",
             transition_duration=0.5,
             warm_wash=True,
@@ -2349,4 +2522,3 @@ class TestAdvancedEffects:
             if "xfade" in cmd_str and "colorbalance" in cmd_str:
                 found = True
         assert found, "Expected colorbalance warm-wash in xfade transition calls"
-

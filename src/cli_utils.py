@@ -66,8 +66,7 @@ def parse_duration(duration_str: str) -> tuple[float, float]:
         return val, val
     except ValueError:
         raise argparse.ArgumentTypeError(
-            f"Invalid duration format: '{duration_str}'."
-            " Use '60' or '10-15'."
+            f"Invalid duration format: '{duration_str}'. Use '60' or '10-15'."
         ) from None
 
 
@@ -454,7 +453,10 @@ def run_dry_run_handler(
         The formatted plan report string.
     """
     from src.core.models import PacingConfig  # noqa: WPS433
-    from src.services.plan_report import format_plan_report, write_plan_report  # noqa: WPS433
+    from src.services.plan_report import (  # noqa: WPS433
+        format_plan_report,
+        write_plan_report,
+    )
 
     pacing = PacingConfig(**{**pacing_kwargs, "is_shorts": pacing_is_shorts})
     segments = engine.plan_story(audio_meta, clips, pacing=pacing)
@@ -463,7 +465,10 @@ def run_dry_run_handler(
     write_plan_report(full_report, dry_run_output)
 
     if output_json:
-        from src.services.json_output import build_json_output, write_json_output  # noqa: WPS433
+        from src.services.json_output import (  # noqa: WPS433
+            build_json_output,
+            write_json_output,
+        )
 
         data = build_json_output(audio_meta, clips, segments, pacing)
         write_json_output(data, output_json)
@@ -553,7 +558,10 @@ def generate_shorts_batch(
 
         logger.info(
             "Short %d/%d (%.0fs, hook@%.1fs)",
-            i + 1, count, target_duration, hook_offset,
+            i + 1,
+            count,
+            target_duration,
+            hook_offset,
         )
         with RichProgressObserver() as obs:
             result = engine.generate_story(

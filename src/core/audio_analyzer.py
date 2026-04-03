@@ -250,6 +250,7 @@ class AudioAnalyzer:
 # FEAT-019: Audio Hook Scoring for Smart Start Selection
 # ------------------------------------------------------------------
 
+
 def find_audio_hooks(
     audio_data: AudioAnalysisResult,
     short_duration: float,
@@ -321,7 +322,8 @@ def find_audio_hooks(
         target_idx = min(target_idx, len(intensity) - 1)
         delta = (
             abs(intensity[target_idx] - beat_intensity)
-            if target_idx < len(intensity) else 0.0
+            if target_idx < len(intensity)
+            else 0.0
         )
 
         # 4. Section boundary bonus near pace_target (0.2)
@@ -332,10 +334,7 @@ def find_audio_hooks(
                 break
 
         total = (
-            0.3 * beat_intensity
-            + 0.3 * peak_bonus
-            + 0.2 * delta
-            + 0.2 * section_bonus
+            0.3 * beat_intensity + 0.3 * peak_bonus + 0.2 * delta + 0.2 * section_bonus
         )
         scored.append((total, beat_t))
 

@@ -15,6 +15,8 @@ import os
 import queue
 import tempfile
 import threading
+import time
+from dataclasses import dataclass
 
 import streamlit as st
 
@@ -26,6 +28,116 @@ st.set_page_config(
     page_icon="🎵",
     layout="wide",
 )
+
+
+# ---------------------------------------------------------------------------
+# Progress tracking for ETA calculation
+# ---------------------------------------------------------------------------
+
+@dataclass
+class StageInfo:
+    """Stage progress information."""
+    name: str
+    current: int
+    total: int
+    estimated_percent: float
+
+    @property
+    def pct(self) -> float:
+        """Return percentage for this stage."""
+        return (self.current / self.total * 100) if self.total > 0 else 0
+
+
+class ProgressTracker:
+    """Tracks pipeline progress, stage, elapsed time, and estimates ETA."""
+
+    # Stage duration heuristics (as % of total runtime)
+    STAGE_HEURISTICS = {
+        "Analysing audio": 10,
+        "Scanning video": 10,
+        "Configuring pacing": 5,
+        "Planning segment": 5,
+        "Rendering montage": 65,
+        "Generating Excel": 5,
+    }
+
+    def __init__(self) -> None:
+        self.start_time: float | None = None
+        self.current_stage: str = ""
+        # stage -> (current, total)
+        self.stage_progress: dict[str, tuple[int, int]] = {}
+        self.log_count: int = 0
+
+    def start(self) -> None:
+        """Mark the start of processing."""
+        self.start_time = time.time()
+
+    def update(self, message: str) -> None:
+        """Update progress based on log message."""
+        self.log_count += 1
+
+        # Extract stage name from log message (e.g., "[1/4] Analysing audio…")
+        for stage_key in self.STAGE_HEURISTICS:
+            if stage_key in message:
+                self.current_stage = stage_key
+                break
+
+        # Parse "[N/M]" progress
+        if "[" in message and "/" in message:
+            try:
+                bracket = message[message.index("[") : message.index("]") + 1]
+                parts = bracket.strip("[]").split("/")
+                current, total = int(parts[0]), int(parts[1])
+                self.stage_progress[self.current_stage] = (current, total)
+            except (ValueError, IndexError):
+                pass
+
+    def elapsed_seconds(self) -> float:
+        """Return elapsed time in seconds."""
+        if self.start_time is None:
+            return 0.0
+        return time.time() - self.start_time
+
+    def elapsed_str(self) -> str:
+        """Return elapsed time as HH:MM:SS."""
+        seconds = int(self.elapsed_seconds())
+        hours, remainder = divmod(seconds, 3600)
+        minutes, secs = divmod(remainder, 60)
+        return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+
+    def estimate_eta_seconds(self) -> float | None:
+        """Estimate remaining time based on elapsed time and stage heuristics."""
+        if self.start_time is None or not self.current_stage:
+            return None
+
+        elapsed = self.elapsed_seconds()
+        if elapsed < 1:
+            return None
+
+        # Find estimated total based on current stage
+        current_heuristic = self.STAGE_HEURISTICS.get(self.current_stage, 50)
+        estimated_total = elapsed / (current_heuristic / 100.0)
+        estimated_remaining = estimated_total - elapsed
+        return max(0, estimated_remaining)
+
+    def estimate_eta_str(self) -> str:
+        """Return estimated remaining time as HH:MM:SS or '?'."""
+        eta = self.estimate_eta_seconds()
+        if eta is None:
+            return "—"
+        seconds = int(eta)
+        hours, remainder = divmod(seconds, 3600)
+        minutes, secs = divmod(remainder, 60)
+        return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+
+    def stage_label(self) -> str:
+        """Return a readable stage label (e.g., '2 of 4')."""
+        if not self.stage_progress:
+            return "starting…"
+        # Get the highest stage number seen
+        max_current = max((c for c, _ in self.stage_progress.values()), default=0)
+        max_total = max((t for _, t in self.stage_progress.values()), default=0)
+        return f"{max_current} of {max_total}"
 
 
 # ---------------------------------------------------------------------------
@@ -46,6 +158,19 @@ class QueueLogHandler(logging.Handler):
             pass
 
 
+class QueueProgressObserver:
+    """Progress observer that pushes status updates to a log queue."""
+
+    def __init__(self, log_queue: queue.Queue) -> None:
+        self._queue = log_queue
+
+    def on_progress(self, current: int, total: int, message: str = "") -> None:
+        """Pushes a progress message to the queue."""
+        percent = (current / total * 100) if total > 0 else 0
+        formatted = f"PROGRESS: {message} ({percent:.0f}%)"
+        self._queue.put(formatted)
+
+
 # ---------------------------------------------------------------------------
 # Session state initialisation
 # ---------------------------------------------------------------------------
@@ -58,6 +183,11 @@ def _init_state() -> None:
         "error": None,
         "plan_report": None,
         "log_queue": queue.Queue(),
+        "audio_path": "",
+        "video_dir": "",
+        "broll_dir": "",
+        "output_path": "output_story.mp4",
+        "progress_tracker": ProgressTracker(),
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -86,6 +216,86 @@ def _get_genres() -> list[str]:
 def _get_intro_effects() -> list[str]:
     from src.core.ffmpeg_renderer import INTRO_EFFECTS  # noqa: WPS433
     return ["none", *sorted(INTRO_EFFECTS.keys())]
+
+
+# ---------------------------------------------------------------------------
+# File/folder picker helpers using tkinter
+# ---------------------------------------------------------------------------
+
+
+def _run_safe_tk_dialog(script: str) -> str | None:
+    """Execute tkinter script in separate process to avoid macOS main-thread issues."""
+    import subprocess
+    import sys
+
+    # Use the same python executable as the current process
+    try:
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except Exception:  # noqa: BLE001
+        return None
+    return None
+
+
+def _pick_folder(title: str = "Select folder") -> str | None:
+    """Open a native folder picker. Returns selected path or None."""
+    script = f"""
+import tkinter as tk
+from tkinter import filedialog
+root = tk.Tk()
+root.withdraw()
+root.wm_attributes("-topmost", True)
+path = filedialog.askdirectory(title='{title}')
+root.destroy()
+if path:
+    print(path)
+"""
+    return _run_safe_tk_dialog(script)
+
+
+def _pick_audio_file() -> str | None:
+    """Open a native file picker for audio files."""
+    script = """
+import tkinter as tk
+from tkinter import filedialog
+root = tk.Tk()
+root.withdraw()
+root.wm_attributes("-topmost", True)
+path = filedialog.askopenfilename(
+    title='Select audio file',
+    filetypes=[('Audio files', '*.wav *.mp3'), ('All files', '*.*')],
+)
+root.destroy()
+if path:
+    print(path)
+"""
+    return _run_safe_tk_dialog(script)
+
+
+def _pick_output_file() -> str | None:
+    """Open a native save-as dialog for the output MP4."""
+    script = """
+import tkinter as tk
+from tkinter import filedialog
+root = tk.Tk()
+root.withdraw()
+root.wm_attributes("-topmost", True)
+path = filedialog.asksaveasfilename(
+    title='Save output video as',
+    defaultextension='.mp4',
+    filetypes=[('MP4 video', '*.mp4'), ('All files', '*.*')],
+)
+root.destroy()
+if path:
+    print(path)
+"""
+    return _run_safe_tk_dialog(script)
 
 
 # ---------------------------------------------------------------------------
@@ -181,37 +391,48 @@ st.caption("Automatically sync your dance video clips to musical beats and inten
 
 st.markdown("### Inputs")
 
-col1, col2 = st.columns([2, 1])
+st.markdown("#### Audio")
 
-with col1:
-    audio_path_text = st.text_input(
-        "Path to audio file (.wav or .mp3)",
-        placeholder="/path/to/track.wav",
-        help="Absolute path to your audio track on this machine.",
-    )
+col_audio_upload, col_audio_text = st.columns([2, 3])
 
-with col2:
+with col_audio_upload:
     uploaded_audio = st.file_uploader(
-        "…or upload an audio file",
+        "Upload audio file",
         type=["wav", "mp3"],
-        help="Uploads are saved to a temp folder for the duration of the session.",
+        help="Drag and drop or click to select.",
     )
+
+with col_audio_text:
+    audio_path_text = st.text_input(
+        "Or paste path to audio file",
+        placeholder="/path/to/track.wav",
+        key="audio_path",
+        help="Absolute path on your machine. (Ignored if audio is uploaded above.)",
+    )
+
+st.markdown("#### Video Clips")
 
 video_dir = st.text_input(
     "Path to folder containing video clips",
     placeholder="/path/to/clips/",
+    key="video_dir",
     help="Folder of .mp4 clips to use in the montage.",
 )
 
+st.markdown("#### B-roll (Optional)")
+
 broll_dir_input = st.text_input(
-    "B-roll folder (optional — leave blank to auto-detect)",
+    "B-roll folder (leave blank to auto-detect)",
     placeholder="/path/to/clips/broll/",
+    key="broll_dir",
     help="Auto-detected as a 'broll/' subfolder inside the clips folder if it exists.",
 )
 
+st.markdown("#### Output")
+
 output_path = st.text_input(
     "Output video path",
-    value="output_story.mp4",
+    key="output_path",
     help="Where to save the finished video.",
 )
 
@@ -240,47 +461,66 @@ def _run_generation(
     log_queue: queue.Queue,
 ) -> None:
     """Run the full engine pipeline in a background thread."""
+    import sys
+    import traceback as tb_module
+
     # Attach our queue handler to the root logger for this thread
     handler = QueueLogHandler(log_queue)
-    handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
+    handler.setFormatter(logging.Formatter("%(message)s"))
     root_logger = logging.getLogger()
     root_logger.addHandler(handler)
-    root_logger.setLevel(logging.INFO)
+    root_logger.setLevel(logging.DEBUG)
+
+    # Also log to stderr for debugging
+    console_handler = logging.StreamHandler(sys.stderr)
+    console_handler.setFormatter(logging.Formatter("%(message)s"))
+    root_logger.addHandler(console_handler)
 
     try:
-        from src.cli_utils import analyze_audio, detect_broll_dir, strip_thumbnails  # noqa: WPS433
+        log_queue.put("DEBUG: Background thread started")
+        log_queue.put(f"DEBUG: Audio: {audio_resolved}")
+        log_queue.put(f"DEBUG: Video dir: {video_dir_path}")
+
+        log_queue.put("DEBUG: Importing modules…")
+        from src.cli_utils import (  # noqa: WPS433
+            analyze_audio,
+            detect_broll_dir,
+            strip_thumbnails,
+        )
         from src.core.app import BachataSyncEngine  # noqa: WPS433
         from src.core.models import PacingConfig  # noqa: WPS433
         from src.core.montage import load_pacing_config  # noqa: WPS433
-        from src.ui.console import RichProgressObserver  # noqa: WPS433
+        log_queue.put("DEBUG: Modules imported successfully")
 
+        log_queue.put("DEBUG: Initializing engine…")
         engine = BachataSyncEngine()
+        log_queue.put("DEBUG: Engine initialized")
 
         # 1. Analyse audio
-        log_queue.put("INFO: Analysing audio…")
+        log_queue.put("[1/4] Analysing audio…")
         resolved_audio, audio_meta = analyze_audio(audio_resolved)
 
         # 2. Scan video library
-        log_queue.put(f"INFO: Scanning video clips in {video_dir_path}")
+        log_queue.put(f"[2/4] Scanning video clips in {video_dir_path}")
         broll_dir_resolved = detect_broll_dir(video_dir_path, broll_path)
         exclude_dirs = [broll_dir_resolved] if broll_dir_resolved else None
 
-        with RichProgressObserver() as obs:
-            video_clips = engine.scan_video_library(
-                video_dir_path, exclude_dirs=exclude_dirs, observer=obs
-            )
-        log_queue.put(f"INFO: Found {len(video_clips)} suitable clip(s).")
+        obs = QueueProgressObserver(log_queue)
+        video_clips = engine.scan_video_library(
+            video_dir_path, exclude_dirs=exclude_dirs, observer=obs
+        )
+        log_queue.put(f"   → Found {len(video_clips)} clip(s)")
 
         broll_clips = None
         if broll_dir_resolved and os.path.exists(broll_dir_resolved):
-            log_queue.put(f"INFO: Scanning B-roll in {broll_dir_resolved}")
-            with RichProgressObserver() as obs:
-                broll_clips = engine.scan_video_library(
-                    broll_dir_resolved, observer=obs
-                )
-            log_queue.put(f"INFO: Found {len(broll_clips)} B-roll clip(s).")
+            log_queue.put(f"   → Scanning B-roll in {broll_dir_resolved}")
+            broll_clips = engine.scan_video_library(
+                broll_dir_resolved, observer=obs
+            )
+            log_queue.put(f"   → Found {len(broll_clips)} B-roll clip(s)")
 
         # 3. Build pacing config
+        log_queue.put("[3/4] Configuring pacing and effects…")
         base_config = load_pacing_config()
         merged = {**base_config.model_dump(), **pacing_kwargs}
         pacing = PacingConfig(**merged)
@@ -289,46 +529,52 @@ def _run_generation(
 
         # 4a. Dry-run path
         if pacing.dry_run:
+            log_queue.put("[3/4] Planning segment timeline…")
             from src.services.plan_report import format_plan_report  # noqa: WPS433
             segments = engine.plan_story(audio_meta, montage_clips, pacing=pacing)
             report = format_plan_report(audio_meta, segments, montage_clips, pacing)
             log_queue.put("__PLAN_REPORT__" + report)
-            log_queue.put("INFO: Dry-run complete — no video rendered.")
+            log_queue.put("✓ Dry-run complete — plan ready (no video rendered)")
             log_queue.put("__DONE__")
             return
 
         # 4b. Full render
-        log_queue.put("INFO: Syncing visual narrative to musical dynamics…")
-        with RichProgressObserver() as obs:
-            result_path = engine.generate_story(
-                audio_meta,
-                montage_clips,
-                output_video,
-                broll_clips=broll_clips,
-                audio_path=resolved_audio,
-                observer=obs,
-                pacing=pacing,
-            )
+        log_queue.put("[4/4] Rendering montage with FFmpeg…")
+        log_queue.put("   → This may take several minutes depending on video length…")
+        result_path = engine.generate_story(
+            audio_meta,
+            montage_clips,
+            output_video,
+            broll_clips=broll_clips,
+            audio_path=resolved_audio,
+            observer=obs,
+            pacing=pacing,
+        )
         del montage_clips
 
-        log_queue.put(f"INFO: Done! Output saved to: {result_path}")
+        log_queue.put("✓ Video rendered successfully!")
+        log_queue.put(f"   → Saved to: {result_path}")
 
         # 5. Optional Excel report
         if export_report_path:
             from src.services.reporting import ExcelReportGenerator  # noqa: WPS433
-            log_queue.put(f"INFO: Generating Excel report → {export_report_path}")
+            log_queue.put("   → Generating Excel report…")
             ExcelReportGenerator().generate_report(
                 audio_meta, video_clips, export_report_path
             )
+            log_queue.put(f"   → Report saved to: {export_report_path}")
 
         log_queue.put("__RESULT__" + result_path)
         log_queue.put("__DONE__")
 
-    except Exception as exc:  # noqa: BLE001
-        log_queue.put(f"__ERROR__{exc}")
+    except Exception:  # noqa: BLE001
+        error_details = tb_module.format_exc()
+        log_queue.put(f"__ERROR__{error_details}")
+        sys.stderr.write(f"THREAD ERROR:\n{error_details}\n")
         log_queue.put("__DONE__")
     finally:
         root_logger.removeHandler(handler)
+        root_logger.removeHandler(console_handler)
 
 
 # ---------------------------------------------------------------------------
@@ -435,7 +681,9 @@ if run_button:
     st.session_state["error"] = None
     st.session_state["plan_report"] = None
     st.session_state["log_queue"] = queue.Queue()
+    st.session_state["progress_tracker"] = ProgressTracker()  # Fresh tracker
 
+    # Create and start the background thread
     thread = threading.Thread(
         target=_run_generation,
         args=(
@@ -450,6 +698,11 @@ if run_button:
         daemon=True,
     )
     thread.start()
+
+    # Give the thread a moment to initialize
+    import time
+    time.sleep(0.1)
+
     st.rerun()
 
 
@@ -459,6 +712,7 @@ if run_button:
 
 if st.session_state["running"]:
     log_queue: queue.Queue = st.session_state["log_queue"]
+    tracker: ProgressTracker = st.session_state["progress_tracker"]
 
     # Drain everything currently in the queue
     done = False
@@ -478,47 +732,71 @@ if st.session_state["running"]:
             st.session_state["plan_report"] = line[len("__PLAN_REPORT__"):]
         else:
             st.session_state["log_lines"].append(line)
+            tracker.update(line)
 
     if done:
         st.session_state["running"] = False
 
 
 # ---------------------------------------------------------------------------
-# Progress feedback while running
+# Display progress status (replaces meta-refresh)
 # ---------------------------------------------------------------------------
 
 if st.session_state["running"]:
-    st.info("Generating montage… this may take a few minutes. Refresh to see log updates.")
-    st.spinner("Working…")
-    # Auto-refresh every 3 seconds while running
-    st.markdown(
-        "<meta http-equiv='refresh' content='3'>",
-        unsafe_allow_html=True,
+    tracker: ProgressTracker = st.session_state["progress_tracker"]
+
+    # Initialize tracker timing on first run
+    if tracker.start_time is None:
+        tracker.start()
+
+    # Create persistent status container
+    status_container = st.status(
+        f"⏳ Generating montage — Stage {tracker.stage_label()}",
+        state="running",
     )
+
+    with status_container:
+        # Show progress metrics
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Elapsed", tracker.elapsed_str())
+        with col2:
+            st.metric("ETA", tracker.estimate_eta_str())
+        with col3:
+            st.metric("Current Stage", tracker.current_stage or "initializing…")
+
+        st.divider()
+
+        # Show logs
+        log_text = "\n".join(st.session_state["log_lines"])
+        st.code(log_text, language="")
+        st.caption("Updates every 2 seconds")
+
+    # Auto-rerun every 2 seconds for live updates
+    time.sleep(0.1)
+    st.rerun()
 
 
 # ---------------------------------------------------------------------------
-# Display results
+# Display results and messages
 # ---------------------------------------------------------------------------
 
 if st.session_state["error"]:
-    st.error(f"Generation failed: {st.session_state['error']}")
+    st.error("❌ Generation failed")
+    with st.expander("Error details", expanded=True):
+        st.code(st.session_state["error"], language="python")
 
 if st.session_state["plan_report"]:
-    st.success("Dry-run complete — segment plan ready.")
-    with st.expander("Segment Plan Report", expanded=True):
+    st.success("✓ Dry-run complete — segment plan ready.")
+    with st.expander("📋 Segment Plan Report", expanded=True):
         st.markdown(
             f"```\n{st.session_state['plan_report']}\n```"
         )
 
 if st.session_state["result_path"]:
     result = st.session_state["result_path"]
-    st.success(f"Montage saved to: `{result}`")
+    st.success(f"✅ Montage saved to: `{result}`")
     if os.path.exists(result):
         st.video(result)
     else:
-        st.warning("Output file not found at the reported path.")
-
-if st.session_state["log_lines"]:
-    with st.expander("Processing Log", expanded=st.session_state["running"]):
-        st.text("\n".join(st.session_state["log_lines"]))
+        st.warning("⚠️ Output file not found at the reported path.")

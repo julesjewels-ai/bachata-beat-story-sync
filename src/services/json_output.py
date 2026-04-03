@@ -41,11 +41,7 @@ def _serialise_pacing(pacing: PacingConfig) -> dict[str, Any]:
     """Dump pacing config, keeping only non-default values."""
     defaults = PacingConfig()
     current = pacing.model_dump()
-    return {
-        key: val
-        for key, val in current.items()
-        if val != getattr(defaults, key)
-    }
+    return {key: val for key, val in current.items() if val != getattr(defaults, key)}
 
 
 def build_json_output(

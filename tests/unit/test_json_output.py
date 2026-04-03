@@ -73,9 +73,7 @@ class TestBuildJsonOutput:
 
     def test_required_keys(self):
         """Output dict must contain the expected top-level keys."""
-        data = build_json_output(
-            _audio(), [_clip("a.mp4")], [_segment(0)], _pacing()
-        )
+        data = build_json_output(_audio(), [_clip("a.mp4")], [_segment(0)], _pacing())
         assert "version" in data
         assert "timestamp" in data
         assert "audio" in data
@@ -85,9 +83,7 @@ class TestBuildJsonOutput:
 
     def test_version_field(self):
         """Version field must match the supplied or default value."""
-        data = build_json_output(
-            _audio(), [], None, _pacing(), version="42.0"
-        )
+        data = build_json_output(_audio(), [], None, _pacing(), version="42.0")
         assert data["version"] == "42.0"
 
     def test_thumbnail_excluded(self):
@@ -99,9 +95,7 @@ class TestBuildJsonOutput:
 
     def test_peaks_excluded(self):
         """Bulky peaks list must be stripped from audio."""
-        data = build_json_output(
-            _audio(peaks=[0.1, 0.2, 0.3]), [], None, _pacing()
-        )
+        data = build_json_output(_audio(peaks=[0.1, 0.2, 0.3]), [], None, _pacing())
         assert "peaks" not in data["audio"]
 
     def test_segment_plan_none(self):
@@ -137,9 +131,7 @@ class TestBuildJsonOutput:
 
     def test_json_round_trip(self):
         """The output must survive a JSON serialize → deserialize round-trip."""
-        data = build_json_output(
-            _audio(), [_clip("b.mp4")], [_segment(0)], _pacing()
-        )
+        data = build_json_output(_audio(), [_clip("b.mp4")], [_segment(0)], _pacing())
         payload = json.dumps(data, default=str)
         restored = json.loads(payload)
         assert restored["version"] == data["version"]
