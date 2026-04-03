@@ -8,7 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class MusicalSection(BaseModel):
@@ -347,6 +347,37 @@ class PacingConfig(BaseModel):
         1.0,
         description="Static zoom/crop factor. 1.0 = full frame, 0.88 = crop center 88% and scale up.",
     )
+
+    # Per-Track Video Clip Pools (FEAT-030)
+    per_track_clips: dict[str, str] = Field(
+        default_factory=dict,
+        description="Per-track clip folder mapping (filename → clip folder path). "
+        "Example: {'track1.wav': 'clips/track1/', 'track2.wav': 'clips/track2/'}. "
+        "If specified, overrides global --video-dir for that track's per-track video and Shorts. "
+        "Global pool is used for mix and fallback.",
+    )
+
+    # Per-Track Video Style Filter (FEAT-031)
+    per_track_styles: dict[str, str] = Field(
+        default_factory=dict,
+        description="Per-track video style mapping (filename → style name). "
+        "Example: {'track1.wav': 'vintage', 'track2.wav': 'bw'}. "
+        "If specified, overrides global video_style for that track's per-track video and Shorts. "
+        "Valid styles: 'none', 'bw', 'vintage', 'warm', 'cool', 'golden'.",
+    )
+
+    @field_validator("per_track_styles", mode="after")
+    @classmethod
+    def validate_per_track_styles(cls, v: dict[str, str]) -> dict[str, str]:
+        """Validate that all per-track styles are valid style names (FEAT-031)."""
+        valid_styles = {"none", "bw", "vintage", "warm", "cool", "golden"}
+        for track_filename, style in v.items():
+            if style not in valid_styles:
+                raise ValueError(
+                    f"Invalid video style for {track_filename}: '{style}'. "
+                    f"Valid options: {', '.join(sorted(valid_styles))}"
+                )
+        return v
 
 
 class AudioMixConfig(BaseModel):

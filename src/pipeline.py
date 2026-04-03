@@ -88,6 +88,98 @@ def _safe_filename(path: str) -> str:
     return stem.replace(" ", "_")
 
 
+def _get_track_video_dir(
+    track_path: str,
+    pacing_config: "PacingConfig",
+    global_video_dir: str,
+) -> str:
+    """
+    Resolve the video clip directory for a track (FEAT-030).
+
+    If a per-track clip folder is configured for the track, use it.
+    Otherwise, fall back to the global video directory.
+
+    Args:
+        track_path: Absolute path to the audio track file.
+        pacing_config: Loaded PacingConfig with per_track_clips mapping.
+        global_video_dir: Fallback global video directory path.
+
+    Returns:
+        Path to the video clip directory for this track.
+
+    Raises:
+        FileNotFoundError: If per-track folder is configured but doesn't exist.
+    """
+    track_filename = os.path.basename(track_path)
+    per_track_clips = pacing_config.per_track_clips or {}
+
+    if track_filename in per_track_clips:
+        per_track_dir = per_track_clips[track_filename]
+        if not os.path.isdir(per_track_dir):
+            raise FileNotFoundError(
+                f"Per-track clip folder not found for {track_filename}: {per_track_dir}"
+            )
+        logger.info(
+            "Using per-track clip folder for %s: %s",
+            track_filename,
+            per_track_dir,
+        )
+        return per_track_dir
+
+    logger.info(
+        "No per-track clip folder configured for %s, using global: %s",
+        track_filename,
+        global_video_dir,
+    )
+    return global_video_dir
+
+
+def _get_track_video_style(
+    track_path: str,
+    pacing_config: "PacingConfig",
+) -> str:
+    """
+    Resolve the video style filter for a track (FEAT-031).
+
+    If a per-track style is configured for the track, use it.
+    Otherwise, use the global video_style from the config.
+
+    Args:
+        track_path: Absolute path to the audio track file.
+        pacing_config: Loaded PacingConfig with per_track_styles mapping.
+
+    Returns:
+        Style name (e.g. 'bw', 'vintage', 'none', etc.).
+
+    Raises:
+        ValueError: If per-track style is invalid.
+    """
+    track_filename = os.path.basename(track_path)
+    per_track_styles = pacing_config.per_track_styles or {}
+    valid_styles = {"none", "bw", "vintage", "warm", "cool", "golden"}
+
+    if track_filename in per_track_styles:
+        style = per_track_styles[track_filename]
+        if style not in valid_styles:
+            raise ValueError(
+                f"Invalid per-track style for {track_filename}: {style}. "
+                f"Valid options: {', '.join(sorted(valid_styles))}"
+            )
+        logger.info(
+            "Using per-track video style for %s: %s",
+            track_filename,
+            style,
+        )
+        return style
+
+    logger.info(
+        "No per-track style configured for %s, using global: %s",
+        track_filename,
+        pacing_config.video_style,
+    )
+    return pacing_config.video_style
+
+
 # ------------------------------------------------------------------
 # Core Generation Helpers
 # ------------------------------------------------------------------
@@ -314,12 +406,24 @@ def main() -> None:
                 track_input = AudioAnalysisInput(file_path=track_path)
                 with log.status(f"Analyzing track {idx} audio…"):
                     track_meta = analyzer.analyze(track_input)
+
+                # FEAT-030: Resolve per-track clip directory
+                base_pacing = PacingConfig(**pacing_kwargs) if pacing_kwargs else PacingConfig()
+                track_video_dir = _get_track_video_dir(
+                    track_path, base_pacing, args.video_dir
+                )
                 clips_for_track = (
                     shared_clips
                     if args.shared_scan
-                    else _scan_videos(engine, args.video_dir, broll_dir)[0]
+                    else _scan_videos(engine, track_video_dir, broll_dir)[0]
                 )
+
+                # FEAT-031: Resolve per-track video style
                 track_pacing_kwargs = {**pacing_kwargs, "prefix_offset": idx - 1}
+                track_style = _get_track_video_style(track_path, base_pacing)
+                if track_style != base_pacing.video_style:
+                    track_pacing_kwargs["video_style"] = track_style
+
                 report = run_dry_run_handler(
                     engine,
                     track_meta,
@@ -394,15 +498,26 @@ def main() -> None:
                 f"  duration={track_meta.duration:.1f}s"
             )
 
+            # FEAT-030: Resolve per-track clip directory (or fall back to global)
+            base_pacing = PacingConfig(**pacing_kwargs) if pacing_kwargs else PacingConfig()
+            track_video_dir = _get_track_video_dir(
+                track_path, base_pacing, args.video_dir
+            )
+
             # Scan (or reuse shared scan)
             if args.shared_scan:
                 clips, broll = shared_clips, shared_broll
             else:
                 with log.status("Scanning video library…"):
-                    clips, broll = _scan_videos(engine, args.video_dir, broll_dir)
+                    clips, broll = _scan_videos(engine, track_video_dir, broll_dir)
 
-            # FEAT-017: rotate prefix clips per track for intro variety
+            # FEAT-017 + FEAT-031: Build per-track pacing config
+            # - Rotate prefix clips per track for intro variety
+            # - Override video_style if per-track style is configured
             track_pacing = {**pacing_kwargs, "prefix_offset": idx - 1}
+            track_style = _get_track_video_style(track_path, base_pacing)
+            if track_style != base_pacing.video_style:
+                track_pacing["video_style"] = track_style
 
             # Generate horizontal video
             track_out = os.path.join(args.output_dir, f"{track_label}.mp4")

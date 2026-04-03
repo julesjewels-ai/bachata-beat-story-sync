@@ -83,6 +83,31 @@ pacing:
   # pacing_warm_wash: false            # Amber flash at transitions
   # pacing_alternating_bokeh: false    # Blur on alternating segments
 
+# Pipeline Configuration (Full Pipeline Mode)
+# Controls per-track customization when running the full pipeline (src/pipeline.py)
+# Each mapping uses the audio filename (e.g. 'track1.wav') as the key.
+pipeline:
+  # Per-Track Video Clip Pools (FEAT-030)
+  # Assign dedicated clip folders to individual songs for visual variety.
+  # If a track is listed here, its per-track video and Shorts use that folder;
+  # the global --video-dir is used for the mix video and as a fallback.
+  # Example:
+  # track_clips:
+  #   track1.wav: clips/track1/
+  #   track2.wav: clips/track2/
+  track_clips: {}
+
+  # Per-Track Video Style Filters (FEAT-031)
+  # Assign unique color grades to each track for visual distinction.
+  # If a track is listed here, its per-track video and Shorts use that style;
+  # the global video_style is used for the mix video and as a fallback.
+  # Valid styles: 'none', 'bw', 'vintage', 'warm', 'cool', 'golden'
+  # Example:
+  # track_styles:
+  #   track1.wav: vintage
+  #   track2.wav: bw
+  track_styles: {}
+
 # Audio Mix Configuration
 # Controls how multiple audio tracks are mixed when --audio points to a folder.
 audio_mix:

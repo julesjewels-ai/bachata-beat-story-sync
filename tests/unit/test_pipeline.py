@@ -153,3 +153,151 @@ class TestScanVideos:
         assert broll is not None
         assert len(broll) == 1
         assert engine.scan_video_library.call_count == 2
+
+
+# ------------------------------------------------------------------
+# FEAT-030: Per-Track Video Clip Pools
+# ------------------------------------------------------------------
+
+
+class TestPerTrackClipPools:
+    def test_get_track_video_dir_uses_per_track_folder(self):
+        """Test that per-track clip folder is used if configured."""
+        from src.pipeline import _get_track_video_dir
+        from src.core.models import PacingConfig
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            per_track_dir = os.path.join(tmpdir, "track1_clips")
+            os.makedirs(per_track_dir)
+
+            config = PacingConfig(
+                per_track_clips={"track1.wav": per_track_dir}
+            )
+            track_path = "/audio/track1.wav"
+
+            result = _get_track_video_dir(track_path, config, "/global/videos")
+            assert result == per_track_dir
+
+    def test_get_track_video_dir_fallback_to_global(self):
+        """Test that global video-dir is used if no per-track config."""
+        from src.pipeline import _get_track_video_dir
+        from src.core.models import PacingConfig
+
+        config = PacingConfig(per_track_clips={})
+        track_path = "/audio/track1.wav"
+        global_dir = "/global/videos"
+
+        result = _get_track_video_dir(track_path, config, global_dir)
+        assert result == global_dir
+
+    def test_get_track_video_dir_raises_if_path_missing(self):
+        """Test that FileNotFoundError is raised if per-track path doesn't exist."""
+        from src.pipeline import _get_track_video_dir
+        from src.core.models import PacingConfig
+
+        config = PacingConfig(
+            per_track_clips={"track1.wav": "/nonexistent/path"}
+        )
+        track_path = "/audio/track1.wav"
+
+        try:
+            _get_track_video_dir(track_path, config, "/global/videos")
+            assert False, "Should have raised FileNotFoundError"
+        except FileNotFoundError as e:
+            assert "track1.wav" in str(e)
+
+
+# ------------------------------------------------------------------
+# FEAT-031: Per-Track Video Style Filters
+# ------------------------------------------------------------------
+
+
+class TestPerTrackVideoStyles:
+    def test_get_track_video_style_uses_per_track_style(self):
+        """Test that per-track style is used if configured."""
+        from src.pipeline import _get_track_video_style
+        from src.core.models import PacingConfig
+
+        config = PacingConfig(
+            video_style="none",
+            per_track_styles={"track1.wav": "vintage"}
+        )
+        track_path = "/audio/track1.wav"
+
+        result = _get_track_video_style(track_path, config)
+        assert result == "vintage"
+
+    def test_get_track_video_style_fallback_to_global(self):
+        """Test that global video_style is used if no per-track config."""
+        from src.pipeline import _get_track_video_style
+        from src.core.models import PacingConfig
+
+        config = PacingConfig(
+            video_style="bw",
+            per_track_styles={}
+        )
+        track_path = "/audio/track1.wav"
+
+        result = _get_track_video_style(track_path, config)
+        assert result == "bw"
+
+    def test_get_track_video_style_raises_if_invalid(self):
+        """Test that invalid per-track style is rejected at config validation."""
+        from src.core.models import PacingConfig
+        from pydantic import ValidationError
+
+        # Invalid styles are caught at config validation time (Pydantic validator)
+        try:
+            PacingConfig(
+                video_style="none",
+                per_track_styles={"track1.wav": "invalid_style"}
+            )
+            assert False, "Should have raised ValidationError"
+        except ValidationError as e:
+            assert "invalid_style" in str(e)
+            assert "Valid options" in str(e)
+
+
+# ------------------------------------------------------------------
+# Config Validation (FEAT-030 & FEAT-031)
+# ------------------------------------------------------------------
+
+
+class TestPerTrackConfigValidation:
+    def test_pacing_config_validates_per_track_styles(self):
+        """Test that PacingConfig validates per_track_styles on construction."""
+        from src.core.models import PacingConfig
+        from pydantic import ValidationError
+
+        # Valid styles should pass
+        config = PacingConfig(
+            per_track_styles={
+                "track1.wav": "vintage",
+                "track2.wav": "bw",
+                "track3.wav": "cool"
+            }
+        )
+        assert config.per_track_styles["track1.wav"] == "vintage"
+
+    def test_pacing_config_rejects_invalid_per_track_styles(self):
+        """Test that PacingConfig rejects invalid per_track_styles."""
+        from src.core.models import PacingConfig
+        from pydantic import ValidationError
+
+        try:
+            PacingConfig(
+                per_track_styles={
+                    "track1.wav": "invalid_style"
+                }
+            )
+            assert False, "Should have raised ValidationError"
+        except ValidationError as e:
+            assert "invalid_style" in str(e)
+
+    def test_pacing_config_accepts_empty_per_track_mappings(self):
+        """Test that empty per_track_clips/styles dicts are allowed."""
+        from src.core.models import PacingConfig
+
+        config = PacingConfig(per_track_clips={}, per_track_styles={})
+        assert config.per_track_clips == {}
+        assert config.per_track_styles == {}
