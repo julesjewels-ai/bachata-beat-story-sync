@@ -283,6 +283,75 @@ class MontageGenerator:
 
         return target_beats, level, speed
 
+    @staticmethod
+    def _compute_speed_curve(
+        intensity_slice: list[float],
+        config: PacingConfig,
+    ) -> list[float]:
+        """
+        Compute per-beat speed multipliers from intensity values (FEAT-036).
+
+        Maps intensity values through a smoothing curve and scales to
+        [speed_ramp_min, speed_ramp_max] based on sensitivity.
+
+        Args:
+            intensity_slice: List of intensity values (0.0-1.0), one per beat
+            config: PacingConfig with speed_ramp_* parameters
+
+        Returns:
+            List of speed multipliers, same length as intensity_slice
+        """
+        if not intensity_slice:
+            return []
+
+        # Normalise intensity within this segment's range
+        min_intensity = min(intensity_slice)
+        max_intensity = max(intensity_slice)
+        intensity_range = max_intensity - min_intensity
+
+        if intensity_range < 0.01:  # Flat section, use mid-point speed
+            mid_speed = (config.speed_ramp_min + config.speed_ramp_max) / 2
+            return [mid_speed] * len(intensity_slice)
+
+        # Normalise to 0.0-1.0 relative to this segment
+        normalised = [
+            (i - min_intensity) / intensity_range for i in intensity_slice
+        ]
+
+        # Apply smoothing curve
+        if config.speed_ramp_curve == "ease_in":
+            # Slow start, fast end
+            curved = [x**2 for x in normalised]
+        elif config.speed_ramp_curve == "ease_out":
+            # Fast start, slow end
+            curved = [1.0 - (1.0 - x) ** 2 for x in normalised]
+        elif config.speed_ramp_curve == "ease_in_out":
+            # Slow at edges, fast in middle
+            curved = [
+                (x**2) if x < 0.5 else (1.0 - (1.0 - x) ** 2)
+                for x in normalised
+            ]
+        else:  # linear
+            curved = normalised
+
+        # Apply sensitivity (amplify or dampen the curve)
+        sensitivity = config.speed_ramp_sensitivity
+        if sensitivity != 1.0:
+            mid_point = 0.5
+            curved = [
+                mid_point + (c - mid_point) * sensitivity for c in curved
+            ]
+            # Clamp to [0, 1]
+            curved = [max(0.0, min(1.0, c)) for c in curved]
+
+        # Scale to [speed_ramp_min, speed_ramp_max]
+        speed_range = config.speed_ramp_max - config.speed_ramp_min
+        speed_curve = [
+            config.speed_ramp_min + c * speed_range for c in curved
+        ]
+
+        return speed_curve
+
     def _select_clip(
         self,
         *,
@@ -542,17 +611,31 @@ class MontageGenerator:
             section_label = self._find_section_label(sections, current_time)
 
             if actual_duration > 0:
-                segments.append(
-                    SegmentPlan(
-                        video_path=clip.path,
-                        start_time=start_time,
-                        duration=actual_duration,
-                        timeline_position=timeline_pos,
-                        intensity_level=level,
-                        speed_factor=speed,
-                        section_label=section_label,
-                    )
+                seg = SegmentPlan(
+                    video_path=clip.path,
+                    start_time=start_time,
+                    duration=actual_duration,
+                    timeline_position=timeline_pos,
+                    intensity_level=level,
+                    speed_factor=speed,
+                    section_label=section_label,
                 )
+
+                # FEAT-036: Compute per-beat organic speed ramping if enabled
+                if config.speed_ramp_organic and beat_count > 0:
+                    # Slice intensity curve for this segment's beat range
+                    intensity_slice = intensity_curve[
+                        beat_idx : min(beat_idx + beat_count, len(intensity_curve))
+                    ]
+                    if intensity_slice:
+                        speed_curve = self._compute_speed_curve(
+                            intensity_slice, config
+                        )
+                        seg.speed_curve = speed_curve
+                        # Update scalar speed_factor to mean for display/fallback
+                        seg.speed_factor = sum(speed_curve) / len(speed_curve)
+
+                segments.append(seg)
 
                 # FEAT-033: Update the boundary-respecting flag
                 if is_broll:

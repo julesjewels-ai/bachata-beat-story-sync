@@ -109,6 +109,11 @@ class SegmentPlan(BaseModel):
         description="Musical section this segment belongs to"
         " (e.g. 'intro', 'high_energy')",
     )
+    speed_curve: list[float] = Field(
+        default_factory=list,
+        description="Per-beat speed multipliers (FEAT-036). Non-empty = organic variable speed; "
+        "overrides scalar speed_factor during rendering.",
+    )
 
 
 @dataclass
@@ -175,6 +180,27 @@ class PacingConfig(BaseModel):
     low_intensity_speed: float = Field(
         0.9, description="Speed multiplier for low-intensity clips (<1 = slow-mo)"
     )
+
+    # Organic Per-Beat Speed Ramping (FEAT-036)
+    speed_ramp_organic: bool = Field(
+        False, description="Enable per-beat organic speed ramping driven by intensity curve"
+    )
+    speed_ramp_sensitivity: float = Field(
+        1.0,
+        description="Intensity→speed mapping strength. 0=flat (mid-point speed), "
+        "1.0=normal, 2.0=aggressive. Applied as multiplier on the mapped intensity range.",
+    )
+    speed_ramp_curve: Literal["linear", "ease_in", "ease_out", "ease_in_out"] = Field(
+        "ease_in_out",
+        description="Smoothing curve applied across beat windows to interpolate speeds",
+    )
+    speed_ramp_min: float = Field(
+        0.8, description="Minimum speed multiplier (slow, low-energy beats)"
+    )
+    speed_ramp_max: float = Field(
+        1.3, description="Maximum speed multiplier (fast, high-energy beats)"
+    )
+
     max_clips: int | None = Field(
         None, description="Maximum number of clip segments (None = unlimited)"
     )
