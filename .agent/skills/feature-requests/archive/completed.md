@@ -38,3 +38,4 @@
 | FEAT-032 | Native Folder Picker in Streamlit UI | `IMPLEMENTED` | `tkinter.filedialog` integration for audio/video dir selection |
 | FEAT-033 | Smart B-Roll Insertion with Clip Boundary Respect | `IMPLEMENTED` | `b_roll_interval` config respects clip boundaries; seamless insertion logic |
 | FEAT-034 | Persistent Status Bar with ETA in Streamlit UI | `IMPLEMENTED` | Real-time progress bar, elapsed time, ETA, stage names in sticky header |
+| FEAT-035 | Streamlit UI Folder Picker & Status Bar Polish | `IMPLEMENTED` | Native picker buttons (📁) for audio/video/output paths; improved visual hierarchy with emojis; collapsible log details; reorganized sidebar sections |

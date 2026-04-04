@@ -302,7 +302,9 @@ if path:
 # UI — Sidebar
 # ---------------------------------------------------------------------------
 
-st.sidebar.title("Settings")
+st.sidebar.title("⚙️ Settings")
+
+st.sidebar.subheader("🎨 Visual Style")
 
 genre_options = _get_genres()
 genre_choice = st.sidebar.selectbox(
@@ -312,7 +314,7 @@ genre_choice = st.sidebar.selectbox(
 )
 
 video_style = st.sidebar.selectbox(
-    "Video style / colour grade",
+    "Colour grade",
     options=["none", "bw", "vintage", "warm", "cool", "golden"],
     help="Colour grading applied to every segment.",
 )
@@ -320,7 +322,7 @@ video_style = st.sidebar.selectbox(
 transition_type = st.sidebar.text_input(
     "Transition type",
     value="none",
-    help="FFmpeg xfade transition: none, fade, wipeleft, wiperight, slideup, …",
+    help="FFmpeg xfade: none, fade, wipeleft, wiperight, slideup, …",
 )
 
 intro_effects_options = _get_intro_effects()
@@ -331,12 +333,12 @@ intro_effect = st.sidebar.selectbox(
 )
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("Limits")
+st.sidebar.subheader("📊 Limits & Output")
 
 test_mode = st.sidebar.checkbox(
-    "Test mode",
+    "🧪 Test mode",
     value=False,
-    help="Restrict to 4 clips and 10 s of music — good for quick checks.",
+    help="Restrict to 4 clips and 10s — good for quick checks.",
 )
 
 max_clips_input = st.sidebar.number_input(
@@ -344,7 +346,6 @@ max_clips_input = st.sidebar.number_input(
     min_value=0,
     value=0,
     step=1,
-    help="Hard cap on clip segments. 0 means no limit.",
 )
 
 max_duration_input = st.sidebar.number_input(
@@ -352,26 +353,22 @@ max_duration_input = st.sidebar.number_input(
     min_value=0,
     value=0,
     step=5,
-    help="Hard cap on total montage length. 0 means no limit.",
 )
 
-st.sidebar.markdown("---")
-st.sidebar.subheader("Output options")
-
 dry_run = st.sidebar.checkbox(
-    "Dry run (plan only, no rendering)",
+    "📋 Dry run (plan only)",
     value=False,
-    help="Analyse and plan without running FFmpeg. Shows a segment plan report.",
+    help="Analyse and plan without rendering.",
 )
 
 export_report = st.sidebar.checkbox(
-    "Export Excel analysis report",
+    "📊 Export Excel report",
     value=False,
-    help="Generate a report.xlsx alongside the output video.",
+    help="Generate analysis.xlsx alongside video.",
 )
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("Pacing effects")
+st.sidebar.subheader("✨ Advanced Effects")
 
 pacing_drift_zoom = st.sidebar.checkbox("Drift zoom (Ken Burns)", value=False)
 pacing_crop_tighten = st.sidebar.checkbox("Crop tighten", value=False)
@@ -403,48 +400,88 @@ with col_audio_upload:
     )
 
 with col_audio_text:
-    audio_path_text = st.text_input(
-        "Or paste path to audio file",
-        placeholder="/path/to/track.wav",
-        key="audio_path",
-        help="Absolute path on your machine. (Ignored if audio is uploaded above.)",
-    )
+    col_text, col_btn = st.columns([4, 1])
+    with col_btn:
+        st.write("")  # Spacer for alignment
+        if st.button("📁 Pick", key="pick_audio", help="Browse for audio file"):
+            picked = _pick_audio_file()
+            if picked:
+                st.session_state["audio_path"] = picked
+                st.rerun()
+    with col_text:
+        audio_path_text = st.text_input(
+            "Or paste path to audio file",
+            placeholder="/path/to/track.wav",
+            key="audio_path",
+            help="Absolute path on your machine. (Ignored if audio is uploaded above.)",
+        )
 
 st.markdown("#### Video Clips")
 
-video_dir = st.text_input(
-    "Path to folder containing video clips",
-    placeholder="/path/to/clips/",
-    key="video_dir",
-    help="Folder of .mp4 clips to use in the montage.",
-)
+col_video_text, col_video_btn = st.columns([4, 1])
+with col_video_btn:
+    st.write("")  # Spacer for alignment
+    if st.button("📁 Pick", key="pick_video", help="Browse for video clips folder"):
+        picked = _pick_folder("Select folder containing video clips")
+        if picked:
+            st.session_state["video_dir"] = picked
+            st.rerun()
+with col_video_text:
+    video_dir = st.text_input(
+        "Path to folder containing video clips",
+        placeholder="/path/to/clips/",
+        key="video_dir",
+        help="Folder of .mp4 clips to use in the montage.",
+    )
 
 st.markdown("#### B-roll (Optional)")
 
-broll_dir_input = st.text_input(
-    "B-roll folder (leave blank to auto-detect)",
-    placeholder="/path/to/clips/broll/",
-    key="broll_dir",
-    help="Auto-detected as a 'broll/' subfolder inside the clips folder if it exists.",
-)
+col_broll_text, col_broll_btn = st.columns([4, 1])
+with col_broll_btn:
+    st.write("")  # Spacer for alignment
+    if st.button("📁 Pick", key="pick_broll", help="Browse for B-roll folder"):
+        picked = _pick_folder("Select B-roll folder")
+        if picked:
+            st.session_state["broll_dir"] = picked
+            st.rerun()
+with col_broll_text:
+    broll_dir_input = st.text_input(
+        "B-roll folder (leave blank to auto-detect)",
+        placeholder="/path/to/clips/broll/",
+        key="broll_dir",
+        help="Auto-detected as a 'broll/' subfolder inside the clips folder if it exists.",
+    )
 
 st.markdown("#### Output")
 
-output_path = st.text_input(
-    "Output video path",
-    key="output_path",
-    help="Where to save the finished video.",
-)
+col_output_text, col_output_btn = st.columns([4, 1])
+with col_output_btn:
+    st.write("")  # Spacer for alignment
+    if st.button("📁 Pick", key="pick_output", help="Browse and save output video"):
+        picked = _pick_output_file()
+        if picked:
+            st.session_state["output_path"] = picked
+            st.rerun()
+with col_output_text:
+    output_path = st.text_input(
+        "Output video path",
+        key="output_path",
+        help="Where to save the finished video.",
+    )
 
 # ---------------------------------------------------------------------------
-# Run button
+# Run button with improved layout
 # ---------------------------------------------------------------------------
 
-run_button = st.button(
-    "Generate Montage",
-    type="primary",
-    disabled=st.session_state["running"],
-)
+st.markdown("---")
+col_run, col_spacer = st.columns([1, 4])
+with col_run:
+    run_button = st.button(
+        "▶️ Generate Montage",
+        type="primary",
+        disabled=st.session_state["running"],
+        use_container_width=True,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -749,28 +786,30 @@ if st.session_state["running"]:
     if tracker.start_time is None:
         tracker.start()
 
-    # Create persistent status container
+    # Create persistent status container with metrics always visible
     status_container = st.status(
-        f"⏳ Generating montage — Stage {tracker.stage_label()}",
+        f"⏳ {tracker.current_stage or 'Initializing…'} — {tracker.stage_label()}",
         state="running",
     )
 
     with status_container:
-        # Show progress metrics
+        # Show progress metrics in a prominent row
         col1, col2, col3 = st.columns(3)
         with col1:
-            st.metric("Elapsed", tracker.elapsed_str())
+            st.metric("⏱️ Elapsed", tracker.elapsed_str())
         with col2:
-            st.metric("ETA", tracker.estimate_eta_str())
+            st.metric("⏲️ ETA", tracker.estimate_eta_str())
         with col3:
-            st.metric("Current Stage", tracker.current_stage or "initializing…")
+            st.metric("📍 Stage", tracker.current_stage or "initializing…")
 
         st.divider()
 
-        # Show logs
-        log_text = "\n".join(st.session_state["log_lines"])
-        st.code(log_text, language="")
-        st.caption("Updates every 2 seconds")
+        # Show logs in collapsible detail container
+        with st.expander("📋 Log Details", expanded=False):
+            log_text = "\n".join(st.session_state["log_lines"])
+            st.code(log_text, language="")
+
+        st.caption("Status updates every 2 seconds")
 
     # Auto-rerun every 2 seconds for live updates
     time.sleep(0.1)

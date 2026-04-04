@@ -1,18 +1,18 @@
 # Feature Backlog — Bachata Beat-Story Sync
 
-> **📦 Archive (2026-04-03):** All implemented features (FEAT-001 through FEAT-034) moved to [`archive/completed.md`](archive/completed.md). Backlog is clean — next feature to prioritize is listed below.
+> **📦 Archive (2026-04-04):** All implemented features (FEAT-001 through FEAT-035) moved to [`archive/completed.md`](archive/completed.md). Backlog is clean — next feature to prioritize is listed below.
 
 ---
 
 ## Completed Features (Reference)
 
-All 34 features are fully implemented and archived. See [`archive/completed.md`](archive/completed.md) for summaries.
+All 35 features are fully implemented and archived. See [`archive/completed.md`](archive/completed.md) for summaries.
 
 ---
 
-## Next Priority: FEAT-035 — Streamlit UI Folder Picker & Status Bar Polish
+## Next Priority: TBD
 
-**Status:** `PROPOSED`
+**Status:** `WAITING FOR REQUIREMENTS`
 
 **Summary:** Integrate FEAT-032 (native folder picker) and FEAT-034 (persistent status bar with ETA) into the Streamlit UI, then optimize the overall user experience for pre-launch.
 
