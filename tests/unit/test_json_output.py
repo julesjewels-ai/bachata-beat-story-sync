@@ -4,6 +4,8 @@ Unit tests for the structured JSON output service (FEAT-028).
 
 import json
 import os
+from typing import Any, cast
+
 
 from src.core.models import (
     AudioAnalysisResult,
@@ -28,7 +30,7 @@ def _audio(**overrides) -> AudioAnalysisResult:
         "intensity_curve": [],
     }
     defaults.update(overrides)
-    return AudioAnalysisResult(**defaults)
+    return AudioAnalysisResult(**cast(dict[str, Any], defaults))
 
 
 def _segment(idx: int, **overrides) -> SegmentPlan:
@@ -42,7 +44,7 @@ def _segment(idx: int, **overrides) -> SegmentPlan:
         "section_label": "verse",
     }
     defaults.update(overrides)
-    return SegmentPlan(**defaults)
+    return SegmentPlan(**cast(dict[str, Any], defaults))
 
 
 def _clip(name: str, **overrides) -> VideoAnalysisResult:
@@ -54,13 +56,13 @@ def _clip(name: str, **overrides) -> VideoAnalysisResult:
         "thumbnail_data": b"\x00\x01\x02",
     }
     defaults.update(overrides)
-    return VideoAnalysisResult(**defaults)
+    return VideoAnalysisResult(**cast(dict[str, Any], defaults))
 
 
 def _pacing(**overrides) -> PacingConfig:
     defaults: dict = {}
     defaults.update(overrides)
-    return PacingConfig(**defaults)
+    return PacingConfig(**cast(dict[str, Any], defaults))
 
 
 # ------------------------------------------------------------------

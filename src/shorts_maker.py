@@ -67,15 +67,13 @@ def main() -> None:
     args = parse_args()
 
     # FEAT-028: Route logs to stderr when JSON goes to stdout
-    log_stream = {}
-    if getattr(args, "output_json", None) == "-":
-        log_stream["stream"] = sys.stderr
+    log_level = logging.INFO
+    log_format = "%(asctime)s - %(levelname)s - %(message)s"
 
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(levelname)s - %(message)s",
-        **log_stream,
-    )
+    if getattr(args, "output_json", None) == "-":
+        logging.basicConfig(level=log_level, format=log_format, stream=sys.stderr)
+    else:
+        logging.basicConfig(level=log_level, format=log_format)
 
     min_dur, max_dur = parse_duration(args.duration)
 

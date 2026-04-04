@@ -302,17 +302,17 @@ def test_mix_audio_folder_cache_invalidated_on_config_change():
         output_file = os.path.join(temp_dir, "_mixed_audio.wav")
         params_file = output_file + ".mix_params"
 
-        for f in [audio_file, audio_file2]:
-            with open(f, "w") as fh:
+        for path in [audio_file, audio_file2]:
+            with open(path, "w") as fh:
                 fh.write("dummy audio")
 
         # Write a stale cached output with the OLD fingerprint (tempo_sync=False)
         old_config = AudioMixConfig(tempo_sync=False)
         old_fp = _config_fingerprint(old_config)
-        with open(output_file, "w") as f:
-            f.write("stale cached mix")
-        with open(params_file, "w") as f:
-            f.write(old_fp)
+        with open(output_file, "w") as fh:
+            fh.write("stale cached mix")
+        with open(params_file, "w") as fh:
+            fh.write(old_fp)
 
         mixer = AudioMixer()
         # Now run with tempo_sync=True — the fingerprint will differ

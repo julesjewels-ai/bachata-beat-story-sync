@@ -30,6 +30,11 @@ from src.cli_utils import (
     run_dry_run_handler,
     strip_thumbnails,
 )
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from src.core.models import AudioAnalysisResult, VideoAnalysisResult
+
 from src.core.app import BachataSyncEngine
 from src.core.audio_analyzer import AudioAnalysisInput, AudioAnalyzer
 from src.core.audio_mixer import (
@@ -62,7 +67,7 @@ def _scan_videos(
     engine: BachataSyncEngine,
     video_dir: str,
     broll_dir: str | None,
-) -> tuple[list, list | None]:
+) -> tuple[list[VideoAnalysisResult], list[VideoAnalysisResult] | None]:
     """Scan main clips and optional B-roll, stripping thumbnails."""
     exclude = [broll_dir] if broll_dir else None
     with RichProgressObserver() as obs:
@@ -187,12 +192,12 @@ def _get_track_video_style(
 
 def _generate_video(
     engine: BachataSyncEngine,
-    audio_meta,
-    clips: list,
+    audio_meta: AudioAnalysisResult,
+    clips: list[VideoAnalysisResult],
     output_path: str,
     audio_path: str,
-    pacing_kwargs: dict,
-    broll_clips: list | None = None,
+    pacing_kwargs: dict[str, Any],
+    broll_clips: list[VideoAnalysisResult] | None = None,
 ) -> str:
     """Generate a single horizontal music video."""
     pacing = PacingConfig(**pacing_kwargs) if pacing_kwargs else None
@@ -288,15 +293,15 @@ def main() -> None:
     args = parse_args()
 
     # FEAT-028: Route logs to stderr when JSON goes to stdout
-    log_kwargs = {}
-    if getattr(args, "output_json", None) == "-":
-        log_kwargs["stream"] = sys.stderr
+    log_stream = sys.stderr if getattr(args, "output_json", None) == "-" else None
+    log_level = logging.DEBUG if args.verbose else logging.WARNING
+    log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
     # Configure standard logging (for internal debug messages only)
     logging.basicConfig(
-        level=logging.DEBUG if args.verbose else logging.WARNING,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        **log_kwargs,
+        level=log_level,
+        format=log_format,
+        stream=log_stream,
     )
 
     log = PipelineLogger(quiet=args.quiet)
@@ -358,8 +363,8 @@ def main() -> None:
         # ----------------------------------------------------------
         # 4. Shared scan (if enabled)
         # ----------------------------------------------------------
-        shared_clips = None
-        shared_broll = None
+        shared_clips: list[VideoAnalysisResult] = []
+        shared_broll: list[VideoAnalysisResult] | None = None
         if args.shared_scan:
             log.phase("📹 Scanning Video Library")
             with log.status("Scanning clips…"):

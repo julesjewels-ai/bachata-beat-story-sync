@@ -12,6 +12,12 @@ import logging
 import os
 import random
 import uuid
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from src.core.app import BachataSyncEngine
+    from src.core.models import AudioAnalysisResult, VideoAnalysisResult
+
 
 logger = logging.getLogger(__name__)
 
@@ -424,10 +430,10 @@ def strip_thumbnails(clips: list) -> list:
 
 
 def run_dry_run_handler(
-    engine,
-    audio_meta,
-    clips: list,
-    pacing_kwargs: dict,
+    engine: BachataSyncEngine,
+    audio_meta: AudioAnalysisResult,
+    clips: list[VideoAnalysisResult],
+    pacing_kwargs: dict[str, Any],
     *,
     dry_run_output: str | None,
     output_json: str | None,
@@ -483,15 +489,15 @@ def run_dry_run_handler(
 
 
 def generate_shorts_batch(
-    engine,
-    audio_meta,
-    clips: list,
+    engine: BachataSyncEngine,
+    audio_meta: AudioAnalysisResult,
+    clips: list[VideoAnalysisResult],
     audio_path: str,
     output_dir: str,
     count: int,
     min_dur: float,
     max_dur: float,
-    pacing_kwargs: dict,
+    pacing_kwargs: dict[str, Any],
     *,
     smart_start: bool = True,
     dynamic_flow: bool = False,

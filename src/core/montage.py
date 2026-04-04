@@ -29,6 +29,7 @@ from src.core.ffmpeg_renderer import (
 from src.core.interfaces import ProgressObserver
 from src.core.models import (
     AudioAnalysisResult,
+    MusicalSection,
     PacingConfig,
     SegmentDecision,
     SegmentPlan,
@@ -429,7 +430,7 @@ class MontageGenerator:
 
     @staticmethod
     def _find_section_label(
-        sections: list,
+        sections: list[MusicalSection],
         current_time: float,
     ) -> str | None:
         """Return the section label covering *current_time*, or ``None``."""
