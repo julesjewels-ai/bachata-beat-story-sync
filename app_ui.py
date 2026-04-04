@@ -370,6 +370,54 @@ export_report = st.sidebar.checkbox(
 st.sidebar.markdown("---")
 st.sidebar.subheader("✨ Advanced Effects")
 
+# Speed ramping
+st.sidebar.markdown("**Speed Ramping (FEAT-036)**")
+speed_ramp_organic = st.sidebar.checkbox(
+    "Organic per-beat speed",
+    value=False,
+    help="Variable speed within clips driven by beat-by-beat intensity (breathing effect)."
+)
+if speed_ramp_organic:
+    speed_ramp_sensitivity = st.sidebar.slider(
+        "Sensitivity",
+        min_value=0.3,
+        max_value=2.0,
+        value=1.0,
+        step=0.1,
+        help="0.5=gentle, 1.0=standard, 2.0=aggressive"
+    )
+    speed_ramp_curve = st.sidebar.selectbox(
+        "Curve type",
+        options=["linear", "ease_in", "ease_out", "ease_in_out"],
+        help="Smoothing function for speed transitions"
+    )
+    col_speed_min, col_speed_max = st.sidebar.columns(2)
+    with col_speed_min:
+        speed_ramp_min = st.number_input(
+            "Min speed",
+            min_value=0.3,
+            max_value=1.0,
+            value=0.8,
+            step=0.1,
+            help="Slowest multiplier (low-energy beats)"
+        )
+    with col_speed_max:
+        speed_ramp_max = st.number_input(
+            "Max speed",
+            min_value=1.0,
+            max_value=2.0,
+            value=1.3,
+            step=0.1,
+            help="Fastest multiplier (high-energy beats)"
+        )
+else:
+    speed_ramp_sensitivity = 1.0
+    speed_ramp_curve = "ease_in_out"
+    speed_ramp_min = 0.8
+    speed_ramp_max = 1.3
+
+# Other pacing effects
+st.sidebar.markdown("**Beat-Synced Effects**")
 pacing_drift_zoom = st.sidebar.checkbox("Drift zoom (Ken Burns)", value=False)
 pacing_crop_tighten = st.sidebar.checkbox("Crop tighten", value=False)
 pacing_saturation_pulse = st.sidebar.checkbox("Saturation pulse on beats", value=False)
@@ -671,6 +719,14 @@ if run_button:
 
     if dry_run:
         pacing_kwargs["dry_run"] = True
+
+    # Speed ramping (FEAT-036)
+    if speed_ramp_organic:
+        pacing_kwargs["speed_ramp_organic"] = True
+        pacing_kwargs["speed_ramp_sensitivity"] = speed_ramp_sensitivity
+        pacing_kwargs["speed_ramp_curve"] = speed_ramp_curve
+        pacing_kwargs["speed_ramp_min"] = speed_ramp_min
+        pacing_kwargs["speed_ramp_max"] = speed_ramp_max
 
     if pacing_drift_zoom:
         pacing_kwargs["pacing_drift_zoom"] = True
