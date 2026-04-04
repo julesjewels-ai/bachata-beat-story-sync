@@ -28,6 +28,16 @@ pacing:
   medium_intensity_speed: 1.0  # Normal speed
   low_intensity_speed: 0.7     # Slow-motion for dreamy feel
 
+  # Organic Per-Beat Speed Ramping (FEAT-036)
+  # When enabled, playback speed varies smoothly within each clip driven by
+  # the beat-by-beat intensity curve, creating a natural "breathing" feel.
+  # Disable to use the simpler scalar speed_ramp_enabled instead.
+  speed_ramp_organic: false
+  speed_ramp_sensitivity: 1.0    # 0.5 = gentle, 1.0 = standard, 2.0 = aggressive
+  speed_ramp_curve: ease_in_out  # linear | ease_in | ease_out | ease_in_out
+  speed_ramp_min: 0.8            # Slowest multiplier (low-energy beats)
+  speed_ramp_max: 1.3            # Fastest multiplier (high-energy beats)
+
   zoom_factor: 0.7
   # Test mode — uncomment or use --test-mode CLI flag for fast iteration
   # max_clips: 5                 # Maximum number of clip segments
