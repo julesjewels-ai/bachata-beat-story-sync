@@ -56,6 +56,9 @@ An automated video editing tool that analyzes Bachata audio tracks (`.wav` / `.m
 | Genre Preset System `--genre` (FEAT-027) | ✅ |
 | Structured JSON Output `--output-json` (FEAT-028) | ✅ |
 | File Watcher `--watch` (FEAT-029) | ✅ |
+| Per-Track Video Clip Pools (FEAT-030) | ✅ |
+| Per-Track Video Style Filters (FEAT-031) | ✅ |
+| Organic Per-Beat Speed Ramping (FEAT-036) | ✅ |
 | Smart Start Detection | ✅ |
 | Shared Video Scan Mode | ✅ |
 | Sentiment-based Clip Matching | 🔜 Planned |

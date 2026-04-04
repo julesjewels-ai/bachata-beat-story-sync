@@ -68,6 +68,11 @@ A YAML file in the project root that controls clip pacing — no code changes ne
 | `high_intensity_speed` | `1.2` | Speed multiplier for high-intensity clips (>1 = fast) |
 | `medium_intensity_speed` | `1.0` | Speed multiplier for medium-intensity clips |
 | `low_intensity_speed` | `0.9` | Speed multiplier for low-intensity clips (<1 = slow-mo) |
+| `speed_ramp_organic` | `false` | Enable per-beat organic variable speed ramping (FEAT-036) |
+| `speed_ramp_sensitivity` | `1.0` | Intensity→speed mapping strength (0.5=gentle, 1.0=normal, 2.0=aggressive) |
+| `speed_ramp_curve` | `ease_in_out` | Smoothing curve type: `linear`, `ease_in`, `ease_out`, or `ease_in_out` |
+| `speed_ramp_min` | `0.8` | Minimum speed multiplier for low-energy beats |
+| `speed_ramp_max` | `1.3` | Maximum speed multiplier for high-energy beats |
 | `clip_variety_enabled` | `true` | Randomize start offset within reused clips |
 | `broll_interval_seconds` | `13.5` | Target interval between B-roll clips in seconds |
 | `broll_interval_variance` | `1.5` | Allowed variance in B-roll intervals (± seconds) |
@@ -105,6 +110,42 @@ Available presets for `--video-style`:
 | `warm` | `colorchannelmixer` | Warm tones — boosted reds, reduced blues |
 | `cool` | `colorchannelmixer` | Cool tones — boosted blues, reduced reds |
 | `golden` | `colorchannelmixer` + `eq` + `vignette` | Nostalgic golden-hour amber — warm tones, soft desaturation, vignette |
+
+### Organic Per-Beat Speed Ramping (FEAT-036)
+
+When **disabled** (default), all clips use a scalar speed multiplier based on their intensity level (high/medium/low).
+
+When **enabled** (`speed_ramp_organic: true`), playback speed **varies smoothly within each clip** on a beat-by-beat basis, driven by the audio's intensity curve. This creates an organic "breathing" effect where:
+
+- **High-energy beats** → brief speed bursts (up to `speed_ramp_max`, default 1.3×)
+- **Low-energy beats** → subtle slowdowns (down to `speed_ramp_min`, default 0.8×)
+- **In-between** → smooth interpolation via `speed_ramp_curve`
+
+**Parameters:**
+
+| Parameter | Effect |
+|-----------|--------|
+| `speed_ramp_organic` | Enable/disable the feature |
+| `speed_ramp_sensitivity` | Amplify or dampen the intensity→speed mapping. 0.5 = gentle, 1.0 = standard, 2.0 = aggressive |
+| `speed_ramp_curve` | Smoothing function. `ease_in_out` = smooth at edges (cinematic), `linear` = direct mapping, `ease_in`/`ease_out` = asymmetric |
+| `speed_ramp_min` | Slowest multiplier (e.g., 0.8 = 20% slow-mo on quietest beats) |
+| `speed_ramp_max` | Fastest multiplier (e.g., 1.3 = 30% speed-up on loudest beats) |
+
+**How to verify it's working:**
+
+When enabled, watch for smooth speed changes within a single clip as the beat intensity rises and falls. The effect is most noticeable in sections with dynamic energy swings (e.g., buildup into a peak, or tail-off into breakdown). Compare the output with `speed_ramp_organic: false` to hear the difference—organic mode feels "alive," while scalar mode feels "steady."
+
+**Configuration example:**
+
+```yaml
+pacing:
+  speed_ramp_enabled: true          # Keep scalar fallback on
+  speed_ramp_organic: true          # Enable per-beat variable speed
+  speed_ramp_sensitivity: 1.2       # Slightly more pronounced
+  speed_ramp_curve: ease_in_out     # Smooth cinematic effect
+  speed_ramp_min: 0.75              # Down to 0.75× (more aggressive slowdown)
+  speed_ramp_max: 1.4               # Up to 1.4× (faster bursts)
+```
 
 ### Intro Effects
 
