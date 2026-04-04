@@ -314,9 +314,7 @@ class MontageGenerator:
             return [mid_speed] * len(intensity_slice)
 
         # Normalise to 0.0-1.0 relative to this segment
-        normalised = [
-            (i - min_intensity) / intensity_range for i in intensity_slice
-        ]
+        normalised = [(i - min_intensity) / intensity_range for i in intensity_slice]
 
         # Apply smoothing curve
         if config.speed_ramp_curve == "ease_in":
@@ -327,10 +325,7 @@ class MontageGenerator:
             curved = [1.0 - (1.0 - x) ** 2 for x in normalised]
         elif config.speed_ramp_curve == "ease_in_out":
             # Slow at edges, fast in middle
-            curved = [
-                (x**2) if x < 0.5 else (1.0 - (1.0 - x) ** 2)
-                for x in normalised
-            ]
+            curved = [(x**2) if x < 0.5 else (1.0 - (1.0 - x) ** 2) for x in normalised]
         else:  # linear
             curved = normalised
 
@@ -338,17 +333,13 @@ class MontageGenerator:
         sensitivity = config.speed_ramp_sensitivity
         if sensitivity != 1.0:
             mid_point = 0.5
-            curved = [
-                mid_point + (c - mid_point) * sensitivity for c in curved
-            ]
+            curved = [mid_point + (c - mid_point) * sensitivity for c in curved]
             # Clamp to [0, 1]
             curved = [max(0.0, min(1.0, c)) for c in curved]
 
         # Scale to [speed_ramp_min, speed_ramp_max]
         speed_range = config.speed_ramp_max - config.speed_ramp_min
-        speed_curve = [
-            config.speed_ramp_min + c * speed_range for c in curved
-        ]
+        speed_curve = [config.speed_ramp_min + c * speed_range for c in curved]
 
         return speed_curve
 
@@ -628,9 +619,7 @@ class MontageGenerator:
                         beat_idx : min(beat_idx + beat_count, len(intensity_curve))
                     ]
                     if intensity_slice:
-                        speed_curve = self._compute_speed_curve(
-                            intensity_slice, config
-                        )
+                        speed_curve = self._compute_speed_curve(intensity_slice, config)
                         seg.speed_curve = speed_curve
                         # Update scalar speed_factor to mean for display/fallback
                         seg.speed_factor = sum(speed_curve) / len(speed_curve)

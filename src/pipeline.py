@@ -409,9 +409,7 @@ def main() -> None:
 
                 # FEAT-030: Resolve per-track clip directory
                 base_pacing = (
-                    PacingConfig(**pacing_kwargs)
-                    if pacing_kwargs
-                    else PacingConfig()
+                    PacingConfig(**pacing_kwargs) if pacing_kwargs else PacingConfig()
                 )
                 track_video_dir = _get_track_video_dir(
                     track_path, base_pacing, args.video_dir
@@ -504,9 +502,7 @@ def main() -> None:
 
             # FEAT-030: Resolve per-track clip directory (or fall back to global)
             base_pacing = (
-                PacingConfig(**pacing_kwargs)
-                if pacing_kwargs
-                else PacingConfig()
+                PacingConfig(**pacing_kwargs) if pacing_kwargs else PacingConfig()
             )
             track_video_dir = _get_track_video_dir(
                 track_path, base_pacing, args.video_dir

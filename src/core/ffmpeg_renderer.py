@@ -275,9 +275,7 @@ def _build_variable_speed_filter_complex(
 
     # Concatenate all beat windows back together
     concat_input = "".join(output_pads)
-    fc_parts.append(
-        f"{concat_input}concat=n={beat_count}:v=1:a=0[vcat];"
-    )
+    fc_parts.append(f"{concat_input}concat=n={beat_count}:v=1:a=0[vcat];")
 
     # Build trailing filters (intro effect, pacing effects, style, fps)
     # These operate on the concatenated video
@@ -351,11 +349,7 @@ def extract_segments(
         t_height = 1920 if config.is_shorts else TARGET_HEIGHT
 
         # FEAT-036: Use variable speed filter_complex if speed_curve is populated
-        if (
-            seg.speed_curve
-            and len(seg.speed_curve) > 1
-            and config.speed_ramp_organic
-        ):
+        if seg.speed_curve and len(seg.speed_curve) > 1 and config.speed_ramp_organic:
             filter_complex, extract_duration = _build_variable_speed_filter_complex(
                 seg,
                 seg.speed_curve,
@@ -392,7 +386,8 @@ def extract_segments(
                 ]
             )
         else:
-            # Original scalar speed path (FEAT-001 / FEAT-010 / FEAT-012 / FEAT-022 / FEAT-023 / FEAT-024)
+            # Original scalar speed path (FEAT-001 / FEAT-010 / FEAT-012 /
+            # FEAT-022 / FEAT-023 / FEAT-024)
             # When speed-ramped, extract more (slow-mo) or less (fast)
             # source material so the output fills the planned duration.
             extract_duration = seg.duration * seg.speed_factor
@@ -446,7 +441,9 @@ def extract_segments(
             # Intro Visual Effect — first segment only (FEAT-022)
             if i == 0 and config.intro_effect != "none":
                 vf_parts.extend(
-                    _build_intro_filters(config.intro_effect, config.intro_effect_duration)
+                    _build_intro_filters(
+                        config.intro_effect, config.intro_effect_duration
+                    )
                 )
 
             # Pacing Visual Effects — all segments (FEAT-023 / FEAT-024)

@@ -111,7 +111,8 @@ class SegmentPlan(BaseModel):
     )
     speed_curve: list[float] = Field(
         default_factory=list,
-        description="Per-beat speed multipliers (FEAT-036). Non-empty = organic variable speed; "
+        description="Per-beat speed multipliers (FEAT-036). "
+        "Non-empty = organic variable speed; "
         "overrides scalar speed_factor during rendering.",
     )
 
@@ -183,12 +184,14 @@ class PacingConfig(BaseModel):
 
     # Organic Per-Beat Speed Ramping (FEAT-036)
     speed_ramp_organic: bool = Field(
-        False, description="Enable per-beat organic speed ramping driven by intensity curve"
+        False,
+        description="Enable per-beat organic speed ramping driven by intensity curve",
     )
     speed_ramp_sensitivity: float = Field(
         1.0,
         description="Intensity→speed mapping strength. 0=flat (mid-point speed), "
-        "1.0=normal, 2.0=aggressive. Applied as multiplier on the mapped intensity range.",
+        "1.0=normal, 2.0=aggressive. "
+        "Applied as multiplier on the mapped intensity range.",
     )
     speed_ramp_curve: Literal["linear", "ease_in", "ease_out", "ease_in_out"] = Field(
         "ease_in_out",
@@ -383,8 +386,8 @@ class PacingConfig(BaseModel):
         description=(
             "Per-track clip folder mapping (filename → clip folder path). "
             "Example: {'track1.wav': 'clips/track1/', 'track2.wav': 'clips/track2/'}. "
-            "If specified, overrides global --video-dir for per-track video and Shorts. "
-            "Global pool is used for mix and fallback."
+            "If specified, overrides global --video-dir for per-track "
+            "video and Shorts. Global pool is used for mix and fallback."
         ),
     )
 
@@ -394,7 +397,8 @@ class PacingConfig(BaseModel):
         description=(
             "Per-track video style mapping (filename → style name). "
             "Example: {'track1.wav': 'vintage', 'track2.wav': 'bw'}. "
-            "If specified, overrides global video_style for per-track video and Shorts. "
+            "If specified, overrides global video_style for per-track "
+            "video and Shorts. "
             "Valid styles: 'none', 'bw', 'vintage', 'warm', 'cool', 'golden'."
         ),
     )

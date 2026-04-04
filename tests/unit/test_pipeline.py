@@ -7,8 +7,8 @@ All tests mock BachataSyncEngine and AudioAnalyzer to avoid FFmpeg calls.
 import os
 import tempfile
 from unittest.mock import MagicMock, patch
-import pytest
 
+import pytest
 from src.cli_utils import detect_broll_dir
 from src.core.models import AudioAnalysisResult, VideoAnalysisResult
 from src.pipeline import (
@@ -171,9 +171,7 @@ class TestPerTrackClipPools:
             per_track_dir = os.path.join(tmpdir, "track1_clips")
             os.makedirs(per_track_dir)
 
-            config = PacingConfig(
-                per_track_clips={"track1.wav": per_track_dir}
-            )
+            config = PacingConfig(per_track_clips={"track1.wav": per_track_dir})
             track_path = "/audio/track1.wav"
 
             result = _get_track_video_dir(track_path, config, "/global/videos")
@@ -196,9 +194,7 @@ class TestPerTrackClipPools:
         from src.core.models import PacingConfig
         from src.pipeline import _get_track_video_dir
 
-        config = PacingConfig(
-            per_track_clips={"track1.wav": "/nonexistent/path"}
-        )
+        config = PacingConfig(per_track_clips={"track1.wav": "/nonexistent/path"})
         track_path = "/audio/track1.wav"
 
         with pytest.raises(FileNotFoundError) as exc_info:
@@ -218,8 +214,7 @@ class TestPerTrackVideoStyles:
         from src.pipeline import _get_track_video_style
 
         config = PacingConfig(
-            video_style="none",
-            per_track_styles={"track1.wav": "vintage"}
+            video_style="none", per_track_styles={"track1.wav": "vintage"}
         )
         track_path = "/audio/track1.wav"
 
@@ -231,10 +226,7 @@ class TestPerTrackVideoStyles:
         from src.core.models import PacingConfig
         from src.pipeline import _get_track_video_style
 
-        config = PacingConfig(
-            video_style="bw",
-            per_track_styles={}
-        )
+        config = PacingConfig(video_style="bw", per_track_styles={})
         track_path = "/audio/track1.wav"
 
         result = _get_track_video_style(track_path, config)
@@ -248,8 +240,7 @@ class TestPerTrackVideoStyles:
         # Invalid styles are caught at config validation time (Pydantic validator)
         with pytest.raises(ValidationError) as exc_info:
             PacingConfig(
-                video_style="none",
-                per_track_styles={"track1.wav": "invalid_style"}
+                video_style="none", per_track_styles={"track1.wav": "invalid_style"}
             )
         assert "invalid_style" in str(exc_info.value)
         assert "Valid options" in str(exc_info.value)
@@ -270,7 +261,7 @@ class TestPerTrackConfigValidation:
             per_track_styles={
                 "track1.wav": "vintage",
                 "track2.wav": "bw",
-                "track3.wav": "cool"
+                "track3.wav": "cool",
             }
         )
         assert config.per_track_styles["track1.wav"] == "vintage"
@@ -281,11 +272,7 @@ class TestPerTrackConfigValidation:
         from src.core.models import PacingConfig
 
         with pytest.raises(ValidationError) as exc_info:
-            PacingConfig(
-                per_track_styles={
-                    "track1.wav": "invalid_style"
-                }
-            )
+            PacingConfig(per_track_styles={"track1.wav": "invalid_style"})
         assert "invalid_style" in str(exc_info.value)
 
     def test_pacing_config_accepts_empty_per_track_mappings(self):

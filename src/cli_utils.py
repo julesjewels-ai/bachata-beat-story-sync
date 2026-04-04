@@ -447,7 +447,8 @@ def run_dry_run_handler(
         dry_run_output: Path to write the plan report, or ``None`` for stdout.
         output_json: Path to write JSON output (or ``'-'`` for stdout), or ``None``.
         pacing_is_shorts: When ``True``, sets ``is_shorts=True`` on PacingConfig.
-        report_prefix: Optional heading prepended to plan text (e.g. ``"=== Mix ===\\n"``).
+        report_prefix: Optional heading prepended to plan text
+            (e.g. ``"=== Mix ===\\n"``).
 
     Returns:
         The formatted plan report string.
