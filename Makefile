@@ -105,7 +105,7 @@ ifneq ($(ZOOM),)
   EXTRA_FLAGS += --zoom $(ZOOM)
 endif
 
-.PHONY: install run run-shorts full-pipeline mcp-serve test lint format check-types clean
+.PHONY: install run run-shorts full-pipeline mcp-serve test lint lint-fix format check-types refactor clean
 
 install:
 	[ -d $(VENV) ] || uv venv $(VENV) --python 3.13
@@ -130,12 +130,30 @@ test:
 lint:
 	$(BIN)/ruff check src/ tests/
 
+lint-fix:
+	$(BIN)/ruff check --fix src/ tests/
+
 format:
 	$(BIN)/ruff format src/ tests/
 	$(BIN)/ruff check --select I --fix src/ tests/
 
 check-types:
 	$(BIN)/mypy src/ tests/
+
+refactor: format lint-fix check-types test
+	@echo ""
+	@echo "✓ Refactor workflow complete:"
+	@echo "  ✓ Code formatted with ruff"
+	@echo "  ✓ Linting issues auto-fixed"
+	@echo "  ✓ Type checking passed"
+	@echo "  ✓ All tests passed"
+	@echo ""
+	@echo "Ready to commit! Code aligns with:"
+	@echo "  • Python style (PEP 8 via ruff)"
+	@echo "  • Linting rules (ruff)"
+	@echo "  • Type safety (mypy)"
+	@echo "  • Test coverage"
+	@echo ""
 
 clean:
 	rm -rf $(VENV)
