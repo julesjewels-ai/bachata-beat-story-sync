@@ -6,10 +6,6 @@
 
 An automated video editing tool that analyzes Bachata audio tracks (`.wav` / `.mp3`) to detect rhythm, beats, and emotional peaks, then intelligently syncs video clips to the musical dynamics to produce a cohesive montage.
 
-<p align="center">
-  <img src="docs/assets/editor_banner.png" alt="Video editor compiling footage" width="100%">
-</p>
-
 ---
 
 ## Table of Contents
@@ -162,7 +158,7 @@ make full-pipeline AUDIO=./tracks/ VIDEO_DIR=./clips/ TEST_MODE=1
 | `make check-types` | Type-check with mypy | — |
 | `make clean` | Remove venv, caches, outputs | — |
 
-All montage behavior is further configurable via [`montage_config.yaml`](montage_config.yaml) — see [docs/configuration.md](docs/configuration.md) for the full reference.
+All montage behavior is further configurable via [`montage_config.yaml`](montage_config.yaml) — see [docs/user/configuration.md](docs/user/configuration.md) for the full reference.
 
 ---
 
@@ -231,13 +227,13 @@ venv/bin/pytest -k "section"           # by keyword
 
 | Document | Audience | Description |
 |----------|----------|-------------|
-| [User Guide](docs/user-guide.md) | Users | Installation, CLI usage, troubleshooting |
-| [Architecture](docs/architecture.md) | Developers | System design, diagrams, patterns |
-| [API Reference](docs/api-reference.md) | Developers | Class/function signatures and behavior |
-| [Configuration](docs/configuration.md) | Users & Devs | CLI args, env vars, output specs |
-| [Contributing](docs/contributing.md) | Developers | Dev setup, coding standards, testing |
-| [Security](docs/security.md) | Stakeholders | Security posture, mitigations, risks |
-| [Audit Report](docs/audit-report.md) | Stakeholders | Full project audit findings |
+| [User Guide](docs/user/user-guide.md) | Users | Installation, CLI usage, troubleshooting |
+| [API Reference](docs/user/api-reference.md) | Developers | Class/function signatures and behavior |
+| [Configuration](docs/user/configuration.md) | Users & Devs | CLI args, env vars, output specs |
+| [Contributing](docs/user/contributing.md) | Developers | Dev setup, coding standards, testing |
+| [Security](docs/user/security.md) | Stakeholders | Security posture, mitigations, risks |
+
+For internal documentation (team/stakeholders only), see [`docs/internal/`](docs/internal/README.md).
 
 ---
 

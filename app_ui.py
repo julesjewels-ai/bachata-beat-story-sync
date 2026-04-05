@@ -31,6 +31,273 @@ st.set_page_config(
 
 
 # ---------------------------------------------------------------------------
+# Terra Design System — Custom CSS Styling
+# ---------------------------------------------------------------------------
+
+st.markdown("""
+<style>
+    /* Root colors from design system */
+    :root {
+        --primary: #4a7c59;
+        --bg-cream: #faf6f0;
+        --secondary-bg: #f0ede5;
+        --tertiary: #705c30;
+        --text-dark: #1a1a1a;
+        --text-light: #6b6b6b;
+    }
+
+    /* Page background */
+    body, .main {
+        background-color: var(--bg-cream);
+        color: var(--text-dark);
+    }
+
+    /* Typography */
+    h1, h2, h3 {
+        color: var(--text-dark);
+        font-family: 'Literata', serif;
+        letter-spacing: -0.5px;
+    }
+
+    p, label, .stMarkdown {
+        font-family: 'Nunito Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+        line-height: 1.6;
+        color: var(--text-dark);
+    }
+
+    /* Streamlit buttons */
+    .stButton > button {
+        background-color: var(--primary);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        padding: 10px 20px;
+        font-weight: 600;
+        font-family: 'Nunito Sans', sans-serif;
+        font-size: 0.95rem;
+        transition: all 0.2s ease;
+        min-height: 44px;
+    }
+
+    .stButton > button:hover:not(:disabled) {
+        background-color: #3d6849;
+        box-shadow: 0 6px 24px rgba(74, 124, 89, 0.2);
+        transform: translateY(-2px);
+    }
+
+    .stButton > button:active {
+        transform: translateY(0) scale(0.98);
+    }
+
+    .stButton > button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    /* Secondary buttons (file pickers) */
+    .stButton[data-baseweb="button"]:has(button) > button {
+        padding: 8px 16px;
+        font-size: 0.9rem;
+        background-color: white;
+        color: var(--primary);
+        border: 2px solid var(--primary);
+        font-weight: 600;
+    }
+
+    .stButton[data-baseweb="button"]:has(button) > button:hover:not(:disabled) {
+        background-color: var(--primary);
+        color: white;
+    }
+
+    /* Input fields */
+    .stTextInput > div > div > input,
+    .stNumberInput > div > div > input,
+    .stSelectbox > div > div > select {
+        background-color: white;
+        border: 2px solid #e0dcd4;
+        border-radius: 10px;
+        color: var(--text-dark);
+        font-family: 'Nunito Sans', sans-serif;
+        padding: 10px 12px;
+        transition: all 0.2s ease;
+    }
+
+    .stTextInput > div > div > input:focus,
+    .stNumberInput > div > div > input:focus,
+    .stSelectbox > div > div > select:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(74, 124, 89, 0.1);
+    }
+
+    /* Checkboxes */
+    .stCheckbox > label {
+        color: var(--text-dark);
+        font-weight: 500;
+    }
+
+    /* Sliders */
+    .stSlider > div > div > div > div {
+        background: linear-gradient(to right, var(--primary), var(--tertiary));
+        border-radius: 8px;
+    }
+
+    /* Cards/Containers */
+    [data-testid="element-container"] {
+        background-color: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 20px rgba(46, 50, 48, 0.06);
+        border: 1px solid rgba(224, 220, 212, 0.5);
+        margin-bottom: 1rem;
+    }
+
+    /* Better subheader styling */
+    .stSubheader {
+        color: var(--primary);
+        font-weight: 700;
+        margin-top: 0;
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    /* Sidebar */
+    .css-1544g2n {
+        background-color: var(--secondary-bg);
+        border-right: 1px solid #e0dcd4;
+    }
+
+    .css-1544g2n h2 {
+        color: var(--primary);
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+        font-size: 0.95rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 700;
+    }
+
+    .css-1544g2n h3 {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--tertiary);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-top: 1.5rem;
+        margin-bottom: 1rem;
+    }
+
+    /* Dividers */
+    hr, .css-bm2z3a {
+        border-color: #e0dcd4;
+        opacity: 0.3;
+    }
+
+    /* Status indicators */
+    .stStatus {
+        background-color: white;
+        border-radius: 12px;
+        border: 2px solid var(--primary);
+    }
+
+    /* Expander */
+    .streamlit-expanderHeader {
+        background-color: var(--secondary-bg);
+        border-radius: 8px;
+        border: 1px solid #e0dcd4;
+    }
+
+    /* Metrics */
+    .stMetric {
+        background-color: white;
+        border-radius: 10px;
+        padding: 1rem;
+        border: 1px solid #e0dcd4;
+        box-shadow: 0 2px 8px rgba(46, 50, 48, 0.04);
+    }
+
+    .stMetric > div:first-child {
+        color: var(--text-light);
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    .stMetric > div:last-child {
+        color: var(--primary);
+        font-size: 1.8rem;
+        font-weight: 700;
+    }
+
+    /* Warnings, errors, success */
+    .stAlert {
+        border-radius: 10px;
+        border-left: 4px solid;
+    }
+
+    /* Video player */
+    .stVideo {
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 20px rgba(46, 50, 48, 0.1);
+    }
+
+    /* Code blocks */
+    code {
+        background-color: var(--secondary-bg);
+        border-radius: 6px;
+        padding: 2px 6px;
+        color: var(--tertiary);
+        font-family: 'Fira Code', monospace;
+        font-size: 0.9em;
+    }
+
+    pre {
+        background-color: #2e3230;
+        color: #f0ede5;
+        border-radius: 8px;
+        padding: 1rem;
+        overflow-x: auto;
+        font-size: 0.85rem;
+        line-height: 1.5;
+    }
+
+    /* Headings - more spacing */
+    h1 { margin-top: 2rem; margin-bottom: 1rem; }
+    h2 { margin-top: 1.5rem; margin-bottom: 0.75rem; }
+    h3 { margin-top: 1.25rem; margin-bottom: 0.5rem; }
+
+    /* Captions and help text */
+    .stCaption, [data-testid="stCaption"] {
+        color: var(--text-light);
+        font-size: 0.85rem;
+        font-weight: 500;
+        margin: 0.5rem 0 1rem 0;
+    }
+
+    /* File uploader */
+    [data-testid="stFileUploadDropzone"] {
+        border: 2px dashed var(--primary);
+        border-radius: 10px;
+        background-color: rgba(74, 124, 89, 0.02);
+    }
+
+    [data-testid="stFileUploadDropzone"]:hover {
+        background-color: rgba(74, 124, 89, 0.05);
+        border-color: #3d6849;
+    }
+
+    /* Main content padding */
+    .main {
+        padding: 2rem;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+
+# ---------------------------------------------------------------------------
 # Progress tracking for ETA calculation
 # ---------------------------------------------------------------------------
 
@@ -302,7 +569,10 @@ if path:
 # UI — Sidebar
 # ---------------------------------------------------------------------------
 
-st.sidebar.title("⚙️ Settings")
+st.sidebar.title("Project Settings")
+st.sidebar.caption("Bachata Beat-Story")
+
+st.sidebar.markdown("---")
 
 st.sidebar.subheader("🎨 Visual Style")
 
@@ -431,104 +701,120 @@ pacing_alternating_bokeh = st.sidebar.checkbox("Alternating bokeh blur", value=F
 # UI — Main area
 # ---------------------------------------------------------------------------
 
-st.title("Bachata Beat-Story Sync")
-st.caption("Automatically sync your dance video clips to musical beats and intensity.")
+# Header with better branding
+col_logo, col_title = st.columns([1, 4])
+with col_logo:
+    st.write("🎵")  # Logo placeholder
+with col_title:
+    st.markdown("## Bachata Beat-Story Sync")
+    st.caption("Automatically sync your dance video clips to musical beats and intensity. Terra uses neural waveform analysis to create organic transitions that breathe with the music.")
 
-st.markdown("### Inputs")
+st.markdown("---")
+st.markdown("### 🎵 Inputs")
 
-st.markdown("#### Audio")
+# Audio inputs card
+with st.container(border=True):
+    st.subheader("Audio", anchor=None)
+    col_audio_upload, col_audio_path = st.columns([1.5, 2.5])
 
-col_audio_upload, col_audio_text = st.columns([2, 3])
-
-with col_audio_upload:
-    uploaded_audio = st.file_uploader(
-        "Upload audio file",
-        type=["wav", "mp3"],
-        help="Drag and drop or click to select.",
-    )
-
-with col_audio_text:
-    col_text, col_btn = st.columns([4, 1])
-    with col_btn:
-        st.write("")  # Spacer for alignment
-        if st.button("📁 Pick", key="pick_audio", help="Browse for audio file"):
-            picked = _pick_audio_file()
-            if picked:
-                st.session_state["audio_path"] = picked
-                st.rerun()
-    with col_text:
-        audio_path_text = st.text_input(
-            "Or paste path to audio file",
-            placeholder="/path/to/track.wav",
-            key="audio_path",
-            help="Absolute path on your machine. (Ignored if audio is uploaded above.)",
+    with col_audio_upload:
+        st.markdown("**Upload audio file**")
+        uploaded_audio = st.file_uploader(
+            "Drag and drop or click",
+            type=["wav", "mp3"],
+            key="audio_upload",
+            label_visibility="collapsed",
+            help="Maximum 200MB • WAV / MP3",
         )
 
-st.markdown("#### Video Clips")
+    with col_audio_path:
+        st.markdown("**Or paste path**")
+        col_text, col_btn = st.columns([4, 1])
+        with col_btn:
+            if st.button("📁", key="pick_audio", help="Browse for audio file", use_container_width=True):
+                picked = _pick_audio_file()
+                if picked:
+                    st.session_state["audio_path"] = picked
+                    st.rerun()
+        with col_text:
+            audio_path_text = st.text_input(
+                "Audio path",
+                placeholder="/Volumes/Drives/Music...",
+                key="audio_path",
+                label_visibility="collapsed",
+                help="Absolute path on your machine.",
+            )
 
-col_video_text, col_video_btn = st.columns([4, 1])
-with col_video_btn:
-    st.write("")  # Spacer for alignment
-    if st.button("📁 Pick", key="pick_video", help="Browse for video clips folder"):
-        picked = _pick_folder("Select folder containing video clips")
-        if picked:
-            st.session_state["video_dir"] = picked
-            st.rerun()
-with col_video_text:
-    video_dir = st.text_input(
-        "Path to folder containing video clips",
-        placeholder="/path/to/clips/",
-        key="video_dir",
-        help="Folder of .mp4 clips to use in the montage.",
-    )
+# Video clips card
+with st.container(border=True):
+    st.subheader("Video Clips", anchor=None)
+    col_video_path, col_video_btn = st.columns([4, 1])
+    with col_video_btn:
+        if st.button("📁", key="pick_video", help="Browse for video clips folder", use_container_width=True):
+            picked = _pick_folder("Select folder containing video clips")
+            if picked:
+                st.session_state["video_dir"] = picked
+                st.rerun()
+    with col_video_path:
+        video_dir = st.text_input(
+            "Footage folder",
+            placeholder="/Users/Artist/Documents/Project_01/Raw",
+            key="video_dir",
+            help="Terra will auto-index and categorize by motion intensity.",
+        )
+    st.caption("Select the root directory containing your dance footage.")
 
-st.markdown("#### B-roll (Optional)")
+# B-roll card (optional)
+with st.container(border=True):
+    st.subheader("B-roll", anchor=None)
+    st.caption("OPTIONAL — Add texture clips, atmospheric shots, or environment b-roll to be used as transitions and overlays during musical swells.")
 
-col_broll_text, col_broll_btn = st.columns([4, 1])
-with col_broll_btn:
-    st.write("")  # Spacer for alignment
-    if st.button("📁 Pick", key="pick_broll", help="Browse for B-roll folder"):
-        picked = _pick_folder("Select B-roll folder")
-        if picked:
-            st.session_state["broll_dir"] = picked
-            st.rerun()
-with col_broll_text:
-    broll_dir_input = st.text_input(
-        "B-roll folder (leave blank to auto-detect)",
-        placeholder="/path/to/clips/broll/",
-        key="broll_dir",
-        help="Auto-detected as a 'broll/' subfolder inside the clips folder if it exists.",
-    )
+    col_broll_path, col_broll_btn = st.columns([4, 1])
+    with col_broll_btn:
+        if st.button("📁", key="pick_broll", help="Browse for B-roll folder", use_container_width=True):
+            picked = _pick_folder("Select B-roll folder")
+            if picked:
+                st.session_state["broll_dir"] = picked
+                st.rerun()
+    with col_broll_path:
+        broll_dir_input = st.text_input(
+            "Overlays folder",
+            placeholder="/Users/Artist/Documents/Stock/Atmosph",
+            key="broll_dir",
+            help="Auto-detected as a 'broll/' subfolder inside the clips folder if it exists.",
+        )
 
-st.markdown("#### Output")
-
-col_output_text, col_output_btn = st.columns([4, 1])
-with col_output_btn:
-    st.write("")  # Spacer for alignment
-    if st.button("📁 Pick", key="pick_output", help="Browse and save output video"):
-        picked = _pick_output_file()
-        if picked:
-            st.session_state["output_path"] = picked
-            st.rerun()
-with col_output_text:
-    output_path = st.text_input(
-        "Output video path",
-        key="output_path",
-        help="Where to save the finished video.",
-    )
+# Output card
+with st.container(border=True):
+    st.subheader("Output", anchor=None)
+    col_output_path, col_output_btn = st.columns([4, 1])
+    with col_output_btn:
+        if st.button("📁", key="pick_output", help="Browse and save output video", use_container_width=True):
+            picked = _pick_output_file()
+            if picked:
+                st.session_state["output_path"] = picked
+                st.rerun()
+    with col_output_path:
+        output_path = st.text_input(
+            "Save as",
+            key="output_path",
+            help="Where to save the finished video.",
+            placeholder="output_story.mp4",
+        )
 
 # ---------------------------------------------------------------------------
 # Run button with improved layout
 # ---------------------------------------------------------------------------
 
 st.markdown("---")
-col_run, col_spacer = st.columns([1, 4])
+col_spacer1, col_run, col_spacer2 = st.columns([1.5, 2, 1.5])
 with col_run:
     run_button = st.button(
-        "▶️ Generate Montage",
+        "▶️  Generate Montage",
         type="primary",
         disabled=st.session_state["running"],
         use_container_width=True,
+        help="Process audio and video clips. This may take several minutes depending on video length.",
     )
 
 
@@ -882,16 +1168,19 @@ if st.session_state["error"]:
         st.code(st.session_state["error"], language="python")
 
 if st.session_state["plan_report"]:
+    st.markdown("---")
     st.success("✓ Dry-run complete — segment plan ready.")
-    with st.expander("📋 Segment Plan Report", expanded=True):
-        st.markdown(
-            f"```\n{st.session_state['plan_report']}\n```"
-        )
+    with st.container(border=True):
+        st.subheader("📋 Segment Plan Report")
+        st.code(st.session_state['plan_report'], language="")
 
 if st.session_state["result_path"]:
     result = st.session_state["result_path"]
-    st.success(f"✅ Montage saved to: `{result}`")
-    if os.path.exists(result):
-        st.video(result)
-    else:
-        st.warning("⚠️ Output file not found at the reported path.")
+    st.markdown("---")
+    st.success(f"✅ Montage successfully generated")
+    with st.container(border=True):
+        st.caption(f"📹 Saved to: `{result}`")
+        if os.path.exists(result):
+            st.video(result)
+        else:
+            st.warning("⚠️ Output file not found at the reported path.")
