@@ -2,9 +2,9 @@
   "_comment": "Paste the 'mcpServers' block into ~/Library/Application Support/Claude/claude_desktop_config.json, then fully quit and restart Claude Desktop.",
   "mcpServers": {
     "bachata-sync": {
-      "command": "/Users/tutorsam/Documents/Business/YouTube/01_BBB/_software/bachata-beat-story-sync/venv/bin/python",
+      "command": "/path/to/bachata-beat-story-sync/venv/bin/python",
       "args": [
-        "/Users/tutorsam/Documents/Business/YouTube/01_BBB/_software/bachata-beat-story-sync/mcp_server.py"
+        "/path/to/bachata-beat-story-sync/mcp_server.py"
       ],
       "env": {
         "PYTHONUNBUFFERED": "1"

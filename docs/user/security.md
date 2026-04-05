@@ -41,7 +41,7 @@ flowchart LR
 
 ### 1. Path Traversal Prevention
 
-**Location:** [validation.py](file:///Users/tutorsam/Documents/Business/YouTube/01_BBB/_software/bachata-beat-story-sync/src/core/validation.py)
+**Location:** [validation.py](../../src/core/validation.py)
 
 The `validate_file_path()` function rejects any path containing `..`:
 
@@ -56,7 +56,7 @@ if ".." in path:
 
 ### 2. File Extension Allowlisting
 
-**Location:** [audio_analyzer.py](file:///Users/tutorsam/Documents/Business/YouTube/01_BBB/_software/bachata-beat-story-sync/src/core/audio_analyzer.py), [video_analyzer.py](file:///Users/tutorsam/Documents/Business/YouTube/01_BBB/_software/bachata-beat-story-sync/src/core/video_analyzer.py)
+**Location:** [audio_analyzer.py](../../src/core/audio_analyzer.py), [video_analyzer.py](../../src/core/video_analyzer.py)
 
 Only pre-approved file extensions are accepted:
 
@@ -71,7 +71,7 @@ Any file with an unlisted extension is rejected at the validation layer.
 
 ### 3. Denial-of-Service Protection
 
-**Location:** [video_analyzer.py](file:///Users/tutorsam/Documents/Business/YouTube/01_BBB/_software/bachata-beat-story-sync/src/core/video_analyzer.py)
+**Location:** [video_analyzer.py](../../src/core/video_analyzer.py)
 
 The video analyzer enforces resource limits to prevent malicious or excessively large files from consuming resources:
 
