@@ -16,11 +16,17 @@ import queue
 import tempfile
 import threading
 import time
-from dataclasses import dataclass
 
 import streamlit as st
 
+from src.io.file_picker import pick_audio_file, pick_folder, pick_output_file
 from src.ui.theme import apply_theme
+from src.workers.progress import (
+    ProgressTracker,
+    QueueLogHandler,
+    QueueProgressObserver,
+    StageInfo,
+)
 
 # ---------------------------------------------------------------------------
 # Page config must be first Streamlit call
@@ -35,146 +41,6 @@ st.set_page_config(
 # Apply Terra Design System theme
 apply_theme()
 
-
-# ---------------------------------------------------------------------------
-# Progress tracking for ETA calculation
-# ---------------------------------------------------------------------------
-
-@dataclass
-class StageInfo:
-    """Stage progress information."""
-    name: str
-    current: int
-    total: int
-    estimated_percent: float
-
-    @property
-    def pct(self) -> float:
-        """Return percentage for this stage."""
-        return (self.current / self.total * 100) if self.total > 0 else 0
-
-
-class ProgressTracker:
-    """Tracks pipeline progress, stage, elapsed time, and estimates ETA."""
-
-    # Stage duration heuristics (as % of total runtime)
-    STAGE_HEURISTICS = {
-        "Analysing audio": 10,
-        "Scanning video": 10,
-        "Configuring pacing": 5,
-        "Planning segment": 5,
-        "Rendering montage": 65,
-        "Generating Excel": 5,
-    }
-
-    def __init__(self) -> None:
-        self.start_time: float | None = None
-        self.current_stage: str = ""
-        # stage -> (current, total)
-        self.stage_progress: dict[str, tuple[int, int]] = {}
-        self.log_count: int = 0
-
-    def start(self) -> None:
-        """Mark the start of processing."""
-        self.start_time = time.time()
-
-    def update(self, message: str) -> None:
-        """Update progress based on log message."""
-        self.log_count += 1
-
-        # Extract stage name from log message (e.g., "[1/4] Analysing audio…")
-        for stage_key in self.STAGE_HEURISTICS:
-            if stage_key in message:
-                self.current_stage = stage_key
-                break
-
-        # Parse "[N/M]" progress
-        if "[" in message and "/" in message:
-            try:
-                bracket = message[message.index("[") : message.index("]") + 1]
-                parts = bracket.strip("[]").split("/")
-                current, total = int(parts[0]), int(parts[1])
-                self.stage_progress[self.current_stage] = (current, total)
-            except (ValueError, IndexError):
-                pass
-
-    def elapsed_seconds(self) -> float:
-        """Return elapsed time in seconds."""
-        if self.start_time is None:
-            return 0.0
-        return time.time() - self.start_time
-
-    def elapsed_str(self) -> str:
-        """Return elapsed time as HH:MM:SS."""
-        seconds = int(self.elapsed_seconds())
-        hours, remainder = divmod(seconds, 3600)
-        minutes, secs = divmod(remainder, 60)
-        return f"{hours:02d}:{minutes:02d}:{secs:02d}"
-
-    def estimate_eta_seconds(self) -> float | None:
-        """Estimate remaining time based on elapsed time and stage heuristics."""
-        if self.start_time is None or not self.current_stage:
-            return None
-
-        elapsed = self.elapsed_seconds()
-        if elapsed < 1:
-            return None
-
-        # Find estimated total based on current stage
-        current_heuristic = self.STAGE_HEURISTICS.get(self.current_stage, 50)
-        estimated_total = elapsed / (current_heuristic / 100.0)
-        estimated_remaining = estimated_total - elapsed
-        return max(0, estimated_remaining)
-
-    def estimate_eta_str(self) -> str:
-        """Return estimated remaining time as HH:MM:SS or '?'."""
-        eta = self.estimate_eta_seconds()
-        if eta is None:
-            return "—"
-        seconds = int(eta)
-        hours, remainder = divmod(seconds, 3600)
-        minutes, secs = divmod(remainder, 60)
-        return f"{hours:02d}:{minutes:02d}:{secs:02d}"
-
-    def stage_label(self) -> str:
-        """Return a readable stage label (e.g., '2 of 4')."""
-        if not self.stage_progress:
-            return "starting…"
-        # Get the highest stage number seen
-        max_current = max((c for c, _ in self.stage_progress.values()), default=0)
-        max_total = max((t for _, t in self.stage_progress.values()), default=0)
-        return f"{max_current} of {max_total}"
-
-
-# ---------------------------------------------------------------------------
-# In-memory logging handler that feeds a thread-safe queue
-# ---------------------------------------------------------------------------
-
-class QueueLogHandler(logging.Handler):
-    """Logging handler that pushes formatted records onto a queue."""
-
-    def __init__(self, log_queue: queue.Queue) -> None:
-        super().__init__()
-        self._queue = log_queue
-
-    def emit(self, record: logging.LogRecord) -> None:
-        try:
-            self._queue.put_nowait(self.format(record))
-        except Exception:  # noqa: BLE001
-            pass
-
-
-class QueueProgressObserver:
-    """Progress observer that pushes status updates to a log queue."""
-
-    def __init__(self, log_queue: queue.Queue) -> None:
-        self._queue = log_queue
-
-    def on_progress(self, current: int, total: int, message: str = "") -> None:
-        """Pushes a progress message to the queue."""
-        percent = (current / total * 100) if total > 0 else 0
-        formatted = f"PROGRESS: {message} ({percent:.0f}%)"
-        self._queue.put(formatted)
 
 
 # ---------------------------------------------------------------------------
@@ -231,86 +97,6 @@ def _get_intro_effects() -> list[str]:
 def _is_deployed() -> bool:
     """Check if running on Streamlit Cloud or hosted environment."""
     return bool(os.getenv("STREAMLIT_RUNTIME_ENV", ""))
-
-
-# ---------------------------------------------------------------------------
-# File/folder picker helpers using tkinter (local only)
-# ---------------------------------------------------------------------------
-
-
-def _run_safe_tk_dialog(script: str) -> str | None:
-    """Execute tkinter script in separate process to avoid macOS main-thread issues."""
-    import subprocess
-    import sys
-
-    # Use the same python executable as the current process
-    try:
-        result = subprocess.run(
-            [sys.executable, "-c", script],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if result.returncode == 0:
-            return result.stdout.strip()
-    except Exception:  # noqa: BLE001
-        return None
-    return None
-
-
-def _pick_folder(title: str = "Select folder") -> str | None:
-    """Open a native folder picker. Returns selected path or None."""
-    script = f"""
-import tkinter as tk
-from tkinter import filedialog
-root = tk.Tk()
-root.withdraw()
-root.wm_attributes("-topmost", True)
-path = filedialog.askdirectory(title='{title}')
-root.destroy()
-if path:
-    print(path)
-"""
-    return _run_safe_tk_dialog(script)
-
-
-def _pick_audio_file() -> str | None:
-    """Open a native file picker for audio files."""
-    script = """
-import tkinter as tk
-from tkinter import filedialog
-root = tk.Tk()
-root.withdraw()
-root.wm_attributes("-topmost", True)
-path = filedialog.askopenfilename(
-    title='Select audio file',
-    filetypes=[('Audio files', '*.wav *.mp3'), ('All files', '*.*')],
-)
-root.destroy()
-if path:
-    print(path)
-"""
-    return _run_safe_tk_dialog(script)
-
-
-def _pick_output_file() -> str | None:
-    """Open a native save-as dialog for the output MP4."""
-    script = """
-import tkinter as tk
-from tkinter import filedialog
-root = tk.Tk()
-root.withdraw()
-root.wm_attributes("-topmost", True)
-path = filedialog.asksaveasfilename(
-    title='Save output video as',
-    defaultextension='.mp4',
-    filetypes=[('MP4 video', '*.mp4'), ('All files', '*.*')],
-)
-root.destroy()
-if path:
-    print(path)
-"""
-    return _run_safe_tk_dialog(script)
 
 
 # ---------------------------------------------------------------------------
@@ -497,7 +283,7 @@ with st.container(border=True):
             col_text, col_btn = st.columns([4, 1])
             with col_btn:
                 if st.button("📁", key="pick_audio", help="Browse for audio file", use_container_width=True):
-                    picked = _pick_audio_file()
+                    picked = pick_audio_file()
                     if picked:
                         st.session_state["audio_path"] = picked
                         st.rerun()
@@ -547,7 +333,7 @@ with st.container(border=True):
             col_text, col_btn = st.columns([4, 1])
             with col_btn:
                 if st.button("📁", key="pick_video", help="Browse for video clips folder", use_container_width=True):
-                    picked = _pick_folder("Select folder containing video clips")
+                    picked = pick_folder("Select folder containing video clips")
                     if picked:
                         st.session_state["video_dir"] = picked
                         st.rerun()
@@ -570,7 +356,7 @@ with st.container(border=True):
         col_broll_path, col_broll_btn = st.columns([4, 1])
         with col_broll_btn:
             if st.button("📁", key="pick_broll", help="Browse for B-roll folder", use_container_width=True):
-                picked = _pick_folder("Select B-roll folder")
+                picked = pick_folder("Select B-roll folder")
                 if picked:
                     st.session_state["broll_dir"] = picked
                     st.rerun()
@@ -603,7 +389,7 @@ with st.container(border=True):
         col_output_path, col_output_btn = st.columns([4, 1])
         with col_output_btn:
             if st.button("📁", key="pick_output", help="Browse and save output video", use_container_width=True):
-                picked = _pick_output_file()
+                picked = pick_output_file()
                 if picked:
                     st.session_state["output_path"] = picked
                     st.rerun()
