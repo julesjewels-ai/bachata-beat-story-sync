@@ -2,11 +2,17 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-# Project Context
+## General Guidelines
+
+- When the user asks to check or verify something simple, answer directly first before doing broad searches or exploration.
+
+# Project Overview
 
 This is a Python video production automation tool that syncs dance video clips to musical beats and intensity. It uses MoviePy v2 — ensure all code changes are compatible with the MoviePy v2 API (not v1). When in doubt, check the installed version before making assumptions about method signatures or class interfaces.
 
 FFmpeg is used directly (via `src/core/ffmpeg_renderer.py` and `src/core/ffmpeg_utils.py`) for all actual rendering — MoviePy is used for clip manipulation only.
+
+This project uses Streamlit for the UI. Always check for existing code before suggesting new frameworks or building from scratch.
 
 # Commands
 
@@ -92,6 +98,18 @@ MontageGenerator.generate()           → output.mp4       # full render via FFm
 - `pacing.transition_type` — FFmpeg xfade: `none`, `fade`, `wipeleft`, etc.
 - `pacing.intro_effect` — `none`, `bloom`, `vignette_breathe` (first segment only)
 - `pacing.dry_run` — plan without rendering
+
+## Dependencies
+
+Always add new dependencies to the project's build system (`pyproject.toml`/`setup.cfg`/`requirements.txt`) when introducing them, not just pip installing locally. This ensures the dependency is tracked for reproducibility and future installations.
+
+## Debugging
+
+For bug reports, investigate the actual error first: check logs, examine tracebacks, identify thread crashes, and gather concrete evidence before assuming UI-level or environmental issues.
+
+## Workflow Conventions
+
+When implementing features, complete the full implementation before moving on. If a session may be interrupted, prioritize getting working code committed over extensive planning.
 
 ## Workflow
 
