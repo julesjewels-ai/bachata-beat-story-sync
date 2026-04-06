@@ -20,8 +20,13 @@ import time
 import streamlit as st
 
 from src.adapters.backend import get_genres, get_intro_effects, load_engine
-from src.io.file_picker import pick_audio_file, pick_folder, pick_output_file
 from src.state.session import SessionState
+from src.ui.inputs import (
+    audio_input_component,
+    broll_input_component,
+    output_input_component,
+    video_input_component,
+)
 from src.ui.theme import apply_theme
 from src.workers.progress import (
     ProgressTracker,
@@ -214,156 +219,16 @@ st.markdown("### 🎵 Inputs")
 is_deployed = _is_deployed()
 
 # Audio inputs card
-with st.container(border=True):
-    st.subheader("Audio", anchor=None)
-
-    if is_deployed:
-        # Deployed version: file upload only
-        st.markdown("**Upload audio file**")
-        uploaded_audio = st.file_uploader(
-            "Drag and drop or click to upload",
-            type=["wav", "mp3"],
-            key="audio_upload",
-            label_visibility="collapsed",
-            help="Maximum 200MB • WAV / MP3",
-        )
-        audio_path_text = ""  # No local path option when deployed
-    else:
-        # Local version: offer both upload and local path
-        col_audio_upload, col_audio_path = st.columns([1.5, 2.5])
-
-        with col_audio_upload:
-            st.markdown("**Upload audio file**")
-            uploaded_audio = st.file_uploader(
-                "Drag and drop or click",
-                type=["wav", "mp3"],
-                key="audio_upload",
-                label_visibility="collapsed",
-                help="Maximum 200MB • WAV / MP3",
-            )
-
-        with col_audio_path:
-            st.markdown("**Or paste path**")
-            col_text, col_btn = st.columns([4, 1])
-            with col_btn:
-                if st.button("📁", key="pick_audio", help="Browse for audio file", use_container_width=True):
-                    picked = pick_audio_file()
-                    if picked:
-                        state.audio_path = picked
-                        st.rerun()
-            with col_text:
-                audio_path_text = st.text_input(
-                    "Audio path",
-                    placeholder="/Volumes/Drives/Music...",
-                    key="audio_path",
-                    label_visibility="collapsed",
-                    help="Absolute path on your machine.",
-                )
+audio_path_text = audio_input_component(state, is_deployed)
 
 # Video clips card
-with st.container(border=True):
-    st.subheader("Video Clips", anchor=None)
-
-    if is_deployed:
-        # Deployed version: file upload only
-        st.markdown("**Upload video files**")
-        uploaded_videos = st.file_uploader(
-            "Drag and drop or click to upload",
-            type=["mp4", "mov", "avi", "mkv"],
-            key="video_upload",
-            accept_multiple_files=True,
-            label_visibility="collapsed",
-            help="Maximum 200MB per file • MP4 / MOV / AVI / MKV",
-        )
-        video_dir = ""  # No local path option when deployed
-        st.caption("Upload your video clips to get started.")
-    else:
-        # Local version: offer both upload and local path
-        col_video_upload, col_video_path = st.columns([1.5, 2.5])
-
-        with col_video_upload:
-            st.markdown("**Upload video files**")
-            uploaded_videos = st.file_uploader(
-                "Drag and drop or click",
-                type=["mp4", "mov", "avi", "mkv"],
-                key="video_upload",
-                accept_multiple_files=True,
-                label_visibility="collapsed",
-                help="Maximum 200MB per file • MP4 / MOV / AVI / MKV",
-            )
-
-        with col_video_path:
-            st.markdown("**Or paste path**")
-            col_text, col_btn = st.columns([4, 1])
-            with col_btn:
-                if st.button("📁", key="pick_video", help="Browse for video clips folder", use_container_width=True):
-                    picked = pick_folder("Select folder containing video clips")
-                    if picked:
-                        state.video_dir = picked
-                        st.rerun()
-            with col_text:
-                video_dir = st.text_input(
-                    "Footage folder",
-                    placeholder="/Users/Artist/Documents/Project_01/Raw",
-                    key="video_dir",
-                    label_visibility="collapsed",
-                    help="Terra will auto-index and categorize by motion intensity.",
-                )
-        st.caption("Upload individual video files or select the root directory containing your dance footage.")
+video_dir = video_input_component(state, is_deployed)
 
 # B-roll card (optional)
-with st.container(border=True):
-    st.subheader("B-roll", anchor=None)
-    st.caption("OPTIONAL — Add texture clips, atmospheric shots, or environment b-roll to be used as transitions and overlays during musical swells.")
-
-    if not is_deployed:
-        col_broll_path, col_broll_btn = st.columns([4, 1])
-        with col_broll_btn:
-            if st.button("📁", key="pick_broll", help="Browse for B-roll folder", use_container_width=True):
-                picked = pick_folder("Select B-roll folder")
-                if picked:
-                    state.broll_dir = picked
-                    st.rerun()
-        with col_broll_path:
-            broll_dir_input = st.text_input(
-                "Overlays folder",
-                placeholder="/Users/Artist/Documents/Stock/Atmosph",
-                key="broll_dir",
-                help="Auto-detected as a 'broll/' subfolder inside the clips folder if it exists.",
-            )
-    else:
-        st.info("💡 B-roll support is available when running locally. Include B-roll files with your video uploads for now.")
-        broll_dir_input = ""  # No B-roll when deployed
+broll_dir_input = broll_input_component(state, is_deployed)
 
 # Output card
-with st.container(border=True):
-    st.subheader("Output", anchor=None)
-
-    if is_deployed:
-        # Deployed version: simple filename input
-        output_path = st.text_input(
-            "Output filename",
-            key="output_path",
-            help="Your finished video will be available to download.",
-            placeholder="output_story.mp4",
-            value="output_story.mp4",
-        )
-    else:
-        # Local version: full path picker
-        col_output_path, col_output_btn = st.columns([4, 1])
-        with col_output_btn:
-            if st.button("📁", key="pick_output", help="Browse and save output video", use_container_width=True):
-                picked = pick_output_file()
-                if picked:
-                    state.output_path = picked
-                    st.rerun()
-        with col_output_path:
-            output_path = st.text_input(
-                "Save as",
-                key="output_path",
-                help="Where to save the finished video.",
-                placeholder="output_story.mp4",
-            )
+output_path = output_input_component(state, is_deployed)
 
 # ---------------------------------------------------------------------------
 # Run button with improved layout
