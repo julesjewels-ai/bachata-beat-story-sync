@@ -1,0 +1,30 @@
+changelog:
+  exclude:
+    labels:
+      - dependencies
+      - internal
+    authors:
+      - dependabot
+      - dependabot[bot]
+  categories:
+    - title: Features
+      labels:
+        - feature
+        - feat
+        - enhancement
+        - improvement
+    - title: Bug Fixes
+      labels:
+        - bug
+        - bugfix
+        - fix
+    - title: Documentation
+      labels:
+        - documentation
+        - docs
+    - title: Other Changes
+      labels:
+        - chore
+        - ci
+        - refactor
+        - test

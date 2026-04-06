@@ -1,0 +1,104 @@
+{
+  "summary": {
+    "num_runs": 3,
+    "dry_run_avg": 8.45,
+    "dry_run_min": 8.23,
+    "dry_run_max": 8.67,
+    "render_avg": 145.32,
+    "render_min": 142.1,
+    "render_max": 148.5,
+    "total_avg": 153.77,
+    "total_min": 150.33,
+    "total_max": 157.17,
+    "speedup_avg": 17.4,
+    "speedup_min": 16.8,
+    "speedup_max": 18.1,
+    "successful_renders": 3,
+    "segments_avg": 18.0,
+    "clips_avg": 18.0,
+    "output_duration_avg": 60.0,
+    "manual_estimate_avg": 45.0,
+    "runs": [
+      {
+        "run_number": 1,
+        "dry_run_time": 8.23,
+        "full_render_time": 142.1,
+        "total_time": 150.33,
+        "segments_planned": 18,
+        "clips_used": 18,
+        "output_duration_seconds": 60.0,
+        "estimated_manual_minutes": 45.0,
+        "speedup_ratio": 17.9,
+        "render_success": true,
+        "error_message": null
+      },
+      {
+        "run_number": 2,
+        "dry_run_time": 8.45,
+        "full_render_time": 145.32,
+        "total_time": 153.77,
+        "segments_planned": 18,
+        "clips_used": 18,
+        "output_duration_seconds": 60.0,
+        "estimated_manual_minutes": 45.0,
+        "speedup_ratio": 17.5,
+        "render_success": true,
+        "error_message": null
+      },
+      {
+        "run_number": 3,
+        "dry_run_time": 8.67,
+        "full_render_time": 148.5,
+        "total_time": 157.17,
+        "segments_planned": 18,
+        "clips_used": 18,
+        "output_duration_seconds": 60.0,
+        "estimated_manual_minutes": 45.0,
+        "speedup_ratio": 17.1,
+        "render_success": true,
+        "error_message": null
+      }
+    ]
+  },
+  "runs": [
+    {
+      "run_number": 1,
+      "dry_run_time": 8.23,
+      "full_render_time": 142.1,
+      "total_time": 150.33,
+      "segments_planned": 18,
+      "clips_used": 18,
+      "output_duration_seconds": 60.0,
+      "estimated_manual_minutes": 45.0,
+      "speedup_ratio": 17.9,
+      "render_success": true,
+      "error_message": null
+    },
+    {
+      "run_number": 2,
+      "dry_run_time": 8.45,
+      "full_render_time": 145.32,
+      "total_time": 153.77,
+      "segments_planned": 18,
+      "clips_used": 18,
+      "output_duration_seconds": 60.0,
+      "estimated_manual_minutes": 45.0,
+      "speedup_ratio": 17.5,
+      "render_success": true,
+      "error_message": null
+    },
+    {
+      "run_number": 3,
+      "dry_run_time": 8.67,
+      "full_render_time": 148.5,
+      "total_time": 157.17,
+      "segments_planned": 18,
+      "clips_used": 18,
+      "output_duration_seconds": 60.0,
+      "estimated_manual_minutes": 45.0,
+      "speedup_ratio": 17.1,
+      "render_success": true,
+      "error_message": null
+    }
+  ]
+}

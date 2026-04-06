@@ -313,6 +313,11 @@ class PacingConfig(BaseModel):
         False,
         description="Emit a Markdown decision log alongside the output video",
     )
+    explain_html: str | None = Field(
+        None,
+        description="Path to write an HTML decision report. "
+        "If specified, automatically enables explain=True.",
+    )
 
     # Intro Visual Effects (FEAT-022)
     intro_effect: str = Field(

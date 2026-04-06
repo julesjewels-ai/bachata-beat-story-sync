@@ -1,0 +1,61 @@
+# K-Pop Preset
+# Optimized for Korean pop and idol music: fast, synchronized cuts with
+# energetic speed ramping, cool modern color grade, and trendy wipe transitions.
+# Works best with 100–140 BPM tracks.
+#
+# Key characteristics:
+#   - Quick, snappy clip changes (high energy → 2.0s)
+#   - Punchy speed ramping (high:1.25x, medium:1.0x, low:0.9x)
+#   - Cool blue color grade (modern, ethereal aesthetic)
+#   - Wipe left transitions (trendy, dynamic feel)
+#   - Soft bloom intro (stylish reveal)
+
+pacing:
+  # Fast, synchronized cuts (K-pop choreography is precision-based)
+  high_intensity_seconds: 2.0      # Snappy cuts during dance breaks
+  medium_intensity_seconds: 3.0    # Standard backbone pacing
+  low_intensity_seconds: 4.5       # Brief breathing room
+
+  min_clip_seconds: 1.5
+
+  # Sync to beat boundaries for rhythmic alignment with choreography
+  snap_to_beats: true
+
+  # Intensity classification — favor "high" for energetic cutting
+  high_intensity_threshold: 0.65
+  low_intensity_threshold: 0.35
+
+  # Energetic speed ramping (fast for high energy, but not extreme)
+  speed_ramp_enabled: true
+  high_intensity_speed: 1.25       # Punchy fast-forward during peak moments
+  medium_intensity_speed: 1.0      # Normal speed for dialogue/chorus
+  low_intensity_speed: 0.9         # Gentle slow-motion for intro/outro
+
+  # B-Roll insertion (frequent variety for visual interest)
+  broll_interval_seconds: 10.0     # Swap visuals more frequently
+  broll_interval_variance: 1.0     # ± 1 second variance
+
+  clip_variety_enabled: true
+  zoom_factor: 0.7
+
+  # Color grading: cool (modern, ethereal, contemporary K-pop aesthetic)
+  video_style: cool
+
+  # Intro effect: soft bloom (stylish, idol-like presentation)
+  intro_effect: bloom
+  intro_effect_duration: 1.2       # Quick but polished reveal
+
+  # Transitions: wipe left (trendy, dynamic, matches modern K-pop MVs)
+  transition_type: wipeleft
+  transition_duration: 0.3         # Quick, snappy transitions
+
+  # No audio overlay (clean aesthetic, let the video speak)
+  audio_overlay: none
+
+  # Frame interpolation for smooth slow-motion
+  interpolation_method: blend
+
+  # Section detection for structural awareness
+  section_detection_enabled: true
+  section_smoothing_window: 6      # Quick section changes (idol choruses are distinct)
+  section_change_threshold: 0.15

@@ -1,0 +1,37 @@
+# Ballroom Waltz Community Preset
+# Author: Community Contributors
+# Description: Elegant ballroom dance with smooth, flowing aesthetics and extended durations.
+# Tuning: Long, graceful clips with slow playback and gentle fades to capture the flowing,
+# smooth elegance of ballroom dancing (waltz, foxtrot, viennese). Vintage color grade adds
+# timeless sophistication.
+
+# Clip durations: Extended and flowing to match the smooth, continuous movement of ballroom
+high_intensity_seconds: 3.5
+medium_intensity_seconds: 5.0
+low_intensity_seconds: 6.5
+
+# Speed ramping: Subtle variation to preserve the flowing, elegant feel
+high_intensity_speed: 1.05
+medium_intensity_speed: 1.0
+low_intensity_speed: 0.9
+
+# Visual styling: Vintage film look for timeless, classic ballroom aesthetic
+video_style: vintage
+transition_type: fade
+transition_duration: 0.8
+
+# Intro effect: Vignette breathe for atmospheric, sophisticated opening
+intro_effect: vignette_breathe
+intro_effect_duration: 2.0
+
+# Extended B-roll intervals to maintain smooth, unhurried pacing
+broll_interval_seconds: 18.0
+broll_interval_variance: 2.0
+
+# Subtle pacing effects to enhance elegance
+pacing_drift_zoom: true  # Slow Ken Burns zoom for sophisticated motion
+pacing_crop_tighten: false
+
+# Disable abrupt effects for smooth, flowing aesthetic
+pacing_micro_jitters: false
+pacing_light_leaks: false

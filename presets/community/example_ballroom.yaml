@@ -1,0 +1,72 @@
+# Ballroom Preset
+# Optimized for ballroom and formal dance styles (waltz, foxtrot, quickstep):
+# longer, graceful clips with elegant transitions, warm romantic color grade,
+# and smooth speed ramping that respects the flow of movement.
+# Works best with 24–32 bars per minute (BPM varies by dance type).
+#
+# Key characteristics:
+#   - Longer, flowing clips (low energy → 8.0s for continuous moves)
+#   - Minimal speed variation (high:1.05x, medium:1.0x, low:0.85x for grace)
+#   - Warm color grade (romantic, ballroom elegance)
+#   - Smooth fade transitions (0.8s, respects partner connection)
+#   - Vignette intro (dramatic, spotlight on the couple)
+
+pacing:
+  # Longer, flowing clips for continuous movement and partnership flow
+  high_intensity_seconds: 3.5      # Even intense moments are graceful
+  medium_intensity_seconds: 5.0    # Standard pacing (main choreography)
+  low_intensity_seconds: 8.0       # Generous breathing room, gliding movements
+
+  min_clip_seconds: 2.0            # Never cut too short (respect the flow)
+
+  # Snap to beat boundaries (respect the strict timing of ballroom)
+  snap_to_beats: true
+
+  # Intensity classification — favor "medium" and "low" (flowing, not jarring)
+  high_intensity_threshold: 0.60
+  low_intensity_threshold: 0.40
+
+  # Minimal speed variation (graceful, elegant pacing)
+  speed_ramp_enabled: true
+  high_intensity_speed: 1.05       # Subtle speed lift (not jerky)
+  medium_intensity_speed: 1.0      # Normal speed for standard moves
+  low_intensity_speed: 0.85        # Gentle slow-motion for elegant glides
+
+  # Organic speed ramping (advanced: creates natural "breathing")
+  speed_ramp_organic: true
+  speed_ramp_sensitivity: 0.7      # Gentle, not aggressive
+  speed_ramp_curve: ease_in_out
+  speed_ramp_min: 0.82
+  speed_ramp_max: 1.08
+
+  # B-Roll insertion (less frequent, don't interrupt partner connections)
+  broll_interval_seconds: 25.0     # Longer intervals for flow
+  broll_interval_variance: 2.0     # ± 2 seconds variance
+
+  clip_variety_enabled: true
+  zoom_factor: 0.8                 # Slightly looser framing (see full couple)
+
+  # Color grading: warm (romantic, ballroom elegance)
+  video_style: warm
+
+  # Intro effect: vignette_breathe (dramatic spotlight on the couple)
+  intro_effect: vignette_breathe
+  intro_effect_duration: 2.0       # Longer, more dramatic build-up
+
+  # Transitions: smooth fade (respectful of partner connection)
+  transition_type: fade
+  transition_duration: 0.8         # Longer fade (generous, flowing)
+
+  # No audio overlay (pure dance focus)
+  audio_overlay: none
+
+  # Frame interpolation for smooth slow-motion
+  interpolation_method: blend
+
+  # Section detection for ballroom structure awareness
+  section_detection_enabled: true
+  section_smoothing_window: 10     # Ballroom songs have longer musical phrases
+  section_change_threshold: 0.15
+
+  # Speed ramp randomization (adds human touch, not robotic)
+  randomize_speed_ramps: true

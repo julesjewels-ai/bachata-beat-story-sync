@@ -7,6 +7,12 @@ users can get great results with a single ``--genre`` flag.
 Override priority chain::
 
     PacingConfig defaults  <  YAML file  <  Genre preset  <  CLI flags
+
+COMMUNITY PRESETS:
+    The built-in presets below are the foundation. The project also supports
+    community-contributed presets in the ``presets/community/`` directory.
+    See ``presets/README.md`` for details on using, creating, and submitting
+    community presets.
 """
 
 from __future__ import annotations

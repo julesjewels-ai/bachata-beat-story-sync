@@ -710,6 +710,29 @@ class MontageGenerator:
             f.write("\n".join(lines))
         logger.info("Explain log written to: %s", log_path)
 
+    def _write_explain_html(
+        self,
+        output_path: str,
+        config: PacingConfig,
+        audio_data: AudioAnalysisResult,
+    ) -> None:
+        """Write collected decisions to an HTML report file.
+
+        File path is taken from config.explain_html.
+        """
+        from src.services.explain_html import generate_explain_html  # noqa: WPS433
+
+        if not config.explain_html or not self._last_decisions:
+            return
+
+        generate_explain_html(
+            config.explain_html,
+            audio_data,
+            self._last_decisions,
+            config,
+        )
+        logger.info("HTML explain report written to: %s", config.explain_html)
+
     def generate(
         self,
         audio_data: AudioAnalysisResult,
@@ -782,6 +805,9 @@ class MontageGenerator:
         # FEAT-025: Write decision explainability log
         if config.explain and self._last_decisions:
             self._write_explain_log(output_path, config)
+            # Also write HTML report if path is specified
+            if config.explain_html:
+                self._write_explain_html(output_path, config, audio_data)
 
         # Create temp directory for intermediate files
         temp_dir = tempfile.mkdtemp(prefix="montage_")

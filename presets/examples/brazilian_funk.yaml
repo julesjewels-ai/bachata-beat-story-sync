@@ -1,0 +1,30 @@
+# Brazilian Funk Community Preset
+# Author: Community Contributors
+# Description: Energetic Brazilian funk with syncopated rhythms and dynamic speed variation.
+# Tuning: Short, punchy clips with aggressive speed ramping and fast transitions to capture
+# the urban energy and polyrhythmic complexity of Brazilian funk music.
+
+# Clip durations: Keep them short and snappy to match the energetic, syncopated feel
+high_intensity_seconds: 2.0
+medium_intensity_seconds: 3.0
+low_intensity_seconds: 4.5
+
+# Speed ramping: Aggressive variation to emphasize syncopation and rhythmic complexity
+high_intensity_speed: 1.4
+medium_intensity_speed: 1.1
+low_intensity_speed: 0.95
+
+# Visual styling: Warm tones and dynamic transitions to match the tropical/urban energy
+video_style: warm
+transition_type: fade
+transition_duration: 0.3
+
+# Intro effect: Bloom to start with energy and visual impact
+intro_effect: bloom
+
+# Organic per-beat speed ramping for nuanced, syncopated feel
+speed_ramp_organic: true
+speed_ramp_sensitivity: 1.2
+speed_ramp_curve: ease_in_out
+speed_ramp_min: 0.85
+speed_ramp_max: 1.35

@@ -1,0 +1,311 @@
+# Community Preset Template
+# This is a fully documented template for creating a new genre/style preset.
+# Copy this file and customize the values for your genre.
+#
+# USAGE:
+#   1. Copy this file: cp presets/template.yaml presets/community/your_genre.yaml
+#   2. Replace the values below with your tuned settings
+#   3. Test locally: make run AUDIO=track.wav VIDEO_DIR=clips/ --genre-path presets/community/your_genre.yaml
+#   4. Submit a PR to the community presets directory
+#
+# All values are optional—if you omit a field, the project default will be used.
+
+# ============================================================================
+# PACING CONFIGURATION
+# Controls clip duration, speed, and intensity response
+# ============================================================================
+
+pacing:
+  # --- Clip Duration per Intensity Level (seconds) ---
+  # These are the TARGET durations for clips at each intensity level.
+  # The montage will snap to beat boundaries if snap_to_beats is true.
+  #
+  # Guidelines:
+  #   - high_intensity: Quick, snappy cuts (1.5–3.0 typical)
+  #   - medium_intensity: Standard backbone cuts (3.0–5.0 typical)
+  #   - low_intensity: Breathing room, slower pacing (5.0–8.0 typical)
+  #
+  # Example:
+  #   Fastcore electronic → high:1.2, medium:2.0, low:3.5
+  #   Kizomba (slow) → high:3.5, medium:5.0, low:7.0
+  #
+  high_intensity_seconds: 2.5
+  medium_intensity_seconds: 4.0
+  low_intensity_seconds: 6.0
+
+  # Minimum clip duration (seconds) — no clip will ever be shorter than this
+  min_clip_seconds: 1.5
+
+  # Snap durations to nearest beat boundary for musically-aligned cuts
+  snap_to_beats: true
+
+  # --- Intensity Classification Thresholds (0.0 to 1.0) ---
+  # The audio analyzer computes an intensity curve (RMS energy) for each beat.
+  # Clips are classified based on their average intensity:
+  #   - intensity >= high_threshold → "high"
+  #   - low_threshold <= intensity < high_threshold → "medium"
+  #   - intensity < low_threshold → "low"
+  #
+  # Lower thresholds = more segments classified as "high" (faster cutting).
+  # Example adjustments:
+  #   Aggressive genre: high:0.70, low:0.30 (narrow middle band)
+  #   Mellow genre: high:0.60, low:0.40 (wider low band)
+  #
+  high_intensity_threshold: 0.65
+  low_intensity_threshold: 0.35
+
+  # --- Speed Ramping per Intensity Level ---
+  # Playback speed multiplier for each intensity tier.
+  # >1.0 = fast-forward (high energy); 1.0 = normal; <1.0 = slow-motion (dreamy)
+  #
+  # Example:
+  #   Latin dance (energetic):  high:1.3, medium:1.0, low:0.85
+  #   Ballroom (graceful):       high:1.05, medium:1.0, low:0.85
+  #   Hip-hop (punchy):          high:1.2, medium:1.0, low:0.8
+  #
+  speed_ramp_enabled: true
+  high_intensity_speed: 1.2    # Slight fast-forward for energy
+  medium_intensity_speed: 1.0  # Normal playback
+  low_intensity_speed: 0.9     # Gentle slow-motion
+
+  # --- Organic Per-Beat Speed Ramping (FEAT-036) ---
+  # Advanced feature: varies playback speed beat-by-beat within each clip,
+  # driven by the intensity curve. Creates a natural "breathing" feel.
+  # Disable this if you prefer simple scalar speed ramps (default).
+  #
+  speed_ramp_organic: false
+
+  # Sensitivity of intensity → speed mapping (organic mode only)
+  #   0.5 = gentle variation
+  #   1.0 = standard (intensity range maps 1:1 to speed range)
+  #   2.0 = aggressive variation
+  speed_ramp_sensitivity: 1.0
+
+  # Interpolation curve for speed smoothing across beat windows
+  #   linear = direct intensity→speed; ease_in/out = smooth transitions
+  speed_ramp_curve: ease_in_out
+
+  # Speed range when organic ramping is enabled
+  #   speed_ramp_min ≤ actual playback ≤ speed_ramp_max
+  #   (Only relevant if speed_ramp_organic is true)
+  speed_ramp_min: 0.8    # Slowest multiplier (low-energy beats)
+  speed_ramp_max: 1.3    # Fastest multiplier (high-energy beats)
+
+  # --- B-Roll Insertion (FEAT-011, FEAT-033) ---
+  # B-roll clips are inserted at regular intervals to vary visual content.
+  # Set interval_seconds to 0 to disable B-roll entirely.
+  #
+  # Example:
+  #   High-cut energetic video: interval=8, variance=1
+  #   Slow narrative video: interval=30, variance=5
+  #
+  broll_interval_seconds: 13.5    # Insert B-roll every ~13.5 seconds
+  broll_interval_variance: 1.5    # Randomize by ± 1.5 seconds
+
+  # --- Clip Variety ---
+  # When a clip is reused, randomize its start position within the clip
+  # to avoid visual repetition
+  clip_variety_enabled: true
+
+  # --- Zoom/Crop Factor (FEAT-029) ---
+  # Static zoom on all frames (before any dynamic effects).
+  #   1.0 = full frame (no crop)
+  #   0.88 = crop to center 88% of frame and scale up (10% border removed)
+  #   0.75 = aggressive crop (25% border removed)
+  zoom_factor: 0.7
+
+  # --- Test Mode Limits ---
+  # Uncomment or set on CLI to limit rendering for fast iteration
+  # (useful during development)
+  # max_clips: 5                 # Max number of segments (unlimited if omitted)
+  # max_duration_seconds: 30.0   # Max montage duration (unlimited if omitted)
+
+# ============================================================================
+# VIDEO STYLE & VISUAL EFFECTS
+# Color grading and aesthetic treatments
+# ============================================================================
+
+  # --- Color Grading / Video Style (FEAT-012) ---
+  # Uniform color grade applied to all clips.
+  # Options: 'none', 'bw' (black & white), 'vintage', 'warm', 'cool', 'golden'
+  #
+  # Guidelines:
+  #   bw = high-contrast, timeless, dramatic
+  #   vintage = sepia/warm, nostalgic, gritty
+  #   warm = orange/yellow tones, cozy, energetic
+  #   cool = blue tones, calm, modern, ethereal
+  #   golden = golden hour, romantic, rich
+  #   none = ungraded (natural colors)
+  #
+  video_style: golden
+
+  # --- Intro Visual Effect (FEAT-022) ---
+  # Special effect applied to the FIRST segment only.
+  # Options: 'none', 'bloom' (gaussian reveal), 'vignette_breathe' (spotlight)
+  #
+  # 'bloom' = soft, glowing Gaussian reveal from center outward (dreamy)
+  # 'vignette_breathe' = spotlight with gentle breathing pulse (dramatic)
+  # 'none' = no intro effect (hard cut)
+  #
+  intro_effect: vignette_breathe
+  intro_effect_duration: 1.5  # Duration of intro effect (0.5–3.0 recommended)
+
+  # --- Pacing Visual Effects (FEAT-023) ---
+  # Subtle effects applied to every segment
+  #
+  # pacing_drift_zoom: Slow 100→105% Ken Burns zoom over each segment
+  # pacing_crop_tighten: Zoom in over the first 10s of each segment
+  # pacing_saturation_pulse: Brief saturation surge on each detected beat
+  #
+  # (These are disabled by default; enable only if suited to your genre)
+  # pacing_drift_zoom: false
+  # pacing_crop_tighten: false
+  # pacing_saturation_pulse: false
+
+  # --- Advanced Beat-Synced Effects (FEAT-024) ---
+  # Rhythmic micro-effects for punch and dynamism
+  #
+  # pacing_micro_jitters: Beat-synced 2–4px random horizontal/vertical shake
+  # pacing_light_leaks: Warm amber colour sweep on key beats (200ms flash)
+  # pacing_warm_wash: Brief amber flash at transition boundaries
+  # pacing_alternating_bokeh: Subtle background blur on alternating segments
+  #
+  # (These are disabled by default; enable sparingly for specific genres)
+  # pacing_micro_jitters: false
+  # pacing_light_leaks: false
+  # pacing_warm_wash: false
+  # pacing_alternating_bokeh: false
+
+# ============================================================================
+# TRANSITIONS & AUDIO EFFECTS
+# Cut style, audio visualization, and musical section handling
+# ============================================================================
+
+  # --- Transition Type & Duration ---
+  # FFmpeg xfade transition applied at clip boundaries.
+  # Options: 'none' (hard cut), 'fade', 'wipeleft', 'wiperight', 'slideup', 'slidedown', etc.
+  #
+  # Guidelines:
+  #   none = snappy, high-energy, hard cuts (suitable for fast genres)
+  #   fade = smooth, universal (most genres)
+  #   wipeleft/wiperight = dynamic, modern, trendy
+  #   slideup/slidedown = fluid, less jarring
+  #
+  transition_type: fade
+  transition_duration: 0.5  # Duration of each transition (seconds)
+
+  # --- Audio Overlay / Visualizer (FEAT-013) ---
+  # Music-synced visualizer patterns overlaid on video.
+  # Options: 'none', 'waveform' (line pattern), 'bars' (frequency bars)
+  #
+  # waveform = line waveform following audio envelope (modern, minimal)
+  # bars = equalizer-style bars (energetic, club-like)
+  # none = no visualizer (traditional montage)
+  #
+  audio_overlay: none
+  audio_overlay_opacity: 0.5      # Opacity of overlay (0.0 to 1.0)
+  audio_overlay_position: right   # Horizontal position: 'left', 'center', 'right'
+  audio_overlay_padding: 10       # Distance from screen edge (pixels)
+
+  # --- Audio Hook Detection (FEAT-019) ---
+  # Offset to start the montage from a specific point in the audio.
+  # Useful for skipping intros or finding a stronger hook.
+  # (Default 0.0 = start from the beginning)
+  audio_start_offset: 0.0
+
+  # --- Frame Interpolation for Slow Motion (FEAT-010) ---
+  # When playback speed is <1.0 (slow-motion), interpolate frames.
+  # Options: 'none' (hold frames), 'blend' (optical flow), 'mci' (motion-compensated)
+  #
+  # 'none' = cheapest (may look choppy in slow-motion)
+  # 'blend' = smooth optical flow (recommended for slow-motion)
+  # 'mci' = motion-compensated, highest quality (slower to render)
+  #
+  interpolation_method: blend
+
+# ============================================================================
+# SECTION DETECTION & MUSICAL STRUCTURE
+# How the montage responds to detected song structure
+# ============================================================================
+
+  # --- Musical Section Detection ---
+  # The audio analyzer detects musical sections (intro, build, breakdown, etc.)
+  # based on intensity contours.
+  #
+  section_detection_enabled: true
+
+  # Number of beats to smooth intensity over when finding section boundaries.
+  # Higher = fewer detected sections (fewer boundaries).
+  # Example:
+  #   Busy electronic: smoothing=4 (quick section changes)
+  #   Ambient: smoothing=12 (slow evolution)
+  section_smoothing_window: 8
+
+  # Minimum intensity change (0.0–1.0) to trigger a section boundary
+  # Example:
+  #   Smooth progression: threshold=0.20 (easy boundaries)
+  #   Tight songs: threshold=0.10 (very sensitive)
+  section_change_threshold: 0.15
+
+# ============================================================================
+# ADVANCED RENDERING OPTIONS
+# Experimental features and fine-tuning
+# ============================================================================
+
+  # --- Dynamic Pacing (Dynamic Flow) ---
+  # Gradually decrease clip durations towards the end for acceleration effect.
+  accelerate_pacing: false
+
+  # --- Speed Ramp Randomization ---
+  # Add random variance to speed ramps for a human touch (less robotic).
+  randomize_speed_ramps: false
+
+  # --- Abrupt Ending (Cliffhanger) ---
+  # End the montage sharply (no fade-out) for a dramatic cliffhanger effect.
+  abrupt_ending: false
+
+  # --- Vertical Format (YouTube Shorts) (FEAT-008) ---
+  # Generate a vertical 9:16 short instead of horizontal 16:9 montage.
+  is_shorts: false
+
+  # --- Deterministic Stochasticity Seed ---
+  # For reproducible results: set a seed string (empty = random each time).
+  seed: ""
+
+  # --- Dry-Run Plan Mode (FEAT-026) ---
+  # Plan the montage (analyze audio/video) without rendering.
+  # Useful for previewing decisions before committing to FFmpeg.
+  dry_run: false
+
+# ============================================================================
+# REPORTING & EXPLAINABILITY
+# Decision logs and debugging
+# ============================================================================
+
+  # --- Decision Explainability Log (FEAT-025) ---
+  # Emit a Markdown decision log alongside the output video,
+  # showing which clips were chosen and why.
+  explain: false
+
+  # Write HTML decision report to this path (enables explain automatically).
+  # explain_html: null  # Uncomment to enable
+
+# ============================================================================
+# GENRE METADATA
+# Optional fields for identification
+# ============================================================================
+
+# Genre preset name (optional, for reference in logs)
+# genre: my_genre
+
+# Per-track customization (pipeline mode only)
+# These fields are typically set in montage_config.yaml, but can be
+# overridden in presets for per-track variation.
+#
+# per_track_clips:
+#   track1.wav: clips/track1/
+#   track2.wav: clips/track2/
+#
+# per_track_styles:
+#   track1.wav: vintage
+#   track2.wav: bw

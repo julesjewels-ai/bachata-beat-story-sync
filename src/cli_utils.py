@@ -126,6 +126,9 @@ def build_pacing_kwargs(args: argparse.Namespace) -> dict:
         kwargs["broll_interval_variance"] = args.broll_variance
     if getattr(args, "explain", False):
         kwargs["explain"] = True
+    if getattr(args, "explain_html", None):
+        kwargs["explain_html"] = args.explain_html
+        kwargs["explain"] = True  # Auto-enable explain when explain_html is set
     if getattr(args, "intro_effect", None):
         kwargs["intro_effect"] = args.intro_effect
     if getattr(args, "intro_effect_duration", None) is not None:
@@ -223,6 +226,14 @@ def add_visual_args(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         default=False,
         help="Emit a Markdown decision log alongside the output video",
+    )
+    parser.add_argument(
+        "--explain-html",
+        type=str,
+        default=None,
+        metavar="PATH",
+        help="Path to write an HTML decision report. "
+        "Automatically enables --explain.",
     )
 
     # Intro Visual Effects (FEAT-022) — choices derived from registry

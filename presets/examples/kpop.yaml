@@ -1,0 +1,33 @@
+# K-Pop Community Preset
+# Author: Community Contributors
+# Description: High-energy K-pop choreography with sleek, polished aesthetics.
+# Tuning: Very short, rapid clips with fast playback and dynamic wipe transitions to capture
+# the signature synchronized, high-impact choreography and clean visual style of K-pop.
+
+# Clip durations: Very short and snappy to match the rapid-fire choreography cuts
+high_intensity_seconds: 1.8
+medium_intensity_seconds: 2.8
+low_intensity_seconds: 3.8
+
+# Speed ramping: Moderately aggressive for energetic playback
+high_intensity_speed: 1.3
+medium_intensity_speed: 1.05
+low_intensity_speed: 0.95
+
+# Visual styling: Cool tones (sleek, urban) with wipe transitions for dynamic flow
+video_style: cool
+transition_type: wipeleft
+transition_duration: 0.25
+
+# Intro effect: Bloom for immediate visual impact
+intro_effect: bloom
+
+# Enable organic speed ramping for smooth, natural-feeling variation
+speed_ramp_organic: true
+speed_ramp_sensitivity: 0.9
+speed_ramp_curve: ease_in_out
+speed_ramp_min: 0.88
+speed_ramp_max: 1.25
+
+# Optional: Saturation pulse on beats for added visual energy (K-pop signature style)
+pacing_saturation_pulse: false  # Set to true for extra visual punch on beats
