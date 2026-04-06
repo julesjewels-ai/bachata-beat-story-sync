@@ -584,7 +584,16 @@ def _get_intro_effects() -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# File/folder picker helpers using tkinter
+# Environment detection
+# ---------------------------------------------------------------------------
+
+def _is_deployed() -> bool:
+    """Check if running on Streamlit Cloud or hosted environment."""
+    return bool(os.getenv("STREAMLIT_RUNTIME_ENV", ""))
+
+
+# ---------------------------------------------------------------------------
+# File/folder picker helpers using tkinter (local only)
 # ---------------------------------------------------------------------------
 
 
@@ -810,95 +819,160 @@ with col_title:
 st.markdown("---")
 st.markdown("### 🎵 Inputs")
 
+# Check deployment environment once
+is_deployed = _is_deployed()
+
 # Audio inputs card
 with st.container(border=True):
     st.subheader("Audio", anchor=None)
-    col_audio_upload, col_audio_path = st.columns([1.5, 2.5])
 
-    with col_audio_upload:
+    if is_deployed:
+        # Deployed version: file upload only
         st.markdown("**Upload audio file**")
         uploaded_audio = st.file_uploader(
-            "Drag and drop or click",
+            "Drag and drop or click to upload",
             type=["wav", "mp3"],
             key="audio_upload",
             label_visibility="collapsed",
             help="Maximum 200MB • WAV / MP3",
         )
+        audio_path_text = ""  # No local path option when deployed
+    else:
+        # Local version: offer both upload and local path
+        col_audio_upload, col_audio_path = st.columns([1.5, 2.5])
 
-    with col_audio_path:
-        st.markdown("**Or paste path**")
-        col_text, col_btn = st.columns([4, 1])
-        with col_btn:
-            if st.button("📁", key="pick_audio", help="Browse for audio file", use_container_width=True):
-                picked = _pick_audio_file()
-                if picked:
-                    st.session_state["audio_path"] = picked
-                    st.rerun()
-        with col_text:
-            audio_path_text = st.text_input(
-                "Audio path",
-                placeholder="/Volumes/Drives/Music...",
-                key="audio_path",
+        with col_audio_upload:
+            st.markdown("**Upload audio file**")
+            uploaded_audio = st.file_uploader(
+                "Drag and drop or click",
+                type=["wav", "mp3"],
+                key="audio_upload",
                 label_visibility="collapsed",
-                help="Absolute path on your machine.",
+                help="Maximum 200MB • WAV / MP3",
             )
+
+        with col_audio_path:
+            st.markdown("**Or paste path**")
+            col_text, col_btn = st.columns([4, 1])
+            with col_btn:
+                if st.button("📁", key="pick_audio", help="Browse for audio file", use_container_width=True):
+                    picked = _pick_audio_file()
+                    if picked:
+                        st.session_state["audio_path"] = picked
+                        st.rerun()
+            with col_text:
+                audio_path_text = st.text_input(
+                    "Audio path",
+                    placeholder="/Volumes/Drives/Music...",
+                    key="audio_path",
+                    label_visibility="collapsed",
+                    help="Absolute path on your machine.",
+                )
 
 # Video clips card
 with st.container(border=True):
     st.subheader("Video Clips", anchor=None)
-    col_video_path, col_video_btn = st.columns([4, 1])
-    with col_video_btn:
-        if st.button("📁", key="pick_video", help="Browse for video clips folder", use_container_width=True):
-            picked = _pick_folder("Select folder containing video clips")
-            if picked:
-                st.session_state["video_dir"] = picked
-                st.rerun()
-    with col_video_path:
-        video_dir = st.text_input(
-            "Footage folder",
-            placeholder="/Users/Artist/Documents/Project_01/Raw",
-            key="video_dir",
-            help="Terra will auto-index and categorize by motion intensity.",
+
+    if is_deployed:
+        # Deployed version: file upload only
+        st.markdown("**Upload video files**")
+        uploaded_videos = st.file_uploader(
+            "Drag and drop or click to upload",
+            type=["mp4", "mov", "avi", "mkv"],
+            key="video_upload",
+            accept_multiple_files=True,
+            label_visibility="collapsed",
+            help="Maximum 200MB per file • MP4 / MOV / AVI / MKV",
         )
-    st.caption("Select the root directory containing your dance footage.")
+        video_dir = ""  # No local path option when deployed
+        st.caption("Upload your video clips to get started.")
+    else:
+        # Local version: offer both upload and local path
+        col_video_upload, col_video_path = st.columns([1.5, 2.5])
+
+        with col_video_upload:
+            st.markdown("**Upload video files**")
+            uploaded_videos = st.file_uploader(
+                "Drag and drop or click",
+                type=["mp4", "mov", "avi", "mkv"],
+                key="video_upload",
+                accept_multiple_files=True,
+                label_visibility="collapsed",
+                help="Maximum 200MB per file • MP4 / MOV / AVI / MKV",
+            )
+
+        with col_video_path:
+            st.markdown("**Or paste path**")
+            col_text, col_btn = st.columns([4, 1])
+            with col_btn:
+                if st.button("📁", key="pick_video", help="Browse for video clips folder", use_container_width=True):
+                    picked = _pick_folder("Select folder containing video clips")
+                    if picked:
+                        st.session_state["video_dir"] = picked
+                        st.rerun()
+            with col_text:
+                video_dir = st.text_input(
+                    "Footage folder",
+                    placeholder="/Users/Artist/Documents/Project_01/Raw",
+                    key="video_dir",
+                    label_visibility="collapsed",
+                    help="Terra will auto-index and categorize by motion intensity.",
+                )
+        st.caption("Upload individual video files or select the root directory containing your dance footage.")
 
 # B-roll card (optional)
 with st.container(border=True):
     st.subheader("B-roll", anchor=None)
     st.caption("OPTIONAL — Add texture clips, atmospheric shots, or environment b-roll to be used as transitions and overlays during musical swells.")
 
-    col_broll_path, col_broll_btn = st.columns([4, 1])
-    with col_broll_btn:
-        if st.button("📁", key="pick_broll", help="Browse for B-roll folder", use_container_width=True):
-            picked = _pick_folder("Select B-roll folder")
-            if picked:
-                st.session_state["broll_dir"] = picked
-                st.rerun()
-    with col_broll_path:
-        broll_dir_input = st.text_input(
-            "Overlays folder",
-            placeholder="/Users/Artist/Documents/Stock/Atmosph",
-            key="broll_dir",
-            help="Auto-detected as a 'broll/' subfolder inside the clips folder if it exists.",
-        )
+    if not is_deployed:
+        col_broll_path, col_broll_btn = st.columns([4, 1])
+        with col_broll_btn:
+            if st.button("📁", key="pick_broll", help="Browse for B-roll folder", use_container_width=True):
+                picked = _pick_folder("Select B-roll folder")
+                if picked:
+                    st.session_state["broll_dir"] = picked
+                    st.rerun()
+        with col_broll_path:
+            broll_dir_input = st.text_input(
+                "Overlays folder",
+                placeholder="/Users/Artist/Documents/Stock/Atmosph",
+                key="broll_dir",
+                help="Auto-detected as a 'broll/' subfolder inside the clips folder if it exists.",
+            )
+    else:
+        st.info("💡 B-roll support is available when running locally. Include B-roll files with your video uploads for now.")
+        broll_dir_input = ""  # No B-roll when deployed
 
 # Output card
 with st.container(border=True):
     st.subheader("Output", anchor=None)
-    col_output_path, col_output_btn = st.columns([4, 1])
-    with col_output_btn:
-        if st.button("📁", key="pick_output", help="Browse and save output video", use_container_width=True):
-            picked = _pick_output_file()
-            if picked:
-                st.session_state["output_path"] = picked
-                st.rerun()
-    with col_output_path:
+
+    if is_deployed:
+        # Deployed version: simple filename input
         output_path = st.text_input(
-            "Save as",
+            "Output filename",
             key="output_path",
-            help="Where to save the finished video.",
+            help="Your finished video will be available to download.",
             placeholder="output_story.mp4",
+            value="output_story.mp4",
         )
+    else:
+        # Local version: full path picker
+        col_output_path, col_output_btn = st.columns([4, 1])
+        with col_output_btn:
+            if st.button("📁", key="pick_output", help="Browse and save output video", use_container_width=True):
+                picked = _pick_output_file()
+                if picked:
+                    st.session_state["output_path"] = picked
+                    st.rerun()
+        with col_output_path:
+            output_path = st.text_input(
+                "Save as",
+                key="output_path",
+                help="Where to save the finished video.",
+                placeholder="output_story.mp4",
+            )
 
 # ---------------------------------------------------------------------------
 # Run button with improved layout
@@ -1072,10 +1146,24 @@ if run_button:
     else:
         errors.append("Please provide an audio file path or upload a file.")
 
-    if not video_dir.strip():
-        errors.append("Please enter the path to your video clips folder.")
-    elif not os.path.isdir(video_dir.strip()):
-        errors.append(f"Video clips folder not found: {video_dir.strip()}")
+    # Resolve video directory (uploads override text input)
+    resolved_video_dir: str | None = None
+    temp_video_dir: str | None = None
+
+    if uploaded_videos:
+        # Create a temporary directory and save uploaded videos
+        temp_video_dir = tempfile.mkdtemp(prefix="bachata_videos_")
+        for uploaded_file in uploaded_videos:
+            file_path = os.path.join(temp_video_dir, uploaded_file.name)
+            with open(file_path, "wb") as f:
+                f.write(uploaded_file.read())
+        resolved_video_dir = temp_video_dir
+    elif video_dir.strip():
+        resolved_video_dir = video_dir.strip()
+        if not os.path.isdir(resolved_video_dir):
+            errors.append(f"Video clips folder not found: {resolved_video_dir}")
+    else:
+        errors.append("Please upload video files or enter the path to your video clips folder.")
 
     broll_dir_resolved: str | None = broll_dir_input.strip() or None
     if broll_dir_resolved and not os.path.isdir(broll_dir_resolved):
@@ -1165,7 +1253,7 @@ if run_button:
         target=_run_generation,
         args=(
             resolved_audio_path,
-            video_dir.strip(),
+            resolved_video_dir,
             broll_dir_resolved,
             output_path.strip(),
             pacing_kwargs,
