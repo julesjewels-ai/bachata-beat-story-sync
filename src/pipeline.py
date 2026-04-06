@@ -11,6 +11,8 @@ FEAT-018: Professional Rich-based CLI output with phase headers,
 spinners, success markers, error panels, and a structured summary.
 """
 
+from __future__ import annotations
+
 import argparse
 import logging
 import os

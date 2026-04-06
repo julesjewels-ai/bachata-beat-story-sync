@@ -19,7 +19,9 @@ import time
 
 import streamlit as st
 
+from src.adapters.backend import get_genres, get_intro_effects, load_engine
 from src.io.file_picker import pick_audio_file, pick_folder, pick_output_file
+from src.state.session import SessionState
 from src.ui.theme import apply_theme
 from src.workers.progress import (
     ProgressTracker,
@@ -47,47 +49,9 @@ apply_theme()
 # Session state initialisation
 # ---------------------------------------------------------------------------
 
-def _init_state() -> None:
-    defaults = {
-        "running": False,
-        "log_lines": [],
-        "result_path": None,
-        "error": None,
-        "plan_report": None,
-        "log_queue": queue.Queue(),
-        "audio_path": "",
-        "video_dir": "",
-        "broll_dir": "",
-        "output_path": "output_story.mp4",
-        "progress_tracker": ProgressTracker(),
-    }
-    for key, value in defaults.items():
-        if key not in st.session_state:
-            st.session_state[key] = value
+# Initialize session state with typed wrapper
+state = SessionState()
 
-
-_init_state()
-
-
-# ---------------------------------------------------------------------------
-# Lazy imports (avoid slow startup for users who haven't clicked Run yet)
-# ---------------------------------------------------------------------------
-
-@st.cache_resource(show_spinner="Loading engine…")
-def _load_engine():
-    """Import and return BachataSyncEngine (cached across reruns)."""
-    from src.core.app import BachataSyncEngine  # noqa: WPS433
-    return BachataSyncEngine()
-
-
-def _get_genres() -> list[str]:
-    from src.core.genre_presets import list_genres  # noqa: WPS433
-    return ["(none)", *list_genres()]
-
-
-def _get_intro_effects() -> list[str]:
-    from src.core.ffmpeg_renderer import INTRO_EFFECTS  # noqa: WPS433
-    return ["none", *sorted(INTRO_EFFECTS.keys())]
 
 
 # ---------------------------------------------------------------------------
@@ -110,7 +74,7 @@ st.sidebar.markdown("---")
 
 st.sidebar.subheader("🎨 Visual Style")
 
-genre_options = _get_genres()
+genre_options = get_genres()
 genre_choice = st.sidebar.selectbox(
     "Genre preset",
     options=genre_options,
@@ -129,7 +93,7 @@ transition_type = st.sidebar.text_input(
     help="FFmpeg xfade: none, fade, wipeleft, wiperight, slideup, …",
 )
 
-intro_effects_options = _get_intro_effects()
+intro_effects_options = get_intro_effects()
 intro_effect = st.sidebar.selectbox(
     "Intro effect",
     options=intro_effects_options,
@@ -285,7 +249,7 @@ with st.container(border=True):
                 if st.button("📁", key="pick_audio", help="Browse for audio file", use_container_width=True):
                     picked = pick_audio_file()
                     if picked:
-                        st.session_state["audio_path"] = picked
+                        state.audio_path = picked
                         st.rerun()
             with col_text:
                 audio_path_text = st.text_input(
@@ -335,7 +299,7 @@ with st.container(border=True):
                 if st.button("📁", key="pick_video", help="Browse for video clips folder", use_container_width=True):
                     picked = pick_folder("Select folder containing video clips")
                     if picked:
-                        st.session_state["video_dir"] = picked
+                        state.video_dir = picked
                         st.rerun()
             with col_text:
                 video_dir = st.text_input(
@@ -358,7 +322,7 @@ with st.container(border=True):
             if st.button("📁", key="pick_broll", help="Browse for B-roll folder", use_container_width=True):
                 picked = pick_folder("Select B-roll folder")
                 if picked:
-                    st.session_state["broll_dir"] = picked
+                    state.broll_dir = picked
                     st.rerun()
         with col_broll_path:
             broll_dir_input = st.text_input(
@@ -391,7 +355,7 @@ with st.container(border=True):
             if st.button("📁", key="pick_output", help="Browse and save output video", use_container_width=True):
                 picked = pick_output_file()
                 if picked:
-                    st.session_state["output_path"] = picked
+                    state.output_path = picked
                     st.rerun()
         with col_output_path:
             output_path = st.text_input(
@@ -411,7 +375,7 @@ with col_run:
     run_button = st.button(
         "▶️  Generate Montage",
         type="primary",
-        disabled=st.session_state["running"],
+        disabled=state.is_running,
         use_container_width=True,
         help="Process audio and video clips. This may take several minutes depending on video length.",
     )
@@ -667,13 +631,13 @@ if run_button:
         report_path = base + "_report.xlsx"
 
     # Reset session state for this run
-    st.session_state["running"] = True
-    st.session_state["log_lines"] = []
-    st.session_state["result_path"] = None
-    st.session_state["error"] = None
-    st.session_state["plan_report"] = None
-    st.session_state["log_queue"] = queue.Queue()
-    st.session_state["progress_tracker"] = ProgressTracker()  # Fresh tracker
+    state.is_running = True
+    state.log_lines = []
+    state.result_path = None
+    state.error = None
+    state.plan_report = None
+    state.log_queue = queue.Queue()
+    state.progress_tracker = ProgressTracker()  # Fresh tracker
 
     # Create and start the background thread
     thread = threading.Thread(
@@ -685,7 +649,7 @@ if run_button:
             output_path.strip(),
             pacing_kwargs,
             report_path,
-            st.session_state["log_queue"],
+            state.log_queue,
         ),
         daemon=True,
     )
@@ -702,9 +666,9 @@ if run_button:
 # Drain the log queue and update session state on each rerun
 # ---------------------------------------------------------------------------
 
-if st.session_state["running"]:
-    log_queue: queue.Queue = st.session_state["log_queue"]
-    tracker: ProgressTracker = st.session_state["progress_tracker"]
+if state.is_running:
+    log_queue: queue.Queue = state.log_queue
+    tracker: ProgressTracker = state.progress_tracker
 
     # Drain everything currently in the queue
     done = False
@@ -717,25 +681,25 @@ if st.session_state["running"]:
         if line.startswith("__DONE__"):
             done = True
         elif line.startswith("__RESULT__"):
-            st.session_state["result_path"] = line[len("__RESULT__"):]
+            state.result_path = line[len("__RESULT__"):]
         elif line.startswith("__ERROR__"):
-            st.session_state["error"] = line[len("__ERROR__"):]
+            state.error = line[len("__ERROR__"):]
         elif line.startswith("__PLAN_REPORT__"):
-            st.session_state["plan_report"] = line[len("__PLAN_REPORT__"):]
+            state.plan_report = line[len("__PLAN_REPORT__"):]
         else:
-            st.session_state["log_lines"].append(line)
+            state.log_lines.append(line)
             tracker.update(line)
 
     if done:
-        st.session_state["running"] = False
+        state.is_running = False
 
 
 # ---------------------------------------------------------------------------
 # Display progress status (replaces meta-refresh)
 # ---------------------------------------------------------------------------
 
-if st.session_state["running"]:
-    tracker: ProgressTracker = st.session_state["progress_tracker"]
+if state.is_running:
+    tracker: ProgressTracker = state.progress_tracker
 
     # Initialize tracker timing on first run
     if tracker.start_time is None:
@@ -761,7 +725,7 @@ if st.session_state["running"]:
 
         # Show logs in collapsible detail container
         with st.expander("📋 Log Details", expanded=False):
-            log_text = "\n".join(st.session_state["log_lines"])
+            log_text = "\n".join(state.log_lines)
             st.code(log_text, language="")
 
         st.caption("Status updates every 2 seconds")
@@ -775,20 +739,20 @@ if st.session_state["running"]:
 # Display results and messages
 # ---------------------------------------------------------------------------
 
-if st.session_state["error"]:
+if state.error:
     st.error("❌ Generation failed")
     with st.expander("Error details", expanded=True):
-        st.code(st.session_state["error"], language="python")
+        st.code(state.error, language="python")
 
-if st.session_state["plan_report"]:
+if state.plan_report:
     st.markdown("---")
     st.success("✓ Dry-run complete — segment plan ready.")
     with st.container(border=True):
         st.subheader("📋 Segment Plan Report")
         st.code(st.session_state['plan_report'], language="")
 
-if st.session_state["result_path"]:
-    result = st.session_state["result_path"]
+if state.result_path:
+    result = state.result_path
     st.markdown("---")
     st.success(f"✅ Montage successfully generated")
     with st.container(border=True):
