@@ -16,14 +16,16 @@ import queue
 import tempfile
 import threading
 import time
-from pathlib import Path
 
 import streamlit as st
 from src.adapters.backend import get_genres, get_intro_effects
 from src.state.session import SessionState
 from src.ui.inputs import (
+    DEMO_AUDIO,
+    DEMO_CLIPS,
     audio_input_component,
     broll_input_component,
+    demo_assets_available,
     output_input_component,
     video_input_component,
 )
@@ -201,23 +203,6 @@ pacing_alternating_bokeh = st.sidebar.checkbox("Alternating bokeh blur", value=F
 
 
 # ---------------------------------------------------------------------------
-# Demo mode constants
-# ---------------------------------------------------------------------------
-
-DEMO_AUDIO = Path(__file__).parent / "demo" / "audio" / "sample_bachata.mp3"
-DEMO_CLIPS = Path(__file__).parent / "demo" / "clips"
-
-
-def _demo_assets_available() -> bool:
-    """Check if demo audio and at least one clip exist on disk."""
-    if not DEMO_AUDIO.exists():
-        return False
-    if not DEMO_CLIPS.exists():
-        return False
-    return bool(list(DEMO_CLIPS.glob("*.mp4")))
-
-
-# ---------------------------------------------------------------------------
 # UI — Main area
 # ---------------------------------------------------------------------------
 
@@ -278,6 +263,7 @@ def _progress_fragment() -> None:
 
     status_container = st.status(
         f"⏳ {tracker.current_stage or 'Initializing…'} — {tracker.stage_label()}",
+        expanded=True,
         state="running",
     )
     with status_container:
@@ -291,7 +277,7 @@ def _progress_fragment() -> None:
 
         st.divider()
 
-        with st.expander("📋 Log Details", expanded=bool(_state.error)):
+        with st.expander("📋 Log Details", expanded=True):
             st.code("\n".join(_state.log_lines), language="")
 
 
@@ -334,7 +320,7 @@ if not state.demo_mode and not state.is_running:
             )
 
         if demo_full_clicked or demo_preview_clicked:
-            if not _demo_assets_available():
+            if not demo_assets_available():
                 st.error(
                     "Demo assets not found. Run `make download-demo` and add "
                     "sample files to `demo/audio/` and `demo/clips/`.  "
@@ -342,11 +328,9 @@ if not state.demo_mode and not state.is_running:
                 )
                 st.stop()
             
-            with st.spinner("Preparing demo environment..."):
-                time.sleep(1.2) # Artificial delay for feedback
-                state.demo_mode = True
-                # Store which demo variant was requested
-                st.session_state["_demo_dry_run"] = demo_preview_clicked
+            state.demo_mode = True
+            # Store which demo variant was requested
+            st.session_state["_demo_dry_run"] = demo_preview_clicked
             st.rerun()
 else:
     # These variables are not used when demo banner is hidden, but we need

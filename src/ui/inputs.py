@@ -16,6 +16,15 @@ DEMO_AUDIO = Path(__file__).parent.parent.parent / "demo" / "audio" / "sample_ba
 DEMO_CLIPS = Path(__file__).parent.parent.parent / "demo" / "clips"
 
 
+def demo_assets_available() -> bool:
+    """Return True if demo audio and at least one clip exist on disk."""
+    if not DEMO_AUDIO.exists():
+        return False
+    if not DEMO_CLIPS.exists():
+        return False
+    return bool(list(DEMO_CLIPS.glob("*.mp4")))
+
+
 def audio_input_component(state: SessionState, is_deployed: bool) -> str:
     """Audio file input with deploy-aware fallback.
 
