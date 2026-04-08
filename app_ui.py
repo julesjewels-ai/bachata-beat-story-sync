@@ -277,11 +277,57 @@ def _progress_fragment() -> None:
 
         st.divider()
 
-        with st.expander("📋 Log Details", expanded=True):
-            st.code("\n".join(_state.log_lines), language="")
+        with st.expander("📋 Log Details", expanded=False):
+            recent = _state.log_lines[-25:] if len(_state.log_lines) > 25 else _state.log_lines
+            st.text_area(
+                "log",
+                value="\n".join(recent),
+                height=180,
+                disabled=True,
+                label_visibility="collapsed",
+            )
 
 
 _progress_fragment()
+
+# ---------------------------------------------------------------------------
+# Result & errors — shown prominently at top as soon as run completes
+# ---------------------------------------------------------------------------
+
+if state.error and not state.is_running:
+    st.error("❌ Generation failed")
+    with st.expander("Error details", expanded=True):
+        st.code(state.error, language="python")
+
+if state.result_path and not state.is_running:
+    result = state.result_path
+    if state.demo_mode:
+        st.success(
+            "🎬 Demo complete! Your beat-synced video is ready below. "
+            "Upload your own footage to create your own version."
+        )
+        with st.container(border=True):
+            if os.path.exists(result):
+                st.video(result)
+            else:
+                st.warning("⚠️ Output file not found at the reported path.")
+            col_exit, col_try = st.columns(2)
+            with col_exit:
+                if st.button("✕ Exit Demo", use_container_width=True):
+                    state.demo_mode = False
+                    st.session_state.pop("_demo_dry_run", None)
+                    state.clear_results()
+                    st.rerun()
+            with col_try:
+                st.info("↓ Upload your clips below to create your own video")
+    else:
+        st.success("✅ Montage successfully generated")
+        with st.container(border=True):
+            st.caption(f"📹 Saved to: `{result}`")
+            if os.path.exists(result):
+                st.video(result)
+            else:
+                st.warning("⚠️ Output file not found at the reported path.")
 
 # ---------------------------------------------------------------------------
 # Quick Preview plan report — shown immediately after dry-run completes
@@ -338,8 +384,8 @@ else:
     demo_full_clicked = False
     demo_preview_clicked = False
 
-# Exit-demo banner (shown while demo_mode is active and not currently running)
-if state.demo_mode and not state.is_running:
+# Exit-demo banner (shown while demo is active but result hasn't loaded yet)
+if state.demo_mode and not state.is_running and not state.result_path:
     with st.container(border=True):
         col_msg, col_exit = st.columns([3, 1])
         with col_msg:
@@ -365,11 +411,13 @@ audio_path_text = audio_input_component(state, is_deployed)
 # Video clips card
 video_dir = video_input_component(state, is_deployed)
 
-# B-roll card (optional)
-broll_dir_input = broll_input_component(state, is_deployed)
-
-# Output card
-output_path = output_input_component(state, is_deployed)
+# B-roll and Output cards are not needed in demo mode
+if not state.demo_mode:
+    broll_dir_input = broll_input_component(state, is_deployed)
+    output_path = output_input_component(state, is_deployed)
+else:
+    broll_dir_input = ""
+    output_path = ""
 
 # ---------------------------------------------------------------------------
 # Run button with improved layout
@@ -716,32 +764,3 @@ if run_button or _demo_triggered:
     st.rerun()
 
 
-# (Progress display logic removed from here as it is now at the top)
-
-
-# ---------------------------------------------------------------------------
-# Display results and messages
-# ---------------------------------------------------------------------------
-
-if state.error:
-    st.error("❌ Generation failed")
-    with st.expander("Error details", expanded=True):
-        st.code(state.error, language="python")
-
-if state.result_path:
-    result = state.result_path
-    st.markdown("---")
-    if state.demo_mode:
-        st.success(
-            "✅ Demo complete! This was generated from sample clips. "
-            "Now try it with your own footage — upload files above and "
-            "click Generate. ↓"
-        )
-    else:
-        st.success("✅ Montage successfully generated")
-    with st.container(border=True):
-        st.caption(f"📹 Saved to: `{result}`")
-        if os.path.exists(result):
-            st.video(result)
-        else:
-            st.warning("⚠️ Output file not found at the reported path.")
