@@ -384,6 +384,10 @@ if run_button:
     # --- Validate inputs ---
     errors: list[str] = []
 
+    # Retrieve uploaded files from session state (set by file_uploader widgets in components)
+    uploaded_audio = st.session_state.get("audio_upload")
+    uploaded_videos = st.session_state.get("video_upload") or []
+
     # Resolve audio path (upload overrides text input)
     resolved_audio_path: str | None = None
     temp_audio_file: str | None = None
