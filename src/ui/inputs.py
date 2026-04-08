@@ -9,6 +9,11 @@ import streamlit as st
 
 from src.io.file_picker import pick_audio_file, pick_folder, pick_output_file
 from src.state.session import SessionState
+from src.ui.video_cache import get_cached_clips
+from pathlib import Path
+
+DEMO_AUDIO = Path(__file__).parent.parent.parent / "demo" / "audio" / "sample_bachata.mp3"
+DEMO_CLIPS = Path(__file__).parent.parent.parent / "demo" / "clips"
 
 
 def audio_input_component(state: SessionState, is_deployed: bool) -> str:
@@ -23,6 +28,19 @@ def audio_input_component(state: SessionState, is_deployed: bool) -> str:
     """
     with st.container(border=True):
         st.subheader("Audio", anchor=None)
+
+        if state.demo_mode:
+            st.info(f"🎬 **Demo Mode:** Using `{DEMO_AUDIO.name}`")
+            if DEMO_AUDIO.exists():
+                st.audio(str(DEMO_AUDIO))
+            else:
+                st.error("Demo audio not found. Run `make download-demo`.")
+            
+            if st.button("✕ Switch to Manual Upload", key="exit_demo_audio", use_container_width=True):
+                state.demo_mode = False
+                state.clear_results()
+                st.rerun()
+            return str(DEMO_AUDIO)
 
         if is_deployed:
             # Deployed: file upload only
@@ -86,6 +104,31 @@ def video_input_component(state: SessionState, is_deployed: bool) -> str:
     """
     with st.container(border=True):
         st.subheader("Video Clips", anchor=None)
+
+        if state.demo_mode:
+            st.info("🎬 **Demo Mode:** Using sample footage gallery")
+            
+            if DEMO_CLIPS.exists():
+                clips = get_cached_clips(str(DEMO_CLIPS))
+                if clips:
+                    # Show a gallery of thumbnails
+                    cols = st.columns(min(len(clips), 4))
+                    for idx, clip in enumerate(clips):
+                        with cols[idx % 4]:
+                            if clip.thumbnail_data:
+                                st.image(clip.thumbnail_data, use_container_width=True)
+                            st.caption(f"Clip {idx+1}")
+                    st.caption(f"Total: {len(clips)} demo clips loaded.")
+                else:
+                    st.warning("No demo clips found in demo/clips/")
+            else:
+                st.error("Demo directory not found.")
+
+            if st.button("✕ Switch to Manual Upload", key="exit_demo_video", use_container_width=True):
+                state.demo_mode = False
+                state.clear_results()
+                st.rerun()
+            return str(DEMO_CLIPS)
 
         if is_deployed:
             # Deployed: file upload only

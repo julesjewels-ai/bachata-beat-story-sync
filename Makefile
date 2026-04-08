@@ -105,7 +105,29 @@ ifneq ($(ZOOM),)
   EXTRA_FLAGS += --zoom $(ZOOM)
 endif
 
-.PHONY: install run run-shorts full-pipeline mcp-serve test lint lint-fix format check-types refactor clean
+.PHONY: install run run-shorts full-pipeline mcp-serve test lint lint-fix format check-types refactor clean download-demo
+
+download-demo:
+	@mkdir -p demo/audio demo/clips
+	@echo ""
+	@echo "📦 Demo asset directory ready: demo/"
+	@echo ""
+	@echo "Place your royalty-free assets here:"
+	@echo "  demo/audio/sample_bachata.mp3   (30-60s Latin track, ≤5MB)"
+	@echo "  demo/clips/01_clip.mp4          (6-8 dance clips, 720p, ≤8MB each)"
+	@echo ""
+	@if [ -f demo/audio/sample_bachata.mp3 ]; then \
+		echo "  ✓ Audio found"; \
+	else \
+		echo "  ✗ Audio missing — add demo/audio/sample_bachata.mp3"; \
+	fi
+	@clip_count=$$(ls demo/clips/*.mp4 2>/dev/null | wc -l | tr -d ' '); \
+	if [ "$$clip_count" -gt 0 ]; then \
+		echo "  ✓ $$clip_count clip(s) found"; \
+	else \
+		echo "  ✗ No clips — add MP4 files to demo/clips/"; \
+	fi
+	@echo ""
 
 install:
 	[ -d $(VENV) ] || uv venv $(VENV) --python 3.13

@@ -44,6 +44,7 @@ class SessionState:
             "broll_dir": "",
             "output_path": "output_story.mp4",
             "progress_tracker": ProgressTracker(),
+            "demo_mode": False,
         }
         for key, value in defaults.items():
             if key not in st.session_state:
@@ -62,6 +63,16 @@ class SessionState:
     def is_running(self, value: bool) -> None:
         """Set pipeline running state."""
         st.session_state["running"] = value
+
+    @property
+    def demo_mode(self) -> bool:
+        """Whether the app is running in demo mode with bundled assets."""
+        return st.session_state.get("demo_mode", False)
+
+    @demo_mode.setter
+    def demo_mode(self, value: bool) -> None:
+        """Set demo mode state."""
+        st.session_state["demo_mode"] = value
 
     # =========================================================================
     # Logging and progress

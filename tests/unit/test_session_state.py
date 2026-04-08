@@ -30,7 +30,7 @@ class TestSessionStateDefaults:
         expected_keys = {
             "running", "log_lines", "result_path", "error", "plan_report",
             "log_queue", "audio_path", "video_dir", "broll_dir", "output_path",
-            "progress_tracker"
+            "progress_tracker", "demo_mode"
         }
         assert set(mock_st_session_state.keys()) == expected_keys
 
@@ -105,6 +105,18 @@ class TestSessionStatePropertyAccess:
             state.output_path = "/custom/output.mp4"
 
         assert mock_st_session_state["output_path"] == "/custom/output.mp4"
+
+    def test_demo_mode_setter(self):
+        """demo_mode property can be set."""
+        mock_st_session_state = {}
+
+        with patch("src.state.session.st.session_state", mock_st_session_state):
+            from src.state.session import SessionState
+
+            state = SessionState()
+            state.demo_mode = True
+
+        assert mock_st_session_state["demo_mode"] is True
 
 
 class TestSessionStateBatchOperations:

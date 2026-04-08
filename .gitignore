@@ -23,6 +23,10 @@ output_pipeline/
 # Security Reports
 bandit-report.json
 
+# Demo assets (fetched via `make download-demo`, not committed)
+demo/audio/*.mp3
+demo/clips/*.mp4
+
 # Distribution
 dist/
 out_shorts/
