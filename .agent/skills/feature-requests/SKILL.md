@@ -43,20 +43,22 @@ PROPOSED → PLANNED → IN_PROGRESS → IMPLEMENTED → VERIFIED
 ### 4. Verify
 - Run existing tests: `make test` (or `python -m pytest tests/`)
 - Run any new tests added for the feature
-- Update the feature's status to `IMPLEMENTED`
-
-### 5. Close
 - Confirm with the user that the feature works as expected
 - Update the feature's status to `VERIFIED`
-- Proceed to the next feature
+
+### 5. Archive
+- **Move to Archive**: Copy the feature's row from `features.md` to `archive/completed.md`.
+- **Remove from Backlog**: Delete the row from `features.md`.
+- **Update Count**: Increment the "core features complete" count in the `features.md` header.
+- **Maintenance**: Periodically prune full specs from `archive/completed.md` to keep context windows clean.
 
 ## File Reference
 
 | File                     | Purpose                                          |
 |--------------------------|--------------------------------------------------|
 | `SKILL.md`               | This file — workflow instructions                |
-| `features.md`            | **Active** feature backlog (proposed/in-progress)|
-| `archive/completed.md`   | Full specs of completed features (reference only)|
+| `features.md`            | **Backlog ONLY** — items yet to be implemented   |
+| `archive/completed.md`   | **Archive** — historical record of done items    |
 
 ## Quick Commands
 
