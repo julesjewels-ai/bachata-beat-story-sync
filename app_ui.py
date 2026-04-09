@@ -45,20 +45,13 @@ st.set_page_config(
     layout="wide",
 )
 
-
-# Apply Terra Design System theme
+# Apply Precision Gate design system
 apply_theme()
-
-
 
 # ---------------------------------------------------------------------------
 # Session state initialisation
 # ---------------------------------------------------------------------------
-
-# Initialize session state with typed wrapper
 state = SessionState()
-
-
 
 # ---------------------------------------------------------------------------
 # Environment detection
@@ -70,174 +63,143 @@ def _is_deployed() -> bool:
 
 
 # ---------------------------------------------------------------------------
-# UI — Sidebar
+# Page state helpers
 # ---------------------------------------------------------------------------
 
-st.sidebar.title("Project Settings")
-st.sidebar.caption("Bachata Beat-Story")
-
-st.sidebar.markdown("---")
-
-st.sidebar.subheader("🎨 Visual Style")
-
-_sidebar_disabled = state.is_running
-
-genre_options = get_genres()
-genre_choice = st.sidebar.selectbox(
-    "Genre preset",
-    options=genre_options,
-    help="Applies tuned clip pacing, colour grade and transitions for a genre.",
-    disabled=_sidebar_disabled,
+_show_welcome = (
+    not state.demo_mode
+    and not state.is_running
+    and not state.result_path
+    and not state.plan_report
+    and not state.error
 )
 
-video_style = st.sidebar.selectbox(
-    "Colour grade",
-    options=["none", "bw", "vintage", "warm", "cool", "golden"],
-    help="Colour grading applied to every segment.",
-    disabled=_sidebar_disabled,
-)
+_controls_disabled = state.is_running
 
-transition_type = st.sidebar.text_input(
-    "Transition type",
-    value="none",
-    help="FFmpeg xfade: none, fade, wipeleft, wiperight, slideup, …",
-    disabled=_sidebar_disabled,
-)
+# ---------------------------------------------------------------------------
+# UI — Header (conditional: hero vs compact bar)
+# ---------------------------------------------------------------------------
 
-intro_effects_options = get_intro_effects()
-intro_effect = st.sidebar.selectbox(
-    "Intro effect",
-    options=intro_effects_options,
-    help="Visual effect applied to the very first clip.",
-    disabled=_sidebar_disabled,
-)
-
-st.sidebar.markdown("---")
-st.sidebar.subheader("📊 Limits & Output")
-
-test_mode = st.sidebar.checkbox(
-    "🧪 Test mode",
-    value=False,
-    help="Restrict to 4 clips and 10s — good for quick checks.",
-    disabled=_sidebar_disabled,
-)
-
-max_clips_input = st.sidebar.number_input(
-    "Max clips (0 = unlimited)",
-    min_value=0,
-    value=0,
-    step=1,
-    disabled=_sidebar_disabled,
-)
-
-max_duration_input = st.sidebar.number_input(
-    "Max duration in seconds (0 = unlimited)",
-    min_value=0,
-    value=0,
-    step=5,
-    disabled=_sidebar_disabled,
-)
-
-dry_run = st.sidebar.checkbox(
-    "📋 Dry run (plan only)",
-    value=False,
-    help="Analyse and plan without rendering.",
-    disabled=_sidebar_disabled,
-)
-
-export_report = st.sidebar.checkbox(
-    "📊 Export Excel report",
-    value=False,
-    help="Generate analysis.xlsx alongside video.",
-    disabled=_sidebar_disabled,
-)
-
-st.sidebar.markdown("---")
-st.sidebar.subheader("✨ Advanced Effects")
-
-# Speed ramping
-st.sidebar.markdown("**Speed Ramping (FEAT-036)**")
-speed_ramp_organic = st.sidebar.checkbox(
-    "Organic per-beat speed",
-    value=False,
-    help="Variable speed within clips driven by beat-by-beat intensity "
-    "(breathing effect).",
-    disabled=_sidebar_disabled,
-)
-if speed_ramp_organic:
-    speed_ramp_sensitivity = st.sidebar.slider(
-        "Sensitivity",
-        min_value=0.3,
-        max_value=2.0,
-        value=1.0,
-        step=0.1,
-        help="0.5=gentle, 1.0=standard, 2.0=aggressive",
-        disabled=_sidebar_disabled,
+if _show_welcome:
+    # ── HERO BLOCK ────────────────────────────────────────────
+    st.markdown(
+        """
+        <div style="
+            background: #2A2A2A;
+            border-radius: 28px;
+            padding: 3.5rem 3rem 3rem 3rem;
+            text-align: center;
+            margin-bottom: 1.5rem;
+            border: 1px solid rgba(253,184,51,0.2);
+            box-shadow: 0 16px 64px rgba(0,0,0,0.18);
+        ">
+            <p style="
+                font-family:'IBM Plex Mono',monospace;
+                font-size:0.72rem;
+                letter-spacing:3.5px;
+                color:#FDB833;
+                text-transform:uppercase;
+                margin:0 0 1rem 0;
+            ">BEAT-SYNCED VIDEO AUTOMATION</p>
+            <h1 style="
+                font-family:'Space Grotesk',sans-serif;
+                font-size:2.8rem;
+                font-weight:700;
+                color:#F5F5F5;
+                margin:0 0 0.65rem 0;
+                letter-spacing:-1.5px;
+                line-height:1.1;
+            ">Bachata Beat-Story Sync</h1>
+            <p style="
+                font-family:'DM Serif Display',serif;
+                font-style:italic;
+                font-size:1.25rem;
+                color:rgba(245,245,245,0.65);
+                margin:0 0 2.5rem 0;
+                line-height:1.4;
+            ">Beat-Synced in Seconds. Professional Montages in Minutes.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
-    speed_ramp_curve = st.sidebar.selectbox(
-        "Curve type",
-        options=["linear", "ease_in", "ease_out", "ease_in_out"],
-        help="Smoothing function for speed transitions",
-        disabled=_sidebar_disabled,
-    )
-    col_speed_min, col_speed_max = st.sidebar.columns(2)
-    with col_speed_min:
-        speed_ramp_min = st.number_input(
-            "Min speed",
-            min_value=0.3,
-            max_value=1.0,
-            value=0.8,
-            step=0.1,
-            help="Slowest multiplier (low-energy beats)",
-            disabled=_sidebar_disabled,
+
+    # ── Hero CTA buttons ───────────────────────────────────────
+    _, col_cta, _ = st.columns([1, 2, 1])
+    with col_cta:
+        demo_full_clicked = st.button(
+            "▶  Try the Demo — Free",
+            type="primary",
+            use_container_width=True,
+            key="hero_demo_btn",
+            help="Run the tool with built-in sample clips and audio (~2 min).",
         )
-    with col_speed_max:
-        speed_ramp_max = st.number_input(
-            "Max speed",
-            min_value=1.0,
-            max_value=2.0,
-            value=1.3,
-            step=0.1,
-            help="Fastest multiplier (high-energy beats)",
-            disabled=_sidebar_disabled,
+        demo_preview_clicked = st.button(
+            "Quick Dry-Run Preview (10s)",
+            type="secondary",
+            use_container_width=True,
+            key="hero_preview_btn",
+            help="See the beat-sync plan instantly — no video rendering.",
         )
+
+    if demo_full_clicked or demo_preview_clicked:
+        if not demo_assets_available():
+            st.error(
+                "Demo assets not found. Run `make download-demo` and add "
+                "sample files to `demo/audio/` and `demo/clips/`. "
+                "See `demo/README.md` for details."
+            )
+            st.stop()
+        state.demo_mode = True
+        st.session_state["_demo_dry_run"] = demo_preview_clicked
+        st.rerun()
+
 else:
-    speed_ramp_sensitivity = 1.0
-    speed_ramp_curve = "ease_in_out"
-    speed_ramp_min = 0.8
-    speed_ramp_max = 1.3
+    demo_full_clicked = False
+    demo_preview_clicked = False
 
-# Other pacing effects
-st.sidebar.markdown("**Beat-Synced Effects**")
-pacing_drift_zoom = st.sidebar.checkbox("Drift zoom (Ken Burns)", value=False, disabled=_sidebar_disabled)
-pacing_crop_tighten = st.sidebar.checkbox("Crop tighten", value=False, disabled=_sidebar_disabled)
-pacing_saturation_pulse = st.sidebar.checkbox("Saturation pulse on beats", value=False, disabled=_sidebar_disabled)
-pacing_micro_jitters = st.sidebar.checkbox("Micro-jitters on beats", value=False, disabled=_sidebar_disabled)
-pacing_light_leaks = st.sidebar.checkbox("Light leaks on beats", value=False, disabled=_sidebar_disabled)
-pacing_warm_wash = st.sidebar.checkbox("Warm wash at transitions", value=False, disabled=_sidebar_disabled)
-pacing_alternating_bokeh = st.sidebar.checkbox("Alternating bokeh blur", value=False, disabled=_sidebar_disabled)
+    # ── Compact header bar ─────────────────────────────────────
+    col_brand, col_badge, col_exit_hdr = st.columns([2, 4, 1])
+    with col_brand:
+        st.markdown(
+            '<span style="font-family:\'Space Grotesk\',sans-serif;font-weight:700;'
+            'font-size:1.1rem;color:#2A2A2A;letter-spacing:-0.5px;">BBS</span>',
+            unsafe_allow_html=True,
+        )
+    with col_badge:
+        if state.is_running and state.demo_mode:
+            badge_label = "● DEMO — PROCESSING"
+        elif state.is_running:
+            badge_label = "● PROCESSING"
+        elif state.demo_mode:
+            badge_label = "● DEMO MODE"
+        elif state.result_path:
+            badge_label = "● RESULT READY"
+        elif state.plan_report:
+            badge_label = "● PLAN READY"
+        elif state.error:
+            badge_label = "● ERROR"
+        else:
+            badge_label = ""
+        if badge_label:
+            st.markdown(
+                f'<span style="font-family:\'IBM Plex Mono\',monospace;font-size:0.72rem;'
+                f'letter-spacing:2.5px;color:#FDB833;text-transform:uppercase;">'
+                f"{badge_label}</span>",
+                unsafe_allow_html=True,
+            )
+    with col_exit_hdr:
+        if state.demo_mode and not state.is_running:
+            if st.button("Exit Demo", key="hdr_exit_demo", type="secondary"):
+                state.demo_mode = False
+                st.session_state.pop("_demo_dry_run", None)
+                state.clear_results()
+                st.rerun()
+
+    st.markdown("<hr style='margin:0.5rem 0 1rem 0;border-color:rgba(253,184,51,0.2);'>", unsafe_allow_html=True)
 
 
 # ---------------------------------------------------------------------------
-# UI — Main area
-# ---------------------------------------------------------------------------
-
-# Header with better branding
-col_logo, col_title = st.columns([1, 4])
-with col_logo:
-    st.write("🎵")  # Logo placeholder
-with col_title:
-    st.markdown("## Beat-Story Sync")
-    st.caption(
-        "Automatically sync your dance video clips to musical beats and intensity. "
-        "Terra uses neural waveform analysis to create organic transitions that "
-        "breathe with the music."
-    )
-
-st.markdown("---")
-
-# ---------------------------------------------------------------------------
-# Progress & Status (Prominent Top Placement)
+# Progress & Status
 # ---------------------------------------------------------------------------
 
 @st.fragment(run_every=1.0)
@@ -274,26 +236,34 @@ def _progress_fragment() -> None:
 
     if done:
         _state.is_running = False
-        # Trigger a full-page rerun so results section renders
         st.rerun()
 
+    # Derive approximate progress %
+    stage_keys = list(tracker.STAGE_HEURISTICS.keys())
+    current_idx = stage_keys.index(tracker.current_stage) if tracker.current_stage in stage_keys else 0
+    cumulative = sum(tracker.STAGE_HEURISTICS[k] for k in stage_keys[:current_idx])
+    current_weight = tracker.STAGE_HEURISTICS.get(tracker.current_stage, 10)
+    progress_value = min((cumulative + current_weight * 0.5) / 100.0, 0.97)
+
+    stage_text = (tracker.current_stage or "INITIALIZING").upper()
     status_container = st.status(
-        f"⏳ {tracker.current_stage or 'Initializing…'} — {tracker.stage_label()}",
+        f"PROCESSING  ·  {stage_text}",
         expanded=True,
         state="running",
     )
     with status_container:
+        st.progress(progress_value)
         col1, col2, col3 = st.columns(3)
         with col1:
-            st.metric("⏱️ Elapsed", tracker.elapsed_str())
+            st.metric("Elapsed", tracker.elapsed_str())
         with col2:
-            st.metric("⏲️ ETA", tracker.estimate_eta_str())
+            st.metric("ETA", tracker.estimate_eta_str())
         with col3:
-            st.metric("📍 Stage", tracker.current_stage or "initializing…")
+            st.metric("Stage", tracker.current_stage or "initializing")
 
         st.divider()
 
-        with st.expander("📋 Log Details", expanded=False):
+        with st.expander("SYSTEM LOG", expanded=False):
             recent = _state.log_lines[-25:] if len(_state.log_lines) > 25 else _state.log_lines
             st.text_area(
                 "log",
@@ -307,162 +277,359 @@ def _progress_fragment() -> None:
 _progress_fragment()
 
 # ---------------------------------------------------------------------------
-# Result & errors — shown prominently at top as soon as run completes
+# Result & errors
 # ---------------------------------------------------------------------------
 
 if state.error and not state.is_running:
-    st.error("❌ Generation failed")
+    st.markdown(
+        '<div style="border-left:4px solid #FDB833;padding:0.9rem 1.2rem;'
+        'background:rgba(253,184,51,0.07);border-radius:0 12px 12px 0;margin-bottom:1rem;">'
+        '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:0.7rem;'
+        'letter-spacing:2px;color:#FDB833;text-transform:uppercase;">GENERATION FAILED</span>'
+        "</div>",
+        unsafe_allow_html=True,
+    )
     with st.expander("Error details", expanded=True):
         st.code(state.error, language="python")
 
 if state.result_path and not state.is_running:
     result = state.result_path
-    if state.demo_mode:
-        st.success(
-            "🎬 Demo complete! Your beat-synced video is ready below. "
-            "Upload your own footage to create your own version."
-        )
-        with st.container(border=True):
-            if os.path.exists(result):
-                st.video(result)
-            else:
-                st.warning("⚠️ Output file not found at the reported path.")
-            col_exit, col_try = st.columns(2)
-            with col_exit:
-                if st.button("✕ Exit Demo", use_container_width=True):
+    # Result label
+    result_label = "RESULT — BEAT-SYNCED DEMO" if state.demo_mode else "RESULT — MONTAGE READY"
+    st.markdown(
+        f'<p style="font-family:\'IBM Plex Mono\',monospace;font-size:0.7rem;'
+        f'letter-spacing:3px;color:#FDB833;text-transform:uppercase;margin-bottom:0.75rem;">'
+        f"{result_label}</p>",
+        unsafe_allow_html=True,
+    )
+    with st.container(border=True):
+        if os.path.exists(result):
+            st.video(result)
+        else:
+            st.warning("Output file not found at the reported path.")
+
+        if state.demo_mode:
+            col_again, col_try = st.columns(2)
+            with col_again:
+                if st.button("Run Demo Again", type="secondary", use_container_width=True, key="demo_again_btn"):
+                    state.clear_results()
+                    st.session_state["_demo_dry_run"] = False
+                    st.rerun()
+            with col_try:
+                if st.button("▶  Try Your Own Clips", type="primary", use_container_width=True, key="try_own_btn"):
                     state.demo_mode = False
                     st.session_state.pop("_demo_dry_run", None)
                     state.clear_results()
                     st.rerun()
-            with col_try:
-                st.info("↓ Upload your clips below to create your own video")
-    else:
-        st.success("✅ Montage successfully generated")
-        with st.container(border=True):
-            st.caption(f"📹 Saved to: `{result}`")
-            if os.path.exists(result):
-                st.video(result)
-            else:
-                st.warning("⚠️ Output file not found at the reported path.")
+        else:
+            st.caption(f"Saved to: {result}")
 
 # ---------------------------------------------------------------------------
-# Quick Preview plan report — shown immediately after dry-run completes
+# Plan report (dry-run)
 # ---------------------------------------------------------------------------
 
 if state.plan_report and not state.is_running:
-    st.markdown("---")
-    st.success("✓ Dry-run complete — segment plan ready.")
+    st.markdown(
+        '<p style="font-family:\'IBM Plex Mono\',monospace;font-size:0.7rem;'
+        'letter-spacing:3px;color:#FDB833;text-transform:uppercase;margin-bottom:0.75rem;">'
+        "SEGMENT PLAN — DRY RUN COMPLETE</p>",
+        unsafe_allow_html=True,
+    )
     with st.container(border=True):
-        st.subheader("📋 Segment Plan Report")
-        st.code(st.session_state["plan_report"], language="")
+        st.code(st.session_state.get("plan_report", state.plan_report), language="")
 
-# ---------------------------------------------------------------------------
-# Demo mode banner
-# ---------------------------------------------------------------------------
-
-if not state.demo_mode and not state.is_running:
-    with st.container(border=True):
-        st.markdown("**New here? See it in action before you upload anything.**")
-        st.caption("No uploads needed — we'll use sample bachata footage and music.")
-
-        col_demo, col_preview = st.columns(2)
-        with col_demo:
-            demo_full_clicked = st.button(
-                "▶ Run Full Demo",
-                type="secondary",
-                use_container_width=True,
-                help="Run the tool with built-in sample clips and audio (~2 min).",
-            )
-        with col_preview:
-            demo_preview_clicked = st.button(
-                "📋 Quick Preview (10s)",
-                type="secondary",
-                use_container_width=True,
-                help="See the beat-sync plan instantly — no video rendering.",
-            )
-
-        if demo_full_clicked or demo_preview_clicked:
-            if not demo_assets_available():
-                st.error(
-                    "Demo assets not found. Run `make download-demo` and add "
-                    "sample files to `demo/audio/` and `demo/clips/`.  "
-                    "See `demo/README.md` for details."
-                )
-                st.stop()
-            
-            state.demo_mode = True
-            # Store which demo variant was requested
-            st.session_state["_demo_dry_run"] = demo_preview_clicked
-            st.rerun()
-else:
-    # These variables are not used when demo banner is hidden, but we need
-    # them defined so later references don't error.
-    demo_full_clicked = False
-    demo_preview_clicked = False
-
-# Exit-demo banner (shown while demo is active but result hasn't loaded yet)
-if state.demo_mode and not state.is_running and not state.result_path:
-    with st.container(border=True):
-        col_msg, col_exit = st.columns([3, 1])
-        with col_msg:
-            st.info(
-                "🎬 Running with demo files. "
-                "Upload your own below to create your video."
-            )
-        with col_exit:
-            if st.button("✕ Exit Demo", use_container_width=True):
+    if state.demo_mode:
+        col_again2, col_try2 = st.columns(2)
+        with col_again2:
+            if st.button("Run Full Demo", type="secondary", use_container_width=True, key="plan_demo_again"):
+                state.clear_results()
+                st.session_state["_demo_dry_run"] = False
+                st.rerun()
+        with col_try2:
+            if st.button("▶  Try Your Own Clips", type="primary", use_container_width=True, key="plan_try_own"):
                 state.demo_mode = False
                 st.session_state.pop("_demo_dry_run", None)
                 state.clear_results()
                 st.rerun()
 
-st.markdown("### 🎵 Inputs")
+# ---------------------------------------------------------------------------
+# "How It Works" — three callout cards (welcome state only)
+# ---------------------------------------------------------------------------
 
-# Check deployment environment once
+if _show_welcome:
+    st.markdown(
+        '<p style="font-family:\'IBM Plex Mono\',monospace;font-size:0.68rem;'
+        'letter-spacing:3px;color:#888888;text-transform:uppercase;margin:2rem 0 0.75rem 0;">'
+        "HOW IT WORKS</p>",
+        unsafe_allow_html=True,
+    )
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.markdown(
+            '<div class="pg-callout">'
+            '<strong style="font-family:\'IBM Plex Mono\',monospace;font-size:0.75rem;'
+            'letter-spacing:1.5px;color:#FDB833;">01 — UPLOAD</strong><br>'
+            '<span style="font-family:\'Space Grotesk\',sans-serif;font-size:0.9rem;">'
+            "Drop your dance clips and a bachata track.</span>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
+    with c2:
+        st.markdown(
+            '<div class="pg-callout">'
+            '<strong style="font-family:\'IBM Plex Mono\',monospace;font-size:0.75rem;'
+            'letter-spacing:1.5px;color:#FDB833;">02 — ANALYSE</strong><br>'
+            '<span style="font-family:\'Space Grotesk\',sans-serif;font-size:0.9rem;">'
+            "We detect every beat, swell and intensity peak.</span>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
+    with c3:
+        st.markdown(
+            '<div class="pg-callout">'
+            '<strong style="font-family:\'IBM Plex Mono\',monospace;font-size:0.75rem;'
+            'letter-spacing:1.5px;color:#FDB833;">03 — EXPORT</strong><br>'
+            '<span style="font-family:\'Space Grotesk\',sans-serif;font-size:0.9rem;">'
+            "Download a frame-accurate synced montage video.</span>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
+
+    st.markdown(
+        '<p style="font-family:\'IBM Plex Mono\',monospace;font-size:0.68rem;'
+        'letter-spacing:3px;color:#888888;text-transform:uppercase;margin:2rem 0 0.75rem 0;">'
+        "OR UPLOAD YOUR OWN FOOTAGE</p>",
+        unsafe_allow_html=True,
+    )
+
+# ---------------------------------------------------------------------------
+# Input components
+# ---------------------------------------------------------------------------
+
 is_deployed = _is_deployed()
 
-# Audio inputs card
-audio_path_text = audio_input_component(state, is_deployed, disabled=state.is_running)
-
-# Video clips card
-video_dir = video_input_component(state, is_deployed, disabled=state.is_running)
-
-# B-roll and Output cards are not needed in demo mode
 if not state.demo_mode:
-    broll_dir_input = broll_input_component(state, is_deployed, disabled=state.is_running)
-    output_path = output_input_component(state, is_deployed, disabled=state.is_running)
+    col_audio, col_video = st.columns(2)
+    with col_audio:
+        audio_path_text = audio_input_component(state, is_deployed, disabled=_controls_disabled)
+    with col_video:
+        video_dir = video_input_component(state, is_deployed, disabled=_controls_disabled)
 else:
+    # Demo mode — show demo asset info (broll/output not needed)
+    audio_path_text = audio_input_component(state, is_deployed, disabled=_controls_disabled)
+    video_dir = video_input_component(state, is_deployed, disabled=_controls_disabled)
     broll_dir_input = ""
     output_path = ""
 
 # ---------------------------------------------------------------------------
-# Run button with improved layout
+# Advanced Settings expander (normal mode only)
 # ---------------------------------------------------------------------------
 
-st.markdown("---")
-col_spacer1, col_run, col_spacer2 = st.columns([1.5, 2, 1.5])
-with col_run:
-    if state.is_running:
-        run_button = False
-        if st.button(
-            "🛑 Cancel",
-            type="secondary",
-            use_container_width=True,
-            help="Stop the current processing run.",
-        ):
-            state.is_running = False
-            state.error = "Run cancelled by user."
-            st.rerun()
-    else:
-        run_button = st.button(
-            "▶️  Generate Montage",
-            type="primary",
-            use_container_width=True,
-            help=(
-                "Process audio and video clips. This may take several minutes "
-                "depending on video length."
-            ),
+if not state.demo_mode:
+    with st.expander("Advanced Settings — Visual Style, Effects & Limits", expanded=False):
+        col_s1, col_s2 = st.columns(2)
+
+        with col_s1:
+            st.markdown(
+                '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:0.68rem;'
+                'letter-spacing:2px;color:#FDB833;text-transform:uppercase;">Visual Style</span>',
+                unsafe_allow_html=True,
+            )
+            genre_options = get_genres()
+            genre_choice = st.selectbox(
+                "Genre preset",
+                options=genre_options,
+                help="Applies tuned clip pacing, colour grade and transitions for a genre.",
+                disabled=_controls_disabled,
+            )
+            video_style = st.selectbox(
+                "Colour grade",
+                options=["none", "bw", "vintage", "warm", "cool", "golden"],
+                help="Colour grading applied to every segment.",
+                disabled=_controls_disabled,
+            )
+            transition_type = st.text_input(
+                "Transition type",
+                value="none",
+                help="FFmpeg xfade: none, fade, wipeleft, wiperight, slideup, …",
+                disabled=_controls_disabled,
+            )
+            intro_effects_options = get_intro_effects()
+            intro_effect = st.selectbox(
+                "Intro effect",
+                options=intro_effects_options,
+                help="Visual effect applied to the very first clip.",
+                disabled=_controls_disabled,
+            )
+
+        with col_s2:
+            st.markdown(
+                '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:0.68rem;'
+                'letter-spacing:2px;color:#FDB833;text-transform:uppercase;">Limits & Output</span>',
+                unsafe_allow_html=True,
+            )
+            test_mode = st.checkbox(
+                "Test mode (4 clips, 10s)",
+                value=False,
+                help="Restrict to 4 clips and 10s — good for quick checks.",
+                disabled=_controls_disabled,
+            )
+            max_clips_input = st.number_input(
+                "Max clips (0 = unlimited)",
+                min_value=0,
+                value=0,
+                step=1,
+                disabled=_controls_disabled,
+            )
+            max_duration_input = st.number_input(
+                "Max duration in seconds (0 = unlimited)",
+                min_value=0,
+                value=0,
+                step=5,
+                disabled=_controls_disabled,
+            )
+            dry_run = st.checkbox(
+                "Dry run (plan only, no render)",
+                value=False,
+                help="Analyse and plan without rendering.",
+                disabled=_controls_disabled,
+            )
+            export_report = st.checkbox(
+                "Export Excel report",
+                value=False,
+                help="Generate analysis.xlsx alongside video.",
+                disabled=_controls_disabled,
+            )
+
+        st.markdown(
+            '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:0.68rem;'
+            'letter-spacing:2px;color:#FDB833;text-transform:uppercase;">B-roll & Output</span>',
+            unsafe_allow_html=True,
         )
+        broll_dir_input = broll_input_component(state, is_deployed, disabled=_controls_disabled)
+        output_path = output_input_component(state, is_deployed, disabled=_controls_disabled)
+
+        st.markdown(
+            '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:0.68rem;'
+            'letter-spacing:2px;color:#FDB833;text-transform:uppercase;">Advanced Effects</span>',
+            unsafe_allow_html=True,
+        )
+        st.markdown("**Speed Ramping**")
+        speed_ramp_organic = st.checkbox(
+            "Organic per-beat speed",
+            value=False,
+            help="Variable speed within clips driven by beat-by-beat intensity.",
+            disabled=_controls_disabled,
+        )
+        if speed_ramp_organic:
+            speed_ramp_sensitivity = st.slider(
+                "Sensitivity",
+                min_value=0.3,
+                max_value=2.0,
+                value=1.0,
+                step=0.1,
+                help="0.5=gentle, 1.0=standard, 2.0=aggressive",
+                disabled=_controls_disabled,
+            )
+            speed_ramp_curve = st.selectbox(
+                "Curve type",
+                options=["linear", "ease_in", "ease_out", "ease_in_out"],
+                help="Smoothing function for speed transitions",
+                disabled=_controls_disabled,
+            )
+            col_speed_min, col_speed_max = st.columns(2)
+            with col_speed_min:
+                speed_ramp_min = st.number_input(
+                    "Min speed",
+                    min_value=0.3,
+                    max_value=1.0,
+                    value=0.8,
+                    step=0.1,
+                    help="Slowest multiplier (low-energy beats)",
+                    disabled=_controls_disabled,
+                )
+            with col_speed_max:
+                speed_ramp_max = st.number_input(
+                    "Max speed",
+                    min_value=1.0,
+                    max_value=2.0,
+                    value=1.3,
+                    step=0.1,
+                    help="Fastest multiplier (high-energy beats)",
+                    disabled=_controls_disabled,
+                )
+        else:
+            speed_ramp_sensitivity = 1.0
+            speed_ramp_curve = "ease_in_out"
+            speed_ramp_min = 0.8
+            speed_ramp_max = 1.3
+
+        st.markdown("**Beat-Synced Effects**")
+        pacing_drift_zoom = st.checkbox("Drift zoom (Ken Burns)", value=False, disabled=_controls_disabled)
+        pacing_crop_tighten = st.checkbox("Crop tighten", value=False, disabled=_controls_disabled)
+        pacing_saturation_pulse = st.checkbox("Saturation pulse on beats", value=False, disabled=_controls_disabled)
+        pacing_micro_jitters = st.checkbox("Micro-jitters on beats", value=False, disabled=_controls_disabled)
+        pacing_light_leaks = st.checkbox("Light leaks on beats", value=False, disabled=_controls_disabled)
+        pacing_warm_wash = st.checkbox("Warm wash at transitions", value=False, disabled=_controls_disabled)
+        pacing_alternating_bokeh = st.checkbox("Alternating bokeh blur", value=False, disabled=_controls_disabled)
+
+else:
+    # Demo mode — all settings at their defaults (not exposed in UI)
+    genre_options = []
+    genre_choice = "(none)"
+    video_style = "none"
+    transition_type = "none"
+    intro_effects_options = []
+    intro_effect = "none"
+    test_mode = False
+    max_clips_input = 0
+    max_duration_input = 0
+    dry_run = False
+    export_report = False
+    speed_ramp_organic = False
+    speed_ramp_sensitivity = 1.0
+    speed_ramp_curve = "ease_in_out"
+    speed_ramp_min = 0.8
+    speed_ramp_max = 1.3
+    pacing_drift_zoom = False
+    pacing_crop_tighten = False
+    pacing_saturation_pulse = False
+    pacing_micro_jitters = False
+    pacing_light_leaks = False
+    pacing_warm_wash = False
+    pacing_alternating_bokeh = False
+
+# ---------------------------------------------------------------------------
+# Run / Cancel button
+# ---------------------------------------------------------------------------
+
+if not state.demo_mode and not state.result_path and not state.plan_report:
+    st.markdown("---")
+    col_spacer1, col_run, col_spacer2 = st.columns([1.5, 2, 1.5])
+    with col_run:
+        if state.is_running:
+            run_button = False
+            if st.button(
+                "Cancel",
+                type="secondary",
+                use_container_width=True,
+                help="Stop the current processing run.",
+            ):
+                state.is_running = False
+                state.error = "Run cancelled by user."
+                st.rerun()
+        else:
+            run_button = st.button(
+                "▶  Generate Montage",
+                type="primary",
+                use_container_width=True,
+                help=(
+                    "Process audio and video clips. This may take several minutes "
+                    "depending on video length."
+                ),
+            )
+else:
+    run_button = False
 
 
 # ---------------------------------------------------------------------------
@@ -625,8 +792,6 @@ if run_button or _demo_triggered:
         broll_dir_resolved = None
     else:
         # Normal mode: validate uploads / paths
-        # Retrieve uploaded files from session state (set by file_uploader
-        # widgets in components)
         uploaded_audio = st.session_state.get("audio_upload")
         uploaded_videos = st.session_state.get("video_upload") or []
 
@@ -647,7 +812,6 @@ if run_button or _demo_triggered:
 
         # Resolve video directory (uploads override text input)
         if uploaded_videos:
-            # Create a temporary directory and save uploaded videos
             temp_video_dir = tempfile.mkdtemp(prefix="bachata_videos_")
             for uploaded_file in uploaded_videos:
                 file_path = os.path.join(temp_video_dir, uploaded_file.name)
@@ -673,7 +837,7 @@ if run_button or _demo_triggered:
             st.error(err)
         st.stop()
 
-    # --- Build pacing kwargs (mirrors main.py logic) ---
+    # --- Build pacing kwargs ---
     pacing_kwargs: dict = {}
 
     if genre_choice != "(none)":
@@ -688,7 +852,7 @@ if run_button or _demo_triggered:
     if intro_effect and intro_effect != "none":
         pacing_kwargs["intro_effect"] = intro_effect
 
-    # Demo mode overrides: force dry_run for preview, set limits
+    # Demo mode overrides
     if state.demo_mode:
         if st.session_state.get("_demo_dry_run", False):
             pacing_kwargs["dry_run"] = True
@@ -698,7 +862,7 @@ if run_button or _demo_triggered:
         if dry_run:
             pacing_kwargs["dry_run"] = True
 
-    # Speed ramping (FEAT-036)
+    # Speed ramping
     if speed_ramp_organic:
         pacing_kwargs["speed_ramp_organic"] = True
         pacing_kwargs["speed_ramp_sensitivity"] = speed_ramp_sensitivity
@@ -721,7 +885,7 @@ if run_button or _demo_triggered:
     if pacing_alternating_bokeh:
         pacing_kwargs["pacing_alternating_bokeh"] = True
 
-    # Test mode / limits (only in normal mode — demo sets its own limits above)
+    # Test mode / limits (normal mode only)
     if not state.demo_mode:
         effective_max_clips: int | None = None
         effective_max_duration: float | None = None
@@ -740,7 +904,7 @@ if run_button or _demo_triggered:
         if effective_max_duration is not None:
             pacing_kwargs["max_duration_seconds"] = effective_max_duration
 
-    # Demo mode: render to temp file to avoid polluting workspace
+    # Demo mode: render to temp file
     if state.demo_mode and not pacing_kwargs.get("dry_run"):
         demo_tmp = tempfile.NamedTemporaryFile(
             delete=False, suffix="_demo.mp4", prefix="bachata_"
@@ -756,7 +920,7 @@ if run_button or _demo_triggered:
         base, _ = os.path.splitext(output_path_resolved)
         report_path = base + "_report.xlsx"
 
-    # Clear the demo trigger flag so we don't re-trigger on rerun
+    # Clear the demo trigger flag
     st.session_state.pop("_demo_dry_run", None)
 
     # Reset session state for this run
@@ -766,9 +930,9 @@ if run_button or _demo_triggered:
     state.error = None
     state.plan_report = None
     state.log_queue = queue.Queue()
-    state.progress_tracker = ProgressTracker()  # Fresh tracker
+    state.progress_tracker = ProgressTracker()
 
-    # Create and start the background thread
+    # Start background thread
     thread = threading.Thread(
         target=_run_generation,
         args=(
@@ -784,10 +948,5 @@ if run_button or _demo_triggered:
     )
     thread.start()
 
-    # Give the thread a moment to initialize
-    import time
     time.sleep(0.1)
-
     st.rerun()
-
-

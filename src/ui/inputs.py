@@ -40,13 +40,21 @@ def audio_input_component(state: SessionState, is_deployed: bool, disabled: bool
         st.subheader("Audio", anchor=None)
 
         if state.demo_mode:
-            st.info(f"🎬 **Demo Mode:** Using `{DEMO_AUDIO.name}`")
+            st.markdown(
+                f'<div class="pg-callout">'
+                f'<span style="font-family:\'IBM Plex Mono\',monospace;font-size:0.7rem;'
+                f'letter-spacing:2px;color:#FDB833;text-transform:uppercase;">DEMO AUDIO</span><br>'
+                f'<span style="font-family:\'Space Grotesk\',sans-serif;font-size:0.88rem;">'
+                f"Using <code>{DEMO_AUDIO.name}</code></span>"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
             if DEMO_AUDIO.exists():
                 st.audio(str(DEMO_AUDIO))
             else:
                 st.error("Demo audio not found. Run `make download-demo`.")
 
-            if st.button("✕ Switch to Manual Upload", key="exit_demo_audio", use_container_width=True, disabled=disabled):
+            if st.button("Exit Demo Mode", key="exit_demo_audio", type="secondary", use_container_width=True, disabled=disabled):
                 state.demo_mode = False
                 state.clear_results()
                 st.rerun()
@@ -67,38 +75,34 @@ def audio_input_component(state: SessionState, is_deployed: bool, disabled: bool
                 return uploaded_audio.name
             return ""
         else:
-            # Local: upload + file picker
-            col_upload, col_path = st.columns([1.5, 2.5])
+            # Local: upload + file picker (stacked vertically)
+            st.markdown("**Upload audio file**")
+            uploaded_audio = st.file_uploader(
+                "Drag and drop or click",
+                type=["wav", "mp3"],
+                key="audio_upload",
+                label_visibility="collapsed",
+                help="Maximum 200MB • WAV / MP3",
+                disabled=disabled,
+            )
 
-            with col_upload:
-                st.markdown("**Upload audio file**")
-                uploaded_audio = st.file_uploader(
-                    "Drag and drop or click",
-                    type=["wav", "mp3"],
-                    key="audio_upload",
+            st.markdown("**Or paste path**")
+            col_text, col_btn = st.columns([5, 1])
+            with col_text:
+                audio_path = st.text_input(
+                    "Audio path",
+                    placeholder="/Volumes/Drives/Music...",
+                    key="audio_path",
                     label_visibility="collapsed",
-                    help="Maximum 200MB • WAV / MP3",
+                    help="Absolute path on your machine.",
                     disabled=disabled,
                 )
-
-            with col_path:
-                st.markdown("**Or paste path**")
-                col_text, col_btn = st.columns([4, 1])
-                with col_btn:
-                    if st.button("📁", key="pick_audio", help="Browse for audio file", use_container_width=True, disabled=disabled):
-                        picked = pick_audio_file()
-                        if picked:
-                            state.audio_path = picked
-                            st.rerun()
-                with col_text:
-                    audio_path = st.text_input(
-                        "Audio path",
-                        placeholder="/Volumes/Drives/Music...",
-                        key="audio_path",
-                        label_visibility="collapsed",
-                        help="Absolute path on your machine.",
-                        disabled=disabled,
-                    )
+            with col_btn:
+                if st.button("📁", key="pick_audio", help="Browse for audio file", use_container_width=True, disabled=disabled):
+                    picked = pick_audio_file()
+                    if picked:
+                        state.audio_path = picked
+                        st.rerun()
 
             if uploaded_audio:
                 return uploaded_audio.name
@@ -120,7 +124,15 @@ def video_input_component(state: SessionState, is_deployed: bool, disabled: bool
         st.subheader("Video Clips", anchor=None)
 
         if state.demo_mode:
-            st.info("🎬 **Demo Mode:** Using sample footage gallery")
+            st.markdown(
+                '<div class="pg-callout">'
+                '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:0.7rem;'
+                'letter-spacing:2px;color:#FDB833;text-transform:uppercase;">DEMO CLIPS</span><br>'
+                '<span style="font-family:\'Space Grotesk\',sans-serif;font-size:0.88rem;">'
+                "Using sample footage gallery</span>"
+                "</div>",
+                unsafe_allow_html=True,
+            )
 
             if DEMO_CLIPS.exists():
                 clips = get_cached_clips(str(DEMO_CLIPS))
@@ -138,7 +150,7 @@ def video_input_component(state: SessionState, is_deployed: bool, disabled: bool
             else:
                 st.error("Demo directory not found.")
 
-            if st.button("✕ Switch to Manual Upload", key="exit_demo_video", use_container_width=True, disabled=disabled):
+            if st.button("Exit Demo Mode", key="exit_demo_video", type="secondary", use_container_width=True, disabled=disabled):
                 state.demo_mode = False
                 state.clear_results()
                 st.rerun()
@@ -159,39 +171,35 @@ def video_input_component(state: SessionState, is_deployed: bool, disabled: bool
             st.caption("Upload your video clips to get started.")
             return ""
         else:
-            # Local: upload + folder picker
-            col_upload, col_path = st.columns([1.5, 2.5])
+            # Local: upload + folder picker (stacked vertically)
+            st.markdown("**Upload video files**")
+            st.file_uploader(
+                "Drag and drop or click",
+                type=["mp4", "mov", "avi", "mkv"],
+                key="video_upload",
+                accept_multiple_files=True,
+                label_visibility="collapsed",
+                help="Maximum 200MB per file • MP4 / MOV / AVI / MKV",
+                disabled=disabled,
+            )
 
-            with col_upload:
-                st.markdown("**Upload video files**")
-                st.file_uploader(
-                    "Drag and drop or click",
-                    type=["mp4", "mov", "avi", "mkv"],
-                    key="video_upload",
-                    accept_multiple_files=True,
+            st.markdown("**Or paste path**")
+            col_text, col_btn = st.columns([5, 1])
+            with col_text:
+                video_path = st.text_input(
+                    "Footage folder",
+                    placeholder="/Users/Artist/Documents/Project_01/Raw",
+                    key="video_dir",
                     label_visibility="collapsed",
-                    help="Maximum 200MB per file • MP4 / MOV / AVI / MKV",
+                    help="Auto-indexed and categorized by motion intensity.",
                     disabled=disabled,
                 )
-
-            with col_path:
-                st.markdown("**Or paste path**")
-                col_text, col_btn = st.columns([4, 1])
-                with col_btn:
-                    if st.button("📁", key="pick_video", help="Browse for video clips folder", use_container_width=True, disabled=disabled):
-                        picked = pick_folder("Select folder containing video clips")
-                        if picked:
-                            state.video_dir = picked
-                            st.rerun()
-                with col_text:
-                    video_path = st.text_input(
-                        "Footage folder",
-                        placeholder="/Users/Artist/Documents/Project_01/Raw",
-                        key="video_dir",
-                        label_visibility="collapsed",
-                        help="Terra will auto-index and categorize by motion intensity.",
-                        disabled=disabled,
-                    )
+            with col_btn:
+                if st.button("📁", key="pick_video", help="Browse for video clips folder", use_container_width=True, disabled=disabled):
+                    picked = pick_folder("Select folder containing video clips")
+                    if picked:
+                        state.video_dir = picked
+                        st.rerun()
 
             st.caption("Upload individual video files or select the root directory containing your dance footage.")
             return video_path

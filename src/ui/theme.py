@@ -1,381 +1,579 @@
-"""Terra Design System theming and CSS styling for Streamlit UI."""
+"""Precision Gate Design System — Streamlit CSS theming."""
 
 import streamlit as st
 
-# Design tokens: Single source of truth for colors and spacing
+# Design tokens: Precision Gate palette
 DESIGN_TOKENS = {
-    "primary": "#4a7c59",
-    "bg_cream": "#faf6f0",
-    "secondary_bg": "#f0ede5",
-    "tertiary": "#705c30",
-    "accent_amber": "#c99a6e",
-    "text_dark": "#1a1a1a",
-    "text_light": "#6b6b6b",
-    "border_soft": "#e0dcd4",
+    "charcoal":      "#2A2A2A",   # hero sections, cards, dark backgrounds
+    "amber":         "#FDB833",   # CTAs, beat markers, progress, highlights
+    "amber_dark":    "#E5A520",   # amber hover state
+    "amber_glow":    "rgba(253, 184, 51, 0.35)",
+    "amber_tint":    "rgba(253, 184, 51, 0.07)",
+    "ghost":         "#F5F5F5",   # page background
+    "black":         "#0A0A0A",   # headings, body text
+    "surface":       "#1E1E1E",   # dark card inner fill
+    "border_amber":  "rgba(253, 184, 51, 0.25)",
+    "border_subtle": "rgba(255, 255, 255, 0.08)",
+    "text_secondary":"#888888",
 }
 
-# CSS styling sheet
+# Google Fonts: Space Grotesk, DM Serif Display, IBM Plex Mono
+FONT_IMPORTS = """
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Serif+Display:ital@0;1&family=IBM+Plex+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/icon?family=Material+Icons');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
+</style>
+"""
+
+# Noise overlay — analog film / studio acoustics feel (5% opacity)
+NOISE_OVERLAY = """
+<svg style="position:fixed;top:0;left:0;width:100vw;height:100vh;pointer-events:none;z-index:9999;opacity:0.04;"
+     xmlns="http://www.w3.org/2000/svg">
+  <filter id="pg-noise">
+    <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch"/>
+    <feColorMatrix type="saturate" values="0"/>
+  </filter>
+  <rect width="100%" height="100%" filter="url(#pg-noise)"/>
+</svg>
+"""
+
 THEME_CSS = f"""
 <style>
-    /* Root colors from design system */
-    :root {{
-        --primary: {DESIGN_TOKENS['primary']};
-        --bg-cream: {DESIGN_TOKENS['bg_cream']};
-        --secondary-bg: {DESIGN_TOKENS['secondary_bg']};
-        --tertiary: {DESIGN_TOKENS['tertiary']};
-        --accent-amber: {DESIGN_TOKENS['accent_amber']};
-        --text-dark: {DESIGN_TOKENS['text_dark']};
-        --text-light: {DESIGN_TOKENS['text_light']};
-        --border-soft: {DESIGN_TOKENS['border_soft']};
-    }}
+/* ── Root variables ───────────────────────────────────────── */
+:root {{
+    --charcoal:      {DESIGN_TOKENS['charcoal']};
+    --amber:         {DESIGN_TOKENS['amber']};
+    --amber-dark:    {DESIGN_TOKENS['amber_dark']};
+    --amber-glow:    {DESIGN_TOKENS['amber_glow']};
+    --amber-tint:    {DESIGN_TOKENS['amber_tint']};
+    --ghost:         {DESIGN_TOKENS['ghost']};
+    --black:         {DESIGN_TOKENS['black']};
+    --surface:       {DESIGN_TOKENS['surface']};
+    --border-amber:  {DESIGN_TOKENS['border_amber']};
+    --border-subtle: {DESIGN_TOKENS['border_subtle']};
+    --text-secondary:{DESIGN_TOKENS['text_secondary']};
+    --radius-card:   28px;
+    --radius-btn:    24px;
+    --radius-input:  12px;
+}}
 
-    /* Page background - warm cream with subtle texture feeling */
-    body, .main {{
-        background-color: var(--bg-cream);
-        color: var(--text-dark);
-    }}
+/* ── Page background ──────────────────────────────────────── */
+body,
+.main,
+[data-testid="stAppViewContainer"],
+[data-testid="stMain"] {{
+    background-color: var(--ghost) !important;
+    color: var(--black);
+}}
 
-    /* Typography - with warmth and personality */
-    h1, h2, h3 {{
-        color: var(--text-dark);
-        font-family: 'Literata', serif;
-        letter-spacing: -0.5px;
-        font-weight: 700;
-    }}
+/* ── Hide sidebar, centre main column ────────────────────── */
+[data-testid="stSidebar"] {{
+    display: none !important;
+}}
 
-    h1 {{
-        font-size: 2.2rem;
-        color: var(--primary);
-    }}
+.main .block-container,
+[data-testid="stMainBlockContainer"] {{
+    max-width: 940px !important;
+    padding-left: 2rem !important;
+    padding-right: 2rem !important;
+    padding-top: 1.5rem !important;
+    margin: 0 auto !important;
+}}
 
-    h2 {{
-        font-size: 1.6rem;
-        margin-bottom: 1.2rem;
-        position: relative;
-        padding-left: 0.8rem;
-    }}
+/* ── Typography ───────────────────────────────────────────── */
+h1, h2, h3, h4,
+.stMarkdown h1,
+.stMarkdown h2,
+.stMarkdown h3 {{
+    font-family: 'Space Grotesk', sans-serif;
+    color: var(--black);
+    letter-spacing: -0.5px;
+    line-height: 1.15;
+}}
 
-    h2::before {{
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 4px;
-        height: 1.2em;
-        background: linear-gradient(to bottom, var(--primary), var(--tertiary));
-        border-radius: 2px;
-    }}
+h1 {{ font-size: 2.4rem; font-weight: 700; margin-bottom: 0.75rem; }}
+h2 {{ font-size: 1.5rem; font-weight: 600; margin-bottom: 0.6rem; }}
+h3 {{ font-size: 1.1rem; font-weight: 600; margin-bottom: 0.4rem; }}
 
-    h3 {{
-        font-size: 1.1rem;
-    }}
+label, .stMarkdown p {{
+    font-family: 'Space Grotesk', sans-serif;
+    line-height: 1.6;
+    color: var(--black);
+}}
 
-    p, label, .stMarkdown {{
-        font-family: 'Nunito Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-        line-height: 1.6;
-        color: var(--text-dark);
-    }}
+/* DM Serif Display — taglines, emotional highlights */
+.pg-tagline {{
+    font-family: 'DM Serif Display', serif;
+    font-style: italic;
+    font-size: 1.3rem;
+    color: rgba(10, 10, 10, 0.7);
+    line-height: 1.4;
+}}
 
-    /* Primary buttons - prominent and inviting */
-    .stButton > button {{
-        background: linear-gradient(135deg, var(--primary), #3d6849);
-        color: white;
-        border: none;
-        border-radius: 12px;
-        padding: 12px 28px;
-        font-weight: 600;
-        font-family: 'Nunito Sans', sans-serif;
-        font-size: 0.95rem;
-        transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-        min-height: 48px;
-        box-shadow: 0 4px 20px rgba(74, 124, 89, 0.15);
-        letter-spacing: 0.3px;
-    }}
+/* IBM Plex Mono — metrics, timecodes, labels */
+code, pre,
+.stMetric label,
+[data-testid="stMetricLabel"],
+[data-testid="stMetricValue"],
+[data-testid="stMetricDelta"] {{
+    font-family: 'IBM Plex Mono', monospace !important;
+}}
 
-    .stButton > button:hover:not(:disabled) {{
-        box-shadow: 0 8px 30px rgba(74, 124, 89, 0.25);
-        transform: translateY(-3px);
-    }}
+/* ── Amber pulse keyframes ────────────────────────────────── */
+@keyframes amber-pulse {{
+    0%   {{ box-shadow: 0 4px 24px rgba(253,184,51,0.2); }}
+    50%  {{ box-shadow: 0 8px 40px rgba(253,184,51,0.5), 0 0 0 4px rgba(253,184,51,0.15); }}
+    100% {{ box-shadow: 0 4px 24px rgba(253,184,51,0.2); }}
+}}
 
-    .stButton > button:active {{
-        transform: translateY(-1px) scale(0.98);
-    }}
+/* ── Buttons — primary (amber gradient, snap-to-beat hover) ─ */
+button[data-testid="baseButton-primary"],
+button[kind="primary"] {{
+    background: linear-gradient(135deg, var(--amber) 0%, var(--amber-dark) 100%) !important;
+    color: var(--black) !important;
+    border: none !important;
+    border-radius: var(--radius-btn) !important;
+    padding: 14px 32px !important;
+    font-family: 'Space Grotesk', sans-serif !important;
+    font-weight: 700 !important;
+    font-size: 0.95rem !important;
+    letter-spacing: 0.5px !important;
+    text-transform: uppercase !important;
+    min-height: 52px !important;
+    box-shadow: 0 4px 24px rgba(253,184,51,0.2) !important;
+    transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
+                box-shadow 0.18s ease !important;
+    animation: amber-pulse 2.8s ease-in-out infinite;
+}}
 
-    .stButton > button:disabled {{
-        opacity: 0.5;
-        cursor: not-allowed;
-    }}
+.stButton > button:hover:not(:disabled),
+button[data-testid="baseButton-primary"]:hover:not(:disabled) {{
+    transform: scale(1.05) !important;
+    box-shadow: 0 8px 32px var(--amber-glow), 0 0 0 2px var(--amber) !important;
+    animation: none;
+}}
 
-    /* Secondary buttons - soft and minimal */
-    .stButton[data-baseweb="button"]:has(button) > button {{
-        padding: 10px 18px;
-        font-size: 0.9rem;
-        background-color: var(--secondary-bg);
-        color: var(--primary);
-        border: 2px solid var(--primary);
-        border-radius: 10px;
-        font-weight: 600;
-        transition: all 0.2s ease;
-    }}
+.stButton > button:active {{
+    transform: scale(0.97) !important;
+    animation: none;
+}}
 
-    .stButton[data-baseweb="button"]:has(button) > button:hover:not(:disabled) {{
-        background-color: var(--primary);
-        color: white;
-        box-shadow: 0 4px 16px rgba(74, 124, 89, 0.2);
-    }}
+.stButton > button:disabled {{
+    opacity: 0.45 !important;
+    cursor: not-allowed !important;
+    animation: none !important;
+}}
 
-    /* Input fields - soft focus states */
-    .stTextInput > div > div > input,
-    .stNumberInput > div > div > input,
-    .stSelectbox > div > div > select {{
-        background-color: white;
-        border: 2px solid var(--border-soft);
-        border-radius: 10px;
-        color: var(--text-dark);
-        font-family: 'Nunito Sans', sans-serif;
-        padding: 12px 14px;
-        transition: all 0.2s ease;
-        font-size: 0.95rem;
-    }}
+/* ── Buttons — secondary (ghost/outline) ─────────────────── */
+button[data-testid="baseButton-secondary"],
+button[kind="secondary"] {{
+    background: transparent !important;
+    color: var(--amber) !important;
+    border: 2px solid var(--border-amber) !important;
+    border-radius: var(--radius-btn) !important;
+    font-family: 'Space Grotesk', sans-serif !important;
+    font-weight: 600 !important;
+    padding: 12px 28px !important;
+    min-height: 48px !important;
+    transition: all 0.2s ease !important;
+    animation: none !important;
+}}
 
-    .stTextInput > div > div > input:focus,
-    .stNumberInput > div > div > input:focus,
-    .stSelectbox > div > div > select:focus {{
-        border-color: var(--primary);
-        box-shadow: 0 0 0 4px rgba(74, 124, 89, 0.12);
-        background-color: #fefdfb;
-    }}
+button[data-testid="baseButton-secondary"]:hover:not(:disabled) {{
+    border-color: var(--amber) !important;
+    background: rgba(253,184,51,0.08) !important;
+    transform: scale(1.03) !important;
+}}
 
-    /* Checkboxes - custom styling */
-    .stCheckbox > label {{
-        color: var(--text-dark);
-        font-weight: 500;
-        font-family: 'Nunito Sans', sans-serif;
-        font-size: 0.95rem;
-    }}
+/* ── Folder-picker icon buttons (small secondary, emoji-only) */
+/* Target secondary buttons inside the narrow [5,1] column   */
+[data-testid="column"]:last-child button[data-testid="baseButton-secondary"] {{
+    padding: 6px 10px !important;
+    min-height: 38px !important;
+    font-size: 1rem !important;
+    border-radius: 10px !important;
+    letter-spacing: 0 !important;
+    text-transform: none !important;
+}}
 
-    /* Sliders - gradient and refined */
-    .stSlider > div > div > div > div {{
-        background: linear-gradient(90deg, var(--primary) 0%, var(--accent-amber) 50%, var(--tertiary) 100%);
-        border-radius: 8px;
-        height: 6px;
-    }}
+/* ── Cards — bordered containers (charcoal) ───────────────── */
+[data-testid="stVerticalBlockBorderWrapper"] > div {{
+    background: var(--charcoal) !important;
+    border-radius: var(--radius-card) !important;
+    border: 1px solid var(--border-amber) !important;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.2);
+    padding: 1.8rem !important;
+}}
 
-    /* Cards/Containers - enhanced with borders and shadows */
-    [data-testid="element-container"] {{
-        background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.85) 100%);
-        border-radius: 14px;
-        padding: 1.8rem;
-        box-shadow: 0 4px 20px rgba(46, 50, 48, 0.08);
-        border: 1.5px solid var(--border-soft);
-        margin-bottom: 1.5rem;
-        transition: all 0.3s ease;
-    }}
+/* Text inside dark cards */
+[data-testid="stVerticalBlockBorderWrapper"] p,
+[data-testid="stVerticalBlockBorderWrapper"] label,
+[data-testid="stVerticalBlockBorderWrapper"] span,
+[data-testid="stVerticalBlockBorderWrapper"] .stMarkdown p {{
+    color: #e8e8e8 !important;
+}}
 
-    [data-testid="element-container"]:hover {{
-        box-shadow: 0 6px 28px rgba(46, 50, 48, 0.12);
-        border-color: rgba(74, 124, 89, 0.2);
-    }}
+/* ── Callout utility class (.pg-callout) ──────────────────── */
+.pg-callout {{
+    border-left: 4px solid var(--amber);
+    padding: 0.9rem 1.2rem;
+    background: var(--amber-tint);
+    border-radius: 0 12px 12px 0;
+    margin: 0.4rem 0;
+    font-family: 'Space Grotesk', sans-serif;
+}}
 
-    /* Better subheader styling - with accent */
-    .stSubheader {{
-        color: var(--primary);
-        font-weight: 700;
-        margin-top: 0.5rem;
-        margin-bottom: 0.75rem;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        font-size: 1.05rem;
-    }}
+/* ── Metrics — control room style ────────────────────────── */
+[data-testid="stMetric"],
+.stMetric {{
+    background: var(--surface) !important;
+    border-radius: 16px !important;
+    padding: 1.2rem !important;
+    border-top: 3px solid var(--amber) !important;
+    border: 1px solid var(--border-subtle) !important;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+}}
 
-    /* Sidebar - warmer and more defined */
-    .css-1544g2n {{
-        background: linear-gradient(180deg, var(--secondary-bg) 0%, rgba(240, 237, 229, 0.7) 100%);
-        border-right: 2px solid var(--border-soft);
-        padding-top: 1.5rem;
-    }}
+[data-testid="stMetricLabel"] > div,
+.stMetric label {{
+    font-family: 'IBM Plex Mono', monospace !important;
+    font-size: 0.68rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 1.8px !important;
+    color: var(--text-secondary) !important;
+}}
 
-    .css-1544g2n h2 {{
-        color: var(--primary);
-        margin-top: 2rem;
-        margin-bottom: 1.2rem;
-        font-size: 1rem;
-        text-transform: uppercase;
-        letter-spacing: 0.6px;
-        font-weight: 700;
-        padding-left: 0.5rem;
-        border-left: 3px solid var(--primary);
-    }}
+[data-testid="stMetricValue"],
+[data-testid="stMetricValue"] > div {{
+    font-family: 'IBM Plex Mono', monospace !important;
+    font-size: 1.7rem !important;
+    font-weight: 500 !important;
+    color: var(--amber) !important;
+}}
 
-    .css-1544g2n h3 {{
-        font-size: 0.85rem;
-        font-weight: 700;
-        color: var(--tertiary);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-top: 1.8rem;
-        margin-bottom: 1rem;
-        padding-left: 0.5rem;
-        border-left: 3px solid var(--tertiary);
-    }}
+/* ── Progress bar — amber fill ────────────────────────────── */
+[data-testid="stProgressBar"] > div {{
+    background: rgba(255,255,255,0.12) !important;
+    border-radius: 4px !important;
+}}
 
-    .css-1544g2n [data-testid="element-container"] {{
-        background-color: rgba(255, 255, 255, 0.6);
-        border-color: rgba(224, 220, 212, 0.8);
-    }}
+[data-testid="stProgressBar"] > div > div {{
+    background: linear-gradient(90deg, var(--amber) 0%, var(--amber-dark) 100%) !important;
+    border-radius: 4px !important;
+    box-shadow: 0 0 12px rgba(253,184,51,0.4) !important;
+}}
 
-    /* Dividers - warmer styling */
-    hr, .css-bm2z3a {{
-        border-color: var(--border-soft);
-        opacity: 0.4;
-        margin: 1.5rem 0;
-    }}
+/* ── Status widget — control room ─────────────────────────── */
+[data-testid="stStatus"],
+.stStatus {{
+    background: var(--charcoal) !important;
+    border: 1px solid var(--border-amber) !important;
+    border-radius: 20px !important;
+    color: #e8e8e8 !important;
+}}
 
-    /* Status indicators */
-    .stStatus {{
-        background-color: white;
-        border-radius: 12px;
-        border: 2px solid var(--primary);
-    }}
+[data-testid="stStatusLabel"],
+.stStatus [data-testid="stStatusWidget"] > div:not([data-testid="stIconMaterial"]) {{
+    color: var(--amber) !important;
+    font-family: 'Space Grotesk', sans-serif !important;
+    font-size: 0.85rem !important;
+    letter-spacing: 0.8px !important;
+    text-transform: uppercase !important;
+}}
 
-    /* Expander - soft and inviting */
-    .streamlit-expanderHeader {{
-        background: linear-gradient(90deg, var(--secondary-bg) 0%, rgba(240, 237, 229, 0.5) 100%);
-        border-radius: 10px;
-        border: 1px solid var(--border-soft);
-        transition: all 0.2s ease;
-    }}
+/* ── Expander — Advanced Settings & Status ────────────────── */
+/* Modern Streamlit renders expanders as <details>/<summary>   */
+[data-testid="stExpander"] details,
+[data-testid="stExpander"] {{
+    border-radius: 16px !important;
+    overflow: hidden;
+}}
 
-    .streamlit-expanderHeader:hover {{
-        border-color: var(--primary);
-        background: linear-gradient(90deg, rgba(240, 237, 229, 0.8) 0%, rgba(240, 237, 229, 0.6) 100%);
-    }}
+[data-testid="stExpander"] details summary,
+[data-testid="stExpander"] summary,
+.streamlit-expanderHeader {{
+    background: var(--charcoal) !important;
+    border-radius: 16px !important;
+    border: 1px solid var(--border-amber) !important;
+    font-family: 'Space Grotesk', sans-serif !important;
+    font-weight: 600 !important;
+    color: var(--amber) !important;
+    padding: 0.9rem 1.4rem !important;
+    letter-spacing: 0.4px !important;
+    list-style: none;
+    cursor: pointer;
+}}
 
-    /* Metrics - cards with accent top border */
-    .stMetric {{
-        background-color: white;
-        border-radius: 12px;
-        padding: 1.2rem;
-        border: 1px solid var(--border-soft);
-        border-top: 4px solid var(--primary);
-        box-shadow: 0 2px 12px rgba(46, 50, 48, 0.06);
-        transition: all 0.2s ease;
-    }}
+[data-testid="stExpander"] details[open] summary,
+[data-testid="stExpander"][open] summary {{
+    border-radius: 16px 16px 0 0 !important;
+}}
 
-    .stMetric:hover {{
-        box-shadow: 0 4px 18px rgba(46, 50, 48, 0.1);
-    }}
+/* Hover — amber tint, keep amber text visible */
+[data-testid="stExpander"] details summary:hover,
+[data-testid="stExpander"] summary:hover,
+.streamlit-expanderHeader:hover {{
+    background: #333333 !important;
+    border-color: var(--amber) !important;
+    color: var(--amber) !important;
+}}
 
-    .stMetric > div:first-child {{
-        color: var(--text-light);
-        font-size: 0.8rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.4px;
-    }}
+/* All child text inside the summary header (except icons) */
+[data-testid="stExpander"] summary *:not([data-testid="stIconMaterial"]),
+[data-testid="stExpander"] details summary *:not([data-testid="stIconMaterial"]) {{
+    color: var(--amber) !important;
+    font-family: 'Space Grotesk', sans-serif !important;
+}}
 
-    .stMetric > div:last-child {{
-        color: var(--primary);
-        font-size: 2rem;
-        font-weight: 700;
-    }}
+/* Expander body / content area */
+[data-testid="stExpander"] > div:last-child,
+[data-testid="stExpander"] details > div,
+.streamlit-expanderContent {{
+    background: var(--surface) !important;
+    border: 1px solid var(--border-subtle) !important;
+    border-top: none !important;
+    border-radius: 0 0 16px 16px !important;
+    padding: 1.2rem !important;
+}}
 
-    /* Warnings, errors, success */
-    .stAlert {{
-        border-radius: 10px;
-        border-left: 5px solid var(--primary);
-        background-color: rgba(74, 124, 89, 0.05);
-        border-color: var(--primary);
-        padding: 1rem;
-    }}
+/* Text inside expander body */
+[data-testid="stExpander"] label,
+[data-testid="stExpander"] p,
+[data-testid="stExpander"] span:not([data-testid="stIconMaterial"]) {{
+    color: #d8d8d8 !important;
+    font-family: 'Space Grotesk', sans-serif;
+}}
 
-    /* Video player */
-    .stVideo {{
-        border-radius: 14px;
-        overflow: hidden;
-        box-shadow: 0 6px 28px rgba(46, 50, 48, 0.15);
-    }}
+[data-testid="stExpander"] span[data-testid="stIconMaterial"] {{
+    color: var(--amber) !important;
+    font-family: "Material Icons", "Material Symbols Outlined" !important;
+}}
 
-    /* Code blocks - warm theme */
-    code {{
-        background-color: var(--secondary-bg);
-        border-radius: 6px;
-        padding: 3px 7px;
-        color: var(--tertiary);
-        font-family: 'Fira Code', monospace;
-        font-size: 0.9em;
-    }}
+/* ── Text inputs — dark surface, amber focus ──────────────── */
+.stTextInput input,
+.stNumberInput input,
+[data-testid="stTextInput"] input,
+[data-testid="stNumberInput"] input {{
+    background: var(--surface) !important;
+    border: 1.5px solid rgba(255,255,255,0.12) !important;
+    border-radius: var(--radius-input) !important;
+    color: #f0f0f0 !important;
+    font-family: 'IBM Plex Mono', monospace !important;
+    font-size: 0.88rem !important;
+    padding: 10px 14px !important;
+}}
 
-    pre {{
-        background-color: #2e3230;
-        color: #f0ede5;
-        border-radius: 10px;
-        padding: 1.2rem;
-        overflow-x: auto;
-        font-size: 0.85rem;
-        line-height: 1.6;
-        border: 1px solid rgba(240, 237, 229, 0.1);
-    }}
+.stTextInput input:focus,
+.stNumberInput input:focus {{
+    border-color: var(--amber) !important;
+    box-shadow: 0 0 0 3px rgba(253,184,51,0.18) !important;
+    background: #242424 !important;
+}}
 
-    /* Headings - more spacing and style */
-    h1 {{ margin-top: 2.5rem; margin-bottom: 1.5rem; }}
-    h2 {{ margin-top: 2rem; margin-bottom: 1.2rem; }}
-    h3 {{ margin-top: 1.5rem; margin-bottom: 0.75rem; }}
+/* ── Selectbox trigger ─────────────────────────────────────── */
+.stSelectbox > div > div,
+[data-testid="stSelectbox"] > div > div,
+[data-baseweb="select"] > div {{
+    background: var(--surface) !important;
+    border: 1.5px solid rgba(255,255,255,0.12) !important;
+    border-radius: var(--radius-input) !important;
+    color: #f0f0f0 !important;
+    font-family: 'Space Grotesk', sans-serif !important;
+}}
 
-    /* Captions and help text - secondary color */
-    .stCaption, [data-testid="stCaption"] {{
-        color: var(--text-light);
-        font-size: 0.8rem;
-        font-weight: 500;
-        margin: 0.5rem 0 1rem 0;
-        font-family: 'Nunito Sans', sans-serif;
-    }}
+.stSelectbox > div > div:focus-within,
+[data-testid="stSelectbox"] > div > div:focus-within,
+[data-baseweb="select"] > div:focus-within {{
+    border-color: var(--amber) !important;
+    box-shadow: 0 0 0 3px rgba(253,184,51,0.15) !important;
+}}
 
-    /* File uploader - inviting drop zone */
-    [data-testid="stFileUploadDropzone"] {{
-        border: 3px dashed var(--primary);
-        border-radius: 12px;
-        background: linear-gradient(135deg, rgba(74, 124, 89, 0.04) 0%, rgba(74, 124, 89, 0.02) 100%);
-        padding: 2rem;
-        transition: all 0.2s ease;
-    }}
+/* Selectbox: selected value text */
+[data-baseweb="select"] [data-testid="stMarkdownContainer"] p,
+[data-baseweb="select"] span,
+[data-baseweb="select"] div {{
+    color: #f0f0f0 !important;
+}}
 
-    [data-testid="stFileUploadDropzone"]:hover {{
-        background: linear-gradient(135deg, rgba(74, 124, 89, 0.08) 0%, rgba(74, 124, 89, 0.05) 100%);
-        border-color: var(--tertiary);
-        box-shadow: 0 4px 20px rgba(74, 124, 89, 0.12);
-    }}
+/* Selectbox: chevron arrow */
+[data-baseweb="select"] svg {{
+    fill: var(--amber) !important;
+    color: var(--amber) !important;
+}}
 
-    /* Main content padding - generous spacing */
-    .main {{
-        padding: 2.5rem;
-    }}
+/* Selectbox: dropdown popup list */
+[data-baseweb="popover"] ul,
+[data-baseweb="menu"] {{
+    background: var(--charcoal) !important;
+    border: 1px solid var(--border-amber) !important;
+    border-radius: 12px !important;
+    padding: 4px !important;
+}}
 
-    /* Accent divider lines */
-    .stMarkdown hr {{
-        border-top: 2px solid var(--border-soft);
-        margin: 2rem 0;
-    }}
+/* Selectbox: individual options */
+[data-baseweb="menu"] li,
+[data-baseweb="option"] {{
+    background: transparent !important;
+    color: #f0f0f0 !important;
+    font-family: 'Space Grotesk', sans-serif !important;
+    font-size: 0.92rem !important;
+    border-radius: 8px !important;
+}}
 
-    /* Better spacing for tabs */
-    .stTabs [data-baseweb="tab-list"] {{
-        border-bottom: 2px solid var(--border-soft);
-    }}
+/* Selectbox: option hover */
+[data-baseweb="menu"] li:hover,
+[data-baseweb="option"]:hover {{
+    background: rgba(253,184,51,0.15) !important;
+    color: var(--amber) !important;
+}}
 
-    .stTabs [data-baseweb="tab"] {{
-        border-bottom: 3px solid transparent;
-        transition: all 0.2s ease;
-    }}
+/* Selectbox: selected option highlight */
+[aria-selected="true"][data-baseweb="option"] {{
+    background: rgba(253,184,51,0.1) !important;
+    color: var(--amber) !important;
+}}
 
-    .stTabs [aria-selected="true"] {{
-        border-bottom-color: var(--primary);
-    }}
+/* ── Checkboxes ────────────────────────────────────────────── */
+.stCheckbox label,
+[data-testid="stCheckbox"] label {{
+    color: #d8d8d8 !important;
+    font-family: 'Space Grotesk', sans-serif !important;
+    font-size: 0.92rem !important;
+}}
+
+/* ── Sliders ────────────────────────────────────────────────── */
+[data-testid="stSlider"] > div > div > div > div {{
+    background: var(--amber) !important;
+}}
+
+/* ── File uploader — amber dashed border ──────────────────── */
+[data-testid="stFileUploadDropzone"] {{
+    border: 2px dashed var(--border-amber) !important;
+    border-radius: 16px !important;
+    background: rgba(253,184,51,0.03) !important;
+    transition: all 0.2s ease;
+}}
+
+[data-testid="stFileUploadDropzone"]:hover {{
+    border-color: var(--amber) !important;
+    background: rgba(253,184,51,0.07) !important;
+    box-shadow: 0 0 0 3px rgba(253,184,51,0.12);
+}}
+
+/* Fix for File Uploader text color (200MB per file...) */
+[data-testid="stFileUploadDropzone"] span,
+.st-emotion-cache-lyxlwd {{
+    color: #e8e8e8 !important;
+}}
+
+/* Fix for Text Input text and placeholder color in specific components */
+.stTextInput input, 
+.stTextInput input::placeholder {{
+    color: #f0f0f0 !important;
+    -webkit-text-fill-color: #f0f0f0 !important;
+}}
+
+/* ── Video player ───────────────────────────────────────────── */
+.stVideo video,
+[data-testid="stVideo"] video {{
+    border-radius: 20px;
+    box-shadow: 0 12px 48px rgba(0,0,0,0.4), 0 0 0 1px var(--border-amber);
+}}
+
+/* ── Alerts / info blocks ──────────────────────────────────── */
+.stAlert,
+[data-testid="stAlert"] {{
+    border-radius: 12px !important;
+    font-family: 'Space Grotesk', sans-serif;
+}}
+
+/* ── Captions ──────────────────────────────────────────────── */
+.stCaption,
+[data-testid="stCaptionContainer"] {{
+    color: var(--text-secondary) !important;
+    font-size: 0.78rem !important;
+    font-family: 'IBM Plex Mono', monospace !important;
+    letter-spacing: 0.3px;
+}}
+
+/* ── Code blocks ───────────────────────────────────────────── */
+code {{
+    background: rgba(253,184,51,0.1);
+    color: var(--amber);
+    border-radius: 6px;
+    padding: 2px 6px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.88em;
+}}
+
+pre {{
+    background: var(--surface);
+    color: #e8e8e8;
+    border-radius: 12px;
+    padding: 1.2rem;
+    border: 1px solid var(--border-subtle);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.84rem;
+    line-height: 1.6;
+}}
+
+/* ── Dividers ──────────────────────────────────────────────── */
+hr, .stMarkdown hr {{
+    border-color: var(--border-amber);
+    opacity: 0.4;
+    margin: 1.5rem 0;
+}}
+
+/* ── Tabs ───────────────────────────────────────────────────── */
+.stTabs [data-baseweb="tab-list"] {{
+    border-bottom: 2px solid var(--border-amber);
+}}
+
+.stTabs [data-baseweb="tab"] {{
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    color: var(--text-secondary);
+}}
+
+.stTabs [aria-selected="true"] {{
+    color: var(--amber) !important;
+    border-bottom: 3px solid var(--amber) !important;
+}}
+
+/* ── Scrollbar ─────────────────────────────────────────────── */
+::-webkit-scrollbar {{ width: 6px; height: 6px; }}
+::-webkit-scrollbar-track {{ background: transparent; }}
+::-webkit-scrollbar-thumb {{ background: rgba(253,184,51,0.3); border-radius: 3px; }}
+::-webkit-scrollbar-thumb:hover {{ background: var(--amber); }}
+/* ── Global Icon Fix — prevent font-family overrides from turning icons into text ─ */
+span[data-testid="stIconMaterial"] {{
+    font-family: "Material Symbols Outlined", "Material Icons" !important;
+    font-weight: normal !important;
+    font-style: normal !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    line-height: 1 !important;
+    width: 24px !important;
+    height: 24px !important;
+    vertical-align: middle !important;
+    text-transform: none !important;
+    letter-spacing: normal !important;
+    word-wrap: normal !important;
+    white-space: nowrap !important;
+    direction: ltr !important;
+    -webkit-font-smoothing: antialiased !important;
+    text-rendering: optimizeLegibility !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    font-variant-ligatures: common-ligatures !important;
+}}
 </style>
 """
 
 
 def apply_theme() -> None:
-    """Apply the Terra design system theme to the Streamlit app."""
+    """Apply the Precision Gate design system theme to the Streamlit app."""
+    st.markdown(FONT_IMPORTS, unsafe_allow_html=True)
     st.markdown(THEME_CSS, unsafe_allow_html=True)
+    st.markdown(NOISE_OVERLAY, unsafe_allow_html=True)
