@@ -25,12 +25,13 @@ def demo_assets_available() -> bool:
     return bool(list(DEMO_CLIPS.glob("*.mp4")))
 
 
-def audio_input_component(state: SessionState, is_deployed: bool) -> str:
+def audio_input_component(state: SessionState, is_deployed: bool, disabled: bool = False) -> str:
     """Audio file input with deploy-aware fallback.
 
     Args:
         state: Session state wrapper
         is_deployed: Whether running on Streamlit Cloud
+        disabled: Whether all controls should be disabled (e.g. during processing)
 
     Returns:
         Resolved audio file path (uploaded or local)
@@ -44,8 +45,8 @@ def audio_input_component(state: SessionState, is_deployed: bool) -> str:
                 st.audio(str(DEMO_AUDIO))
             else:
                 st.error("Demo audio not found. Run `make download-demo`.")
-            
-            if st.button("✕ Switch to Manual Upload", key="exit_demo_audio", use_container_width=True):
+
+            if st.button("✕ Switch to Manual Upload", key="exit_demo_audio", use_container_width=True, disabled=disabled):
                 state.demo_mode = False
                 state.clear_results()
                 st.rerun()
@@ -60,6 +61,7 @@ def audio_input_component(state: SessionState, is_deployed: bool) -> str:
                 key="audio_upload",
                 label_visibility="collapsed",
                 help="Maximum 200MB • WAV / MP3",
+                disabled=disabled,
             )
             if uploaded_audio:
                 return uploaded_audio.name
@@ -76,13 +78,14 @@ def audio_input_component(state: SessionState, is_deployed: bool) -> str:
                     key="audio_upload",
                     label_visibility="collapsed",
                     help="Maximum 200MB • WAV / MP3",
+                    disabled=disabled,
                 )
 
             with col_path:
                 st.markdown("**Or paste path**")
                 col_text, col_btn = st.columns([4, 1])
                 with col_btn:
-                    if st.button("📁", key="pick_audio", help="Browse for audio file", use_container_width=True):
+                    if st.button("📁", key="pick_audio", help="Browse for audio file", use_container_width=True, disabled=disabled):
                         picked = pick_audio_file()
                         if picked:
                             state.audio_path = picked
@@ -94,6 +97,7 @@ def audio_input_component(state: SessionState, is_deployed: bool) -> str:
                         key="audio_path",
                         label_visibility="collapsed",
                         help="Absolute path on your machine.",
+                        disabled=disabled,
                     )
 
             if uploaded_audio:
@@ -101,12 +105,13 @@ def audio_input_component(state: SessionState, is_deployed: bool) -> str:
             return audio_path
 
 
-def video_input_component(state: SessionState, is_deployed: bool) -> str:
+def video_input_component(state: SessionState, is_deployed: bool, disabled: bool = False) -> str:
     """Video clips input with deploy-aware fallback.
 
     Args:
         state: Session state wrapper
         is_deployed: Whether running on Streamlit Cloud
+        disabled: Whether all controls should be disabled (e.g. during processing)
 
     Returns:
         Resolved video directory path
@@ -116,7 +121,7 @@ def video_input_component(state: SessionState, is_deployed: bool) -> str:
 
         if state.demo_mode:
             st.info("🎬 **Demo Mode:** Using sample footage gallery")
-            
+
             if DEMO_CLIPS.exists():
                 clips = get_cached_clips(str(DEMO_CLIPS))
                 if clips:
@@ -133,7 +138,7 @@ def video_input_component(state: SessionState, is_deployed: bool) -> str:
             else:
                 st.error("Demo directory not found.")
 
-            if st.button("✕ Switch to Manual Upload", key="exit_demo_video", use_container_width=True):
+            if st.button("✕ Switch to Manual Upload", key="exit_demo_video", use_container_width=True, disabled=disabled):
                 state.demo_mode = False
                 state.clear_results()
                 st.rerun()
@@ -149,6 +154,7 @@ def video_input_component(state: SessionState, is_deployed: bool) -> str:
                 accept_multiple_files=True,
                 label_visibility="collapsed",
                 help="Maximum 200MB per file • MP4 / MOV / AVI / MKV",
+                disabled=disabled,
             )
             st.caption("Upload your video clips to get started.")
             return ""
@@ -165,13 +171,14 @@ def video_input_component(state: SessionState, is_deployed: bool) -> str:
                     accept_multiple_files=True,
                     label_visibility="collapsed",
                     help="Maximum 200MB per file • MP4 / MOV / AVI / MKV",
+                    disabled=disabled,
                 )
 
             with col_path:
                 st.markdown("**Or paste path**")
                 col_text, col_btn = st.columns([4, 1])
                 with col_btn:
-                    if st.button("📁", key="pick_video", help="Browse for video clips folder", use_container_width=True):
+                    if st.button("📁", key="pick_video", help="Browse for video clips folder", use_container_width=True, disabled=disabled):
                         picked = pick_folder("Select folder containing video clips")
                         if picked:
                             state.video_dir = picked
@@ -183,18 +190,20 @@ def video_input_component(state: SessionState, is_deployed: bool) -> str:
                         key="video_dir",
                         label_visibility="collapsed",
                         help="Terra will auto-index and categorize by motion intensity.",
+                        disabled=disabled,
                     )
 
             st.caption("Upload individual video files or select the root directory containing your dance footage.")
             return video_path
 
 
-def broll_input_component(state: SessionState, is_deployed: bool) -> str:
+def broll_input_component(state: SessionState, is_deployed: bool, disabled: bool = False) -> str:
     """B-roll folder input with deploy-aware fallback.
 
     Args:
         state: Session state wrapper
         is_deployed: Whether running on Streamlit Cloud
+        disabled: Whether all controls should be disabled (e.g. during processing)
 
     Returns:
         Resolved B-roll directory path (empty if not available or not set)
@@ -206,7 +215,7 @@ def broll_input_component(state: SessionState, is_deployed: bool) -> str:
         if not is_deployed:
             col_path, col_btn = st.columns([4, 1])
             with col_btn:
-                if st.button("📁", key="pick_broll", help="Browse for B-roll folder", use_container_width=True):
+                if st.button("📁", key="pick_broll", help="Browse for B-roll folder", use_container_width=True, disabled=disabled):
                     picked = pick_folder("Select B-roll folder")
                     if picked:
                         state.broll_dir = picked
@@ -217,6 +226,7 @@ def broll_input_component(state: SessionState, is_deployed: bool) -> str:
                     placeholder="/Users/Artist/Documents/Stock/Atmosph",
                     key="broll_dir",
                     help="Auto-detected as a 'broll/' subfolder inside the clips folder if it exists.",
+                    disabled=disabled,
                 )
             return broll_path
         else:
@@ -224,12 +234,13 @@ def broll_input_component(state: SessionState, is_deployed: bool) -> str:
             return ""
 
 
-def output_input_component(state: SessionState, is_deployed: bool) -> str:
+def output_input_component(state: SessionState, is_deployed: bool, disabled: bool = False) -> str:
     """Output file input with deploy-aware fallback.
 
     Args:
         state: Session state wrapper
         is_deployed: Whether running on Streamlit Cloud
+        disabled: Whether all controls should be disabled (e.g. during processing)
 
     Returns:
         Resolved output file path
@@ -245,13 +256,14 @@ def output_input_component(state: SessionState, is_deployed: bool) -> str:
                 help="Your finished video will be available to download.",
                 placeholder="output_story.mp4",
                 value="output_story.mp4",
+                disabled=disabled,
             )
             return output_path
         else:
             # Local: full path picker
             col_path, col_btn = st.columns([4, 1])
             with col_btn:
-                if st.button("📁", key="pick_output", help="Browse and save output video", use_container_width=True):
+                if st.button("📁", key="pick_output", help="Browse and save output video", use_container_width=True, disabled=disabled):
                     picked = pick_output_file()
                     if picked:
                         state.output_path = picked
@@ -262,5 +274,6 @@ def output_input_component(state: SessionState, is_deployed: bool) -> str:
                     key="output_path",
                     help="Where to save the finished video.",
                     placeholder="output_story.mp4",
+                    disabled=disabled,
                 )
             return output_path

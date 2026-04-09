@@ -80,23 +80,28 @@ st.sidebar.markdown("---")
 
 st.sidebar.subheader("🎨 Visual Style")
 
+_sidebar_disabled = state.is_running
+
 genre_options = get_genres()
 genre_choice = st.sidebar.selectbox(
     "Genre preset",
     options=genre_options,
     help="Applies tuned clip pacing, colour grade and transitions for a genre.",
+    disabled=_sidebar_disabled,
 )
 
 video_style = st.sidebar.selectbox(
     "Colour grade",
     options=["none", "bw", "vintage", "warm", "cool", "golden"],
     help="Colour grading applied to every segment.",
+    disabled=_sidebar_disabled,
 )
 
 transition_type = st.sidebar.text_input(
     "Transition type",
     value="none",
     help="FFmpeg xfade: none, fade, wipeleft, wiperight, slideup, …",
+    disabled=_sidebar_disabled,
 )
 
 intro_effects_options = get_intro_effects()
@@ -104,6 +109,7 @@ intro_effect = st.sidebar.selectbox(
     "Intro effect",
     options=intro_effects_options,
     help="Visual effect applied to the very first clip.",
+    disabled=_sidebar_disabled,
 )
 
 st.sidebar.markdown("---")
@@ -113,6 +119,7 @@ test_mode = st.sidebar.checkbox(
     "🧪 Test mode",
     value=False,
     help="Restrict to 4 clips and 10s — good for quick checks.",
+    disabled=_sidebar_disabled,
 )
 
 max_clips_input = st.sidebar.number_input(
@@ -120,6 +127,7 @@ max_clips_input = st.sidebar.number_input(
     min_value=0,
     value=0,
     step=1,
+    disabled=_sidebar_disabled,
 )
 
 max_duration_input = st.sidebar.number_input(
@@ -127,18 +135,21 @@ max_duration_input = st.sidebar.number_input(
     min_value=0,
     value=0,
     step=5,
+    disabled=_sidebar_disabled,
 )
 
 dry_run = st.sidebar.checkbox(
     "📋 Dry run (plan only)",
     value=False,
     help="Analyse and plan without rendering.",
+    disabled=_sidebar_disabled,
 )
 
 export_report = st.sidebar.checkbox(
     "📊 Export Excel report",
     value=False,
     help="Generate analysis.xlsx alongside video.",
+    disabled=_sidebar_disabled,
 )
 
 st.sidebar.markdown("---")
@@ -150,7 +161,8 @@ speed_ramp_organic = st.sidebar.checkbox(
     "Organic per-beat speed",
     value=False,
     help="Variable speed within clips driven by beat-by-beat intensity "
-    "(breathing effect)."
+    "(breathing effect).",
+    disabled=_sidebar_disabled,
 )
 if speed_ramp_organic:
     speed_ramp_sensitivity = st.sidebar.slider(
@@ -159,12 +171,14 @@ if speed_ramp_organic:
         max_value=2.0,
         value=1.0,
         step=0.1,
-        help="0.5=gentle, 1.0=standard, 2.0=aggressive"
+        help="0.5=gentle, 1.0=standard, 2.0=aggressive",
+        disabled=_sidebar_disabled,
     )
     speed_ramp_curve = st.sidebar.selectbox(
         "Curve type",
         options=["linear", "ease_in", "ease_out", "ease_in_out"],
-        help="Smoothing function for speed transitions"
+        help="Smoothing function for speed transitions",
+        disabled=_sidebar_disabled,
     )
     col_speed_min, col_speed_max = st.sidebar.columns(2)
     with col_speed_min:
@@ -174,7 +188,8 @@ if speed_ramp_organic:
             max_value=1.0,
             value=0.8,
             step=0.1,
-            help="Slowest multiplier (low-energy beats)"
+            help="Slowest multiplier (low-energy beats)",
+            disabled=_sidebar_disabled,
         )
     with col_speed_max:
         speed_ramp_max = st.number_input(
@@ -183,7 +198,8 @@ if speed_ramp_organic:
             max_value=2.0,
             value=1.3,
             step=0.1,
-            help="Fastest multiplier (high-energy beats)"
+            help="Fastest multiplier (high-energy beats)",
+            disabled=_sidebar_disabled,
         )
 else:
     speed_ramp_sensitivity = 1.0
@@ -193,13 +209,13 @@ else:
 
 # Other pacing effects
 st.sidebar.markdown("**Beat-Synced Effects**")
-pacing_drift_zoom = st.sidebar.checkbox("Drift zoom (Ken Burns)", value=False)
-pacing_crop_tighten = st.sidebar.checkbox("Crop tighten", value=False)
-pacing_saturation_pulse = st.sidebar.checkbox("Saturation pulse on beats", value=False)
-pacing_micro_jitters = st.sidebar.checkbox("Micro-jitters on beats", value=False)
-pacing_light_leaks = st.sidebar.checkbox("Light leaks on beats", value=False)
-pacing_warm_wash = st.sidebar.checkbox("Warm wash at transitions", value=False)
-pacing_alternating_bokeh = st.sidebar.checkbox("Alternating bokeh blur", value=False)
+pacing_drift_zoom = st.sidebar.checkbox("Drift zoom (Ken Burns)", value=False, disabled=_sidebar_disabled)
+pacing_crop_tighten = st.sidebar.checkbox("Crop tighten", value=False, disabled=_sidebar_disabled)
+pacing_saturation_pulse = st.sidebar.checkbox("Saturation pulse on beats", value=False, disabled=_sidebar_disabled)
+pacing_micro_jitters = st.sidebar.checkbox("Micro-jitters on beats", value=False, disabled=_sidebar_disabled)
+pacing_light_leaks = st.sidebar.checkbox("Light leaks on beats", value=False, disabled=_sidebar_disabled)
+pacing_warm_wash = st.sidebar.checkbox("Warm wash at transitions", value=False, disabled=_sidebar_disabled)
+pacing_alternating_bokeh = st.sidebar.checkbox("Alternating bokeh blur", value=False, disabled=_sidebar_disabled)
 
 
 # ---------------------------------------------------------------------------
@@ -406,15 +422,15 @@ st.markdown("### 🎵 Inputs")
 is_deployed = _is_deployed()
 
 # Audio inputs card
-audio_path_text = audio_input_component(state, is_deployed)
+audio_path_text = audio_input_component(state, is_deployed, disabled=state.is_running)
 
 # Video clips card
-video_dir = video_input_component(state, is_deployed)
+video_dir = video_input_component(state, is_deployed, disabled=state.is_running)
 
 # B-roll and Output cards are not needed in demo mode
 if not state.demo_mode:
-    broll_dir_input = broll_input_component(state, is_deployed)
-    output_path = output_input_component(state, is_deployed)
+    broll_dir_input = broll_input_component(state, is_deployed, disabled=state.is_running)
+    output_path = output_input_component(state, is_deployed, disabled=state.is_running)
 else:
     broll_dir_input = ""
     output_path = ""
@@ -426,16 +442,27 @@ else:
 st.markdown("---")
 col_spacer1, col_run, col_spacer2 = st.columns([1.5, 2, 1.5])
 with col_run:
-    run_button = st.button(
-        "▶️  Generate Montage",
-        type="primary",
-        disabled=state.is_running,
-        use_container_width=True,
-        help=(
-            "Process audio and video clips. This may take several minutes "
-            "depending on video length."
-        ),
-    )
+    if state.is_running:
+        run_button = False
+        if st.button(
+            "🛑 Cancel",
+            type="secondary",
+            use_container_width=True,
+            help="Stop the current processing run.",
+        ):
+            state.is_running = False
+            state.error = "Run cancelled by user."
+            st.rerun()
+    else:
+        run_button = st.button(
+            "▶️  Generate Montage",
+            type="primary",
+            use_container_width=True,
+            help=(
+                "Process audio and video clips. This may take several minutes "
+                "depending on video length."
+            ),
+        )
 
 
 # ---------------------------------------------------------------------------
