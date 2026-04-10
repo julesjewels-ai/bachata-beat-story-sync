@@ -77,6 +77,11 @@ pacing:
   # audio_overlay_padding: 10  # Distance in pixels from the nearest screen edge (default: 10, range: 0+)
   #                              # Applies to both the horizontal (left/right) AND vertical (bottom) offset.
 
+  # Text Overlay — cinematic cold open and lyrics (FEAT-045/046/047)
+  cold_open_wash_font_scale: 0.08   # Font size as fraction of video width (0.04–0.10)
+  cold_open_wash_opacity: 0.65      # Wash text opacity 0.0–1.0 (0.35 = subtle)
+  cold_open_wash_fade: 0.9          # Fade in/out duration in seconds
+
   # Intro effect — applies to the first segment only (FEAT-022)
   # Options: 'none', 'bloom' (gaussian reveal), 'vignette_breathe' (spotlight)
   intro_effect: vignette_breathe

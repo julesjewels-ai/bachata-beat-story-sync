@@ -95,6 +95,9 @@ A YAML file in the project root that controls clip pacing — no code changes ne
 | `pacing_alternating_bokeh` | `false` | Enable/disable alternating segment blur |
 | `dry_run` | `false` | If true, skip rendering and only output the plan |
 | `genre` | `null` | Active genre preset name |
+| `cold_open_wash_font_scale` | `0.06` | Opening wash text size as a fraction of video width (e.g. `0.06` = 6% of 1920px ≈ 115px). Capped at 90px internally. |
+| `cold_open_wash_opacity` | `0.35` | Opacity of the wash text (0.0 = invisible, 1.0 = fully opaque). |
+| `cold_open_wash_fade` | `0.8` | Max fade-in / fade-out duration in seconds. Capped at 1/3 of display time so short events don't spend all their time fading. |
 
 > If `montage_config.yaml` is missing, defaults above are used automatically.
 

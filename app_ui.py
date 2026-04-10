@@ -858,6 +858,10 @@ if run_button or _demo_triggered:
             pacing_kwargs["dry_run"] = True
         pacing_kwargs["max_clips"] = 6
         pacing_kwargs["max_duration_seconds"] = 20.0
+        pacing_kwargs["text_overlay_enabled"] = True
+        pacing_kwargs["cold_open_enabled"] = True
+        pacing_kwargs["track_artist"] = "Sample Artist"
+        pacing_kwargs["track_title"] = "Sample Bachata"
     else:
         if dry_run:
             pacing_kwargs["dry_run"] = True

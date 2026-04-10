@@ -20,6 +20,7 @@ from typing import NamedTuple
 import yaml
 
 from src.core.ffmpeg_renderer import (
+    apply_text_overlay,
     apply_transitions,
     concatenate_segments,
     extract_segments,
@@ -878,6 +879,20 @@ class MontageGenerator:
                 )
             else:
                 shutil.move(concat_path, output_path)
+
+            # 5. Text overlay (FEAT-045) — post-processing pass
+            if config.text_overlay_enabled:
+                from src.core.text_overlay import build_text_events
+
+                text_events = build_text_events(config, audio_path)
+                if text_events:
+                    pre_text = output_path + ".pre_text.mp4"
+                    shutil.move(output_path, pre_text)
+                    try:
+                        apply_text_overlay(pre_text, output_path, text_events, config)
+                    finally:
+                        if os.path.exists(pre_text):
+                            os.remove(pre_text)
 
             logger.info("Montage complete: %s", output_path)
             return output_path

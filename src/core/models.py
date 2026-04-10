@@ -408,6 +408,84 @@ class PacingConfig(BaseModel):
         ),
     )
 
+    # Text Overlay (FEAT-045)
+    text_overlay_enabled: bool = Field(
+        False,
+        description="Enable timed text overlays (lyrics, story moments) on the video",
+    )
+    text_overlay_font: str = Field(
+        "NotoSans-Bold",
+        description=(
+            "Font name resolved from assets/fonts/ or system paths. "
+            "Noto Sans covers all Spanish characters. "
+            "Fallback: Arial → Helvetica."
+        ),
+    )
+    text_overlay_color: str = Field(
+        "white",
+        description="Base text colour for lower_third style (CSS name or hex).",
+    )
+
+    # LRC Lyrics Overlay (FEAT-047)
+    lyrics_overlay_enabled: bool = Field(
+        True,
+        description=(
+            "Show timed lyrics from a .lrc file. "
+            "Requires text_overlay_enabled=True. "
+            "Auto-discovers {audio_stem}.lrc next to the audio file "
+            "or set explicitly via lyrics_lrc_path."
+        ),
+    )
+    lyrics_lrc_path: str = Field(
+        "",
+        description=(
+            "Explicit path to an LRC lyrics file. "
+            "If empty, the system looks for {audio_stem}.lrc "
+            "alongside the audio file."
+        ),
+    )
+
+    # Cinematic Cold Open (FEAT-046)
+    cold_open_enabled: bool = Field(
+        True,
+        description=(
+            "Show a scene-setter wash (0–4s) and artist/song "
+            "lower-third (4–7s) at the start. "
+            "Requires text_overlay_enabled=True."
+        ),
+    )
+    cold_open_wash_font_scale: float = Field(
+        0.06,
+        description=(
+            "Font size of the opening wash text as a fraction of video width "
+            "(e.g. 0.06 = 6% of 1920px ≈ 115px, capped at 90px). "
+            "Reduce to shrink the text; increase to make it more prominent."
+        ),
+    )
+    cold_open_wash_opacity: float = Field(
+        0.35,
+        description=(
+            "Opacity of the opening wash text (0.0 = invisible, 1.0 = fully opaque). "
+            "Default 0.35 gives a cinematic, unobtrusive overlay."
+        ),
+    )
+    cold_open_wash_fade: float = Field(
+        0.8,
+        description=(
+            "Maximum fade-in / fade-out duration in seconds for the wash text. "
+            "The actual fade is capped at 1/3 of the event's display window "
+            "so short events never spend all their time fading."
+        ),
+    )
+    track_artist: str = Field(
+        "",
+        description="Artist name for the cold open lower-third.",
+    )
+    track_title: str = Field(
+        "",
+        description="Song title for the cold open lower-third.",
+    )
+
     @field_validator("per_track_styles", mode="after")
     @classmethod
     def validate_per_track_styles(cls, v: dict[str, str]) -> dict[str, str]:

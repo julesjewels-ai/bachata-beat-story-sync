@@ -764,3 +764,53 @@ def overlay_audio(
         ]
 
     run_ffmpeg(cmd, "audio overlay", timeout_seconds=overlay_timeout)
+
+
+def apply_text_overlay(
+    video_path: str,
+    output_path: str,
+    events: list,
+    config: PacingConfig,
+) -> None:
+    """Burn timed text overlays onto a rendered video (FEAT-045).
+
+    Runs a single FFmpeg re-encode pass with all drawtext filters chained
+    via ``-vf``. Audio is stream-copied (no quality loss).
+
+    Args:
+        video_path: Source video (with audio already muxed).
+        output_path: Destination path for the text-overlaid video.
+        events:  List of :class:`~src.core.text_overlay.TextEvent` objects.
+        config:  Pacing config (provides font name and shorts flag).
+    """
+    from src.core.text_overlay import build_drawtext_filter_chain, resolve_font
+
+    video_w = 1080 if config.is_shorts else 1920
+
+    font_path = resolve_font(config.text_overlay_font)
+    filter_chain = build_drawtext_filter_chain(events, font_path, video_w)
+
+    if not filter_chain:
+        import shutil as _shutil
+
+        _shutil.copy2(video_path, output_path)
+        return
+
+    vid_dur = get_video_duration(video_path)
+    timeout = timeout_for_duration(vid_dur) if vid_dur > 0 else None
+
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-i",
+        video_path,
+        "-vf",
+        filter_chain,
+        *get_h264_encoder_args(),
+        "-c:a",
+        "copy",
+        "-movflags",
+        "+faststart",
+        output_path,
+    ]
+    run_ffmpeg(cmd, "text overlay", timeout_seconds=timeout)
