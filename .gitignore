@@ -16,7 +16,7 @@ venv/
 *.mp4
 *.wav
 *.mov
-output_pipeline/
+output_pipeline*/
 
 .DS_Store
 
