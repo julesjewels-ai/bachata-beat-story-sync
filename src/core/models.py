@@ -95,6 +95,12 @@ class SegmentPlan(BaseModel):
         ..., description="Start time in the source video (seconds)"
     )
     duration: float = Field(..., description="Duration to extract (seconds)")
+    clip_duration: float = Field(
+        0.0,
+        description="Total duration of the source clip file (seconds). "
+        "Used by the renderer to clamp extract_duration so FFmpeg is never "
+        "asked for more material than the file contains after start_time.",
+    )
     timeline_position: float = Field(
         ..., description="Position on the output timeline (seconds)"
     )

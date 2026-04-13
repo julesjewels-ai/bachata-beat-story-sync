@@ -44,6 +44,7 @@ from src.core.audio_mixer import (
     resolve_audio_path,
 )
 from src.core.models import PacingConfig
+from src.core.montage import load_pacing_config
 from src.ui.console import PipelineLogger, RichProgressObserver
 
 logger = logging.getLogger(__name__)
@@ -323,7 +324,9 @@ def main() -> None:
     min_dur, max_dur = parse_duration(args.shorts_duration)
 
     # Shared pacing kwargs across all renders
-    pacing_kwargs = build_pacing_kwargs(args)
+    # Load base YAML config and merge with CLI overrides
+    base_pacing = load_pacing_config()
+    pacing_kwargs = {**base_pacing.model_dump(), **build_pacing_kwargs(args)}
 
     engine = BachataSyncEngine()
     analyzer = AudioAnalyzer()

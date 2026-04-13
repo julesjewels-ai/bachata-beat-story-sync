@@ -224,6 +224,12 @@ def _build_variable_speed_filter_complex(
     # Calculate total source duration needed
     extract_duration = sum(s * spb for s in speed_curve)
 
+    # FREEZE-FIX: clamp so start_time + extract_duration never exceeds
+    # the source clip's actual length (same root cause as the scalar path).
+    if seg.clip_duration > 0:
+        available = seg.clip_duration - seg.start_time
+        extract_duration = min(extract_duration, available)
+
     # Build trim + setpts chains for each beat window
     # Start with aspect ratio normalization
     preceding = []
@@ -391,6 +397,16 @@ def extract_segments(
             # When speed-ramped, extract more (slow-mo) or less (fast)
             # source material so the output fills the planned duration.
             extract_duration = seg.duration * seg.speed_factor
+
+            # FREEZE-FIX: clamp so start_time + extract_duration never
+            # exceeds the source clip's actual length.  When a short clip
+            # (e.g. 3 s) is given a start offset + speed-factor that sums
+            # to more than remains in the file, FFmpeg runs out of frames
+            # and VideoToolbox / libx264 repeats the last frame to satisfy
+            # the requested -t value — visible as a frozen still image.
+            if seg.clip_duration > 0:
+                available = seg.clip_duration - seg.start_time
+                extract_duration = min(extract_duration, available)
 
             cmd = [
                 "ffmpeg",

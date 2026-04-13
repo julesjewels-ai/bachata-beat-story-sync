@@ -18,7 +18,7 @@ import time
 
 import streamlit as st
 from src.application.streamlit_runner import run_streamlit_generation
-from src.adapters.backend import get_genres, get_intro_effects
+from src.adapters.backend import get_genres, get_intro_effects, get_transitions
 from src.state.session import SessionState
 from src.ui.inputs import (
     DEMO_AUDIO,
@@ -454,9 +454,10 @@ if not state.demo_mode:
                 help="Colour grading applied to every segment.",
                 disabled=_controls_disabled,
             )
-            transition_type = st.text_input(
+            transition_options = get_transitions()
+            transition_type = st.selectbox(
                 "Transition type",
-                value="none",
+                options=transition_options,
                 help="FFmpeg xfade: none, fade, wipeleft, wiperight, slideup, …",
                 disabled=_controls_disabled,
             )

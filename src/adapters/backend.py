@@ -65,3 +65,38 @@ def get_intro_effects() -> list[str]:
     except ImportError as e:
         st.error(f"Could not load intro effects: {e}")
         st.stop()
+
+def get_transitions() -> list[str]:
+    """Get list of artistically relevant FFmpeg xfade transition names.
+
+    Returns:
+        List of transition names (with "none" as first option)
+    """
+    return [
+        "none",
+        "fade",
+        "wipeleft",
+        "wiperight",
+        "wipeup",
+        "wipedown",
+        "slideleft",
+        "slideright",
+        "slideup",
+        "slidedown",
+        "circlecrop",
+        "rectcrop",
+        "distance",
+        "fadeblack",
+        "fadewhite",
+        "radial",
+        "smoothleft",
+        "smoothright",
+        "smoothup",
+        "smoothdown",
+        "circleopen",
+        "circleclose",
+        "vertopen",
+        "vertclose",
+        "horzopen",
+        "horzclose",
+    ]

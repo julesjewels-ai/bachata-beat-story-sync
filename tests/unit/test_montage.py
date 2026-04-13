@@ -1187,7 +1187,7 @@ class TestBRollInsertion:
         assert "broll" not in segments[0].video_path
 
         # Check the gaps between B-roll clips
-        last_broll_time = -config.broll_interval_seconds
+        last_broll_time = 0.0  # B-roll now starts counting from timeline 0
         for seg in broll_segments:
             gap = seg.timeline_position - last_broll_time
             # Given variance is 1.5, gap shouldn't be wildly

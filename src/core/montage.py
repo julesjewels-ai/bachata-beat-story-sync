@@ -505,9 +505,7 @@ class MontageGenerator:
         forced_clip_idx = 0
 
         # B-Roll tracking
-        last_broll_time = (
-            -config.broll_interval_seconds
-        )  # Allow B-roll early on if configured
+        last_broll_time = 0.0  # Start at timeline 0; B-roll waits for first interval to elapse
         # FEAT-033: Track if we've had a regular (non-B-roll) clip since last B-roll
         # This ensures B-roll only inserts after clip boundaries, not mid-stream
         has_regular_clip_since_broll = True
@@ -608,6 +606,7 @@ class MontageGenerator:
                     video_path=clip.path,
                     start_time=start_time,
                     duration=actual_duration,
+                    clip_duration=clip.duration,
                     timeline_position=timeline_pos,
                     intensity_level=level,
                     speed_factor=speed,

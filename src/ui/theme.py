@@ -197,21 +197,21 @@ button[data-testid="baseButton-secondary"]:hover:not(:disabled) {{
     text-transform: none !important;
 }}
 
-/* ── Cards — bordered containers (charcoal) ───────────────── */
+/* ── Cards — bordered containers (white) ─────────────────── */
 [data-testid="stVerticalBlockBorderWrapper"] > div {{
-    background: var(--charcoal) !important;
+    background: #ffffff !important;
     border-radius: var(--radius-card) !important;
     border: 1px solid var(--border-amber) !important;
-    box-shadow: 0 8px 40px rgba(0,0,0,0.2);
+    box-shadow: 0 4px 24px rgba(0,0,0,0.06);
     padding: 1.8rem !important;
 }}
 
-/* Text inside dark cards */
+/* Text inside cards */
 [data-testid="stVerticalBlockBorderWrapper"] p,
 [data-testid="stVerticalBlockBorderWrapper"] label,
 [data-testid="stVerticalBlockBorderWrapper"] span,
 [data-testid="stVerticalBlockBorderWrapper"] .stMarkdown p {{
-    color: #e8e8e8 !important;
+    color: var(--black) !important;
 }}
 
 /* ── Callout utility class (.pg-callout) ──────────────────── */
@@ -227,12 +227,12 @@ button[data-testid="baseButton-secondary"]:hover:not(:disabled) {{
 /* ── Metrics — control room style ────────────────────────── */
 [data-testid="stMetric"],
 .stMetric {{
-    background: var(--surface) !important;
+    background: #ffffff !important;
     border-radius: 16px !important;
     padding: 1.2rem !important;
     border-top: 3px solid var(--amber) !important;
-    border: 1px solid var(--border-subtle) !important;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+    border: 1px solid rgba(0,0,0,0.08) !important;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
 }}
 
 [data-testid="stMetricLabel"] > div,
@@ -249,12 +249,12 @@ button[data-testid="baseButton-secondary"]:hover:not(:disabled) {{
     font-family: 'IBM Plex Mono', monospace !important;
     font-size: 1.7rem !important;
     font-weight: 500 !important;
-    color: var(--amber) !important;
+    color: var(--amber-dark) !important;
 }}
 
 /* ── Progress bar — amber fill ────────────────────────────── */
 [data-testid="stProgressBar"] > div {{
-    background: rgba(255,255,255,0.12) !important;
+    background: rgba(0,0,0,0.08) !important;
     border-radius: 4px !important;
 }}
 
@@ -267,15 +267,15 @@ button[data-testid="baseButton-secondary"]:hover:not(:disabled) {{
 /* ── Status widget — control room ─────────────────────────── */
 [data-testid="stStatus"],
 .stStatus {{
-    background: var(--charcoal) !important;
+    background: #ffffff !important;
     border: 1px solid var(--border-amber) !important;
     border-radius: 20px !important;
-    color: #e8e8e8 !important;
+    color: var(--black) !important;
 }}
 
 [data-testid="stStatusLabel"],
 .stStatus [data-testid="stStatusWidget"] > div:not([data-testid="stIconMaterial"]) {{
-    color: var(--amber) !important;
+    color: var(--amber-dark) !important;
     font-family: 'Space Grotesk', sans-serif !important;
     font-size: 0.85rem !important;
     letter-spacing: 0.8px !important;
@@ -293,12 +293,12 @@ button[data-testid="baseButton-secondary"]:hover:not(:disabled) {{
 [data-testid="stExpander"] details summary,
 [data-testid="stExpander"] summary,
 .streamlit-expanderHeader {{
-    background: var(--charcoal) !important;
+    background: #ffffff !important;
     border-radius: 16px !important;
     border: 1px solid var(--border-amber) !important;
     font-family: 'Space Grotesk', sans-serif !important;
     font-weight: 600 !important;
-    color: var(--amber) !important;
+    color: var(--amber-dark) !important;
     padding: 0.9rem 1.4rem !important;
     letter-spacing: 0.4px !important;
     list-style: none;
@@ -314,15 +314,15 @@ button[data-testid="baseButton-secondary"]:hover:not(:disabled) {{
 [data-testid="stExpander"] details summary:hover,
 [data-testid="stExpander"] summary:hover,
 .streamlit-expanderHeader:hover {{
-    background: #333333 !important;
+    background: rgba(253,184,51,0.05) !important;
     border-color: var(--amber) !important;
-    color: var(--amber) !important;
+    color: var(--amber-dark) !important;
 }}
 
 /* All child text inside the summary header (except icons) */
 [data-testid="stExpander"] summary *:not([data-testid="stIconMaterial"]),
 [data-testid="stExpander"] details summary *:not([data-testid="stIconMaterial"]) {{
-    color: var(--amber) !important;
+    color: var(--amber-dark) !important;
     font-family: 'Space Grotesk', sans-serif !important;
 }}
 
@@ -330,8 +330,8 @@ button[data-testid="baseButton-secondary"]:hover:not(:disabled) {{
 [data-testid="stExpander"] > div:last-child,
 [data-testid="stExpander"] details > div,
 .streamlit-expanderContent {{
-    background: var(--surface) !important;
-    border: 1px solid var(--border-subtle) !important;
+    background: #ffffff !important;
+    border: 1px solid rgba(0,0,0,0.08) !important;
     border-top: none !important;
     border-radius: 0 0 16px 16px !important;
     padding: 1.2rem !important;
@@ -341,24 +341,24 @@ button[data-testid="baseButton-secondary"]:hover:not(:disabled) {{
 [data-testid="stExpander"] label,
 [data-testid="stExpander"] p,
 [data-testid="stExpander"] span:not([data-testid="stIconMaterial"]) {{
-    color: #d8d8d8 !important;
+    color: var(--black) !important;
     font-family: 'Space Grotesk', sans-serif;
 }}
 
 [data-testid="stExpander"] span[data-testid="stIconMaterial"] {{
-    color: var(--amber) !important;
+    color: var(--amber-dark) !important;
     font-family: "Material Icons", "Material Symbols Outlined" !important;
 }}
 
-/* ── Text inputs — dark surface, amber focus ──────────────── */
+/* ── Text inputs — white surface, amber focus ─────────────── */
 .stTextInput input,
 .stNumberInput input,
 [data-testid="stTextInput"] input,
 [data-testid="stNumberInput"] input {{
-    background: var(--surface) !important;
-    border: 1.5px solid rgba(255,255,255,0.12) !important;
+    background: #ffffff !important;
+    border: 1.5px solid rgba(0,0,0,0.15) !important;
     border-radius: var(--radius-input) !important;
-    color: #f0f0f0 !important;
+    color: var(--black) !important;
     font-family: 'IBM Plex Mono', monospace !important;
     font-size: 0.88rem !important;
     padding: 10px 14px !important;
@@ -368,17 +368,32 @@ button[data-testid="baseButton-secondary"]:hover:not(:disabled) {{
 .stNumberInput input:focus {{
     border-color: var(--amber) !important;
     box-shadow: 0 0 0 3px rgba(253,184,51,0.18) !important;
-    background: #242424 !important;
+    background: #ffffff !important;
+}}
+
+/* ── Number input stepper buttons (+/−) ──────────────────── */
+[data-testid="stNumberInput"] button,
+.stNumberInput button {{
+    background: #ffffff !important;
+    border: 1.5px solid rgba(0,0,0,0.15) !important;
+    color: var(--black) !important;
+}}
+
+[data-testid="stNumberInput"] button:hover,
+.stNumberInput button:hover {{
+    background: rgba(253,184,51,0.1) !important;
+    border-color: var(--amber) !important;
+    color: var(--black) !important;
 }}
 
 /* ── Selectbox trigger ─────────────────────────────────────── */
 .stSelectbox > div > div,
 [data-testid="stSelectbox"] > div > div,
 [data-baseweb="select"] > div {{
-    background: var(--surface) !important;
-    border: 1.5px solid rgba(255,255,255,0.12) !important;
+    background: #ffffff !important;
+    border: 1.5px solid rgba(0,0,0,0.15) !important;
     border-radius: var(--radius-input) !important;
-    color: #f0f0f0 !important;
+    color: var(--black) !important;
     font-family: 'Space Grotesk', sans-serif !important;
 }}
 
@@ -393,19 +408,19 @@ button[data-testid="baseButton-secondary"]:hover:not(:disabled) {{
 [data-baseweb="select"] [data-testid="stMarkdownContainer"] p,
 [data-baseweb="select"] span,
 [data-baseweb="select"] div {{
-    color: #f0f0f0 !important;
+    color: var(--black) !important;
 }}
 
 /* Selectbox: chevron arrow */
 [data-baseweb="select"] svg {{
-    fill: var(--amber) !important;
-    color: var(--amber) !important;
+    fill: var(--amber-dark) !important;
+    color: var(--amber-dark) !important;
 }}
 
 /* Selectbox: dropdown popup list */
 [data-baseweb="popover"] ul,
 [data-baseweb="menu"] {{
-    background: var(--charcoal) !important;
+    background: #ffffff !important;
     border: 1px solid var(--border-amber) !important;
     border-radius: 12px !important;
     padding: 4px !important;
@@ -415,7 +430,7 @@ button[data-testid="baseButton-secondary"]:hover:not(:disabled) {{
 [data-baseweb="menu"] li,
 [data-baseweb="option"] {{
     background: transparent !important;
-    color: #f0f0f0 !important;
+    color: var(--black) !important;
     font-family: 'Space Grotesk', sans-serif !important;
     font-size: 0.92rem !important;
     border-radius: 8px !important;
@@ -424,20 +439,20 @@ button[data-testid="baseButton-secondary"]:hover:not(:disabled) {{
 /* Selectbox: option hover */
 [data-baseweb="menu"] li:hover,
 [data-baseweb="option"]:hover {{
-    background: rgba(253,184,51,0.15) !important;
-    color: var(--amber) !important;
+    background: rgba(253,184,51,0.12) !important;
+    color: var(--black) !important;
 }}
 
 /* Selectbox: selected option highlight */
 [aria-selected="true"][data-baseweb="option"] {{
-    background: rgba(253,184,51,0.1) !important;
-    color: var(--amber) !important;
+    background: rgba(253,184,51,0.08) !important;
+    color: var(--black) !important;
 }}
 
 /* ── Checkboxes ────────────────────────────────────────────── */
 .stCheckbox label,
 [data-testid="stCheckbox"] label {{
-    color: #d8d8d8 !important;
+    color: var(--black) !important;
     font-family: 'Space Grotesk', sans-serif !important;
     font-size: 0.92rem !important;
 }}
@@ -461,17 +476,17 @@ button[data-testid="baseButton-secondary"]:hover:not(:disabled) {{
     box-shadow: 0 0 0 3px rgba(253,184,51,0.12);
 }}
 
-/* Fix for File Uploader text color (200MB per file...) */
+/* Fix for File Uploader text color */
 [data-testid="stFileUploadDropzone"] span,
 .st-emotion-cache-lyxlwd {{
-    color: #e8e8e8 !important;
+    color: var(--black) !important;
 }}
 
-/* Fix for Text Input text and placeholder color in specific components */
-.stTextInput input, 
+/* Fix for Text Input text and placeholder color */
+.stTextInput input,
 .stTextInput input::placeholder {{
-    color: #f0f0f0 !important;
-    -webkit-text-fill-color: #f0f0f0 !important;
+    color: var(--black) !important;
+    -webkit-text-fill-color: var(--black) !important;
 }}
 
 /* ── Video player ───────────────────────────────────────────── */
@@ -508,11 +523,11 @@ code {{
 }}
 
 pre {{
-    background: var(--surface);
-    color: #e8e8e8;
+    background: #f8f8f8;
+    color: var(--black);
     border-radius: 12px;
     padding: 1.2rem;
-    border: 1px solid var(--border-subtle);
+    border: 1px solid rgba(0,0,0,0.08);
     font-family: 'IBM Plex Mono', monospace;
     font-size: 0.84rem;
     line-height: 1.6;
@@ -546,6 +561,18 @@ hr, .stMarkdown hr {{
 ::-webkit-scrollbar-track {{ background: transparent; }}
 ::-webkit-scrollbar-thumb {{ background: rgba(253,184,51,0.3); border-radius: 3px; }}
 ::-webkit-scrollbar-thumb:hover {{ background: var(--amber); }}
+/* ── Text area (log viewer, code blocks) ─────────────────── */
+.stTextArea textarea,
+[data-testid="stTextArea"] textarea {{
+    background: #ffffff !important;
+    border: 1.5px solid rgba(0,0,0,0.12) !important;
+    border-radius: var(--radius-input) !important;
+    color: var(--black) !important;
+    font-family: 'IBM Plex Mono', monospace !important;
+    font-size: 0.83rem !important;
+    line-height: 1.55 !important;
+}}
+
 /* ── Global Icon Fix — prevent font-family overrides from turning icons into text ─ */
 span[data-testid="stIconMaterial"] {{
     font-family: "Material Symbols Outlined", "Material Icons" !important;
