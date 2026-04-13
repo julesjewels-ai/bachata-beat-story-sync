@@ -19,11 +19,11 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
+from src.config.app_config import build_pacing_config, load_app_config
 from src.cli_utils import analyze_audio as _analyze_audio
 from src.cli_utils import detect_broll_dir, strip_thumbnails
 from src.core.app import BachataSyncEngine
 from src.core.models import PacingConfig
-from src.core.montage import load_pacing_config
 
 # ---------------------------------------------------------------------------
 # Server & shared state
@@ -42,9 +42,8 @@ _state: dict[str, Any] = {
 
 def _build_pacing(config_overrides: dict | None) -> PacingConfig:
     """Merge YAML base config + session overrides + call-level overrides."""
-    base = load_pacing_config().model_dump()
-    merged = {**base, **_state["config_overrides"], **(config_overrides or {})}
-    return PacingConfig(**merged)
+    merged = {**_state["config_overrides"], **(config_overrides or {})}
+    return build_pacing_config(merged)
 
 
 # ---------------------------------------------------------------------------
@@ -181,7 +180,7 @@ def get_config() -> dict:
     Returns:
         Dict of all PacingConfig fields and their current values.
     """
-    base = load_pacing_config().model_dump()
+    base = load_app_config().pacing.model_dump()
     return {**base, **_state["config_overrides"]}
 
 
@@ -199,7 +198,7 @@ def update_config(overrides: dict) -> dict:
     Returns:
         The full merged config dict after applying the overrides.
     """
-    base = load_pacing_config().model_dump()
+    base = load_app_config().pacing.model_dump()
     candidate = {**base, **_state["config_overrides"], **overrides}
     # Validate by constructing a PacingConfig — raises ValidationError on bad input.
     PacingConfig(**candidate)
@@ -214,7 +213,7 @@ def update_config(overrides: dict) -> dict:
 @mcp.resource("resource://config/pacing", mime_type="application/json")
 def config_pacing() -> str:
     """Current pacing configuration (montage_config.yaml + session overrides)."""
-    base = load_pacing_config().model_dump()
+    base = load_app_config().pacing.model_dump()
     merged = {**base, **_state["config_overrides"]}
     return json.dumps(merged, indent=2)
 

@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import Any, Protocol, cast
 
 from src.cli_utils import analyze_audio, detect_broll_dir, strip_thumbnails
+from src.config.app_config import build_pacing_config
 from src.core.app import BachataSyncEngine
 from src.core.interfaces import ProgressObserver
 from src.core.models import (
@@ -17,7 +18,6 @@ from src.core.models import (
     SegmentPlan,
     VideoAnalysisResult,
 )
-from src.core.montage import load_pacing_config
 from src.services.plan_report import format_plan_report
 
 logger = logging.getLogger(__name__)
@@ -46,9 +46,7 @@ class StoryWorkflowResult:
 
 def build_story_pacing(overrides: dict[str, Any] | None = None) -> PacingConfig:
     """Load base YAML config and apply runtime overrides."""
-    base_config = load_pacing_config()
-    merged = {**base_config.model_dump(), **(overrides or {})}
-    return PacingConfig(**merged)
+    return build_pacing_config(overrides)
 
 
 @contextmanager

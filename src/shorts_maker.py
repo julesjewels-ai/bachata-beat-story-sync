@@ -19,8 +19,8 @@ from src.cli_utils import (
     run_dry_run_handler,
     strip_thumbnails,
 )
+from src.config.app_config import load_app_config
 from src.core.app import BachataSyncEngine
-from src.core.montage import load_pacing_config
 from src.ui.console import RichProgressObserver
 
 logger = logging.getLogger(__name__)
@@ -103,7 +103,7 @@ def main() -> None:
 
         # 3. Generate Shorts (delegate to shared function)
         # Load base YAML config and merge with CLI overrides
-        base_pacing = load_pacing_config()
+        base_pacing = load_app_config().pacing
         pacing_kwargs = {**base_pacing.model_dump(), **build_pacing_kwargs(args)}
 
         # FEAT-026 + FEAT-028: Dry-run — preview plan without rendering.

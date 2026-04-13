@@ -14,11 +14,9 @@ import random
 import re
 import shutil
 import tempfile
-from pathlib import Path
 from typing import NamedTuple
 
-import yaml
-
+from src.config.app_config import load_app_config
 from src.core.ffmpeg_renderer import (
     apply_text_overlay,
     apply_transitions,
@@ -52,10 +50,6 @@ class ClipSelection(NamedTuple):
     reason: str
 
 
-# Default config file location (project root)
-DEFAULT_CONFIG_PATH = Path(__file__).resolve().parents[2] / "montage_config.yaml"
-
-
 def load_pacing_config(
     config_path: str | None = None,
 ) -> PacingConfig:
@@ -70,30 +64,7 @@ def load_pacing_config(
     Returns:
         A validated PacingConfig instance.
     """
-    path = Path(config_path) if config_path else DEFAULT_CONFIG_PATH
-
-    if path.exists():
-        try:
-            with open(path) as f:
-                raw = yaml.safe_load(f) or {}
-            pacing_data = raw.get("pacing", {})
-
-            # FEAT-027: apply genre preset if specified
-            genre = pacing_data.get("genre")
-            if genre:
-                from src.core.genre_presets import apply_genre_preset  # noqa: WPS433
-
-                pacing_data = apply_genre_preset(genre, pacing_data)
-
-            config = PacingConfig(**pacing_data)
-            logger.info("Loaded pacing config from %s", path)
-            return config
-        except Exception as e:
-            logger.warning(
-                "Failed to load pacing config from %s: %s. Using defaults.", path, e
-            )
-
-    return PacingConfig()
+    return load_app_config(config_path).pacing
 
 
 class MontageGenerator:
@@ -885,13 +856,19 @@ class MontageGenerator:
 
                 text_events = build_text_events(config, audio_path)
                 if text_events:
-                    pre_text = output_path + ".pre_text.mp4"
-                    shutil.move(output_path, pre_text)
-                    try:
-                        apply_text_overlay(pre_text, output_path, text_events, config)
-                    finally:
-                        if os.path.exists(pre_text):
-                            os.remove(pre_text)
+                    if os.path.isfile(output_path):
+                        pre_text = output_path + ".pre_text.mp4"
+                        shutil.move(output_path, pre_text)
+                        try:
+                            apply_text_overlay(pre_text, output_path, text_events, config)
+                        finally:
+                            if os.path.exists(pre_text):
+                                os.remove(pre_text)
+                    else:
+                        logger.warning(
+                            "Skipping text overlay post-pass because %s was not created.",
+                            output_path,
+                        )
 
             logger.info("Montage complete: %s", output_path)
             return output_path

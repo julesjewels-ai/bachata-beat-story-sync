@@ -69,8 +69,12 @@ class _ManagedObserver(_Observer):
 
 def test_build_story_pacing_merges_runtime_overrides(monkeypatch) -> None:
     monkeypatch.setattr(
-        "src.application.story_workflow.load_pacing_config",
-        lambda: PacingConfig(video_style="bw", max_clips=3),
+        "src.application.story_workflow.build_pacing_config",
+        lambda overrides=None: PacingConfig(
+            video_style=(overrides or {}).get("video_style", "bw"),
+            max_clips=3,
+            max_duration_seconds=(overrides or {}).get("max_duration_seconds"),
+        ),
     )
 
     pacing = build_story_pacing({"video_style": "warm", "max_duration_seconds": 30.0})
@@ -99,8 +103,8 @@ def test_run_story_workflow_returns_plan_report_for_dry_run(
         lambda video_dir, explicit: str(broll_dir),
     )
     monkeypatch.setattr(
-        "src.application.story_workflow.load_pacing_config",
-        lambda: PacingConfig(dry_run=True),
+        "src.application.story_workflow.build_pacing_config",
+        lambda overrides=None: PacingConfig(dry_run=True),
     )
     monkeypatch.setattr(
         "src.application.story_workflow.format_plan_report",
@@ -142,8 +146,10 @@ def test_run_story_workflow_renders_with_observer_factories(monkeypatch) -> None
         lambda video_dir, explicit: None,
     )
     monkeypatch.setattr(
-        "src.application.story_workflow.load_pacing_config",
-        lambda: PacingConfig(video_style="golden"),
+        "src.application.story_workflow.build_pacing_config",
+        lambda overrides=None: PacingConfig(
+            video_style=(overrides or {}).get("video_style", "golden")
+        ),
     )
 
     engine = MagicMock()

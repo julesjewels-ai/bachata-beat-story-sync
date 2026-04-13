@@ -9,6 +9,7 @@ import tempfile
 from unittest.mock import MagicMock, patch
 
 import pytest
+from src.config.app_config import PipelineConfig
 from src.cli_utils import detect_broll_dir
 from src.core.models import AudioAnalysisResult, VideoAnalysisResult
 from src.pipeline import (
@@ -164,14 +165,13 @@ class TestScanVideos:
 class TestPerTrackClipPools:
     def test_get_track_video_dir_uses_per_track_folder(self):
         """Test that per-track clip folder is used if configured."""
-        from src.core.models import PacingConfig
         from src.pipeline import _get_track_video_dir
 
         with tempfile.TemporaryDirectory() as tmpdir:
             per_track_dir = os.path.join(tmpdir, "track1_clips")
             os.makedirs(per_track_dir)
 
-            config = PacingConfig(per_track_clips={"track1.wav": per_track_dir})
+            config = PipelineConfig(track_clips={"track1.wav": per_track_dir})
             track_path = "/audio/track1.wav"
 
             result = _get_track_video_dir(track_path, config, "/global/videos")
@@ -179,10 +179,9 @@ class TestPerTrackClipPools:
 
     def test_get_track_video_dir_fallback_to_global(self):
         """Test that global video-dir is used if no per-track config."""
-        from src.core.models import PacingConfig
         from src.pipeline import _get_track_video_dir
 
-        config = PacingConfig(per_track_clips={})
+        config = PipelineConfig(track_clips={})
         track_path = "/audio/track1.wav"
         global_dir = "/global/videos"
 
@@ -191,10 +190,9 @@ class TestPerTrackClipPools:
 
     def test_get_track_video_dir_raises_if_path_missing(self):
         """Test that FileNotFoundError is raised if per-track path doesn't exist."""
-        from src.core.models import PacingConfig
         from src.pipeline import _get_track_video_dir
 
-        config = PacingConfig(per_track_clips={"track1.wav": "/nonexistent/path"})
+        config = PipelineConfig(track_clips={"track1.wav": "/nonexistent/path"})
         track_path = "/audio/track1.wav"
 
         with pytest.raises(FileNotFoundError) as exc_info:
@@ -210,38 +208,32 @@ class TestPerTrackClipPools:
 class TestPerTrackVideoStyles:
     def test_get_track_video_style_uses_per_track_style(self):
         """Test that per-track style is used if configured."""
-        from src.core.models import PacingConfig
         from src.pipeline import _get_track_video_style
 
-        config = PacingConfig(
-            video_style="none", per_track_styles={"track1.wav": "vintage"}
-        )
+        config = PipelineConfig(track_styles={"track1.wav": "vintage"})
         track_path = "/audio/track1.wav"
 
-        result = _get_track_video_style(track_path, config)
+        result = _get_track_video_style(track_path, config, "none")
         assert result == "vintage"
 
     def test_get_track_video_style_fallback_to_global(self):
         """Test that global video_style is used if no per-track config."""
-        from src.core.models import PacingConfig
         from src.pipeline import _get_track_video_style
 
-        config = PacingConfig(video_style="bw", per_track_styles={})
+        config = PipelineConfig(track_styles={})
         track_path = "/audio/track1.wav"
 
-        result = _get_track_video_style(track_path, config)
+        result = _get_track_video_style(track_path, config, "bw")
         assert result == "bw"
 
     def test_get_track_video_style_raises_if_invalid(self):
-        """Test that invalid per-track style is rejected at config validation."""
-        from pydantic import ValidationError
-        from src.core.models import PacingConfig
+        """Test that invalid per-track style is rejected by the helper."""
+        from src.pipeline import _get_track_video_style
 
-        # Invalid styles are caught at config validation time (Pydantic validator)
-        with pytest.raises(ValidationError) as exc_info:
-            PacingConfig(
-                video_style="none", per_track_styles={"track1.wav": "invalid_style"}
-            )
+        config = PipelineConfig(track_styles={"track1.wav": "invalid_style"})
+
+        with pytest.raises(ValueError) as exc_info:
+            _get_track_video_style("/audio/track1.wav", config, "none")
         assert "invalid_style" in str(exc_info.value)
         assert "Valid options" in str(exc_info.value)
 

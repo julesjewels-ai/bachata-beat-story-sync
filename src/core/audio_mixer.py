@@ -15,18 +15,13 @@ import os
 import shutil
 import tempfile
 
-import yaml
-
+from src.config.app_config import load_app_config
 from src.core.interfaces import ProgressObserver
 from src.core.models import AudioMixConfig
 
 logger = logging.getLogger(__name__)
 
 FFMPEG_TIMEOUT = 600
-DEFAULT_CONFIG_PATH = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-    "montage_config.yaml",
-)
 SUPPORTED_AUDIO_EXTENSIONS = {".mp3", ".wav", ".flac", ".aac"}
 
 # Sidecar file stored alongside _mixed_audio.wav to detect config changes
@@ -43,18 +38,7 @@ def load_audio_mix_config(config_path: str | None = None) -> AudioMixConfig:
     Load audio mix configuration from YAML file.
     Falls back to AudioMixConfig defaults if missing or invalid.
     """
-    path = config_path if config_path else DEFAULT_CONFIG_PATH
-    if os.path.exists(path):
-        try:
-            with open(path) as f:
-                raw = yaml.safe_load(f) or {}
-            mix_data = raw.get("audio_mix", {})
-            return AudioMixConfig(**mix_data)
-        except Exception as e:
-            logger.warning(
-                "Failed to load audio mix config from %s: %s. Using defaults.", path, e
-            )
-    return AudioMixConfig()
+    return load_app_config(config_path).audio_mix
 
 
 # ------------------------------------------------------------------

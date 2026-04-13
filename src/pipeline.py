@@ -32,6 +32,7 @@ from src.cli_utils import (
     run_dry_run_handler,
     strip_thumbnails,
 )
+from src.config.app_config import PipelineConfig, load_app_config
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -44,7 +45,6 @@ from src.core.audio_mixer import (
     resolve_audio_path,
 )
 from src.core.models import PacingConfig
-from src.core.montage import load_pacing_config
 from src.ui.console import PipelineLogger, RichProgressObserver
 
 logger = logging.getLogger(__name__)
@@ -98,7 +98,7 @@ def _safe_filename(path: str) -> str:
 
 def _get_track_video_dir(
     track_path: str,
-    pacing_config: "PacingConfig",
+    pipeline_config: PipelineConfig,
     global_video_dir: str,
 ) -> str:
     """
@@ -109,7 +109,7 @@ def _get_track_video_dir(
 
     Args:
         track_path: Absolute path to the audio track file.
-        pacing_config: Loaded PacingConfig with per_track_clips mapping.
+        pipeline_config: Loaded PipelineConfig with per-track clip mappings.
         global_video_dir: Fallback global video directory path.
 
     Returns:
@@ -119,7 +119,7 @@ def _get_track_video_dir(
         FileNotFoundError: If per-track folder is configured but doesn't exist.
     """
     track_filename = os.path.basename(track_path)
-    per_track_clips = pacing_config.per_track_clips or {}
+    per_track_clips = pipeline_config.track_clips or {}
 
     if track_filename in per_track_clips:
         per_track_dir = per_track_clips[track_filename]
@@ -144,7 +144,8 @@ def _get_track_video_dir(
 
 def _get_track_video_style(
     track_path: str,
-    pacing_config: "PacingConfig",
+    pipeline_config: PipelineConfig,
+    default_style: str,
 ) -> str:
     """
     Resolve the video style filter for a track (FEAT-031).
@@ -154,7 +155,8 @@ def _get_track_video_style(
 
     Args:
         track_path: Absolute path to the audio track file.
-        pacing_config: Loaded PacingConfig with per_track_styles mapping.
+        pipeline_config: Loaded PipelineConfig with per-track style mappings.
+        default_style: Global fallback style from pacing config.
 
     Returns:
         Style name (e.g. 'bw', 'vintage', 'none', etc.).
@@ -163,7 +165,7 @@ def _get_track_video_style(
         ValueError: If per-track style is invalid.
     """
     track_filename = os.path.basename(track_path)
-    per_track_styles = pacing_config.per_track_styles or {}
+    per_track_styles = pipeline_config.track_styles or {}
     valid_styles = {"none", "bw", "vintage", "warm", "cool", "golden"}
 
     if track_filename in per_track_styles:
@@ -183,9 +185,9 @@ def _get_track_video_style(
     logger.info(
         "No per-track style configured for %s, using global: %s",
         track_filename,
-        pacing_config.video_style,
+        default_style,
     )
-    return pacing_config.video_style
+    return default_style
 
 
 # ------------------------------------------------------------------
@@ -325,7 +327,9 @@ def main() -> None:
 
     # Shared pacing kwargs across all renders
     # Load base YAML config and merge with CLI overrides
-    base_pacing = load_pacing_config()
+    app_config = load_app_config()
+    base_pacing = app_config.pacing
+    pipeline_config = app_config.pipeline
     pacing_kwargs = {**base_pacing.model_dump(), **build_pacing_kwargs(args)}
 
     engine = BachataSyncEngine()
@@ -418,11 +422,8 @@ def main() -> None:
                     track_meta = analyzer.analyze(track_input)
 
                 # FEAT-030: Resolve per-track clip directory
-                base_pacing = (
-                    PacingConfig(**pacing_kwargs) if pacing_kwargs else PacingConfig()
-                )
                 track_video_dir = _get_track_video_dir(
-                    track_path, base_pacing, args.video_dir
+                    track_path, pipeline_config, args.video_dir
                 )
                 clips_for_track = (
                     shared_clips
@@ -432,7 +433,11 @@ def main() -> None:
 
                 # FEAT-031: Resolve per-track video style
                 track_pacing_kwargs = {**pacing_kwargs, "prefix_offset": idx - 1}
-                track_style = _get_track_video_style(track_path, base_pacing)
+                track_style = _get_track_video_style(
+                    track_path,
+                    pipeline_config,
+                    base_pacing.video_style,
+                )
                 if track_style != base_pacing.video_style:
                     track_pacing_kwargs["video_style"] = track_style
 
@@ -511,11 +516,8 @@ def main() -> None:
             )
 
             # FEAT-030: Resolve per-track clip directory (or fall back to global)
-            base_pacing = (
-                PacingConfig(**pacing_kwargs) if pacing_kwargs else PacingConfig()
-            )
             track_video_dir = _get_track_video_dir(
-                track_path, base_pacing, args.video_dir
+                track_path, pipeline_config, args.video_dir
             )
 
             # Scan (or reuse shared scan)
@@ -529,7 +531,11 @@ def main() -> None:
             # - Rotate prefix clips per track for intro variety
             # - Override video_style if per-track style is configured
             track_pacing = {**pacing_kwargs, "prefix_offset": idx - 1}
-            track_style = _get_track_video_style(track_path, base_pacing)
+            track_style = _get_track_video_style(
+                track_path,
+                pipeline_config,
+                base_pacing.video_style,
+            )
             if track_style != base_pacing.video_style:
                 track_pacing["video_style"] = track_style
 
