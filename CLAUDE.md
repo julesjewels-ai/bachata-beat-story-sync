@@ -23,6 +23,9 @@ make install
 # Run main story video generator
 make run AUDIO=path/to/track.wav VIDEO_DIR=path/to/clips/
 
+# Run the web UI (Streamlit)
+make ui
+
 # Run full pipeline (mix + per-track videos + shorts)
 make full-pipeline AUDIO=path/to/audio_folder/ VIDEO_DIR=path/to/clips/
 

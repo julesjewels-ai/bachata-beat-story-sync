@@ -10,7 +10,6 @@ Usage:
 
 from __future__ import annotations
 
-import logging
 import os
 import queue
 import tempfile
@@ -18,6 +17,7 @@ import threading
 import time
 
 import streamlit as st
+from src.application.streamlit_runner import run_streamlit_generation
 from src.adapters.backend import get_genres, get_intro_effects
 from src.state.session import SessionState
 from src.ui.inputs import (
@@ -30,11 +30,7 @@ from src.ui.inputs import (
     video_input_component,
 )
 from src.ui.theme import apply_theme
-from src.workers.progress import (
-    ProgressTracker,
-    QueueLogHandler,
-    QueueProgressObserver,
-)
+from src.workers.progress import ProgressTracker
 
 # ---------------------------------------------------------------------------
 # Page config must be first Streamlit call
@@ -291,6 +287,9 @@ if state.error and not state.is_running:
     )
     with st.expander("Error details", expanded=True):
         st.code(state.error, language="python")
+    if st.button("Clear Results", type="secondary", use_container_width=True, key="clear_error_btn"):
+        state.clear_results()
+        st.rerun()
 
 if state.result_path and not state.is_running:
     result = state.result_path
@@ -323,6 +322,9 @@ if state.result_path and not state.is_running:
                     st.rerun()
         else:
             st.caption(f"Saved to: {result}")
+            if st.button("Clear Results", type="secondary", use_container_width=True, key="clear_results_btn"):
+                state.clear_results()
+                st.rerun()
 
 # ---------------------------------------------------------------------------
 # Plan report (dry-run)
@@ -351,6 +353,10 @@ if state.plan_report and not state.is_running:
                 st.session_state.pop("_demo_dry_run", None)
                 state.clear_results()
                 st.rerun()
+    else:
+        if st.button("Clear Results", type="secondary", use_container_width=True, key="clear_plan_btn"):
+            state.clear_results()
+            st.rerun()
 
 # ---------------------------------------------------------------------------
 # "How It Works" — three callout cards (welcome state only)
@@ -573,6 +579,54 @@ if not state.demo_mode:
         pacing_warm_wash = st.checkbox("Warm wash at transitions", value=False, disabled=_controls_disabled)
         pacing_alternating_bokeh = st.checkbox("Alternating bokeh blur", value=False, disabled=_controls_disabled)
 
+        st.markdown(
+            '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:0.68rem;'
+            'letter-spacing:2px;color:#FDB833;text-transform:uppercase;">Text Overlays</span>',
+            unsafe_allow_html=True,
+        )
+        text_overlay_enabled = st.checkbox(
+            "Enable text overlays",
+            value=False,
+            help="Burn timed text into the video: cinematic cold open and/or LRC lyrics.",
+            disabled=_controls_disabled,
+        )
+        if text_overlay_enabled:
+            col_to1, col_to2 = st.columns(2)
+            with col_to1:
+                track_artist = st.text_input(
+                    "Artist name",
+                    value="",
+                    help="Shown in the lower-third at the start of the video.",
+                    disabled=_controls_disabled,
+                )
+                track_title = st.text_input(
+                    "Song title",
+                    value="",
+                    help="Shown alongside the artist name in the lower-third.",
+                    disabled=_controls_disabled,
+                )
+            with col_to2:
+                cold_open_enabled = st.checkbox(
+                    "Cinematic cold open",
+                    value=True,
+                    help="Scene-setter wash text (0–4s) and artist/title lower-third (4–7s).",
+                    disabled=_controls_disabled,
+                )
+                lyrics_overlay_enabled = st.checkbox(
+                    "LRC lyrics",
+                    value=True,
+                    help=(
+                        "Show synced lyrics burned into the video. "
+                        "Auto-discovers {audio_stem}.lrc next to the audio file."
+                    ),
+                    disabled=_controls_disabled,
+                )
+        else:
+            track_artist = ""
+            track_title = ""
+            cold_open_enabled = True
+            lyrics_overlay_enabled = True
+
 else:
     # Demo mode — all settings at their defaults (not exposed in UI)
     genre_options = []
@@ -598,12 +652,17 @@ else:
     pacing_light_leaks = False
     pacing_warm_wash = False
     pacing_alternating_bokeh = False
+    text_overlay_enabled = False
+    track_artist = ""
+    track_title = ""
+    cold_open_enabled = True
+    lyrics_overlay_enabled = True
 
 # ---------------------------------------------------------------------------
 # Run / Cancel button
 # ---------------------------------------------------------------------------
 
-if not state.demo_mode and not state.result_path and not state.plan_report:
+if not state.demo_mode:
     st.markdown("---")
     col_spacer1, col_run, col_spacer2 = st.columns([1.5, 2, 1.5])
     with col_run:
@@ -630,136 +689,6 @@ if not state.demo_mode and not state.result_path and not state.plan_report:
             )
 else:
     run_button = False
-
-
-# ---------------------------------------------------------------------------
-# Background generation thread
-# ---------------------------------------------------------------------------
-
-def _run_generation(
-    audio_resolved: str,
-    video_dir_path: str,
-    broll_path: str | None,
-    output_video: str,
-    pacing_kwargs: dict,
-    export_report_path: str | None,
-    log_queue: queue.Queue,
-) -> None:
-    """Run the full engine pipeline in a background thread."""
-    import sys
-    import traceback as tb_module
-
-    # Attach our queue handler to the root logger for this thread
-    handler = QueueLogHandler(log_queue)
-    handler.setFormatter(logging.Formatter("%(message)s"))
-    root_logger = logging.getLogger()
-    root_logger.addHandler(handler)
-    root_logger.setLevel(logging.DEBUG)
-
-    # Also log to stderr for debugging
-    console_handler = logging.StreamHandler(sys.stderr)
-    console_handler.setFormatter(logging.Formatter("%(message)s"))
-    root_logger.addHandler(console_handler)
-
-    try:
-        log_queue.put("DEBUG: Background thread started")
-        log_queue.put(f"DEBUG: Audio: {audio_resolved}")
-        log_queue.put(f"DEBUG: Video dir: {video_dir_path}")
-
-        log_queue.put("DEBUG: Importing modules…")
-        from src.cli_utils import (  # noqa: WPS433
-            analyze_audio,
-            detect_broll_dir,
-            strip_thumbnails,
-        )
-        from src.core.app import BachataSyncEngine  # noqa: WPS433
-        from src.core.models import PacingConfig  # noqa: WPS433
-        from src.core.montage import load_pacing_config  # noqa: WPS433
-        log_queue.put("DEBUG: Modules imported successfully")
-
-        log_queue.put("DEBUG: Initializing engine…")
-        engine = BachataSyncEngine()
-        log_queue.put("DEBUG: Engine initialized")
-
-        # 1. Analyse audio
-        log_queue.put("[1/4] Analysing audio…")
-        resolved_audio, audio_meta = analyze_audio(audio_resolved)
-
-        # 2. Scan video library
-        log_queue.put(f"[2/4] Scanning video clips in {video_dir_path}")
-        broll_dir_resolved = detect_broll_dir(video_dir_path, broll_path)
-        exclude_dirs = [broll_dir_resolved] if broll_dir_resolved else None
-
-        obs = QueueProgressObserver(log_queue)
-        video_clips = engine.scan_video_library(
-            video_dir_path, exclude_dirs=exclude_dirs, observer=obs
-        )
-        log_queue.put(f"   → Found {len(video_clips)} clip(s)")
-
-        broll_clips = None
-        if broll_dir_resolved and os.path.exists(broll_dir_resolved):
-            log_queue.put(f"   → Scanning B-roll in {broll_dir_resolved}")
-            broll_clips = engine.scan_video_library(
-                broll_dir_resolved, observer=obs
-            )
-            log_queue.put(f"   → Found {len(broll_clips)} B-roll clip(s)")
-
-        # 3. Build pacing config
-        log_queue.put("[3/4] Configuring pacing and effects…")
-        base_config = load_pacing_config()
-        merged = {**base_config.model_dump(), **pacing_kwargs}
-        pacing = PacingConfig(**merged)
-
-        montage_clips = strip_thumbnails(video_clips)
-
-        # 4a. Dry-run path
-        if pacing.dry_run:
-            log_queue.put("[3/4] Planning segment timeline…")
-            from src.services.plan_report import format_plan_report  # noqa: WPS433
-            segments = engine.plan_story(audio_meta, montage_clips, pacing=pacing)
-            report = format_plan_report(audio_meta, segments, montage_clips, pacing)
-            log_queue.put("__PLAN_REPORT__" + report)
-            log_queue.put("✓ Dry-run complete — plan ready (no video rendered)")
-            log_queue.put("__DONE__")
-            return
-
-        # 4b. Full render
-        log_queue.put("[4/4] Rendering montage with FFmpeg…")
-        log_queue.put("   → This may take several minutes depending on video length…")
-        result_path = engine.generate_story(
-            audio_meta,
-            montage_clips,
-            output_video,
-            broll_clips=broll_clips,
-            audio_path=resolved_audio,
-            observer=obs,
-            pacing=pacing,
-        )
-        del montage_clips
-
-        log_queue.put("✓ Video rendered successfully!")
-        log_queue.put(f"   → Saved to: {result_path}")
-
-        # 5. Optional Excel report
-        if export_report_path:
-            from src.services.reporting import ExcelReportGenerator  # noqa: WPS433
-            log_queue.put("   → Generating Excel report…")
-            ExcelReportGenerator().generate_report(
-                audio_meta, video_clips, export_report_path
-            )
-            log_queue.put(f"   → Report saved to: {export_report_path}")
-
-        log_queue.put("__RESULT__" + result_path)
-        log_queue.put("__DONE__")
-
-    except Exception:  # noqa: BLE001
-        error_details = tb_module.format_exc()
-        log_queue.put(f"__ERROR__{error_details}")
-        sys.stderr.write(f"THREAD ERROR:\n{error_details}\n")
-        log_queue.put("__DONE__")
-    finally:
-        root_logger.removeHandler(handler)
-        root_logger.removeHandler(console_handler)
 
 
 # ---------------------------------------------------------------------------
@@ -889,6 +818,18 @@ if run_button or _demo_triggered:
     if pacing_alternating_bokeh:
         pacing_kwargs["pacing_alternating_bokeh"] = True
 
+    # Text overlays (normal mode only — demo mode handled above)
+    if not state.demo_mode and text_overlay_enabled:
+        pacing_kwargs["text_overlay_enabled"] = True
+        if not cold_open_enabled:
+            pacing_kwargs["cold_open_enabled"] = False
+        if not lyrics_overlay_enabled:
+            pacing_kwargs["lyrics_overlay_enabled"] = False
+        if track_artist.strip():
+            pacing_kwargs["track_artist"] = track_artist.strip()
+        if track_title.strip():
+            pacing_kwargs["track_title"] = track_title.strip()
+
     # Test mode / limits (normal mode only)
     if not state.demo_mode:
         effective_max_clips: int | None = None
@@ -938,7 +879,7 @@ if run_button or _demo_triggered:
 
     # Start background thread
     thread = threading.Thread(
-        target=_run_generation,
+        target=run_streamlit_generation,
         args=(
             resolved_audio_path,
             resolved_video_dir,

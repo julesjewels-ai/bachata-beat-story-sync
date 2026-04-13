@@ -105,7 +105,7 @@ ifneq ($(ZOOM),)
   EXTRA_FLAGS += --zoom $(ZOOM)
 endif
 
-.PHONY: install run run-shorts full-pipeline mcp-serve test lint lint-fix format check-types refactor clean download-demo
+.PHONY: install run ui run-shorts full-pipeline mcp-serve test lint lint-fix format check-types refactor clean download-demo
 
 download-demo:
 	@mkdir -p demo/audio demo/clips
@@ -136,6 +136,9 @@ install:
 
 run:
 	$(BIN)/python main.py --audio "$(AUDIO)" --video-dir "$(VIDEO_DIR)" $(EXTRA_FLAGS)
+
+ui:
+	$(BIN)/streamlit run app_ui.py
 
 run-shorts:
 	$(BIN)/python -m src.shorts_maker --audio "$(AUDIO)" --video-dir "$(VIDEO_DIR)" --count $(SHORTS_COUNT) --duration "$(SHORTS_DURATION)" $(EXTRA_FLAGS)

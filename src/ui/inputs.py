@@ -76,6 +76,10 @@ def audio_input_component(state: SessionState, is_deployed: bool, disabled: bool
             return ""
         else:
             # Local: upload + file picker (stacked vertically)
+            # Transfer any file-picker result before the widget is instantiated.
+            if "_audio_path_pending" in st.session_state:
+                st.session_state["audio_path"] = st.session_state.pop("_audio_path_pending")
+
             st.markdown("**Upload audio file**")
             uploaded_audio = st.file_uploader(
                 "Drag and drop or click",
@@ -101,7 +105,7 @@ def audio_input_component(state: SessionState, is_deployed: bool, disabled: bool
                 if st.button("📁", key="pick_audio", help="Browse for audio file", use_container_width=True, disabled=disabled):
                     picked = pick_audio_file()
                     if picked:
-                        state.audio_path = picked
+                        st.session_state["_audio_path_pending"] = picked
                         st.rerun()
 
             if uploaded_audio:
@@ -172,6 +176,9 @@ def video_input_component(state: SessionState, is_deployed: bool, disabled: bool
             return ""
         else:
             # Local: upload + folder picker (stacked vertically)
+            if "_video_dir_pending" in st.session_state:
+                st.session_state["video_dir"] = st.session_state.pop("_video_dir_pending")
+
             st.markdown("**Upload video files**")
             st.file_uploader(
                 "Drag and drop or click",
@@ -198,7 +205,7 @@ def video_input_component(state: SessionState, is_deployed: bool, disabled: bool
                 if st.button("📁", key="pick_video", help="Browse for video clips folder", use_container_width=True, disabled=disabled):
                     picked = pick_folder("Select folder containing video clips")
                     if picked:
-                        state.video_dir = picked
+                        st.session_state["_video_dir_pending"] = picked
                         st.rerun()
 
             st.caption("Upload individual video files or select the root directory containing your dance footage.")
@@ -221,12 +228,15 @@ def broll_input_component(state: SessionState, is_deployed: bool, disabled: bool
         st.caption("OPTIONAL — Add texture clips, atmospheric shots, or environment b-roll to be used as transitions and overlays during musical swells.")
 
         if not is_deployed:
+            if "_broll_dir_pending" in st.session_state:
+                st.session_state["broll_dir"] = st.session_state.pop("_broll_dir_pending")
+
             col_path, col_btn = st.columns([4, 1])
             with col_btn:
                 if st.button("📁", key="pick_broll", help="Browse for B-roll folder", use_container_width=True, disabled=disabled):
                     picked = pick_folder("Select B-roll folder")
                     if picked:
-                        state.broll_dir = picked
+                        st.session_state["_broll_dir_pending"] = picked
                         st.rerun()
             with col_path:
                 broll_path = st.text_input(
@@ -269,12 +279,15 @@ def output_input_component(state: SessionState, is_deployed: bool, disabled: boo
             return output_path
         else:
             # Local: full path picker
+            if "_output_path_pending" in st.session_state:
+                st.session_state["output_path"] = st.session_state.pop("_output_path_pending")
+
             col_path, col_btn = st.columns([4, 1])
             with col_btn:
                 if st.button("📁", key="pick_output", help="Browse and save output video", use_container_width=True, disabled=disabled):
                     picked = pick_output_file()
                     if picked:
-                        state.output_path = picked
+                        st.session_state["_output_path_pending"] = picked
                         st.rerun()
             with col_path:
                 output_path = st.text_input(

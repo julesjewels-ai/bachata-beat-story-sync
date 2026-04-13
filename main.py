@@ -3,20 +3,13 @@ Entry point for the Bachata Beat-Story Sync application.
 """
 import argparse
 import logging
-import os
 import sys
 
 from pydantic import ValidationError
-from src.cli_utils import (
-    add_visual_args,
-    analyze_audio,
-    build_pacing_kwargs,
-    detect_broll_dir,
-    strip_thumbnails,
-)
-from src.core.app import BachataSyncEngine
-from src.core.models import PacingConfig
-from src.core.montage import load_pacing_config
+from src.application.story_workflow import run_story_workflow
+from src.cli_utils import add_visual_args, build_pacing_kwargs
+from src.services.json_output import build_json_output, write_json_output
+from src.services.plan_report import write_plan_report
 from src.services.reporting import ExcelReportGenerator
 from src.ui.console import RichProgressObserver
 
@@ -100,39 +93,7 @@ def main() -> None:
     logger = logging.getLogger(__name__)
     logger.info("Starting Bachata Beat-Story Sync...")
 
-    engine = BachataSyncEngine()
-
     try:
-        # 1. Analyze Audio
-        audio_path, audio_meta = analyze_audio(args.audio)
-
-        # 2. Scan Videos
-        logger.info("Scanning video library in: %s", args.video_dir)
-
-        broll_dir = detect_broll_dir(args.video_dir, args.broll_dir)
-
-        # Build list of directories to exclude from the main video scan
-        exclude_dirs = [broll_dir] if broll_dir else None
-
-        # Use RichProgressObserver for visual feedback
-        with RichProgressObserver() as observer:
-            video_clips = engine.scan_video_library(
-                args.video_dir, exclude_dirs=exclude_dirs, observer=observer
-            )
-        logger.info("Found %d suitable clips.", len(video_clips))
-
-        broll_clips = None
-        if broll_dir and os.path.exists(broll_dir):
-            logger.info("Scanning B-roll library in: %s", broll_dir)
-            with RichProgressObserver() as observer:
-                broll_clips = engine.scan_video_library(
-                    broll_dir, observer=observer
-                )
-            logger.info("Found %d suitable B-roll clips.", len(broll_clips))
-
-        # 3. Sync and Generate
-        # Load YAML config as the base, then overlay CLI overrides
-        base_config = load_pacing_config()
         pacing_kwargs = build_pacing_kwargs(args)
 
         max_clips = args.max_clips
@@ -145,64 +106,54 @@ def main() -> None:
         if max_duration:
             pacing_kwargs["max_duration_seconds"] = max_duration
 
-        # Merge: YAML base + CLI overrides
         if pacing_kwargs:
-            merged = {**base_config.model_dump(), **pacing_kwargs}
-            pacing = PacingConfig(**merged)
             logger.info(
                 "Pacing overrides: %s",
                 ", ".join(f"{k}={v}" for k, v in pacing_kwargs.items()),
             )
-        else:
-            pacing = base_config
         logger.info("Syncing visual narrative to musical dynamics...")
 
-        montage_clips = strip_thumbnails(video_clips)
+        result = run_story_workflow(
+            args.audio,
+            args.video_dir,
+            args.output,
+            broll_dir=args.broll_dir,
+            pacing_overrides=pacing_kwargs,
+            scan_observer_factory=RichProgressObserver,
+            render_observer_factory=RichProgressObserver,
+        )
 
-        # FEAT-026: Dry-run — preview plan without rendering
-        if pacing.dry_run:
-            segments = engine.plan_story(audio_meta, montage_clips, pacing=pacing)
-            from src.services.plan_report import format_plan_report, write_plan_report
-            report = format_plan_report(audio_meta, segments, montage_clips, pacing)
-            write_plan_report(report, getattr(args, "dry_run_output", None))
+        if result.plan_report is not None:
+            write_plan_report(result.plan_report, getattr(args, "dry_run_output", None))
 
-            # FEAT-028: Emit JSON alongside dry-run
             if getattr(args, "output_json", None):
-                from src.services.json_output import build_json_output, write_json_output
                 data = build_json_output(
-                    audio_meta, video_clips, segments, pacing,
+                    result.audio_meta,
+                    result.video_clips,
+                    result.segments,
+                    result.pacing,
                 )
                 write_json_output(data, args.output_json)
-
-            logger.info("Dry-run complete — no video rendered.")
             return
 
-        with RichProgressObserver() as observer:
-            result_path = engine.generate_story(
-                audio_meta, montage_clips, args.output,
-                broll_clips=broll_clips,
-                audio_path=audio_path, observer=observer, pacing=pacing,
-            )
-        del montage_clips  # free immediately
-        logger.info("Process complete. Output saved to: %s", result_path)
-
-        # FEAT-028: Emit structured JSON output
         if getattr(args, "output_json", None):
-            from src.services.json_output import build_json_output, write_json_output
             data = build_json_output(
-                audio_meta, video_clips, None, pacing, result_path,
+                result.audio_meta,
+                result.video_clips,
+                None,
+                result.pacing,
+                result.output_path,
             )
             write_json_output(data, args.output_json)
 
-        # 4. Generate Report
-        if args.export_report:
+        if args.export_report and result.output_path is not None:
             logger.info(
                 "Generating analysis report to %s...",
                 args.export_report
             )
             report_gen = ExcelReportGenerator()
             report_gen.generate_report(
-                audio_meta, video_clips, args.export_report
+                result.audio_meta, result.video_clips, args.export_report
             )
 
     except ValidationError as e:

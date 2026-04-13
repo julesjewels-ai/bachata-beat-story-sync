@@ -78,6 +78,22 @@ pacing:
   #                              # Applies to both the horizontal (left/right) AND vertical (bottom) offset.
 
   # Text Overlay — cinematic cold open and lyrics (FEAT-045/046/047)
+  # Enable to burn timed text into the final video.
+  # text_overlay_enabled: false       # Master switch — must be true for anything below to work
+
+  # Cinematic cold open (0–7s): scene-setter wash + artist/song lower-third
+  # cold_open_enabled: true           # Set to false to skip the cold open entirely
+  # track_artist: ""                  # Artist name shown in the lower-third (4–7s)
+  # track_title: ""                   # Song title shown alongside the artist name
+
+  # LRC lyrics: synced subtitle track burned into the video
+  # lyrics_overlay_enabled: true      # Set to false to keep cold open but skip lyrics
+  # lyrics_lrc_path: ""               # Explicit path; leave empty for auto-discovery
+  #                                   # Auto-discovery: looks for {audio_stem}.lrc next
+  #                                   # to the audio file (e.g. track.wav → track.lrc)
+
+  # Scene-setter wash text (0–4s): pulled from {audio_stem}.scene.txt if it exists,
+  # then falls back to the most-repeated lyric line from the .lrc file.
   cold_open_wash_font_scale: 0.08   # Font size as fraction of video width (0.04–0.10)
   cold_open_wash_opacity: 0.65      # Wash text opacity 0.0–1.0 (0.35 = subtle)
   cold_open_wash_fade: 0.9          # Fade in/out duration in seconds

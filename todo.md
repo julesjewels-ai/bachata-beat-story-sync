@@ -1,0 +1,2 @@
+- Okay so there's an error with the logging output in developer mode. It doesn't actually show anything when I drop the box down in demo mode. Nothing is actually visible it's black text on a black background.
+- Okay, similar story for the plus and minus indicators for the test mode. When I have a maximum number of clips, you can click plus or minus but this is blacked out and you can't see the negative. Can we consider the UI for this? It's the same for the maximum length. 

@@ -150,6 +150,7 @@ make full-pipeline AUDIO=./tracks/ VIDEO_DIR=./clips/ TEST_MODE=1
 |---------|-------------|---------------|
 | `make install` | Create venv (uv) and install all deps | — |
 | `make run` | Single-track montage | `AUDIO`, `VIDEO_DIR`, `TEST_MODE`, `MAX_CLIPS`, `MAX_DURATION`, `VIDEO_STYLE`, `AUDIO_OVERLAY`, `EXPLAIN`, `INTRO_EFFECT`, `SMART_START` |
+| `make ui` | Run web interface (Streamlit) | — |
 | `make run-shorts` | Generate YouTube Shorts | `AUDIO`, `VIDEO_DIR`, `SHORTS_COUNT`, `SHORTS_DURATION` |
 | `make full-pipeline` | Mix + videos + shorts | All `run` vars + `OUTPUT_DIR`, `SHARED_SCAN` |
 | `make test` | Run pytest suite | — |

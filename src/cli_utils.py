@@ -90,7 +90,9 @@ def build_pacing_kwargs(args: argparse.Namespace) -> dict:
         broll_variance, explain, intro_effect, intro_effect_duration,
         dry_run, pacing_drift_zoom, pacing_crop_tighten,
         pacing_saturation_pulse, pacing_micro_jitters, pacing_light_leaks,
-        pacing_warm_wash, pacing_alternating_bokeh.
+        pacing_warm_wash, pacing_alternating_bokeh,
+        text_overlay, track_artist, track_title, lrc_path,
+        no_cold_open, no_lyrics.
 
     All padding values are integers (pixels ≥ 0). All opacity values are
     floats clamped to 0.0–1.0 by the renderer. Unrecognised/missing
@@ -152,6 +154,22 @@ def build_pacing_kwargs(args: argparse.Namespace) -> dict:
 
     if getattr(args, "zoom", None) is not None:
         kwargs["zoom_factor"] = args.zoom
+
+    # Text Overlays (FEAT-045 / FEAT-046 / FEAT-047)
+    if getattr(args, "text_overlay", False):
+        kwargs["text_overlay_enabled"] = True
+        # cold_open and lyrics default to True inside PacingConfig — only
+        # override when the user explicitly disables them.
+        if getattr(args, "no_cold_open", False):
+            kwargs["cold_open_enabled"] = False
+        if getattr(args, "no_lyrics", False):
+            kwargs["lyrics_overlay_enabled"] = False
+    if getattr(args, "track_artist", None):
+        kwargs["track_artist"] = args.track_artist
+    if getattr(args, "track_title", None):
+        kwargs["track_title"] = args.track_title
+    if getattr(args, "lrc_path", None):
+        kwargs["lyrics_lrc_path"] = args.lrc_path
 
     return kwargs
 
@@ -280,13 +298,13 @@ def add_visual_args(parser: argparse.ArgumentParser) -> None:
         "--pacing-drift-zoom",
         action="store_true",
         default=False,
-        help="Slow 100→105% Ken Burns zoom drift on every segment",
+        help="Slow 100-105%% Ken Burns zoom drift on every segment",
     )
     parser.add_argument(
         "--pacing-crop-tighten",
         action="store_true",
         default=False,
-        help="Zoom in over first 10s of each segment (caps at 105%); "
+        help="Zoom in over first 10s of each segment (caps at 105%%); "
         "mutually exclusive with --pacing-drift-zoom (both use zoompan)",
     )
     parser.add_argument(
@@ -325,7 +343,7 @@ def add_visual_args(parser: argparse.ArgumentParser) -> None:
         "--zoom",
         type=float,
         default=None,
-        help="Static zoom/crop factor (e.g. 0.88 to clip outer 12% of edges)",
+        help="Static zoom/crop factor (e.g. 0.88 to clip outer 12%% of edges)",
     )
 
     # Structured JSON Output (FEAT-028)
@@ -335,6 +353,50 @@ def add_visual_args(parser: argparse.ArgumentParser) -> None:
         default=None,
         metavar="PATH",
         help="Emit structured JSON output to a file or '-' for stdout",
+    )
+
+    # Text Overlays (FEAT-045 / FEAT-046 / FEAT-047)
+    parser.add_argument(
+        "--text-overlay",
+        action="store_true",
+        default=False,
+        help="Burn timed text into the video: cinematic cold open and/or LRC lyrics",
+    )
+    parser.add_argument(
+        "--track-artist",
+        type=str,
+        default=None,
+        metavar="ARTIST",
+        help="Artist name shown in the cold open lower-third (requires --text-overlay)",
+    )
+    parser.add_argument(
+        "--track-title",
+        type=str,
+        default=None,
+        metavar="TITLE",
+        help="Song title shown in the cold open lower-third (requires --text-overlay)",
+    )
+    parser.add_argument(
+        "--lrc-path",
+        type=str,
+        default=None,
+        metavar="PATH",
+        help=(
+            "Explicit path to an LRC lyrics file. "
+            "If omitted, auto-discovers {audio_stem}.lrc alongside the audio file."
+        ),
+    )
+    parser.add_argument(
+        "--no-cold-open",
+        action="store_true",
+        default=False,
+        help="Disable the cinematic cold open (scene-setter + artist/title lower-third)",
+    )
+    parser.add_argument(
+        "--no-lyrics",
+        action="store_true",
+        default=False,
+        help="Disable the LRC lyrics overlay while keeping other text overlays",
     )
 
 
