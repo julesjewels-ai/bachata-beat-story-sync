@@ -71,10 +71,10 @@ pacing:
 
   # Audio Overlay Visualizer (FEAT-013)
   # Options: 'none', 'waveform' (line), 'bars' (frequency bars)
-  # audio_overlay: none
-  # audio_overlay_opacity: 0.5
-  # audio_overlay_position: right
-  # audio_overlay_padding: 10  # Distance in pixels from the nearest screen edge (default: 10, range: 0+)
+  audio_overlay: bars
+  audio_overlay_opacity: 0.5
+  audio_overlay_position: right
+  audio_overlay_padding: 20  # Distance in pixels from the nearest screen edge (default: 10, range: 0+)
   #                              # Applies to both the horizontal (left/right) AND vertical (bottom) offset.
 
   # Text Overlay — cinematic cold open and lyrics (FEAT-045/046/047)
@@ -83,8 +83,8 @@ pacing:
 
   # Cinematic cold open (0–7s): scene-setter wash + artist/song lower-third
   cold_open_enabled: true           # Set to false to skip the cold open entirely
-  track_artist: "Bachata Romantica"                  # Artist name shown in the lower-third (4–7s)
-  track_title: "Los Mejores Éxitos"                   # Song title shown alongside the artist name
+  track_artist: "Bachata del Alma"                  # Artist name shown in the lower-third (4–7s)
+  track_title: "Edición Especial"                   # Song title shown alongside the artist name
 
   # LRC lyrics: synced subtitle track burned into the video
   # lyrics_overlay_enabled: true      # Set to false to keep cold open but skip lyrics
