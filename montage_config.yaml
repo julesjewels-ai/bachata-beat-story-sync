@@ -83,6 +83,8 @@ pacing:
 
   # Cinematic cold open (0–7s): scene-setter wash + artist/song lower-third
   cold_open_enabled: true           # Set to false to skip the cold open entirely
+  # In pipeline mode, per-track metadata overrides these global defaults (FEAT-048).
+  # Pipeline tries: sidecar .meta.txt → config mapping → filename extraction
   track_artist: "Bachata para bailar"                  # Artist name shown in the lower-third (4–7s)
   track_title: "Mix 2026"                   # Song title shown alongside the artist name
 
@@ -138,6 +140,23 @@ pipeline:
   #   track1.wav: vintage
   #   track2.wav: bw
   track_styles: {}
+
+  # Per-Track Metadata for Text Overlays (FEAT-048)
+  # Assign artist name and song title to each track for the cold open.
+  # Extraction priority (fallback chain):
+  #   1. Sidecar file: {track}.meta.txt (2 lines: artist, title)
+  #   2. Config mapping below: per_track_metadata section
+  #   3. Filename extraction: "Artist Name - Song Title.wav" format
+  #   4. Empty (no text overlay)
+  # Example:
+  # per_track_metadata:
+  #   track1.wav:
+  #     artist: "Romeo Santos"
+  #     title: "Propuesta Indecente"
+  #   track2.wav:
+  #     artist: "Juan Luis Guerra"
+  #     title: "Bachata Rosa"
+  per_track_metadata: {}
 
 # Audio Mix Configuration
 # Controls how multiple audio tracks are mixed when --audio points to a folder.

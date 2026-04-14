@@ -414,6 +414,16 @@ class PacingConfig(BaseModel):
         ),
     )
 
+    # Per-Track Metadata (artist/title) for Text Overlays (FEAT-048)
+    per_track_metadata: dict[str, dict[str, str]] = Field(
+        default_factory=dict,
+        description=(
+            "Per-track artist/title mapping for cold open text overlay. "
+            "Example: {'track1.wav': {'artist': 'Artist 1', 'title': 'Song 1'}}. "
+            "Fallback priority: sidecar .meta.txt → config mapping → filename extraction."
+        ),
+    )
+
     # Text Overlay (FEAT-045)
     text_overlay_enabled: bool = Field(
         False,
@@ -534,4 +544,31 @@ class AudioMixConfig(BaseModel):
         False,
         description="[Phase 2 — not yet active] Gradually ramp tempo within "
         "the crossfade window rather than applying a fixed stretch",
+    )
+
+
+class CompilationConfig(BaseModel):
+    """
+    Configuration for generating a compilation video from individual track videos.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = Field(
+        False,
+        description="Whether to automatically generate a compilation video "
+        "from individual track videos after the pipeline completes",
+    )
+    transition_type: Literal["fade", "crossfade", "none"] = Field(
+        "fade",
+        description="Type of transition between track videos: 'fade', 'crossfade', 'none'",
+    )
+    transition_duration: float = Field(
+        0.5,
+        description="Duration of each transition in seconds",
+    )
+    include_chapter_markers: bool = Field(
+        True,
+        description="Generate a chapters JSON file with timestamps and track names "
+        "for YouTube description",
     )

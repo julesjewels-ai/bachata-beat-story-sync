@@ -191,6 +191,67 @@ def _get_track_video_style(
     return default_style
 
 
+def _extract_track_metadata(
+    track_path: str,
+    pipeline_config: PipelineConfig,
+) -> tuple[str, str]:
+    """
+    Extract artist and title for a track using a fallback chain.
+
+    Priority order:
+    1. Sidecar {track}.meta.txt file (2 lines: artist, title)
+    2. Config mapping in pipeline.per_track_metadata
+    3. Filename extraction (assume "Artist - Title.wav" format)
+    4. Empty strings (no metadata)
+
+    Returns:
+        (artist, title) tuple, both strings (may be empty).
+    """
+    track_filename = os.path.basename(track_path)
+    track_stem = os.path.splitext(track_filename)[0]
+
+    # 1. Sidecar .meta.txt file
+    meta_path = os.path.splitext(track_path)[0] + ".meta.txt"
+    if os.path.isfile(meta_path):
+        try:
+            with open(meta_path, encoding="utf-8") as fh:
+                lines = [line.strip() for line in fh.readlines() if line.strip()]
+            if len(lines) >= 2:
+                logger.info("Track metadata loaded from sidecar: %s", meta_path)
+                return (lines[0], lines[1])
+        except OSError:
+            logger.warning("Could not read metadata sidecar: %s", meta_path)
+
+    # 2. Config mapping
+    per_track_metadata = pipeline_config.per_track_metadata or {}
+    if track_filename in per_track_metadata:
+        meta = per_track_metadata[track_filename]
+        artist = meta.get("artist", "").strip()
+        title = meta.get("title", "").strip()
+        if artist or title:
+            logger.info(
+                "Track metadata from config for %s: %s — %s",
+                track_filename,
+                artist,
+                title,
+            )
+            return (artist, title)
+
+    # 3. Filename extraction (assume "Artist - Title.wav" format)
+    if " - " in track_stem:
+        parts = track_stem.split(" - ", 1)
+        artist = parts[0].strip()
+        title = parts[1].strip()
+        logger.info(
+            "Track metadata extracted from filename: %s — %s", artist, title
+        )
+        return (artist, title)
+
+    # 4. No metadata found
+    logger.debug("No metadata found for %s, will use empty strings", track_filename)
+    return ("", "")
+
+
 # ------------------------------------------------------------------
 # Core Generation Helpers
 # ------------------------------------------------------------------
@@ -442,6 +503,15 @@ def main() -> None:
                 if track_style != base_pacing.video_style:
                     track_pacing_kwargs["video_style"] = track_style
 
+                # FEAT-048: Extract per-track metadata (artist/title) for cold open
+                track_artist, track_title = _extract_track_metadata(
+                    track_path, pipeline_config
+                )
+                if track_artist:
+                    track_pacing_kwargs["track_artist"] = track_artist
+                if track_title:
+                    track_pacing_kwargs["track_title"] = track_title
+
                 report = run_dry_run_handler(
                     engine,
                     track_meta,
@@ -545,6 +615,15 @@ def main() -> None:
             )
             if track_style != base_pacing.video_style:
                 track_pacing["video_style"] = track_style
+
+            # FEAT-048: Extract per-track metadata (artist/title) for cold open
+            track_artist, track_title = _extract_track_metadata(
+                track_path, pipeline_config
+            )
+            if track_artist:
+                track_pacing["track_artist"] = track_artist
+            if track_title:
+                track_pacing["track_title"] = track_title
 
             # Generate horizontal video
             track_out = os.path.join(args.output_dir, f"{track_label}.mp4")
