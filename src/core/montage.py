@@ -160,6 +160,9 @@ class MontageGenerator:
         If a seed is provided in the config, the pools are shuffled based on
         that seed to ensure variety across runs. If the seed is empty, a random
         seed is used for the shuffle.
+
+        Returns both the pools and pool_offset, which rotates the starting index
+        for round-robin selection to ensure first clips vary per track.
         """
         pools: dict = {"high": [], "medium": [], "low": []}
         for clip in clips:
@@ -177,7 +180,22 @@ class MontageGenerator:
         for level in pools:
             rng.shuffle(pools[level])
 
-        return pools
+        # Compute starting offset for each pool based on seed to vary opening clips
+        pool_offset = {}
+        if shuffle_seed:
+            offset_seed = int(
+                hashlib.md5(f"{shuffle_seed}_offset".encode()).hexdigest()[:8],
+                16,
+            )
+            pool_offset = {
+                "high": offset_seed % max(1, len(pools["high"])),
+                "medium": offset_seed % max(1, len(pools["medium"])),
+                "low": offset_seed % max(1, len(pools["low"])),
+            }
+        else:
+            pool_offset = {"high": 0, "medium": 0, "low": 0}
+
+        return pools, pool_offset
 
     @staticmethod
     def _pick_from_pool(
@@ -461,13 +479,18 @@ class MontageGenerator:
         sorted_clips, forced_clips = self._prepare_clips(video_clips, config)
 
         # FEAT-009: Build intensity-matched pools for clip selection
-        pools = self._build_intensity_pools(sorted_clips, config)
-        pool_indices: dict = {"high": 0, "medium": 0, "low": 0}
+        pools, pool_offset = self._build_intensity_pools(sorted_clips, config)
+        pool_indices: dict = {
+            "high": pool_offset.get("high", 0),
+            "medium": pool_offset.get("medium", 0),
+            "low": pool_offset.get("low", 0),
+        }
         logger.debug(
-            "Intensity pools — high: %d, medium: %d, low: %d",
+            "Intensity pools — high: %d, medium: %d, low: %d (offsets: %s)",
             len(pools["high"]),
             len(pools["medium"]),
             len(pools["low"]),
+            pool_offset,
         )
 
         segments: list[SegmentPlan] = []
