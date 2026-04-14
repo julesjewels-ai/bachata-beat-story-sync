@@ -19,6 +19,7 @@ import os
 import subprocess
 import sys
 import time
+import uuid
 
 from pydantic import ValidationError
 
@@ -530,7 +531,13 @@ def main() -> None:
             # FEAT-017 + FEAT-031: Build per-track pacing config
             # - Rotate prefix clips per track for intro variety
             # - Override video_style if per-track style is configured
-            track_pacing = {**pacing_kwargs, "prefix_offset": idx - 1}
+            # - Generate per-track seed for selection variety
+            track_seed = pacing_kwargs.get("seed") or str(uuid.uuid4())
+            track_pacing = {
+                **pacing_kwargs,
+                "prefix_offset": idx - 1,
+                "seed": f"{track_seed}_track_{idx}",
+            }
             track_style = _get_track_video_style(
                 track_path,
                 pipeline_config,

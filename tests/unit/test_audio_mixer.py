@@ -109,17 +109,20 @@ class TestBuildFilterComplex:
 class TestConfigFingerprint:
     def test_same_config_same_hash(self):
         cfg = AudioMixConfig()
-        assert _config_fingerprint(cfg) == _config_fingerprint(cfg)
+        files = ["01_track.wav", "02_track.mp3"]
+        assert _config_fingerprint(cfg, files) == _config_fingerprint(cfg, files)
 
     def test_different_tempo_sync_gives_different_hash(self):
         cfg_on = AudioMixConfig(tempo_sync=True)
         cfg_off = AudioMixConfig(tempo_sync=False)
-        assert _config_fingerprint(cfg_on) != _config_fingerprint(cfg_off)
+        files = ["01_track.wav", "02_track.mp3"]
+        assert _config_fingerprint(cfg_on, files) != _config_fingerprint(cfg_off, files)
 
     def test_different_threshold_gives_different_hash(self):
         cfg_a = AudioMixConfig(sync_threshold=0.10)
         cfg_b = AudioMixConfig(sync_threshold=0.05)
-        assert _config_fingerprint(cfg_a) != _config_fingerprint(cfg_b)
+        files = ["01_track.wav", "02_track.mp3"]
+        assert _config_fingerprint(cfg_a, files) != _config_fingerprint(cfg_b, files)
 
 
 # ==================================================================
@@ -308,7 +311,8 @@ def test_mix_audio_folder_cache_invalidated_on_config_change():
 
         # Write a stale cached output with the OLD fingerprint (tempo_sync=False)
         old_config = AudioMixConfig(tempo_sync=False)
-        old_fp = _config_fingerprint(old_config)
+        audio_files = [audio_file, audio_file2]
+        old_fp = _config_fingerprint(old_config, audio_files)
         with open(output_file, "w") as fh:
             fh.write("stale cached mix")
         with open(params_file, "w") as fh:
@@ -317,7 +321,7 @@ def test_mix_audio_folder_cache_invalidated_on_config_change():
         mixer = AudioMixer()
         # Now run with tempo_sync=True — the fingerprint will differ
         new_config = AudioMixConfig(tempo_sync=True)
-        new_fp = _config_fingerprint(new_config)
+        new_fp = _config_fingerprint(new_config, audio_files)
         assert old_fp != new_fp  # sanity check
 
         # Patch load_audio_mix_config to return the new config, and _mix_files to spy
@@ -351,7 +355,8 @@ def test_mix_audio_folder_cache_hit_skips_mix():
             f.write("valid cached mix")
 
         config = AudioMixConfig()
-        fp = _config_fingerprint(config)
+        audio_files = [audio_file]
+        fp = _config_fingerprint(config, audio_files)
         with open(params_file, "w") as f:
             f.write(fp)
 

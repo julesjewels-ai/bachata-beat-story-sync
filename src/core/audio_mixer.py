@@ -91,16 +91,26 @@ def resolve_audio_path(
 # ------------------------------------------------------------------
 
 
-def _config_fingerprint(config: AudioMixConfig) -> str:
-    """Return an MD5 hash of the mix-relevant config fields.
+def _config_fingerprint(config: AudioMixConfig, audio_files: list[str]) -> str:
+    """Return an MD5 hash of the mix-relevant config fields AND input files.
 
-    Used as a cache key so that changing tempo_sync or sync_threshold
-    triggers a fresh mix rather than serving a stale cached file.
+    Used as a cache key so that changing tempo_sync, sync_threshold,
+    OR the set of input files triggers a fresh mix.
     """
+    # Include file metadata (name + size) in the fingerprint
+    file_meta = []
+    for path in sorted(audio_files):
+        try:
+            size = os.path.getsize(path)
+            file_meta.append(f"{os.path.basename(path)}:{size}")
+        except OSError:
+            file_meta.append(os.path.basename(path))
+
     data = {
         "crossfade": config.crossfade_duration_seconds,
         "tempo_sync": config.tempo_sync,
         "sync_threshold": config.sync_threshold,
+        "files": file_meta,
     }
     return hashlib.md5(
         json.dumps(data, sort_keys=True).encode(), usedforsecurity=False
@@ -194,24 +204,18 @@ class AudioMixer:
         alphanumerically, and concatenates them with BPM-matched crossfades.
 
         If the final output file already exists **and** its config fingerprint
-        matches the current config, the cached file is reused.  If the config
-        has changed (e.g. ``tempo_sync`` was just enabled), the cache is
-        invalidated and the mix is regenerated.
-
-        Args:
-            folder_path: Path to directory containing audio files.
-            output_path: Path where the mixed output should be saved.
-            observer: Optional progress observer.
-
-        Returns:
-            The path to the output mixed audio file.
+        matches current config AND file list, the cached file is reused.
         """
         config = load_audio_mix_config()
+        audio_files = self._discover_audio_files(folder_path)
+        if not audio_files:
+            raise ValueError(f"No supported audio files found in {folder_path}")
 
-        # --- Cache validation with config fingerprint ---
+        # --- Cache validation with config fingerprint (including files) ---
         params_path = output_path + _CACHE_PARAMS_SUFFIX
+        current_fp = _config_fingerprint(config, audio_files)
+
         if os.path.exists(output_path):
-            current_fp = _config_fingerprint(config)
             cached_fp = None
             if os.path.exists(params_path):
                 try:
@@ -221,19 +225,16 @@ class AudioMixer:
                     pass
             if cached_fp == current_fp:
                 logger.info(
-                    "Mixed audio cache hit at %s (config unchanged).", output_path
+                    "Mixed audio cache hit at %s (config and files unchanged).", output_path
                 )
                 return output_path
             logger.info(
-                "Mix config changed (cached=%s, current=%s); regenerating mix.",
-                cached_fp,
-                current_fp,
+                "Mix folder or config changed; regenerating mix."
             )
-            os.remove(output_path)
-
-        audio_files = self._discover_audio_files(folder_path)
-        if not audio_files:
-            raise ValueError(f"No supported audio files found in {folder_path}")
+            try:
+                os.remove(output_path)
+            except OSError:
+                pass
 
         logger.info("Found %d audio files in %s", len(audio_files), folder_path)
 
@@ -253,7 +254,7 @@ class AudioMixer:
         # Write config fingerprint sidecar
         try:
             with open(params_path, "w") as f:
-                f.write(_config_fingerprint(config))
+                f.write(current_fp)
         except OSError as e:
             logger.warning("Could not write mix params sidecar: %s", e)
 

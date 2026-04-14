@@ -203,7 +203,11 @@ class TestBuildSegmentPlan:
         assert segments == []
 
     def test_single_clip_single_beat(self, generator, single_clip):
-        """Edge case: one clip, one beat."""
+        """Edge case: one clip, one beat.
+
+        With min_clip_seconds=2.0, a single beat at ~0.5s is rejected
+        as too short. This is the correct safety-net behavior.
+        """
         audio = AudioAnalysisResult(
             filename="one_beat.wav",
             bpm=120.0,
@@ -214,8 +218,7 @@ class TestBuildSegmentPlan:
             intensity_curve=[0.5],
         )
         segments = generator.build_segment_plan(audio, single_clip)
-        assert len(segments) == 1
-        assert segments[0].video_path == "/videos/only_clip.mp4"
+        assert len(segments) == 0  # Rejected: too short
 
     def test_timeline_positions_are_sequential(
         self, generator, audio_data, video_clips

@@ -14,6 +14,7 @@ import random
 import re
 import shutil
 import tempfile
+import uuid
 from typing import NamedTuple
 
 from src.config.app_config import load_app_config
@@ -156,10 +157,9 @@ class MontageGenerator:
         """
         Bucket clips into high / medium / low pools by intensity_score.
 
-        Uses the same thresholds as audio intensity classification.
-
-        Returns:
-            Dict with keys 'high', 'medium', 'low' mapping to lists of clips.
+        If a seed is provided in the config, the pools are shuffled based on
+        that seed to ensure variety across runs. If the seed is empty, a random
+        seed is used for the shuffle.
         """
         pools: dict = {"high": [], "medium": [], "low": []}
         for clip in clips:
@@ -169,6 +169,14 @@ class MontageGenerator:
                 pools["low"].append(clip)
             else:
                 pools["medium"].append(clip)
+
+        # Shuffle each pool to ensure the round-robin selection is non-deterministic
+        # unless a specific seed is forced for reproducibility.
+        shuffle_seed = config.seed or str(uuid.uuid4())
+        rng = random.Random(shuffle_seed)
+        for level in pools:
+            rng.shuffle(pools[level])
+
         return pools
 
     @staticmethod
@@ -572,7 +580,7 @@ class MontageGenerator:
             )
             section_label = self._find_section_label(sections, current_time)
 
-            if actual_duration > 0:
+            if actual_duration >= config.min_clip_seconds:
                 seg = SegmentPlan(
                     video_path=clip.path,
                     start_time=start_time,
