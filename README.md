@@ -140,6 +140,9 @@ make run-shorts AUDIO=my_track.wav VIDEO_DIR=./clips/ SHORTS_COUNT=3
 
 # Full pipeline — mix + individual videos + shorts
 make full-pipeline AUDIO=./tracks/ VIDEO_DIR=./clips/ TEST_MODE=1
+
+# Full pipeline with compilation (concatenate individual track videos)
+make full-pipeline AUDIO=./tracks/ VIDEO_DIR=./clips/ COMPILATION=1
 ```
 
 ---
@@ -149,15 +152,17 @@ make full-pipeline AUDIO=./tracks/ VIDEO_DIR=./clips/ TEST_MODE=1
 | Command | Description | Key Variables |
 |---------|-------------|---------------|
 | `make install` | Create venv (uv) and install all deps | — |
-| `make run` | Single-track montage | `AUDIO`, `VIDEO_DIR`, `TEST_MODE`, `MAX_CLIPS`, `MAX_DURATION`, `VIDEO_STYLE`, `AUDIO_OVERLAY`, `EXPLAIN`, `INTRO_EFFECT`, `SMART_START` |
+| `make run` | Single-track montage | `AUDIO`, `VIDEO_DIR`, `TEST_MODE`, `MAX_CLIPS`, `MAX_DURATION`, `VIDEO_STYLE`, `AUDIO_OVERLAY`, `EXPLAIN`, `INTRO_EFFECT` |
 | `make ui` | Run web interface (Streamlit) | — |
 | `make run-shorts` | Generate YouTube Shorts | `AUDIO`, `VIDEO_DIR`, `SHORTS_COUNT`, `SHORTS_DURATION` |
-| `make full-pipeline` | Mix + videos + shorts | All `run` vars + `OUTPUT_DIR`, `SHARED_SCAN` |
+| `make full-pipeline` | Mix + individual videos + shorts + optional compilation | All `run` vars + `OUTPUT_DIR`, `SHARED_SCAN`, `COMPILATION` |
 | `make test` | Run pytest suite | — |
 | `make lint` | Lint with ruff | — |
 | `make format` | Auto-format + import sort | — |
 | `make check-types` | Type-check with mypy | — |
 | `make clean` | Remove venv, caches, outputs | — |
+
+**All available variables** are documented in [docs/user/configuration.md → Makefile Variables](docs/user/configuration.md#makefile-variables).
 
 All montage behavior is further configurable via [`montage_config.yaml`](montage_config.yaml) — see [docs/user/configuration.md](docs/user/configuration.md) for the full reference.
 
@@ -228,11 +233,14 @@ venv/bin/pytest -k "section"           # by keyword
 
 | Document | Audience | Description |
 |----------|----------|-------------|
+| [Make Commands Guide](docs/user/make-commands.md) | All Users | How to use `make run`, `make full-pipeline`, `make run-shorts`, and all variables |
 | [User Guide](docs/user/user-guide.md) | Users | Installation, CLI usage, troubleshooting |
+| [Configuration](docs/user/configuration.md) | Users & Devs | CLI args, YAML config, Makefile variables, output specs |
 | [API Reference](docs/user/api-reference.md) | Developers | Class/function signatures and behavior |
-| [Configuration](docs/user/configuration.md) | Users & Devs | CLI args, env vars, output specs |
 | [Contributing](docs/user/contributing.md) | Developers | Dev setup, coding standards, testing |
 | [Security](docs/user/security.md) | Stakeholders | Security posture, mitigations, risks |
+
+**Quick start:** Not sure how to use the make commands? Start with [Make Commands Guide](docs/user/make-commands.md).
 
 For internal documentation (team/stakeholders only), see [`docs/internal/`](docs/internal/README.md).
 

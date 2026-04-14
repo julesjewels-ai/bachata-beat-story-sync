@@ -25,6 +25,7 @@ SHORTS_DURATION ?= 60
 OUTPUT_DIR ?= output_pipeline
 SHARED_SCAN ?= 0
 SMART_START ?=
+COMPILATION ?=
 
 # Build optional flags
 EXTRA_FLAGS =
@@ -103,6 +104,14 @@ endif
 
 ifneq ($(ZOOM),)
   EXTRA_FLAGS += --zoom $(ZOOM)
+endif
+
+ifeq ($(COMPILATION),1)
+  EXTRA_FLAGS += --compilation
+endif
+
+ifeq ($(COMPILATION),0)
+  EXTRA_FLAGS += --no-compilation
 endif
 
 .PHONY: install run ui run-shorts full-pipeline mcp-serve test lint lint-fix format check-types refactor clean download-demo

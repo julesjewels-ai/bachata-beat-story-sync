@@ -72,7 +72,7 @@ pacing:
   # Audio Overlay Visualizer (FEAT-013)
   # Options: 'none', 'waveform' (line), 'bars' (frequency bars)
   audio_overlay: bars
-  audio_overlay_opacity: 0.5
+  audio_overlay_opacity: 0.2
   audio_overlay_position: right
   audio_overlay_padding: 20  # Distance in pixels from the nearest screen edge (default: 10, range: 0+)
   #                              # Applies to both the horizontal (left/right) AND vertical (bottom) offset.
@@ -85,8 +85,8 @@ pacing:
   cold_open_enabled: true           # Set to false to skip the cold open entirely
   # In pipeline mode, per-track metadata overrides these global defaults (FEAT-048).
   # Pipeline tries: sidecar .meta.txt → config mapping → filename extraction
-  track_artist: "Bachata para bailar"                  # Artist name shown in the lower-third (4–7s)
-  track_title: "Mix 2026"                   # Song title shown alongside the artist name
+  # track_artist: "Bachata para bailar"                  # Artist name shown in the lower-third (4–7s)
+  # track_title: "Mix 2026"                   # Song title shown alongside the artist name
 
   # LRC lyrics: synced subtitle track burned into the video
   # lyrics_overlay_enabled: true      # Set to false to keep cold open but skip lyrics
@@ -178,3 +178,19 @@ audio_mix:
 
   # [Phase 2 — not yet active] Gradually ramp tempo within the crossfade window.
   # tempo_ramp: false
+
+# Compilation Configuration
+# Automatically concatenate individual track videos into one long-form video
+# with chapter markers for YouTube navigation (FEAT-049).
+compilation:
+  # Enable automatic compilation video generation at the end of the pipeline
+  enabled: true  # Set to true to auto-generate compilation.mp4 after pipeline completes
+
+  # Type of transition between track videos
+  # Options: 'fade' (0.5s cross-fade), 'crossfade' (overlap), 'none' (hard cut)
+  transition_type: fade
+  transition_duration: 0.5  # Duration in seconds
+
+  # Generate chapter markers JSON for YouTube description
+  # Output: compilation_chapters.json with timestamps and track names
+  include_chapter_markers: true

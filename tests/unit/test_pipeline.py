@@ -102,8 +102,8 @@ class TestDetectBrollDir:
 
 
 class TestSafeFilename:
-    def test_strips_extension_and_spaces(self):
-        assert _safe_filename("/path/to/My Song.mp3") == "My_Song"
+    def test_strips_extension_preserves_spaces(self):
+        assert _safe_filename("/path/to/My Song.mp3") == "My Song"
 
     def test_simple_name(self):
         assert _safe_filename("track_01.wav") == "track_01"

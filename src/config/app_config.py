@@ -3,14 +3,15 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.core.genre_presets import apply_genre_preset
-from src.core.models import AudioMixConfig, PacingConfig
+from src.core.models import AudioMixConfig, CompilationConfig, PacingConfig
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +25,7 @@ class PipelineConfig(BaseModel):
 
     track_clips: dict[str, str] = Field(default_factory=dict)
     track_styles: dict[str, str] = Field(default_factory=dict)
+    per_track_metadata: dict[str, dict[str, str]] = Field(default_factory=dict)
 
 
 class AppConfig(BaseModel):
@@ -34,6 +36,7 @@ class AppConfig(BaseModel):
     pacing: PacingConfig = Field(default_factory=PacingConfig)
     pipeline: PipelineConfig = Field(default_factory=PipelineConfig)
     audio_mix: AudioMixConfig = Field(default_factory=AudioMixConfig)
+    compilation: CompilationConfig = Field(default_factory=CompilationConfig)
 
 
 def _resolve_path(config_path: str | None) -> Path:
@@ -52,6 +55,7 @@ def _build_app_config(raw: Mapping[str, Any]) -> AppConfig:
         pacing=PacingConfig(**pacing_data),
         pipeline=PipelineConfig(**(raw.get("pipeline", {}) or {})),
         audio_mix=AudioMixConfig(**(raw.get("audio_mix", {}) or {})),
+        compilation=CompilationConfig(**(raw.get("compilation", {}) or {})),
     )
 
 

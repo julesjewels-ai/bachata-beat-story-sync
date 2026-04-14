@@ -266,6 +266,7 @@ All variables below are **optional** and apply to `make run`, `make run-shorts`,
 | `WATCH` | `0` | Set to `1` to watch input directories and config for changes and incrementally re-render |
 | `GENRE` | — | Genre preset: `bachata`, `salsa`, `reggaeton`, `kizomba`, `merengue`, `pop` |
 | `OUTPUT_JSON` | — | Path for structured JSON output |
+| `COMPILATION` | `0` | Set to `1` to auto-generate a compilation video (concatenates all individual track videos with transitions) or `0` to disable |
 | `PACING_DRIFT_ZOOM` | `0` | Set to `1` to enable Ken Burns drift zoom |
 | `PACING_CROP_TIGHTEN` | `0` | Set to `1` to enable crop tightening |
 | `PACING_SATURATION_PULSE` | `0` | Set to `1` to enable saturation pulsing |
@@ -334,6 +335,33 @@ make run AUDIO=song.wav VIDEO_DIR=./clips/ DRY_RUN=1 DRY_RUN_OUTPUT=plan.txt
 ```bash
 make run AUDIO=song.wav VIDEO_DIR=./clips/ WATCH=1 TEST_MODE=1
 ```
+
+**Example — full pipeline with compilation video:**
+
+```bash
+make full-pipeline AUDIO=./tracks/ VIDEO_DIR=./clips/ COMPILATION=1
+```
+
+This generates:
+- Mix video (`output_pipeline/mix_video.mp4`)
+- Individual track videos (`output_pipeline/track_01.mp4`, `track_02.mp4`, etc.)
+- **Compilation video** (`output_pipeline/compilation.mp4`) — concatenated track videos with transitions
+- **Chapter markers** (`output_pipeline/compilation_chapters.json` and `.txt`) — YouTube-ready timestamps and track names
+- YouTube Shorts (`output_pipeline/shorts/`)
+
+**Example — full pipeline without compilation (default):**
+
+```bash
+make full-pipeline AUDIO=./tracks/ VIDEO_DIR=./clips/
+```
+
+**Example — full pipeline with compilation, warm color grading, and fade transitions:**
+
+```bash
+make full-pipeline AUDIO=./tracks/ VIDEO_DIR=./clips/ COMPILATION=1 VIDEO_STYLE=warm
+```
+
+Note: Compilation transition settings (fade, crossfade, none) and duration are configured in `montage_config.yaml` under the `compilation` section.
 
 ---
 

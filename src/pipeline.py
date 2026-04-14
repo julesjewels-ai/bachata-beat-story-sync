@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import logging
 import os
+import re
 import subprocess
 import sys
 import time
@@ -33,6 +34,7 @@ from src.cli_utils import (
     run_dry_run_handler,
     strip_thumbnails,
 )
+from src.core.compilation import generate_compilation
 from src.config.app_config import PipelineConfig, load_app_config
 from typing import TYPE_CHECKING, Any
 
@@ -94,7 +96,7 @@ def _scan_videos(
 def _safe_filename(path: str) -> str:
     """Derive a filesystem-safe name from an audio file path."""
     stem = os.path.splitext(os.path.basename(path))[0]
-    return stem.replace(" ", "_")
+    return stem
 
 
 def _get_track_video_dir(
@@ -217,8 +219,11 @@ def _extract_track_metadata(
             with open(meta_path, encoding="utf-8") as fh:
                 lines = [line.strip() for line in fh.readlines() if line.strip()]
             if len(lines) >= 2:
+                # Strip numeric prefixes (e.g. "1 Artist Name" → "Artist Name")
+                artist = re.sub(r"^\d+\s+", "", lines[0]).strip()
+                title = re.sub(r"^\d+\s+", "", lines[1]).strip()
                 logger.info("Track metadata loaded from sidecar: %s", meta_path)
-                return (lines[0], lines[1])
+                return (artist, title)
         except OSError:
             logger.warning("Could not read metadata sidecar: %s", meta_path)
 
@@ -332,6 +337,16 @@ def parse_args() -> argparse.Namespace:
         help="Scan video library once and reuse for all tracks (faster, less variety)",
     )
     parser.add_argument(
+        "--compilation",
+        action="store_true",
+        help="Generate a compilation video by concatenating all individual track videos",
+    )
+    parser.add_argument(
+        "--no-compilation",
+        action="store_true",
+        help="Skip compilation video generation (overrides config)",
+    )
+    parser.add_argument(
         "--test-mode",
         action="store_true",
         help="Quick iteration (max 4 clips, 10s of music per video)",
@@ -397,6 +412,10 @@ def main() -> None:
     engine = BachataSyncEngine()
     analyzer = AudioAnalyzer()
     generated_files: list[str] = []
+
+    # Track individual videos and audio files for compilation (FEAT-049)
+    track_videos: list[str] = []
+    track_audio_files: list[str] = []
 
     try:
         # ----------------------------------------------------------
@@ -640,6 +659,10 @@ def main() -> None:
             generated_files.append(result)
             log.success(f"Track video: [bold]{result}[/bold]")
 
+            # FEAT-049: Collect for compilation
+            track_videos.append(result)
+            track_audio_files.append(track_path)
+
             # Generate shorts (FEAT-015)
             if args.shorts_count > 0:
                 shorts_dir = os.path.join(args.output_dir, "shorts", f"track_{idx:02d}")
@@ -665,7 +688,44 @@ def main() -> None:
                 )
 
         # ----------------------------------------------------------
-        # 7. Summary
+        # 7. Generate compilation video (FEAT-049)
+        # ----------------------------------------------------------
+        # Determine if compilation should be enabled
+        # Priority: CLI flag > config default
+        compilation_enabled = app_config.compilation.enabled
+        if args.no_compilation:
+            compilation_enabled = False
+        elif args.compilation:
+            compilation_enabled = True
+
+        if compilation_enabled and track_videos:
+            log.phase("🎞️  Generating Compilation Video")
+            compilation_out = os.path.join(args.output_dir, "compilation.mp4")
+            with log.status("Concatenating track videos…"):
+                try:
+                    result = generate_compilation(
+                        track_videos,
+                        track_audio_files,
+                        compilation_out,
+                        app_config.compilation,
+                    )
+                    generated_files.append(result)
+                    log.success(f"Compilation video: [bold]{result}[/bold]")
+
+                    # Also mention the chapter markers
+                    chapters_path = compilation_out.replace(".mp4", "_chapters.json")
+                    if os.path.exists(chapters_path):
+                        chapters_txt = compilation_out.replace(".mp4", "_chapters.txt")
+                        log.detail(
+                            f"Chapter markers: [bold]{chapters_txt}[/bold] "
+                            "(paste into YouTube description)"
+                        )
+                except Exception as e:
+                    log.warn(f"Compilation generation failed: {e}")
+                    logger.exception("Compilation error:")
+
+        # ----------------------------------------------------------
+        # 8. Summary
         # ----------------------------------------------------------
         elapsed = time.time() - t0
         log.summary(generated_files, elapsed)

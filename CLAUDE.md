@@ -16,41 +16,68 @@ This project uses Streamlit for the UI. Always check for existing code before su
 
 # Commands
 
+**For comprehensive make command documentation with all variables and examples, see [docs/user/make-commands.md](docs/user/make-commands.md).**
+
+## Quick Reference
+
 ```bash
 # Install (uses uv with Python 3.13 venv)
 make install
 
-# Run main story video generator
+# Single-track montage
 make run AUDIO=path/to/track.wav VIDEO_DIR=path/to/clips/
 
-# Run the web UI (Streamlit)
-make ui
+# Test mode (fast iteration: 4 clips, 10s)
+make run AUDIO=track.wav VIDEO_DIR=clips/ TEST_MODE=1
 
-# Run full pipeline (mix + per-track videos + shorts)
+# YouTube Shorts (multiple shorts, fast)
+make run-shorts AUDIO=path/to/track.wav VIDEO_DIR=path/to/clips/ SHORTS_COUNT=5
+
+# Full pipeline (mix + individual videos + shorts)
 make full-pipeline AUDIO=path/to/audio_folder/ VIDEO_DIR=path/to/clips/
 
-# Generate YouTube Shorts only
-make run-shorts AUDIO=path/to/track.wav VIDEO_DIR=path/to/clips/
-
-# Start MCP server (stdio transport for Claude Desktop / AI agents)
-make mcp-serve
-
-# Test, lint, type-check
-make test
-make lint
-make format
-make check-types
-
-# Single test file
-venv/bin/pytest tests/unit/test_montage.py -v
-
-# Quick iteration with limits
-make run AUDIO=track.wav VIDEO_DIR=clips/ TEST_MODE=1
-make run AUDIO=track.wav VIDEO_DIR=clips/ MAX_CLIPS=5 MAX_DURATION=30
+# Full pipeline with compilation (concatenates individual track videos with transitions + chapter markers)
+make full-pipeline AUDIO=path/to/audio_folder/ VIDEO_DIR=path/to/clips/ COMPILATION=1
 
 # Dry-run (plan without rendering)
 make run AUDIO=track.wav VIDEO_DIR=clips/ DRY_RUN=1
+
+# With effects and styling
+make run AUDIO=track.wav VIDEO_DIR=clips/ VIDEO_STYLE=warm INTRO_EFFECT=bloom
+
+# Web UI (Streamlit)
+make ui
+
+# MCP server (AI agent interface)
+make mcp-serve
+
+# Development
+make test              # Run test suite
+make lint              # Check code style
+make format            # Auto-format code
+make check-types       # Type-check
+make refactor          # Format + lint + type-check + test (all-in-one)
+
+# Single test file
+venv/bin/pytest tests/unit/test_montage.py -v
 ```
+
+## Common Make Variables
+
+| Variable | Usage | Examples |
+|----------|-------|----------|
+| `AUDIO` | Audio file or folder | `AUDIO=song.wav` or `AUDIO=./tracks/` |
+| `VIDEO_DIR` | Video clips folder | `VIDEO_DIR=./clips/` |
+| `TEST_MODE` | Fast iteration (4 clips, 10s) | `TEST_MODE=1` |
+| `VIDEO_STYLE` | Color grading | `VIDEO_STYLE=warm` (or `bw`, `vintage`, `cool`, `golden`, `none`) |
+| `INTRO_EFFECT` | First clip effect | `INTRO_EFFECT=bloom` (or `vignette_breathe`, `none`) |
+| `AUDIO_OVERLAY` | Music visualizer | `AUDIO_OVERLAY=waveform` (or `bars`) |
+| `COMPILATION` | Generate compilation video | `COMPILATION=1` (pipeline only) |
+| `SHORTS_COUNT` | Number of shorts | `SHORTS_COUNT=5` (shorts/pipeline only) |
+| `EXPLAIN` | Decision explainability log | `EXPLAIN=1` |
+| `DRY_RUN` | Plan only (no rendering) | `DRY_RUN=1` |
+
+See [docs/user/make-commands.md](docs/user/make-commands.md) for full variable list.
 
 # Architecture
 
@@ -77,6 +104,7 @@ MontageGenerator.generate()           → output.mp4       # full render via FFm
 |---|---|
 | `core/app.py` | `BachataSyncEngine` — top-level facade; scan library, plan, generate |
 | `core/montage.py` | `MontageGenerator` — clip selection, pacing, B-roll scheduling, segment plan |
+| `core/compilation.py` | Concatenate individual track videos with transitions + generate chapter markers (FEAT-049) |
 | `core/audio_analyzer.py` | `AudioAnalyzer` — BPM, beat tracking, peaks, sections via librosa |
 | `core/video_analyzer.py` | `VideoAnalyzer` — intensity score, scene changes via OpenCV |
 | `core/ffmpeg_renderer.py` | FFmpeg wrappers: extract segments, concatenate, transitions, audio overlay |
@@ -94,13 +122,20 @@ MontageGenerator.generate()           → output.mp4       # full render via FFm
 
 ## Configuration
 
-`montage_config.yaml` at the project root is the primary configuration file. It maps to `PacingConfig` and `AudioMixConfig` (both in `src/core/models.py`). CLI flags always override YAML values. Key knobs:
+`montage_config.yaml` at the project root is the primary configuration file. It maps to `PacingConfig`, `AudioMixConfig`, and `CompilationConfig` (in `src/core/models.py`). CLI flags always override YAML values. Key knobs:
 
+**Pacing (montage clip selection/timing):**
 - `pacing.genre` — applies a genre preset before other values
 - `pacing.video_style` — color grade: `none`, `bw`, `vintage`, `warm`, `cool`, `golden`
 - `pacing.transition_type` — FFmpeg xfade: `none`, `fade`, `wipeleft`, etc.
 - `pacing.intro_effect` — `none`, `bloom`, `vignette_breathe` (first segment only)
 - `pacing.dry_run` — plan without rendering
+
+**Compilation (FEAT-049):**
+- `compilation.enabled` — whether to auto-generate compilation video from individual tracks (set `true` in YAML or use `COMPILATION=1` with make)
+- `compilation.transition_type` — `fade`, `crossfade`, or `none` between track videos
+- `compilation.transition_duration` — duration in seconds
+- `compilation.include_chapter_markers` — generate JSON + TXT with YouTube chapter markers
 
 ## Dependencies
 

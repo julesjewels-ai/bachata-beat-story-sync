@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from src.core.models import VideoAnalysisResult
 from src.core.validation import validate_file_path
+from src.core.ffmpeg_renderer import get_video_duration
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +79,7 @@ class VideoAnalyzer:
             raise OSError(f"Could not open video file: {file_path}")
 
         try:
-            duration = self._validate_video_properties(cap)
+            duration = self._validate_video_properties(cap, file_path)
 
             # Check aspect ratio for vertical shorts (9:16)
             width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -146,12 +147,14 @@ class VideoAnalyzer:
         new_height = int(height * scale_ratio)
         return cv2.resize(frame, (new_width, new_height))
 
-    def _validate_video_properties(self, cap: cv2.VideoCapture) -> float:
+    def _validate_video_properties(
+        self, cap: cv2.VideoCapture, file_path: str
+    ) -> float:
         """
         Validates frame count and duration to prevent DoS.
+        Uses ffprobe for accurate duration (OpenCV CAP_PROP_FRAME_COUNT is unreliable).
         Returns the video duration in seconds.
         """
-        frame_rate = cap.get(cv2.CAP_PROP_FPS)
         frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
         # Security Check: Prevent DoS via massive video files
@@ -160,7 +163,9 @@ class VideoAnalyzer:
                 f"Video exceeds maximum allowed frames ({MAX_VIDEO_FRAMES})"
             )
 
-        duration = frame_count / frame_rate if frame_rate > 0 else 0
+        # Get duration via ffprobe (more reliable than OpenCV's frame count)
+        duration = get_video_duration(file_path)
+
         if duration > MAX_VIDEO_DURATION_SECONDS:
             raise ValueError(
                 f"Video exceeds maximum duration ({MAX_VIDEO_DURATION_SECONDS}s)"

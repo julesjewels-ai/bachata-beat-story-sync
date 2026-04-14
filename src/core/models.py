@@ -414,16 +414,6 @@ class PacingConfig(BaseModel):
         ),
     )
 
-    # Per-Track Metadata (artist/title) for Text Overlays (FEAT-048)
-    per_track_metadata: dict[str, dict[str, str]] = Field(
-        default_factory=dict,
-        description=(
-            "Per-track artist/title mapping for cold open text overlay. "
-            "Example: {'track1.wav': {'artist': 'Artist 1', 'title': 'Song 1'}}. "
-            "Fallback priority: sidecar .meta.txt → config mapping → filename extraction."
-        ),
-    )
-
     # Text Overlay (FEAT-045)
     text_overlay_enabled: bool = Field(
         False,

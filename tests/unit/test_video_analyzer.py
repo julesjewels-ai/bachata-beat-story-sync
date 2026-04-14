@@ -47,6 +47,14 @@ def mock_isdir():
         yield mock
 
 
+@pytest.fixture
+def mock_get_video_duration():
+    with patch(
+        "src.core.video_analyzer.get_video_duration", return_value=10.0
+    ) as mock:
+        yield mock
+
+
 def create_mock_cap(
     fps=30.0, frame_count=300, width=1920.0, height=1080.0, read_success=True
 ):
@@ -131,7 +139,7 @@ def create_mock_cap(
     ],
 )
 def test_analyze_video_success(
-    analyzer, mock_video_capture, mock_exists, mock_isdir, scenario
+    analyzer, mock_video_capture, mock_exists, mock_isdir, mock_get_video_duration, scenario
 ):
     """Test successful video analysis for different formats."""
     mock_cap = create_mock_cap(
@@ -182,10 +190,11 @@ def test_analyze_video_dos_frames(
 
 
 def test_analyze_video_dos_duration(
-    analyzer, mock_video_capture, mock_exists, mock_isdir
+    analyzer, mock_video_capture, mock_exists, mock_isdir, mock_get_video_duration
 ):
     """Test DoS protection against excessive duration."""
-    # FPS=1, Frames=MAX_DURATION + 1 -> Duration > MAX
+    # Mock get_video_duration to return a duration that exceeds the max
+    mock_get_video_duration.return_value = MAX_VIDEO_DURATION_SECONDS + 1
     mock_cap = create_mock_cap(fps=1.0, frame_count=MAX_VIDEO_DURATION_SECONDS + 1)
     mock_video_capture.return_value = mock_cap
 
@@ -244,7 +253,7 @@ def test_validate_extension(mock_exists, mock_isdir):
 
 
 def test_thumbnail_extraction_failure(
-    analyzer, mock_video_capture, mock_exists, mock_isdir
+    analyzer, mock_video_capture, mock_exists, mock_isdir, mock_get_video_duration
 ):
     """Test that analysis proceeds even if thumbnail extraction fails."""
     mock_cap = create_mock_cap()
@@ -269,7 +278,7 @@ def test_thumbnail_extraction_failure(
     assert result.duration == 10.0
 
 
-def test_thumbnail_exception(analyzer, mock_video_capture, mock_exists, mock_isdir):
+def test_thumbnail_exception(analyzer, mock_video_capture, mock_exists, mock_isdir, mock_get_video_duration):
     """Test exception handling during thumbnail extraction."""
     mock_cap = create_mock_cap()
     mock_video_capture.return_value = mock_cap

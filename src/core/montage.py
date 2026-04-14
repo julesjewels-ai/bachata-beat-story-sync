@@ -594,8 +594,24 @@ class MontageGenerator:
                 clip, segment_duration, config, clip_idx
             )
 
-            # Clamp segment duration to remaining clip after start offset
-            actual_duration = min(segment_duration, clip.duration - start_time)
+            # Calculate how much source material we need (accounting for speed ramping).
+            # With speed_factor > 1 (fast), we extract less source material.
+            # With speed_factor < 1 (slow), we need more source material.
+            # The setpts filter uses PTS/speed_factor, so:
+            #   speed_factor=1.2 → setpts=PTS/1.2 slows playback (needs more source)
+            #   speed_factor=0.9 → setpts=PTS/0.9 speeds playback (needs less source)
+            # Therefore, extract_duration = segment_duration * speed_factor
+            required_source = segment_duration * speed
+            available_source = clip.duration - start_time
+
+            # Clamp segment duration to what's available from the source clip
+            if required_source <= available_source:
+                # We have enough source material for this speed-ramped segment
+                actual_duration = segment_duration
+            else:
+                # Not enough source material; reduce planned segment duration
+                # Account for the speed factor when calculating achievable duration
+                actual_duration = available_source / speed if speed > 0 else available_source
 
             # Look up musical section for this beat position
             current_time = (
