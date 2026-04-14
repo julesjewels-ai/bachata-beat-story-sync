@@ -792,6 +792,32 @@ def overlay_audio(
     run_ffmpeg(cmd, "audio overlay", timeout_seconds=overlay_timeout)
 
 
+def _build_mix_fade_filters(config: PacingConfig) -> list[str]:
+    """Build fade-to-black/fade-up FFmpeg filters for mix track boundaries.
+
+    Returns a list of ``fade=...`` filter strings, one pair per boundary
+    (fade-out before the boundary, fade-in after). Empty when the config
+    doesn't enable mix fades or has fewer than two segments.
+    """
+    if not config.mix_fade_transitions or not config.mix_track_segments:
+        return []
+    d = config.mix_fade_duration
+    if d <= 0:
+        return []
+
+    filters: list[str] = []
+    for seg in config.mix_track_segments[1:]:
+        t = seg.start_time
+        if t <= 0:
+            continue
+        out_start = max(0.0, t - d)
+        filters.append(
+            f"fade=t=out:st={out_start:.3f}:d={d:.3f}:color=black"
+        )
+        filters.append(f"fade=t=in:st={t:.3f}:d={d:.3f}:color=black")
+    return filters
+
+
 def apply_text_overlay(
     video_path: str,
     output_path: str,
@@ -802,6 +828,10 @@ def apply_text_overlay(
 
     Runs a single FFmpeg re-encode pass with all drawtext filters chained
     via ``-vf``. Audio is stream-copied (no quality loss).
+
+    When ``config.mix_fade_transitions`` is enabled, also inserts
+    fade-to-black/fade-up filters at each :class:`MixTrackSegment`
+    boundary (FEAT-050) so the pass is shared with the text overlay.
 
     Args:
         video_path: Source video (with audio already muxed).
@@ -814,9 +844,17 @@ def apply_text_overlay(
     video_w = 1080 if config.is_shorts else 1920
 
     font_path = resolve_font(config.text_overlay_font)
-    filter_chain = build_drawtext_filter_chain(events, font_path, video_w)
+    text_chain = build_drawtext_filter_chain(events, font_path, video_w)
+    fade_filters = _build_mix_fade_filters(config)
 
-    if not filter_chain:
+    # Fades must run before drawtext so the text stays visible and the
+    # black dip only affects the underlying video content.
+    filter_parts = [f for f in fade_filters if f]
+    if text_chain:
+        filter_parts.append(text_chain)
+    full_chain = ",".join(filter_parts)
+
+    if not full_chain:
         import shutil as _shutil
 
         _shutil.copy2(video_path, output_path)
@@ -831,7 +869,7 @@ def apply_text_overlay(
         "-i",
         video_path,
         "-vf",
-        filter_chain,
+        full_chain,
         *get_h264_encoder_args(),
         "-c:a",
         "copy",

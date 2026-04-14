@@ -965,12 +965,21 @@ class MontageGenerator:
             else:
                 shutil.move(concat_path, output_path)
 
-            # 5. Text overlay (FEAT-045) — post-processing pass
-            if config.text_overlay_enabled:
+            # 5. Text overlay (FEAT-045) — post-processing pass.
+            # Also triggered by mix_fade_transitions (FEAT-050) which shares
+            # the same FFmpeg pass to burn fade-to-black at track boundaries.
+            wants_mix_fades = (
+                config.mix_fade_transitions and bool(config.mix_track_segments)
+            )
+            if config.text_overlay_enabled or wants_mix_fades:
                 from src.core.text_overlay import build_text_events
 
-                text_events = build_text_events(config, audio_path)
-                if text_events:
+                text_events = (
+                    build_text_events(config, audio_path)
+                    if config.text_overlay_enabled
+                    else []
+                )
+                if text_events or wants_mix_fades:
                     if os.path.isfile(output_path):
                         pre_text = output_path + ".pre_text.mp4"
                         shutil.move(output_path, pre_text)

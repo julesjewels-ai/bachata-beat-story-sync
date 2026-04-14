@@ -14,10 +14,25 @@ import logging
 import os
 import shutil
 import tempfile
+from typing import NamedTuple
 
 from src.config.app_config import load_app_config
 from src.core.interfaces import ProgressObserver
 from src.core.models import AudioMixConfig
+
+
+class MixResult(NamedTuple):
+    """Result of mixing multiple tracks into a single audio file.
+
+    ``track_starts`` lists each source track's measured start time in the
+    mixed file's timeline, in the same order as the inputs were mixed.  An
+    empty list means the start times could not be determined (cache
+    legacy format or probe failure) and callers should fall back to
+    single-track behaviour.
+    """
+
+    output_path: str
+    track_starts: list[tuple[str, float]]
 
 logger = logging.getLogger(__name__)
 
@@ -80,15 +95,68 @@ def resolve_audio_path(
         logger.info("Multiple audio files detected. Mixing tracks...")
         mixed_output = os.path.join(audio_path, "_mixed_audio.wav")
         mixer = AudioMixer()
-        audio_path = mixer.mix_audio_folder(audio_path, mixed_output, observer=observer)
+        result = mixer.mix_audio_folder(audio_path, mixed_output, observer=observer)
+        audio_path = result.output_path if isinstance(result, MixResult) else result
         logger.info("Mixed audio saved to: %s", audio_path)
 
     return audio_path
 
 
+def resolve_audio_path_with_segments(
+    audio_path: str,
+    observer: ProgressObserver | None = None,
+) -> tuple[str, list[tuple[str, float]]]:
+    """Like :func:`resolve_audio_path` but also returns per-track start times.
+
+    When *audio_path* is a directory with multiple files, performs the mix
+    and returns ``(mixed_path, [(source_path, start_time), ...])``.
+    For a single file or single-file folder, returns an empty list.
+    """
+    if not os.path.isdir(audio_path):
+        return audio_path, []
+
+    valid_files = [
+        f
+        for f in os.listdir(audio_path)
+        if os.path.isfile(os.path.join(audio_path, f))
+        and any(f.lower().endswith(ext.lower()) for ext in SUPPORTED_AUDIO_EXTENSIONS)
+        and f != "_mixed_audio.wav"
+    ]
+
+    if len(valid_files) <= 1:
+        return audio_path, []
+
+    logger.info("Multiple audio files detected. Mixing tracks...")
+    mixed_output = os.path.join(audio_path, "_mixed_audio.wav")
+    mixer = AudioMixer()
+    result = mixer.mix_audio_folder(audio_path, mixed_output, observer=observer)
+    if isinstance(result, MixResult):
+        return result.output_path, result.track_starts
+    return result, []
+
+
 # ------------------------------------------------------------------
 # Pure helper functions (easily unit-testable)
 # ------------------------------------------------------------------
+
+
+def _read_cache_sidecar(params_path: str) -> dict | None:
+    """Read the mix-params sidecar. Returns a dict on success, None otherwise.
+
+    Supports the JSON format ({"fingerprint": str, "track_starts": list}).
+    Legacy plain-text sidecars (fingerprint-only) are ignored so callers
+    regenerate the mix, ensuring track_starts become available.
+    """
+    if not os.path.exists(params_path):
+        return None
+    try:
+        with open(params_path) as f:
+            data = json.load(f)
+        if isinstance(data, dict) and "fingerprint" in data:
+            return data
+    except (OSError, json.JSONDecodeError):
+        return None
+    return None
 
 
 def _config_fingerprint(config: AudioMixConfig, audio_files: list[str]) -> str:
@@ -198,13 +266,18 @@ class AudioMixer:
         folder_path: str,
         output_path: str,
         observer: ProgressObserver | None = None,
-    ) -> str:
+    ) -> MixResult:
         """
         Discovers supported audio files in the given folder, sorts them
         alphanumerically, and concatenates them with BPM-matched crossfades.
 
         If the final output file already exists **and** its config fingerprint
         matches current config AND file list, the cached file is reused.
+
+        Returns a :class:`MixResult` with the output path and each source
+        track's measured start time in the mixed file's timeline. On cache
+        hits with the legacy plain-text sidecar the start times will be
+        empty and callers fall back to single-track behaviour.
         """
         config = load_audio_mix_config()
         audio_files = self._discover_audio_files(folder_path)
@@ -216,21 +289,18 @@ class AudioMixer:
         current_fp = _config_fingerprint(config, audio_files)
 
         if os.path.exists(output_path):
-            cached_fp = None
-            if os.path.exists(params_path):
-                try:
-                    with open(params_path) as f:
-                        cached_fp = f.read().strip()
-                except OSError:
-                    pass
-            if cached_fp == current_fp:
+            cached = _read_cache_sidecar(params_path)
+            if cached is not None and cached.get("fingerprint") == current_fp:
                 logger.info(
-                    "Mixed audio cache hit at %s (config and files unchanged).", output_path
+                    "Mixed audio cache hit at %s (config and files unchanged).",
+                    output_path,
                 )
-                return output_path
-            logger.info(
-                "Mix folder or config changed; regenerating mix."
-            )
+                starts = [
+                    (entry["path"], float(entry["start"]))
+                    for entry in cached.get("track_starts", [])
+                ]
+                return MixResult(output_path, starts)
+            logger.info("Mix folder or config changed; regenerating mix.")
             try:
                 os.remove(output_path)
             except OSError:
@@ -251,10 +321,18 @@ class AudioMixer:
             observer,
         )
 
-        # Write config fingerprint sidecar
+        # Write config fingerprint sidecar (with track starts for cache reuse)
         try:
             with open(params_path, "w") as f:
-                f.write(current_fp)
+                json.dump(
+                    {
+                        "fingerprint": current_fp,
+                        "track_starts": [
+                            {"path": p, "start": s} for p, s in result.track_starts
+                        ],
+                    },
+                    f,
+                )
         except OSError as e:
             logger.warning("Could not write mix params sidecar: %s", e)
 
@@ -327,21 +405,32 @@ class AudioMixer:
         config: AudioMixConfig,
         bpm_map: dict[str, float],
         observer: ProgressObserver | None = None,
-    ) -> str:
+    ) -> MixResult:
         """
         Sequentially concatenates audio files using FFmpeg 'acrossfade' filter,
         applying atempo time-stretching when BPM maps are available.
+
+        Returns a :class:`MixResult` with the output path and the measured
+        start time of each source track in the mixed file's timeline.
         """
+        from src.core.ffmpeg_utils import get_audio_duration  # noqa: WPS433
+
         if not shutil.which("ffmpeg"):
             raise RuntimeError("FFmpeg is not installed or not on PATH.")
 
         if len(audio_files) == 1:
             logger.info("Only one audio file found, skipping mix and copying.")
             shutil.copy2(audio_files[0], output_path)
-            return output_path
+            return MixResult(output_path, [(audio_files[0], 0.0)])
 
         crossfade_duration = config.crossfade_duration_seconds
         sync_threshold = config.sync_threshold
+
+        # First track always starts at 0.0 in the mixed timeline.
+        track_starts: list[tuple[str, float]] = [(audio_files[0], 0.0)]
+        # When True, a duration probe has already failed so skip future
+        # measurements and return an empty list to signal "unknown".
+        measurement_failed = False
 
         temp_dir = tempfile.mkdtemp(prefix="audio_mix_")
         try:
@@ -358,6 +447,21 @@ class AudioMixer:
                     observer.on_progress(
                         i, len(audio_files), f"Mixing track {i + 1}..."
                     )
+
+                # Measure the current mix duration BEFORE this crossfade so we
+                # can compute where the next track starts in the final mix.
+                if not measurement_failed:
+                    current_dur = get_audio_duration(current_input)
+                    if current_dur > 0:
+                        start_time = max(0.0, current_dur - crossfade_duration)
+                        track_starts.append((next_source, start_time))
+                    else:
+                        logger.warning(
+                            "Could not measure duration of %s — per-track "
+                            "start times will be unavailable for this mix.",
+                            current_input,
+                        )
+                        measurement_failed = True
 
                 step_output = (
                     output_path
@@ -413,7 +517,10 @@ class AudioMixer:
                 observer.on_progress(
                     len(audio_files), len(audio_files), "Mixing complete."
                 )
-            return output_path
+
+            if measurement_failed:
+                return MixResult(output_path, [])
+            return MixResult(output_path, track_starts)
 
         finally:
             shutil.rmtree(temp_dir, ignore_errors=True)

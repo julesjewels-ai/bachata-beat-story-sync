@@ -45,7 +45,7 @@ from src.core.app import BachataSyncEngine
 from src.core.audio_analyzer import AudioAnalysisInput, AudioAnalyzer
 from src.core.audio_mixer import (
     SUPPORTED_AUDIO_EXTENSIONS,
-    resolve_audio_path,
+    resolve_audio_path_with_segments,
 )
 from src.core.models import PacingConfig
 from src.ui.console import PipelineLogger, RichProgressObserver
@@ -438,8 +438,25 @@ def main() -> None:
         log.phase("🎵 Mixing Audio")
         with log.status(f"Mixing {len(individual_tracks)} tracks…"):
             with RichProgressObserver() as obs:
-                mix_path = resolve_audio_path(audio_dir, observer=obs)
+                mix_path, mix_track_starts = resolve_audio_path_with_segments(
+                    audio_dir, observer=obs
+                )
         log.success(f"Mix ready: [bold]{mix_path}[/bold]")
+
+        # Build MixTrackSegments for mix video cold opens + fades (FEAT-050).
+        # Empty list means single-track mode or measurement unavailable.
+        mix_track_segments: list[dict[str, Any]] = []
+        if mix_track_starts:
+            for src_path, start_time in mix_track_starts:
+                artist, title = _extract_track_metadata(src_path, pipeline_config)
+                mix_track_segments.append(
+                    {
+                        "artist": artist,
+                        "title": title,
+                        "start_time": start_time,
+                        "audio_path": src_path,
+                    }
+                )
 
         # ----------------------------------------------------------
         # 3. Detect B-roll
@@ -574,6 +591,11 @@ def main() -> None:
                     clips, broll = _scan_videos(engine, args.video_dir, broll_dir)
 
             mix_out = os.path.join(args.output_dir, "mix.mp4")
+            # FEAT-050: per-track cold opens + fade-to-black transitions in mix
+            mix_pacing_kwargs = dict(pacing_kwargs)
+            if mix_track_segments:
+                mix_pacing_kwargs["mix_track_segments"] = mix_track_segments
+                mix_pacing_kwargs["mix_fade_transitions"] = True
             with log.status("Rendering mix video…"):
                 result = _generate_video(
                     engine,
@@ -581,7 +603,7 @@ def main() -> None:
                     clips,
                     mix_out,
                     mix_path,
-                    pacing_kwargs,
+                    mix_pacing_kwargs,
                     broll_clips=broll,
                 )
             generated_files.append(result)

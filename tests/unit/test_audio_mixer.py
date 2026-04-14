@@ -180,7 +180,7 @@ def test_mix_files_single_track(mock_which, mock_run_ffmpeg):
         mixer = AudioMixer()
         result = mixer._mix_files([input_file], output_file, config, {})
 
-        assert result == output_file
+        assert result.output_path == output_file
         assert os.path.exists(output_file)
         mock_run_ffmpeg.assert_not_called()
     finally:
@@ -212,7 +212,7 @@ def test_mix_files_multiple_tracks_no_tempo_sync(mock_which, mock_run_ffmpeg):
         mixer = AudioMixer()
         result = mixer._mix_files([input1, input2], output_file, config, {})
 
-        assert result == output_file
+        assert result.output_path == output_file
         assert mock_run_ffmpeg.call_count == 1
         fc_arg = mock_run_ffmpeg.call_args_list[0][0][0]
         filter_str = " ".join(fc_arg)
@@ -325,11 +325,15 @@ def test_mix_audio_folder_cache_invalidated_on_config_change():
         assert old_fp != new_fp  # sanity check
 
         # Patch load_audio_mix_config to return the new config, and _mix_files to spy
+        from src.core.audio_mixer import MixResult
+
         with patch(
             "src.core.audio_mixer.load_audio_mix_config", return_value=new_config
         ):
             with patch.object(
-                mixer, "_mix_files", return_value=output_file
+                mixer,
+                "_mix_files",
+                return_value=MixResult(output_file, []),
             ) as mock_mix:
                 with patch.object(mixer, "_analyse_bpm", return_value={}):
                     mixer.mix_audio_folder(temp_dir, output_file)
@@ -343,6 +347,8 @@ def test_mix_audio_folder_cache_invalidated_on_config_change():
 
 def test_mix_audio_folder_cache_hit_skips_mix():
     """An identical config fingerprint sidecar must cause the mix to be skipped."""
+    import json as _json
+
     temp_dir = tempfile.mkdtemp()
     try:
         audio_file = os.path.join(temp_dir, "01_track.mp3")
@@ -358,14 +364,21 @@ def test_mix_audio_folder_cache_hit_skips_mix():
         audio_files = [audio_file]
         fp = _config_fingerprint(config, audio_files)
         with open(params_file, "w") as f:
-            f.write(fp)
+            _json.dump(
+                {
+                    "fingerprint": fp,
+                    "track_starts": [{"path": audio_file, "start": 0.0}],
+                },
+                f,
+            )
 
         mixer = AudioMixer()
         with patch("src.core.audio_mixer.load_audio_mix_config", return_value=config):
             with patch.object(mixer, "_mix_files") as mock_mix:
                 result = mixer.mix_audio_folder(temp_dir, output_file)
 
-        assert result == output_file
+        assert result.output_path == output_file
+        assert result.track_starts == [(audio_file, 0.0)]
         mock_mix.assert_not_called()
 
     finally:

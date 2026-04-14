@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
-    from src.core.models import PacingConfig
+    from src.core.models import MixTrackSegment, PacingConfig
 
 logger = logging.getLogger(__name__)
 
@@ -343,6 +343,74 @@ def _most_repeated_lrc_line(lrc_path: str) -> str:
     return best
 
 
+def _cold_open_events_for_segment(
+    config: "PacingConfig",
+    audio_path: str | None,
+    artist: str,
+    title: str,
+    offset: float,
+) -> list[TextEvent]:
+    """Core cold-open builder used for both standalone and mix renders.
+
+    Produces a wash (offset..offset+4) + lower_third (offset+4..offset+7),
+    skipping any segment whose source data is absent.
+    """
+    events: list[TextEvent] = []
+
+    # 1. Scene-setter wash — priority: .scene.txt → LRC fallback
+    scene_text = ""
+    if audio_path:
+        stem = os.path.splitext(audio_path)[0]
+
+        scene_path = stem + ".scene.txt"
+        if os.path.isfile(scene_path):
+            try:
+                with open(scene_path, encoding="utf-8") as fh:
+                    scene_text = fh.read().strip().splitlines()[0].strip()
+                logger.debug("Cold open scene text loaded: %s", scene_path)
+            except OSError:
+                logger.warning("Could not read scene file: %s", scene_path)
+
+        if not scene_text:
+            lrc_path = stem + ".lrc"
+            if os.path.isfile(lrc_path):
+                scene_text = _most_repeated_lrc_line(lrc_path)
+                if scene_text:
+                    logger.info(
+                        "Cold open: using LRC chorus hook as scene-setter: '%s'",
+                        scene_text,
+                    )
+
+    if scene_text:
+        events.append(
+            TextEvent(
+                text=scene_text,
+                start=offset,
+                end=offset + 4.0,
+                style="wash",
+                wash_font_scale=config.cold_open_wash_font_scale,
+                wash_opacity=config.cold_open_wash_opacity,
+                wash_fade=config.cold_open_wash_fade,
+            )
+        )
+
+    # 2. Artist / song lower-third
+    artist = (artist or "").strip()
+    title = (title or "").strip()
+    if artist or title:
+        label = f"{artist} — {title}" if (artist and title) else (artist or title)
+        events.append(
+            TextEvent(
+                text=label,
+                start=offset + 4.0,
+                end=offset + 7.0,
+                style="lower_third",
+            )
+        )
+
+    return events
+
+
 def build_cold_open_events(
     config: "PacingConfig",
     audio_path: str | None = None,
@@ -359,54 +427,36 @@ def build_cold_open_events(
 
     Any of the two segments is skipped when its source data is absent.
     """
+    return _cold_open_events_for_segment(
+        config,
+        audio_path,
+        config.track_artist,
+        config.track_title,
+        offset=0.0,
+    )
+
+
+def build_mix_track_events(
+    segments: list["MixTrackSegment"],
+    config: "PacingConfig",
+) -> list[TextEvent]:
+    """Build cold-open TextEvents for every track in a mix (FEAT-050).
+
+    For each segment a cold open (scene-setter + lower-third) is generated
+    offset by that track's start time in the mixed timeline. Segments with
+    no usable text are skipped silently.
+    """
     events: list[TextEvent] = []
-
-    # 1. Scene-setter wash (0–4s) — priority: .scene.txt → LRC fallback
-    scene_text = ""
-    if audio_path:
-        stem = os.path.splitext(audio_path)[0]
-
-        # Priority 1: sidecar .scene.txt
-        scene_path = stem + ".scene.txt"
-        if os.path.isfile(scene_path):
-            try:
-                with open(scene_path, encoding="utf-8") as fh:
-                    scene_text = fh.read().strip().splitlines()[0].strip()
-                logger.debug("Cold open scene text loaded: %s", scene_path)
-            except OSError:
-                logger.warning("Could not read scene file: %s", scene_path)
-
-        # Priority 2: most-repeated lyric from .lrc (chorus hook)
-        if not scene_text:
-            lrc_path = stem + ".lrc"
-            if os.path.isfile(lrc_path):
-                scene_text = _most_repeated_lrc_line(lrc_path)
-                if scene_text:
-                    logger.info(
-                        "Cold open: using LRC chorus hook as scene-setter: '%s'",
-                        scene_text,
-                    )
-
-    if scene_text:
-        events.append(
-            TextEvent(
-                text=scene_text,
-                start=0.0,
-                end=4.0,
-                style="wash",
-                wash_font_scale=config.cold_open_wash_font_scale,
-                wash_opacity=config.cold_open_wash_opacity,
-                wash_fade=config.cold_open_wash_fade,
+    for seg in segments:
+        events.extend(
+            _cold_open_events_for_segment(
+                config,
+                seg.audio_path or None,
+                seg.artist,
+                seg.title,
+                offset=seg.start_time,
             )
         )
-
-    # 2. Artist / song lower-third (4–7s)
-    artist = (config.track_artist or "").strip()
-    title = (config.track_title or "").strip()
-    if artist or title:
-        label = f"{artist} — {title}" if (artist and title) else (artist or title)
-        events.append(TextEvent(text=label, start=4.0, end=7.0, style="lower_third"))
-
     return events
 
 
@@ -432,10 +482,21 @@ def build_text_events(
     # Cold open — independent of lyrics_overlay_enabled
     cold_open_end = 0.0
     if config.cold_open_enabled:
-        cold_open_events = build_cold_open_events(config, audio_path)
-        if cold_open_events:
-            events.extend(cold_open_events)
-            cold_open_end = _COLD_OPEN_END
+        mix_segments = getattr(config, "mix_track_segments", None) or []
+        if mix_segments:
+            mix_events = build_mix_track_events(mix_segments, config)
+            if mix_events:
+                events.extend(mix_events)
+                # Lyrics in mix mode aren't supported — LRC is per source
+                # track and we don't have a way to retime them to the mixed
+                # timeline. Disable LRC to avoid colliding with per-track
+                # cold opens.
+                return sorted(events, key=lambda e: e.start)
+        else:
+            cold_open_events = build_cold_open_events(config, audio_path)
+            if cold_open_events:
+                events.extend(cold_open_events)
+                cold_open_end = _COLD_OPEN_END
 
     # LRC lyrics
     if config.lyrics_overlay_enabled:

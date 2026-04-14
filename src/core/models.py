@@ -144,6 +144,31 @@ class SkipDecision:
     reason: str
 
 
+class MixTrackSegment(BaseModel):
+    """One source track's placement inside a mixed audio/video timeline.
+
+    Used to drive per-track cold opens, lower-thirds, and fade-to-black
+    transitions when rendering a single mix video from multiple source
+    tracks (FEAT-050).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    artist: str = Field("", description="Artist name for the lower-third")
+    title: str = Field("", description="Song title for the lower-third")
+    start_time: float = Field(
+        0.0,
+        description="Start time of this track in the mixed timeline (seconds)",
+    )
+    audio_path: str = Field(
+        "",
+        description=(
+            "Absolute path to the original source audio file. Used to "
+            "discover sidecar .scene.txt / .lrc files for cold open text."
+        ),
+    )
+
+
 class PacingConfig(BaseModel):
     """
     Configuration for montage clip pacing.
@@ -490,6 +515,31 @@ class PacingConfig(BaseModel):
     track_title: str = Field(
         "",
         description="Song title for the cold open lower-third.",
+    )
+
+    # Mix video per-track segments (FEAT-050)
+    mix_track_segments: list[MixTrackSegment] = Field(
+        default_factory=list,
+        description=(
+            "Per-track metadata and start times for mix video rendering. "
+            "When non-empty, each segment gets its own cold open + "
+            "lower-third and fade-to-black transitions between segments "
+            "(when mix_fade_transitions=True)."
+        ),
+    )
+    mix_fade_transitions: bool = Field(
+        False,
+        description=(
+            "Fade to black between songs in a mix video, at each "
+            "MixTrackSegment boundary. Requires mix_track_segments to be set."
+        ),
+    )
+    mix_fade_duration: float = Field(
+        0.25,
+        description=(
+            "Duration of the fade-to-black and fade-up at each mix track "
+            "boundary (in seconds). Total visible dip = 2 × this value."
+        ),
     )
 
     @field_validator("per_track_styles", mode="after")

@@ -82,6 +82,36 @@ def run_ffmpeg(
         ) from None
 
 
+def get_audio_duration(path: str) -> float:
+    """
+    Probe the duration of an audio (or video) file via ffprobe.
+
+    Returns:
+        Duration in seconds, or 0.0 on failure.
+    """
+    try:
+        result = subprocess.run(
+            [
+                "ffprobe",
+                "-v",
+                "error",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "csv=p=0",
+                path,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            shell=False,
+        )  # nosec B603
+        return float(result.stdout.strip())
+    except (ValueError, subprocess.TimeoutExpired, OSError):
+        logger.warning("Could not probe duration for %s", path)
+        return 0.0
+
+
 def get_h264_encoder_args() -> list[str]:
     """
     Return the optimal H.264 encoder arguments for the current hardware.
