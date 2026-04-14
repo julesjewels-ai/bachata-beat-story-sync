@@ -678,6 +678,7 @@ def overlay_audio(
     output_path: str,
     config: PacingConfig,
     video_duration: float = 0.0,
+    target_duration: float = 0.0,
 ) -> None:
     """
     Replace the video's audio track with the original song.
@@ -689,6 +690,12 @@ def overlay_audio(
     the audio segment matches the beats used to build the video.
     Explicit -t trimming ensures the audio never exceeds the
     video length.
+
+    Args:
+        target_duration: Original audio file duration in seconds.  When
+            provided, the trim is applied to the audio source rather than
+            the (potentially shorter) rendered video, preventing the song
+            from being cut short due to any residual video/audio length gap.
     """
     # Compute timeout proportional to video length
     vid_dur = video_duration or get_video_duration(video_path)
@@ -700,10 +707,13 @@ def overlay_audio(
         audio_input_args.extend(["-ss", f"{config.audio_start_offset:.3f}"])
     audio_input_args.extend(["-i", audio_path])
 
-    # Explicit duration trim (more reliable than -shortest alone)
+    # Trim to target_duration (the original audio length) when available.
+    # Falling back to vid_dur is correct for shorts/clips where the video
+    # intentionally ends before the full audio.
+    trim_dur = target_duration if target_duration > 0 else vid_dur
     trim_args: list[str] = []
-    if vid_dur > 0:
-        trim_args.extend(["-t", f"{vid_dur:.3f}"])
+    if trim_dur > 0:
+        trim_args.extend(["-t", f"{trim_dur:.3f}"])
 
     if config.audio_overlay == "none":
         cmd = [

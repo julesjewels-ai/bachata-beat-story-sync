@@ -669,7 +669,65 @@ class MontageGenerator:
 
                 timeline_pos += actual_duration
 
-            beat_idx += beat_count
+            # Advance beat index proportionally to what we actually produced.
+            # When source material was clamped (actual_duration < segment_duration),
+            # advancing by the full planned beat_count skips audio we never made
+            # video for — costing up to 30+ seconds on a full track.
+            if actual_duration < segment_duration and segment_duration > 0:
+                beats_used = max(1, round(actual_duration / spb))
+                beat_idx += min(beats_used, beat_count)
+            else:
+                beat_idx += beat_count
+
+        # Cover any audio tail that falls after the last detected beat.
+        # librosa's beat tracker typically stops 0.5–2 s before the true audio
+        # end (no beat detected in the fade/silence tail), leaving those seconds
+        # unrepresented in the video.  Skip this in test/limited mode since
+        # max_duration_seconds / max_clips already define the intended end.
+        tail_uncovered = audio_data.duration - timeline_pos
+        if (
+            tail_uncovered > 0.15  # ignore sub-frame gaps
+            and config.max_duration_seconds is None
+            and config.max_clips is None
+            and sorted_clips
+        ):
+            tail_clip = self._pick_from_pool(pools, pool_indices, "low")
+            # Always start from offset 0 for the tail to guarantee we have
+            # enough source material regardless of clip length.
+            tail_available = tail_clip.duration
+            tail_duration = min(tail_uncovered, tail_available)
+            if tail_duration >= config.min_clip_seconds:
+                tail_section = self._find_section_label(
+                    audio_data.sections or [], timeline_pos
+                )
+                tail_seg = SegmentPlan(
+                    video_path=tail_clip.path,
+                    start_time=0.0,
+                    duration=tail_duration,
+                    clip_duration=tail_clip.duration,
+                    timeline_position=timeline_pos,
+                    intensity_level="low",
+                    speed_factor=1.0,
+                    section_label=tail_section,
+                )
+                segments.append(tail_seg)
+                if config.explain:
+                    self._last_decisions.append(
+                        SegmentDecision(
+                            timeline_start=timeline_pos,
+                            clip_path=tail_clip.path,
+                            intensity_score=tail_clip.intensity_score,
+                            section_label=tail_section,
+                            duration=tail_duration,
+                            speed=1.0,
+                            reason="Tail coverage: audio after last beat",
+                        )
+                    )
+                logger.debug(
+                    "Tail coverage: added %.2fs segment at %.2fs to reach audio end",
+                    tail_duration,
+                    timeline_pos,
+                )
 
         return segments
 
@@ -887,12 +945,22 @@ class MontageGenerator:
             # 4. Overlay audio (or just copy if no audio)
             if audio_path and os.path.exists(audio_path):
                 video_dur = get_video_duration(concat_path)
+                # Warn early if there's a significant length gap before overlaying
+                if audio_data.duration > 0 and abs(video_dur - audio_data.duration) > 0.5:
+                    logger.warning(
+                        "Video length (%.1fs) differs from audio (%.1fs) by %.1fs "
+                        "before overlay — possible dropped segments",
+                        video_dur,
+                        audio_data.duration,
+                        audio_data.duration - video_dur,
+                    )
                 overlay_audio(
                     concat_path,
                     audio_path,
                     output_path,
                     config,
                     video_duration=video_dur,
+                    target_duration=audio_data.duration,
                 )
             else:
                 shutil.move(concat_path, output_path)
@@ -916,6 +984,26 @@ class MontageGenerator:
                             "Skipping text overlay post-pass because %s was not created.",
                             output_path,
                         )
+
+            # Post-render duration sanity check (regression canary)
+            output_dur = get_video_duration(output_path)
+            if audio_data.duration > 0 and output_dur > 0:
+                delta = abs(output_dur - audio_data.duration)
+                if delta > 0.5:
+                    logger.warning(
+                        "Output duration mismatch: rendered=%.2fs  audio=%.2fs  "
+                        "delta=%.2fs — run with --verbose to investigate",
+                        output_dur,
+                        audio_data.duration,
+                        delta,
+                    )
+                else:
+                    logger.debug(
+                        "Duration check OK: rendered=%.2fs  audio=%.2fs  delta=%.2fs",
+                        output_dur,
+                        audio_data.duration,
+                        delta,
+                    )
 
             logger.info("Montage complete: %s", output_path)
             return output_path

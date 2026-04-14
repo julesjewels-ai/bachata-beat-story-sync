@@ -126,7 +126,7 @@ class TestBuildSegmentPlan:
         audio = AudioAnalysisResult(
             filename="high.wav",
             bpm=120.0,
-            duration=30.0,
+            duration=8.0,  # just above beat coverage (7.5s); tail < min_clip so not added
             peaks=[],
             sections=[],
             beat_times=[float(i) * 0.5 for i in range(16)],
@@ -526,7 +526,7 @@ class TestPacingConfig:
         audio = AudioAnalysisResult(
             filename="custom.wav",
             bpm=120.0,  # spb = 0.5s
-            duration=30.0,
+            duration=18.5,  # just above beat coverage (18.0s); tail < min_clip so not added
             peaks=[],
             sections=[],
             beat_times=[float(i) * 0.5 for i in range(36)],
@@ -661,7 +661,7 @@ class TestFFmpegOrchestration:
         audio = AudioAnalysisResult(
             filename="slow.wav",
             bpm=120.0,
-            duration=10.0,
+            duration=5.5,  # just above beat coverage (5.0s); tail < min_clip so not added
             peaks=[],
             sections=[],
             beat_times=[float(i) * 0.5 for i in range(10)],
