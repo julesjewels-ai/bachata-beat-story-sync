@@ -6,6 +6,7 @@ Features: FEAT-001, FEAT-002, ..., FEAT-025.
 from __future__ import annotations
 
 import bisect
+import dataclasses
 import hashlib
 import logging
 import math
@@ -49,6 +50,20 @@ class ClipSelection(NamedTuple):
     last_broll_time: float
     target_broll_interval: float
     reason: str
+
+
+@dataclasses.dataclass
+class _LoopState:
+    """Mutable state carried across build_segment_plan iterations."""
+
+    beat_idx: int
+    clip_idx: int
+    forced_clip_idx: int
+    broll_idx: int
+    timeline_pos: float
+    last_broll_time: float
+    has_regular_clip_since_broll: bool
+    target_broll_interval: float
 
 
 def load_pacing_config(
@@ -437,6 +452,329 @@ class MontageGenerator:
                 return sec.label
         return None
 
+    @staticmethod
+    def _should_stop_loop(
+        state: _LoopState,
+        segments: list[SegmentPlan],
+        config: PacingConfig,
+        num_beats: int,
+    ) -> bool:
+        """Return True when the segment-building loop should terminate."""
+        if state.beat_idx >= num_beats:
+            logger.debug(
+                "STOP: beat_idx (%d) >= num_beats (%d) | timeline_pos=%.2fs, segments=%d",
+                state.beat_idx,
+                num_beats,
+                state.timeline_pos,
+                len(segments),
+            )
+            return True
+        if config.max_clips is not None and len(segments) >= config.max_clips:
+            logger.debug(
+                "STOP: segments (%d) >= max_clips (%d) | timeline_pos=%.2fs",
+                len(segments),
+                config.max_clips,
+                state.timeline_pos,
+            )
+            return True
+        if (
+            config.max_duration_seconds is not None
+            and state.timeline_pos >= config.max_duration_seconds
+        ):
+            logger.debug(
+                "STOP: timeline_pos (%.2fs) >= max_duration_seconds (%.2fs) | segments=%d",
+                state.timeline_pos,
+                config.max_duration_seconds,
+                len(segments),
+            )
+            return True
+        return False
+
+    def _create_next_segment(
+        self,
+        state: _LoopState,
+        *,
+        segments: list[SegmentPlan],
+        audio_data: AudioAnalysisResult,
+        config: PacingConfig,
+        pools: dict,
+        pool_indices: dict,
+        forced_clips: list[VideoAnalysisResult],
+        broll_clips: list[VideoAnalysisResult] | None,
+        sections: list[MusicalSection],
+        spb: float,
+        min_beats: int,
+    ) -> None:
+        """Process one iteration of the segment-building loop.
+
+        Reads and mutates *state* in-place.  Appends to *segments* and
+        ``self._last_decisions`` when the produced segment meets the
+        minimum duration threshold.
+        """
+        beat_times = audio_data.beat_times
+        intensity_curve = audio_data.intensity_curve
+
+        # Calculate progress ratio for dynamic pacing and cliffhanger
+        total_dur = config.max_duration_seconds or audio_data.duration
+        progress = min(1.0, state.timeline_pos / total_dur) if total_dur > 0 else 0.0
+
+        # Determine intensity at this beat
+        intensity = (
+            intensity_curve[state.beat_idx]
+            if state.beat_idx < len(intensity_curve)
+            else 0.5
+        )
+
+        # Calculate segment parameters (target beats, level, speed)
+        target_beats, level, speed = self._calculate_segment_params(
+            config, intensity, progress, state.clip_idx, state.beat_idx, spb, min_beats
+        )
+
+        # Don't exceed available beats
+        beat_count = min(target_beats, len(beat_times) - state.beat_idx)
+        segment_duration = beat_count * spb
+
+        # Test mode: trim segment if it would exceed duration limit
+        if config.max_duration_seconds is not None:
+            remaining = config.max_duration_seconds - state.timeline_pos
+            segment_duration = min(segment_duration, remaining)
+
+        # Determine if this segment should be B-Roll
+        # FEAT-033: Respect clip boundaries — only switch to B-roll after we've
+        # completed at least one regular clip since the last B-roll. This prevents
+        # inserting B-roll immediately and ensures a natural transition.
+        is_broll = False
+        if (
+            broll_clips
+            and (state.timeline_pos - state.last_broll_time)
+            >= state.target_broll_interval
+            and state.has_regular_clip_since_broll
+        ):
+            # Don't use B-roll for the very first clip if possible
+            if state.timeline_pos > 0.0:
+                is_broll = True
+
+        selection = self._select_clip(
+            forced_clips=forced_clips,
+            forced_clip_idx=state.forced_clip_idx,
+            is_broll=is_broll,
+            broll_clips=broll_clips,
+            broll_idx=state.broll_idx,
+            timeline_pos=state.timeline_pos,
+            last_broll_time=state.last_broll_time,
+            config=config,
+            pools=pools,
+            pool_indices=pool_indices,
+            level=level,
+            clip_idx=state.clip_idx,
+        )
+        clip = selection.clip
+        state.forced_clip_idx = selection.forced_clip_idx
+        state.broll_idx = selection.broll_idx
+        state.clip_idx = selection.clip_idx
+        state.last_broll_time = selection.last_broll_time
+        state.target_broll_interval = selection.target_broll_interval
+        reason = selection.reason
+
+        # Compute start offset within clip
+        start_time = self._compute_start_offset(
+            clip, segment_duration, config, state.clip_idx
+        )
+
+        # Calculate how much source material we need (accounting for speed ramping).
+        # With speed_factor > 1 (fast), we extract less source material.
+        # With speed_factor < 1 (slow), we need more source material.
+        # The setpts filter uses PTS/speed_factor, so:
+        #   speed_factor=1.2 → setpts=PTS/1.2 slows playback (needs more source)
+        #   speed_factor=0.9 → setpts=PTS/0.9 speeds playback (needs less source)
+        # Therefore, extract_duration = segment_duration * speed_factor
+        required_source = segment_duration * speed
+        available_source = clip.duration - start_time
+
+        # Clamp segment duration to what's available from the source clip
+        if required_source <= available_source:
+            # We have enough source material for this speed-ramped segment
+            actual_duration = segment_duration
+        else:
+            # Not enough source material; reduce planned segment duration
+            # Account for the speed factor when calculating achievable duration
+            actual_duration = (
+                available_source / speed if speed > 0 else available_source
+            )
+
+        # Look up musical section for this beat position
+        current_time = (
+            beat_times[state.beat_idx]
+            if state.beat_idx < len(beat_times)
+            else state.timeline_pos
+        )
+        section_label = self._find_section_label(sections, current_time)
+
+        if actual_duration >= config.min_clip_seconds:
+            seg = SegmentPlan(
+                video_path=clip.path,
+                start_time=start_time,
+                duration=actual_duration,
+                clip_duration=clip.duration,
+                timeline_position=state.timeline_pos,
+                intensity_level=level,
+                speed_factor=speed,
+                section_label=section_label,
+            )
+
+            # FEAT-036: Compute per-beat organic speed ramping if enabled
+            if config.speed_ramp_organic and beat_count > 0:
+                # Slice intensity curve for this segment's beat range
+                intensity_slice = intensity_curve[
+                    state.beat_idx : min(
+                        state.beat_idx + beat_count, len(intensity_curve)
+                    )
+                ]
+                if intensity_slice:
+                    speed_curve = self._compute_speed_curve(
+                        intensity_slice, config
+                    )
+                    seg.speed_curve = speed_curve
+                    # Update scalar speed_factor to mean for display/fallback
+                    seg.speed_factor = sum(speed_curve) / len(speed_curve)
+
+            segments.append(seg)
+
+            # FEAT-033: Update the boundary-respecting flag
+            if is_broll:
+                # Need regular clip before next B-roll
+                state.has_regular_clip_since_broll = False
+            else:
+                # Can use B-roll next if threshold is met
+                state.has_regular_clip_since_broll = True
+
+            # FEAT-025: collect decision if explain mode is active
+            if config.explain:
+                self._last_decisions.append(
+                    SegmentDecision(
+                        timeline_start=seg.timeline_position,
+                        clip_path=clip.path,
+                        intensity_score=clip.intensity_score,
+                        section_label=section_label,
+                        duration=actual_duration,
+                        speed=speed,
+                        reason=reason,
+                    )
+                )
+
+            state.timeline_pos += actual_duration
+
+        # Advance beat index proportionally to what we actually produced.
+        # When source material was clamped (actual_duration < segment_duration),
+        # advancing by the full planned beat_count skips audio we never made
+        # video for — costing up to 30+ seconds on a full track.
+        if actual_duration < segment_duration and segment_duration > 0:
+            beats_used = max(1, round(actual_duration / spb))
+            state.beat_idx += min(beats_used, beat_count)
+        else:
+            state.beat_idx += beat_count
+
+    def _append_tail_segment(
+        self,
+        segments: list[SegmentPlan],
+        audio_data: AudioAnalysisResult,
+        timeline_pos: float,
+        config: PacingConfig,
+        pools: dict,
+        pool_indices: dict,
+        sorted_clips: list[VideoAnalysisResult],
+    ) -> None:
+        """Cover any audio tail that falls after the last detected beat.
+
+        librosa's beat tracker typically stops 0.5–2 s before the true
+        audio end (no beat detected in the fade/silence tail), leaving
+        those seconds unrepresented in the video.  Skip this in
+        test/limited mode since max_duration_seconds / max_clips already
+        define the intended end.
+        """
+        tail_uncovered = audio_data.duration - timeline_pos
+        logger.debug(
+            "_append_tail_segment: tail_uncovered=%.2fs, max_dur=%s, max_clips=%s, sorted_clips=%d",
+            tail_uncovered,
+            config.max_duration_seconds,
+            config.max_clips,
+            len(sorted_clips) if sorted_clips else 0,
+        )
+
+        if not (
+            tail_uncovered > 0.15  # ignore sub-frame gaps
+            and config.max_duration_seconds is None
+            and config.max_clips is None
+            and sorted_clips
+        ):
+            logger.debug(
+                "SKIP tail: uncovered>0.15=%s, max_dur_none=%s, max_clips_none=%s, has_clips=%s",
+                tail_uncovered > 0.15,
+                config.max_duration_seconds is None,
+                config.max_clips is None,
+                bool(sorted_clips),
+            )
+            return
+
+        tail_clip = self._pick_from_pool(pools, pool_indices, "low")
+        # Always start from offset 0 for the tail to guarantee we have
+        # enough source material regardless of clip length.
+        tail_available = tail_clip.duration
+        tail_duration = min(tail_uncovered, tail_available)
+
+        logger.debug(
+            "Tail segment: duration=%.2fs, min_required=%.2f, will_append=%s",
+            tail_duration,
+            config.min_clip_seconds,
+            tail_duration >= config.min_clip_seconds,
+        )
+
+        if tail_duration < config.min_clip_seconds:
+            logger.debug(
+                "SKIP tail: duration (%.2fs) < min_clip_seconds (%.2f)",
+                tail_duration,
+                config.min_clip_seconds,
+            )
+            return
+
+        tail_section = self._find_section_label(
+            audio_data.sections or [], timeline_pos
+        )
+        tail_seg = SegmentPlan(
+            video_path=tail_clip.path,
+            start_time=0.0,
+            duration=tail_duration,
+            clip_duration=tail_clip.duration,
+            timeline_position=timeline_pos,
+            intensity_level="low",
+            speed_factor=1.0,
+            section_label=tail_section,
+        )
+        segments.append(tail_seg)
+        logger.debug(
+            "APPENDED tail segment: %.2fs (was uncovered %.2fs), total_segments=%d",
+            tail_duration,
+            tail_uncovered,
+            len(segments),
+        )
+        if config.explain:
+            self._last_decisions.append(
+                SegmentDecision(
+                    timeline_start=timeline_pos,
+                    clip_path=tail_clip.path,
+                    intensity_score=tail_clip.intensity_score,
+                    section_label=tail_section,
+                    duration=tail_duration,
+                    speed=1.0,
+                    reason="Tail coverage: audio after last beat",
+                )
+            )
+        logger.debug(
+            "Tail coverage: added %.2fs segment at %.2fs to reach audio end",
+            tail_duration,
+            timeline_pos,
+        )
+
     def build_segment_plan(
         self,
         audio_data: AudioAnalysisResult,
@@ -469,6 +807,23 @@ class MontageGenerator:
 
         config = pacing or PacingConfig()
 
+        # DEBUG: Log audio/beat info at start
+        logger.debug(
+            "=== build_segment_plan START ===\n"
+            "  Audio duration: %.2fs\n"
+            "  BPM: %.1f\n"
+            "  Beat count (librosa): %d\n"
+            "  Config max_clips: %s\n"
+            "  Config max_duration_seconds: %s\n"
+            "  Config min_clip_seconds: %.2f",
+            audio_data.duration,
+            audio_data.bpm,
+            len(beat_times),
+            config.max_clips,
+            config.max_duration_seconds,
+            config.min_clip_seconds,
+        )
+
         # Calculate seconds-per-beat from BPM
         spb = 60.0 / audio_data.bpm if audio_data.bpm > 0 else 0.5
 
@@ -495,239 +850,93 @@ class MontageGenerator:
 
         segments: list[SegmentPlan] = []
         self._last_decisions: list[SegmentDecision] = []
-        timeline_pos = 0.0
 
         # FEAT-019: skip beats before audio_start_offset
         if config.audio_start_offset > 0:
-            beat_idx = bisect.bisect_left(beat_times, config.audio_start_offset)
+            initial_beat_idx = bisect.bisect_left(
+                beat_times, config.audio_start_offset
+            )
         else:
-            beat_idx = 0
-        clip_idx = 0
-        broll_idx = 0
-        forced_clip_idx = 0
+            initial_beat_idx = 0
 
-        # B-Roll tracking
-        last_broll_time = 0.0  # Start at timeline 0; B-roll waits for first interval to elapse
-        # FEAT-033: Track if we've had a regular (non-B-roll) clip since last B-roll
-        # This ensures B-roll only inserts after clip boundaries, not mid-stream
-        has_regular_clip_since_broll = True
         target_broll_interval = config.broll_interval_seconds + random.uniform(
             -config.broll_interval_variance, config.broll_interval_variance
+        )
+
+        state = _LoopState(
+            beat_idx=initial_beat_idx,
+            clip_idx=0,
+            forced_clip_idx=0,
+            broll_idx=0,
+            timeline_pos=0.0,
+            last_broll_time=0.0,
+            has_regular_clip_since_broll=True,
+            target_broll_interval=target_broll_interval,
         )
 
         # Pre-compute section lookup from audio sections
         sections = audio_data.sections or []
 
-        while beat_idx < len(beat_times):
-            # Test mode: stop if we've hit the clip limit
-            if config.max_clips is not None and len(segments) >= config.max_clips:
-                break
-
-            # Test mode: stop if we've hit the duration limit
-            if (
-                config.max_duration_seconds is not None
-                and timeline_pos >= config.max_duration_seconds
-            ):
-                break
-
-            # Calculate progress ratio for dynamic pacing and cliffhanger
-            total_dur = config.max_duration_seconds or audio_data.duration
-            progress = min(1.0, timeline_pos / total_dur) if total_dur > 0 else 0.0
-
-            # Determine intensity at this beat
-            intensity = (
-                intensity_curve[beat_idx] if beat_idx < len(intensity_curve) else 0.5
-            )
-
-            # Calculate segment parameters (target beats, level, speed)
-            target_beats, level, speed = self._calculate_segment_params(
-                config, intensity, progress, clip_idx, beat_idx, spb, min_beats
-            )
-
-            # Don't exceed available beats
-            beat_count = min(target_beats, len(beat_times) - beat_idx)
-            segment_duration = beat_count * spb
-
-            # Test mode: trim segment if it would exceed duration limit
-            if config.max_duration_seconds is not None:
-                remaining = config.max_duration_seconds - timeline_pos
-                segment_duration = min(segment_duration, remaining)
-
-            # Determine if this segment should be B-Roll
-            # FEAT-033: Respect clip boundaries — only switch to B-roll after we've
-            # completed at least one regular clip since the last B-roll. This prevents
-            # inserting B-roll immediately and ensures a natural transition.
-            is_broll = False
-            if (
-                broll_clips
-                and (timeline_pos - last_broll_time) >= target_broll_interval
-                and has_regular_clip_since_broll
-            ):
-                # Don't use B-roll for the very first clip if possible
-                if timeline_pos > 0.0:
-                    is_broll = True
-
-            selection = self._select_clip(
-                forced_clips=forced_clips,
-                forced_clip_idx=forced_clip_idx,
-                is_broll=is_broll,
-                broll_clips=broll_clips,
-                broll_idx=broll_idx,
-                timeline_pos=timeline_pos,
-                last_broll_time=last_broll_time,
+        while not self._should_stop_loop(
+            state, segments, config, len(beat_times)
+        ):
+            self._create_next_segment(
+                state,
+                segments=segments,
+                audio_data=audio_data,
                 config=config,
                 pools=pools,
                 pool_indices=pool_indices,
-                level=level,
-                clip_idx=clip_idx,
-            )
-            clip = selection.clip
-            forced_clip_idx = selection.forced_clip_idx
-            broll_idx = selection.broll_idx
-            clip_idx = selection.clip_idx
-            last_broll_time = selection.last_broll_time
-            target_broll_interval = selection.target_broll_interval
-            reason = selection.reason
-
-            # Compute start offset within clip
-            start_time = self._compute_start_offset(
-                clip, segment_duration, config, clip_idx
+                forced_clips=forced_clips,
+                broll_clips=broll_clips,
+                sections=sections,
+                spb=spb,
+                min_beats=min_beats,
             )
 
-            # Calculate how much source material we need (accounting for speed ramping).
-            # With speed_factor > 1 (fast), we extract less source material.
-            # With speed_factor < 1 (slow), we need more source material.
-            # The setpts filter uses PTS/speed_factor, so:
-            #   speed_factor=1.2 → setpts=PTS/1.2 slows playback (needs more source)
-            #   speed_factor=0.9 → setpts=PTS/0.9 speeds playback (needs less source)
-            # Therefore, extract_duration = segment_duration * speed_factor
-            required_source = segment_duration * speed
-            available_source = clip.duration - start_time
+        logger.debug(
+            "Main loop ended | segments=%d, timeline_pos=%.2fs, beat_idx=%d/%d",
+            len(segments),
+            state.timeline_pos,
+            state.beat_idx,
+            len(beat_times),
+        )
 
-            # Clamp segment duration to what's available from the source clip
-            if required_source <= available_source:
-                # We have enough source material for this speed-ramped segment
-                actual_duration = segment_duration
-            else:
-                # Not enough source material; reduce planned segment duration
-                # Account for the speed factor when calculating achievable duration
-                actual_duration = available_source / speed if speed > 0 else available_source
-
-            # Look up musical section for this beat position
-            current_time = (
-                beat_times[beat_idx] if beat_idx < len(beat_times) else timeline_pos
-            )
-            section_label = self._find_section_label(sections, current_time)
-
-            if actual_duration >= config.min_clip_seconds:
-                seg = SegmentPlan(
-                    video_path=clip.path,
-                    start_time=start_time,
-                    duration=actual_duration,
-                    clip_duration=clip.duration,
-                    timeline_position=timeline_pos,
-                    intensity_level=level,
-                    speed_factor=speed,
-                    section_label=section_label,
-                )
-
-                # FEAT-036: Compute per-beat organic speed ramping if enabled
-                if config.speed_ramp_organic and beat_count > 0:
-                    # Slice intensity curve for this segment's beat range
-                    intensity_slice = intensity_curve[
-                        beat_idx : min(beat_idx + beat_count, len(intensity_curve))
-                    ]
-                    if intensity_slice:
-                        speed_curve = self._compute_speed_curve(intensity_slice, config)
-                        seg.speed_curve = speed_curve
-                        # Update scalar speed_factor to mean for display/fallback
-                        seg.speed_factor = sum(speed_curve) / len(speed_curve)
-
-                segments.append(seg)
-
-                # FEAT-033: Update the boundary-respecting flag
-                if is_broll:
-                    # Need regular clip before next B-roll
-                    has_regular_clip_since_broll = False
-                else:
-                    # Can use B-roll next if threshold is met
-                    has_regular_clip_since_broll = True
-
-                # FEAT-025: collect decision if explain mode is active
-                if config.explain:
-                    self._last_decisions.append(
-                        SegmentDecision(
-                            timeline_start=segments[-1].timeline_position,
-                            clip_path=clip.path,
-                            intensity_score=clip.intensity_score,
-                            section_label=section_label,
-                            duration=actual_duration,
-                            speed=speed,
-                            reason=reason,
-                        )
-                    )
-
-                timeline_pos += actual_duration
-
-            # Advance beat index proportionally to what we actually produced.
-            # When source material was clamped (actual_duration < segment_duration),
-            # advancing by the full planned beat_count skips audio we never made
-            # video for — costing up to 30+ seconds on a full track.
-            if actual_duration < segment_duration and segment_duration > 0:
-                beats_used = max(1, round(actual_duration / spb))
-                beat_idx += min(beats_used, beat_count)
-            else:
-                beat_idx += beat_count
-
-        # Cover any audio tail that falls after the last detected beat.
-        # librosa's beat tracker typically stops 0.5–2 s before the true audio
-        # end (no beat detected in the fade/silence tail), leaving those seconds
-        # unrepresented in the video.  Skip this in test/limited mode since
-        # max_duration_seconds / max_clips already define the intended end.
-        tail_uncovered = audio_data.duration - timeline_pos
-        if (
-            tail_uncovered > 0.15  # ignore sub-frame gaps
+        # DEBUG: Log tail segment decision
+        tail_uncovered = audio_data.duration - state.timeline_pos
+        logger.debug(
+            "Before tail segment:\n"
+            "  tail_uncovered: %.2fs\n"
+            "  audio_data.duration: %.2fs\n"
+            "  timeline_pos: %.2fs\n"
+            "  min_clip_seconds: %.2f\n"
+            "  will_append_tail: %s",
+            tail_uncovered,
+            audio_data.duration,
+            state.timeline_pos,
+            config.min_clip_seconds,
+            tail_uncovered > 0.15
             and config.max_duration_seconds is None
             and config.max_clips is None
-            and sorted_clips
-        ):
-            tail_clip = self._pick_from_pool(pools, pool_indices, "low")
-            # Always start from offset 0 for the tail to guarantee we have
-            # enough source material regardless of clip length.
-            tail_available = tail_clip.duration
-            tail_duration = min(tail_uncovered, tail_available)
-            if tail_duration >= config.min_clip_seconds:
-                tail_section = self._find_section_label(
-                    audio_data.sections or [], timeline_pos
-                )
-                tail_seg = SegmentPlan(
-                    video_path=tail_clip.path,
-                    start_time=0.0,
-                    duration=tail_duration,
-                    clip_duration=tail_clip.duration,
-                    timeline_position=timeline_pos,
-                    intensity_level="low",
-                    speed_factor=1.0,
-                    section_label=tail_section,
-                )
-                segments.append(tail_seg)
-                if config.explain:
-                    self._last_decisions.append(
-                        SegmentDecision(
-                            timeline_start=timeline_pos,
-                            clip_path=tail_clip.path,
-                            intensity_score=tail_clip.intensity_score,
-                            section_label=tail_section,
-                            duration=tail_duration,
-                            speed=1.0,
-                            reason="Tail coverage: audio after last beat",
-                        )
-                    )
-                logger.debug(
-                    "Tail coverage: added %.2fs segment at %.2fs to reach audio end",
-                    tail_duration,
-                    timeline_pos,
-                )
+            and sorted_clips,
+        )
+
+        self._append_tail_segment(
+            segments, audio_data, state.timeline_pos,
+            config, pools, pool_indices, sorted_clips,
+        )
+
+        logger.debug(
+            "=== build_segment_plan END ===\n"
+            "  Total segments: %d\n"
+            "  Final timeline_pos: %.2fs\n"
+            "  Audio duration: %.2fs\n"
+            "  Coverage: %.1f%%",
+            len(segments),
+            state.timeline_pos,
+            audio_data.duration,
+            100 * state.timeline_pos / audio_data.duration if audio_data.duration > 0 else 0,
+        )
 
         return segments
 

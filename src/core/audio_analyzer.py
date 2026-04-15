@@ -193,6 +193,19 @@ class AudioAnalyzer:
             beat_times_arr = librosa.frames_to_time(beat_frames, sr=sr)
             beat_times_list = [float(t) for t in beat_times_arr]
 
+            # DEBUG: Log beat detection coverage
+            if beat_times_list:
+                last_beat_time = beat_times_list[-1]
+                logger.debug(
+                    "Beat tracking: duration=%.2fs, beats=%d, last_beat=%.2fs, "
+                    "tail_gap=%.2fs (%.1f%% coverage)",
+                    duration,
+                    len(beat_times_list),
+                    last_beat_time,
+                    duration - last_beat_time,
+                    100 * last_beat_time / duration if duration > 0 else 0,
+                )
+
             # onset_detect returns onset_frames (ndarray)
             onset_frames = librosa.onset.onset_detect(y=y, sr=sr)
             onset_times = librosa.frames_to_time(onset_frames, sr=sr)
