@@ -307,21 +307,13 @@ def test_cap_set_failure(analyzer, mock_video_capture, mock_exists, mock_isdir):
 
 
 def test_zero_frame_count(analyzer, mock_video_capture, mock_exists, mock_isdir):
-    """Test handling of zero frame count in thumbnail extraction."""
-    # Frame count 0 leads to thumbnail extraction returning None
+    """Zero frame count with no probe fallback is rejected."""
     mock_cap = create_mock_cap(frame_count=0)
-
-    # We still want reads to succeed for intensity calculation to prove it continues
-    # create_mock_cap default behavior provides reads
-
     mock_video_capture.return_value = mock_cap
 
     input_data = VideoAnalysisInput(file_path="test.mp4")
-    result = analyzer.analyze(input_data)
-
-    assert result.thumbnail_data is None
-    # Verify intensity was still calculated (meaning it didn't crash)
-    assert result.intensity_score >= 0.0
+    with pytest.raises(ValueError, match="Could not determine duration"):
+        analyzer.analyze(input_data)
 
 
 def test_small_video_no_resize(analyzer, mock_video_capture, mock_exists, mock_isdir):

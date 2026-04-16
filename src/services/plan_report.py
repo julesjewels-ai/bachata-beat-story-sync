@@ -37,6 +37,37 @@ def _segment_tag(segment: SegmentPlan) -> str:
     return f"[{level}]"
 
 
+def _target_duration(audio: AudioAnalysisResult, pacing: PacingConfig) -> float:
+    """Resolve the effective duration contract for this run."""
+    available = max(0.0, audio.duration - pacing.audio_start_offset)
+    if pacing.max_duration_seconds is None:
+        return available
+    return max(0.0, min(pacing.max_duration_seconds, available))
+
+
+def _transition_overlap_budget(
+    segments: list[SegmentPlan],
+    pacing: PacingConfig,
+) -> float:
+    """Estimate xfade overlap to derive expected rendered duration."""
+    if (
+        not segments
+        or not pacing.transition_type
+        or pacing.transition_type.lower() == "none"
+        or pacing.transition_duration <= 0
+    ):
+        return 0.0
+
+    groups = 1
+    current = segments[0].section_label
+    for seg in segments[1:]:
+        if seg.section_label != current:
+            groups += 1
+            current = seg.section_label
+    overlap_count = max(0, groups - 1)
+    return overlap_count * pacing.transition_duration
+
+
 def format_plan_report(
     audio: AudioAnalysisResult,
     segments: list[SegmentPlan],
@@ -74,13 +105,27 @@ def format_plan_report(
     skipped = total - usable
     lines.append(f"Clips: {total} analyzed, {usable} used in plan, {skipped} unused")
 
-    # Estimated output duration
+    # Estimated output duration (planned timeline)
     if segments:
         last = segments[-1]
         est_dur = last.timeline_position + last.duration
         lines.append(f"Estimated output: {_fmt_time(est_dur)}")
     else:
+        est_dur = 0.0
         lines.append("Estimated output: 0:00.0 (empty plan)")
+
+    target_dur = _target_duration(audio, pacing)
+    overlap_budget = _transition_overlap_budget(segments, pacing)
+    expected_render_dur = max(0.0, est_dur - overlap_budget)
+    delta = expected_render_dur - target_dur
+    aligned = abs(delta) <= 0.10
+    lines.append(
+        "Duration alignment: "
+        f"target={_fmt_time(target_dur)}  "
+        f"expected_render={_fmt_time(expected_render_dur)}  "
+        f"delta={delta:+.2f}s  "
+        f"status={'PASS' if aligned else 'FAIL'}"
+    )
 
     lines.append("")
 

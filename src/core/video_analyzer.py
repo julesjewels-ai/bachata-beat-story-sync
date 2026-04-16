@@ -165,6 +165,19 @@ class VideoAnalyzer:
 
         # Get duration via ffprobe (more reliable than OpenCV's frame count)
         duration = get_video_duration(file_path)
+        if duration <= 0:
+            fps = float(cap.get(cv2.CAP_PROP_FPS) or 0.0)
+            if frame_count > 0 and fps > 0:
+                duration = frame_count / fps
+                logger.warning(
+                    "Could not probe duration for %s via ffprobe; "
+                    "falling back to frame_count/fps (%.2fs)",
+                    file_path,
+                    duration,
+                )
+
+        if duration <= 0:
+            raise ValueError(f"Could not determine duration for video: {file_path}")
 
         if duration > MAX_VIDEO_DURATION_SECONDS:
             raise ValueError(

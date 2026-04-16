@@ -203,11 +203,7 @@ class TestBuildSegmentPlan:
         assert segments == []
 
     def test_single_clip_single_beat(self, generator, single_clip):
-        """Edge case: one clip, one beat.
-
-        With min_clip_seconds=2.0, a single beat at ~0.5s is rejected
-        as too short. This is the correct safety-net behavior.
-        """
+        """Edge case: one clip, one beat still reaches timeline contract."""
         audio = AudioAnalysisResult(
             filename="one_beat.wav",
             bpm=120.0,
@@ -218,7 +214,9 @@ class TestBuildSegmentPlan:
             intensity_curve=[0.5],
         )
         segments = generator.build_segment_plan(audio, single_clip)
-        assert len(segments) == 0  # Rejected: too short
+        assert len(segments) > 0
+        planned_duration = segments[-1].timeline_position + segments[-1].duration
+        assert abs(planned_duration - 1.0) <= 0.10
 
     def test_timeline_positions_are_sequential(
         self, generator, audio_data, video_clips
@@ -521,12 +519,12 @@ class TestPacingConfig:
         assert config.snap_to_beats is True
 
     def test_custom_pacing_overrides(self, generator, video_clips):
-        """Custom pacing values produce expected durations."""
-        # Use 36 beats (divisible by 6) so all segments are full-length
+        """Custom pacing keeps dominant segment durations while aligning output."""
+        # Use 36 beats (~18.0s) plus a short tail to exercise terminal alignment.
         audio = AudioAnalysisResult(
             filename="custom.wav",
             bpm=120.0,  # spb = 0.5s
-            duration=18.5,  # just above beat coverage (18.0s); tail < min_clip so not added
+            duration=18.5,
             peaks=[],
             sections=[],
             beat_times=[float(i) * 0.5 for i in range(36)],
@@ -537,10 +535,14 @@ class TestPacingConfig:
         config = PacingConfig(medium_intensity_seconds=3.0)
         segments = generator.build_segment_plan(audio, video_clips, config)
 
-        for seg in segments:
-            assert seg.intensity_level == "medium"
-            # 3.0s / 0.5 spb = 6 beats → 3.0s duration
-            assert abs(seg.duration - 3.0) < 0.01
+        full_medium = [
+            seg
+            for seg in segments
+            if seg.intensity_level == "medium" and abs(seg.duration - 3.0) < 0.01
+        ]
+        assert full_medium, "Expected at least one full 3.0s medium segment"
+        planned_duration = segments[-1].timeline_position + segments[-1].duration
+        assert abs(planned_duration - audio.duration) <= 0.10
 
     def test_load_pacing_config_returns_defaults_for_missing_file(self):
         """Loading from a non-existent path returns defaults."""
@@ -682,15 +684,19 @@ class TestFFmpegOrchestration:
             pacing=config,
         )
 
-        # Check the FFmpeg calls for the segment extraction
+        # Check the FFmpeg calls for segment extraction.
+        found_slowmo_filter = False
         for call_args in mock_run.call_args_list:
             cmd = call_args[0][0] if call_args[0] else call_args[1].get("cmd", [])
             cmd_str = " ".join(str(c) for c in cmd)
             # Find the extraction call (it has -ss and -t)
             if "-ss" in cmd_str and "-t" in cmd_str:
-                assert "setpts=PTS/0.5" in cmd_str
-                assert "minterpolate=fps=30:mi_mode=blend" in cmd_str
-                assert "fps=30" in cmd_str
+                if "setpts=PTS/0.5" in cmd_str:
+                    assert "minterpolate=fps=30:mi_mode=blend" in cmd_str
+                    assert "fps=30" in cmd_str
+                    found_slowmo_filter = True
+
+        assert found_slowmo_filter, "Expected at least one slow-mo extraction call"
 
     @patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")
     @patch("src.core.ffmpeg_renderer.run_ffmpeg")
