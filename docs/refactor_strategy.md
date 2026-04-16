@@ -63,3 +63,6 @@
 - Completed: Phase 3 compatibility layer for config separation using
   `src/core/pacing_views.py`, with montage/renderer migrated to concern-
   specific config views while preserving existing external APIs.
+- Completed: Phase 4 application-layer workflow extraction via
+  `src/application/pipeline_workflow.py`, with `src/pipeline.py` reduced
+  to thin CLI argument handling + service invocation.

@@ -19,24 +19,24 @@ import os
 import re
 import subprocess
 import sys
-import time
 import uuid
+from typing import TYPE_CHECKING, Any
 
 from pydantic import ValidationError
 
+from src.application.pipeline_workflow import (
+    PipelineWorkflow,
+    PipelineWorkflowDependencies,
+)
 from src.cli_utils import (
     add_shorts_args,
     add_visual_args,
-    build_pacing_kwargs,
-    detect_broll_dir,
     generate_shorts_batch,
-    parse_duration,
     run_dry_run_handler,
     strip_thumbnails,
 )
+from src.config.app_config import PipelineConfig
 from src.core.compilation import generate_compilation
-from src.config.app_config import PipelineConfig, load_app_config
-from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from src.core.models import AudioAnalysisResult, VideoAnalysisResult
@@ -45,7 +45,6 @@ from src.core.app import BachataSyncEngine
 from src.core.audio_analyzer import AudioAnalysisInput, AudioAnalyzer
 from src.core.audio_mixer import (
     SUPPORTED_AUDIO_EXTENSIONS,
-    resolve_audio_path_with_segments,
 )
 from src.core.models import PacingConfig
 from src.ui.console import PipelineLogger, RichProgressObserver
@@ -645,6 +644,20 @@ def _write_summary(
 # ------------------------------------------------------------------
 
 
+def _build_workflow_dependencies() -> PipelineWorkflowDependencies:
+    """Build dependency bundle for the application-layer pipeline workflow."""
+    return PipelineWorkflowDependencies(
+        discover_audio_files=_discover_audio_files,
+        extract_track_metadata=_extract_track_metadata,
+        scan_videos=_scan_videos,
+        run_dry_run_phase=_run_dry_run_phase,
+        generate_mix_video_phase=_generate_mix_video_phase,
+        process_individual_tracks=_process_individual_tracks,
+        generate_compilation_phase=_generate_compilation_phase,
+        write_summary=_write_summary,
+    )
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Bachata Beat-Story Sync: Full Pipeline"
@@ -694,7 +707,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--compilation",
         action="store_true",
-        help="Generate a compilation video by concatenating all individual track videos",
+        help=(
+            "Generate a compilation video by concatenating all "
+            "individual track videos"
+        ),
     )
     parser.add_argument(
         "--no-compilation",
@@ -742,157 +758,21 @@ def main() -> None:
     )
 
     log = PipelineLogger(quiet=args.quiet)
-    t0 = time.time()
+    workflow = PipelineWorkflow(_build_workflow_dependencies())
 
-    audio_dir = args.audio
-    if not os.path.isdir(audio_dir):
+    try:
+        workflow.run(args, log)
+
+    except NotADirectoryError:
         log.error(
-            f"--audio must be a directory of audio tracks, got: {audio_dir}",
+            f"--audio must be a directory of audio tracks, got: {args.audio}",
             hint="Check that the path exists and is a directory.",
         )
         sys.exit(1)
-
-    os.makedirs(args.output_dir, exist_ok=True)
-
-    # Parse shorts duration
-    min_dur, max_dur = parse_duration(args.shorts_duration)
-
-    # Shared pacing kwargs across all renders
-    # Load base YAML config and merge with CLI overrides
-    app_config = load_app_config()
-    base_pacing = app_config.pacing
-    pipeline_config = app_config.pipeline
-    pacing_kwargs = {**base_pacing.model_dump(), **build_pacing_kwargs(args)}
-
-    engine = BachataSyncEngine()
-    analyzer = AudioAnalyzer()
-    generated_files: list[str] = []
-
-    try:
-        # ----------------------------------------------------------
-        # 1. Discover individual audio files
-        # ----------------------------------------------------------
-        log.phase("🔍 Discovering Audio")
-        individual_tracks = _discover_audio_files(audio_dir)
-        if not individual_tracks:
-            log.error(
-                f"No supported audio files found in {audio_dir}",
-                hint="Supported formats: "
-                + ", ".join(sorted(SUPPORTED_AUDIO_EXTENSIONS)),
-            )
-            sys.exit(1)
-        log.step(f"Found {len(individual_tracks)} track(s) in [bold]{audio_dir}[/bold]")
-
-        # ----------------------------------------------------------
-        # 2. Mix tracks (via existing resolve_audio_path caching)
-        # ----------------------------------------------------------
-        log.phase("🎵 Mixing Audio")
-        with log.status(f"Mixing {len(individual_tracks)} tracks…"):
-            with RichProgressObserver() as obs:
-                mix_path, mix_track_starts = resolve_audio_path_with_segments(
-                    audio_dir, observer=obs
-                )
-        log.success(f"Mix ready: [bold]{mix_path}[/bold]")
-
-        # Build MixTrackSegments for mix video cold opens + fades (FEAT-050).
-        mix_track_segments: list[dict[str, Any]] = []
-        if mix_track_starts:
-            for src_path, start_time in mix_track_starts:
-                artist, title = _extract_track_metadata(src_path, pipeline_config)
-                mix_track_segments.append(
-                    {
-                        "artist": artist,
-                        "title": title,
-                        "start_time": start_time,
-                        "audio_path": src_path,
-                    }
-                )
-
-        # ----------------------------------------------------------
-        # 3. Detect B-roll
-        # ----------------------------------------------------------
-        broll_dir = detect_broll_dir(args.video_dir, args.broll_dir)
-        if broll_dir:
-            log.step(f"B-roll directory: [bold]{broll_dir}[/bold]")
-        else:
-            log.detail("No B-roll directory detected")
-
-        # ----------------------------------------------------------
-        # 4. Shared scan (if enabled)
-        # ----------------------------------------------------------
-        shared_clips: list[VideoAnalysisResult] = []
-        shared_broll: list[VideoAnalysisResult] | None = None
-        if args.shared_scan:
-            log.phase("📹 Scanning Video Library")
-            with log.status("Scanning clips…"):
-                shared_clips, shared_broll = _scan_videos(
-                    engine, args.video_dir, broll_dir
-                )
-            clip_msg = f"Found {len(shared_clips)} main clip(s)"
-            if shared_broll:
-                clip_msg += f", {len(shared_broll)} B-roll"
-            log.step(clip_msg)
-
-        # ----------------------------------------------------------
-        # 5. Dry-run — plan-only, skip all rendering
-        # ----------------------------------------------------------
-        if pacing_kwargs.get("dry_run"):
-            _run_dry_run_phase(
-                args, engine, analyzer, individual_tracks,
-                pacing_kwargs, base_pacing, pipeline_config,
-                shared_clips, broll_dir, log, mix_path,
-            )
-            return
-
-        # ----------------------------------------------------------
-        # 6. Generate mix video
-        # ----------------------------------------------------------
-        mix_meta: AudioAnalysisResult | None = None
-        if not args.skip_mix:
-            mix_result, mix_meta = _generate_mix_video_phase(
-                args, engine, analyzer, pacing_kwargs,
-                shared_clips, shared_broll, broll_dir,
-                log, mix_path, mix_track_segments,
-            )
-            generated_files.append(mix_result)
-
-        # ----------------------------------------------------------
-        # 7. Per-track: video + shorts
-        # ----------------------------------------------------------
-        track_files, track_videos, track_audio_files = _process_individual_tracks(
-            args, engine, analyzer, individual_tracks,
-            pacing_kwargs, base_pacing, pipeline_config,
-            shared_clips, shared_broll, broll_dir,
-            log, min_dur, max_dur,
-        )
-        generated_files.extend(track_files)
-
-        # ----------------------------------------------------------
-        # 8. Generate compilation video (FEAT-049)
-        # ----------------------------------------------------------
-        compilation_result = _generate_compilation_phase(
-            app_config, args, track_videos, track_audio_files, log,
-        )
-        if compilation_result:
-            generated_files.append(compilation_result)
-
-        # ----------------------------------------------------------
-        # 9. Summary
-        # ----------------------------------------------------------
-        elapsed = time.time() - t0
-        # Determine last audio meta for JSON output
-        last_audio_meta = mix_meta  # may be None if --skip-mix
-        # Use whatever clips are available for summary
-        clips_for_summary = shared_clips if shared_clips else None
-        _write_summary(
-            args, generated_files, pacing_kwargs,
-            clips_for_summary, log, elapsed, last_audio_meta,
-        )
-
     except FileNotFoundError as e:
         log.error(
             f"File or directory not found: {e}",
-            hint="Check that --audio and --video-dir paths exist.",
+            hint="Check that --audio and --video-dir paths exist and contain media.",
         )
         sys.exit(1)
     except PermissionError as e:
