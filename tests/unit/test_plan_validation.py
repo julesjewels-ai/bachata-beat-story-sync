@@ -24,6 +24,9 @@ def test_validate_segment_plan_accepts_contiguous_plan() -> None:
     )
     assert result.is_valid
     assert result.issues == []
+    assert result.alignment_status == "ok"
+    assert result.duration_delta_seconds == 0.0
+    assert result.absolute_delta_seconds == 0.0
 
 
 def test_validate_segment_plan_detects_gap() -> None:
@@ -64,3 +67,17 @@ def test_validate_segment_plan_detects_coverage_gap() -> None:
     )
     assert not result.is_valid
     assert any("under-covers target duration" in msg for msg in result.issues)
+    assert result.alignment_status == "under"
+    assert result.duration_delta_seconds < 0
+
+
+def test_validate_segment_plan_detects_over_coverage() -> None:
+    result = validate_segment_plan(
+        [_seg(0.0, 2.0), _seg(2.0, 2.0), _seg(4.0, 2.5)],
+        expected_duration=6.0,
+        min_clip_seconds=1.5,
+    )
+    assert not result.is_valid
+    assert any("over-covers target duration" in msg for msg in result.issues)
+    assert result.alignment_status == "over"
+    assert result.duration_delta_seconds > 0

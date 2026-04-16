@@ -45,6 +45,8 @@ class PlanningConfig:
     explain: bool
     explain_html: str | None
     prefix_offset: int
+    transition_type: str
+    transition_duration: float
 
 
 @dataclass(frozen=True)
@@ -118,6 +120,8 @@ def planning_config_from_pacing(config: PacingConfig) -> PlanningConfig:
         explain=config.explain,
         explain_html=config.explain_html,
         prefix_offset=config.prefix_offset,
+        transition_type=config.transition_type,
+        transition_duration=config.transition_duration,
     )
 
 

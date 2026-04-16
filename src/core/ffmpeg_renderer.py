@@ -700,8 +700,15 @@ def apply_transitions(
             concatenate_segments([current_input, next_input], step_output)
 
         # Eagerly clean up previous intermediate file (not a source group)
-        if current_input != group_files[0] and os.path.exists(current_input):
-            os.remove(current_input)
+        if current_input != group_files[0]:
+            try:
+                if os.path.exists(current_input):
+                    os.remove(current_input)
+            except FileNotFoundError:
+                logger.debug(
+                    "Intermediate transition file already gone: %s",
+                    current_input,
+                )
 
         # Update for next iteration
         next_duration = get_video_duration(next_input)

@@ -18,6 +18,9 @@ class SegmentPlanValidationResult:
     issues: list[str] = field(default_factory=list)
     expected_duration: float = 0.0
     actual_duration: float = 0.0
+    duration_delta_seconds: float = 0.0
+    absolute_delta_seconds: float = 0.0
+    alignment_status: str = "ok"
 
     @property
     def is_valid(self) -> bool:
@@ -29,7 +32,7 @@ def validate_segment_plan(
     *,
     expected_duration: float,
     min_clip_seconds: float,
-    tolerance: float = 0.05,
+    tolerance: float = 0.10,
 ) -> SegmentPlanValidationResult:
     """Validate timeline continuity and basic safety invariants.
 
@@ -42,12 +45,14 @@ def validate_segment_plan(
     issues: list[str] = []
 
     previous_end = 0.0
+    total_segments = len(segments)
     for idx, seg in enumerate(segments, start=1):
         if seg.duration <= 0:
             issues.append(
                 f"Segment {idx} has non-positive duration ({seg.duration:.3f}s)."
             )
-        if seg.duration + tolerance < min_clip_seconds:
+        # Allow a shorter terminal segment for exact tail coverage.
+        if idx < total_segments and seg.duration + tolerance < min_clip_seconds:
             issues.append(
                 f"Segment {idx} is below min_clip_seconds "
                 f"({seg.duration:.3f}s < {min_clip_seconds:.3f}s)."
@@ -73,11 +78,24 @@ def validate_segment_plan(
         previous_end = seg.timeline_position + seg.duration
 
     actual_duration = previous_end if segments else 0.0
+    duration_delta = actual_duration - expected_duration
+    absolute_delta = abs(duration_delta)
+    alignment_status = (
+        "over"
+        if duration_delta > tolerance
+        else "under"
+        if duration_delta < -tolerance
+        else "ok"
+    )
     if expected_duration > 0:
-        coverage_delta = expected_duration - actual_duration
-        if coverage_delta > 0.5:
+        if duration_delta < -tolerance:
             issues.append(
-                f"Plan under-covers target duration by {coverage_delta:.3f}s "
+                f"Plan under-covers target duration by {abs(duration_delta):.3f}s "
+                f"(planned={actual_duration:.3f}s, expected={expected_duration:.3f}s)."
+            )
+        elif duration_delta > tolerance:
+            issues.append(
+                f"Plan over-covers target duration by {duration_delta:.3f}s "
                 f"(planned={actual_duration:.3f}s, expected={expected_duration:.3f}s)."
             )
 
@@ -85,4 +103,7 @@ def validate_segment_plan(
         issues=issues,
         expected_duration=expected_duration,
         actual_duration=actual_duration,
+        duration_delta_seconds=duration_delta,
+        absolute_delta_seconds=absolute_delta,
+        alignment_status=alignment_status,
     )

@@ -87,14 +87,27 @@ def synthetic_story_media(tmp_path_factory: pytest.TempPathFactory) -> dict[str,
     root = tmp_path_factory.mktemp("story_media")
     audio_path = root / "click_track.wav"
     clips_dir = root / "clips"
+    short_clips_dir = root / "short_clips"
     clips_dir.mkdir(parents=True, exist_ok=True)
+    short_clips_dir.mkdir(parents=True, exist_ok=True)
 
     _write_click_track(audio_path, duration=6.0, bpm=120.0)
     _render_clip(clips_dir / "clip_motion.mp4", "testsrc=size=640x360:rate=30")
     _render_clip(clips_dir / "clip_static.mp4", "color=c=blue:size=640x360:rate=30")
+    _render_clip(
+        short_clips_dir / "clip_short_motion.mp4",
+        "testsrc=size=640x360:rate=30",
+        duration=2.2,
+    )
+    _render_clip(
+        short_clips_dir / "clip_short_static.mp4",
+        "color=c=red:size=640x360:rate=30",
+        duration=2.0,
+    )
 
     return {
         "audio_path": str(audio_path),
         "clips_dir": str(clips_dir),
+        "short_clips_dir": str(short_clips_dir),
         "audio_duration": "6.0",
     }

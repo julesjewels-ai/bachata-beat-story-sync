@@ -48,10 +48,11 @@ def test_append_tail_segment_adds_tail_when_eligible() -> None:
     segments = [_seg(0.0, 8.0)]
     tail_clip = _clip("/videos/tail.mp4", duration=5.0)
 
-    append_tail_segment(
+    final_timeline = append_tail_segment(
         segments=segments,
         audio_data=_audio(duration=10.0),
         timeline_pos=8.0,
+        target_duration=10.0,
         config=PacingConfig(min_clip_seconds=1.5),
         pools={"high": [], "medium": [], "low": [tail_clip]},
         pool_indices={"high": 0, "medium": 0, "low": 0},
@@ -60,6 +61,7 @@ def test_append_tail_segment_adds_tail_when_eligible() -> None:
         find_section_label=lambda sections, t: None,
     )
 
+    assert abs(final_timeline - 10.0) < 0.001
     assert len(segments) == 2
     assert segments[-1].video_path == "/videos/tail.mp4"
     assert segments[-1].duration == 2.0
@@ -74,7 +76,8 @@ def test_append_tail_segment_skips_when_limited_mode_enabled() -> None:
         segments=segments,
         audio_data=_audio(duration=10.0),
         timeline_pos=8.0,
-        config=PacingConfig(max_duration_seconds=10.0),
+        target_duration=10.0,
+        config=PacingConfig(max_clips=1),
         pools={"high": [], "medium": [], "low": [tail_clip]},
         pool_indices={"high": 0, "medium": 0, "low": 0},
         sorted_clips=[tail_clip],
@@ -94,6 +97,7 @@ def test_append_tail_segment_records_explain_decision() -> None:
         segments=segments,
         audio_data=_audio(duration=10.0),
         timeline_pos=8.0,
+        target_duration=10.0,
         config=PacingConfig(explain=True),
         pools={"high": [], "medium": [], "low": [tail_clip]},
         pool_indices={"high": 0, "medium": 0, "low": 0},
@@ -105,4 +109,4 @@ def test_append_tail_segment_records_explain_decision() -> None:
 
     assert len(segments) == 2
     assert len(decisions) == 1
-    assert decisions[0].reason == "Tail coverage: audio after last beat"
+    assert decisions[0].reason == "Tail coverage: iterative fill"
