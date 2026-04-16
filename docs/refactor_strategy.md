@@ -66,3 +66,6 @@
 - Completed: Phase 4 application-layer workflow extraction via
   `src/application/pipeline_workflow.py`, with `src/pipeline.py` reduced
   to thin CLI argument handling + service invocation.
+- Completed: Phase 5 integration canary coverage via synthetic media
+  fixtures in `tests/integration/` and CI/release workflow updates to run
+  duration alignment canaries with FFmpeg installed.
