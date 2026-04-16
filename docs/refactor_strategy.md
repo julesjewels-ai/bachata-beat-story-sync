@@ -60,3 +60,6 @@
 - Completed: Phase 1 initial safety rails and tests.
 - Completed: Phase 2 clip-selection and tail-coverage extraction into
   `src/core/planner/` with full test pass.
+- Completed: Phase 3 compatibility layer for config separation using
+  `src/core/pacing_views.py`, with montage/renderer migrated to concern-
+  specific config views while preserving existing external APIs.

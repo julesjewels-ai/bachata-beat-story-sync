@@ -8,11 +8,11 @@ from collections.abc import Callable
 from src.core.models import (
     AudioAnalysisResult,
     MusicalSection,
-    PacingConfig,
     SegmentDecision,
     SegmentPlan,
     VideoAnalysisResult,
 )
+from src.core.pacing_views import PlanningConfig
 
 
 def append_tail_segment(
@@ -20,7 +20,7 @@ def append_tail_segment(
     segments: list[SegmentPlan],
     audio_data: AudioAnalysisResult,
     timeline_pos: float,
-    config: PacingConfig,
+    config: PlanningConfig,
     pools: dict[str, list[VideoAnalysisResult]],
     pool_indices: dict[str, int],
     sorted_clips: list[VideoAnalysisResult],

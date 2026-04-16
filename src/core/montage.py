@@ -35,8 +35,16 @@ from src.core.models import (
     SegmentPlan,
     VideoAnalysisResult,
 )
-from src.core.planner import append_tail_segment, select_clip
+from src.core.pacing_views import (
+    OverlayConfig,
+    PlanningConfig,
+    RenderConfig,
+    overlay_config_from_pacing,
+    planning_config_from_pacing,
+    render_config_from_pacing,
+)
 from src.core.plan_validation import validate_segment_plan
+from src.core.planner import append_tail_segment, select_clip
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +94,7 @@ class MontageGenerator:
     @staticmethod
     def _prepare_clips(
         video_clips: list[VideoAnalysisResult],
-        config: PacingConfig,
+        config: PlanningConfig,
     ) -> tuple[list[VideoAnalysisResult], list[VideoAnalysisResult]]:
         """
         Deduplicate, separate forced clips, and sort regular clips.
@@ -156,7 +164,7 @@ class MontageGenerator:
     @staticmethod
     def _build_intensity_pools(
         clips: list[VideoAnalysisResult],
-        config: PacingConfig,
+        config: PlanningConfig,
     ) -> dict:
         """
         Bucket clips into high / medium / low pools by intensity_score.
@@ -240,7 +248,7 @@ class MontageGenerator:
 
     @staticmethod
     def _calculate_segment_params(
-        config: PacingConfig,
+        config: PlanningConfig,
         intensity: float,
         progress: float,
         clip_idx: int,
@@ -289,7 +297,7 @@ class MontageGenerator:
     @staticmethod
     def _compute_speed_curve(
         intensity_slice: list[float],
-        config: PacingConfig,
+        config: PlanningConfig,
     ) -> list[float]:
         """
         Compute per-beat speed multipliers from intensity values (FEAT-036).
@@ -350,7 +358,7 @@ class MontageGenerator:
     def _compute_start_offset(
         clip: VideoAnalysisResult,
         segment_duration: float,
-        config: PacingConfig,
+        config: PlanningConfig,
         clip_idx: int,
     ) -> float:
         """Deterministic start offset within *clip* for variety.
@@ -394,7 +402,7 @@ class MontageGenerator:
     def _should_stop_loop(
         state: _LoopState,
         segments: list[SegmentPlan],
-        config: PacingConfig,
+        config: PlanningConfig,
         num_beats: int,
     ) -> bool:
         """Return True when the segment-building loop should terminate."""
@@ -434,7 +442,7 @@ class MontageGenerator:
         *,
         segments: list[SegmentPlan],
         audio_data: AudioAnalysisResult,
-        config: PacingConfig,
+        config: PlanningConfig,
         pools: dict,
         pool_indices: dict,
         forced_clips: list[VideoAnalysisResult],
@@ -617,7 +625,7 @@ class MontageGenerator:
         self,
         audio_data: AudioAnalysisResult,
         video_clips: list[VideoAnalysisResult],
-        pacing: PacingConfig | None = None,
+        pacing: PlanningConfig | PacingConfig | None = None,
         broll_clips: list[VideoAnalysisResult] | None = None,
     ) -> list[SegmentPlan]:
         """
@@ -642,7 +650,10 @@ class MontageGenerator:
         if not beat_times:
             return []
 
-        config = pacing or PacingConfig()
+        if isinstance(pacing, PlanningConfig):
+            config = pacing
+        else:
+            config = planning_config_from_pacing(pacing or PacingConfig())
 
         # DEBUG: Log audio/beat info at start
         logger.debug(
@@ -926,11 +937,19 @@ class MontageGenerator:
                 "Install it with: brew install ffmpeg"
             )
 
-        # Load pacing config (explicit > file > defaults)
+        # Load pacing config (explicit > file > defaults), then split by concern.
         config = pacing or load_pacing_config()
+        planning_config: PlanningConfig = planning_config_from_pacing(config)
+        render_config: RenderConfig = render_config_from_pacing(config)
+        overlay_config: OverlayConfig = overlay_config_from_pacing(config)
 
         # 1. Build segment plan
-        segments = self.build_segment_plan(audio_data, video_clips, config, broll_clips)
+        segments = self.build_segment_plan(
+            audio_data,
+            video_clips,
+            planning_config,
+            broll_clips,
+        )
         if not segments:
             raise ValueError(
                 "Could not build a segment plan — no beats detected "
@@ -943,11 +962,11 @@ class MontageGenerator:
             len(segments),
             total_dur,
         )
-        if config.max_clips or config.max_duration_seconds:
+        if planning_config.max_clips or planning_config.max_duration_seconds:
             logger.info(
                 "Test mode active — limits: max_clips=%s, max_duration=%.1fs",
-                config.max_clips,
-                config.max_duration_seconds or total_dur,
+                planning_config.max_clips,
+                planning_config.max_duration_seconds or total_dur,
             )
 
         # FEAT-025: Write decision explainability log
@@ -965,14 +984,15 @@ class MontageGenerator:
             segment_files = extract_segments(
                 segments,
                 temp_dir,
-                config,
+                render_config,
                 observer,
                 beat_times=audio_data.beat_times,
             )
 
             # 3. Group-and-transition or simple concat
             transitions_enabled = (
-                config.transition_type and config.transition_type.lower() != "none"
+                render_config.transition_type
+                and render_config.transition_type.lower() != "none"
             )
 
             if transitions_enabled:
@@ -1001,9 +1021,9 @@ class MontageGenerator:
                     apply_transitions(
                         group_files,
                         concat_path,
-                        config.transition_type,
-                        config.transition_duration,
-                        warm_wash=config.pacing_warm_wash,
+                        render_config.transition_type,
+                        render_config.transition_duration,
+                        warm_wash=render_config.pacing_warm_wash,
                     )
                 else:
                     # Only one section — fall back to simple concat
@@ -1030,7 +1050,7 @@ class MontageGenerator:
                     concat_path,
                     audio_path,
                     output_path,
-                    config,
+                    overlay_config,
                     video_duration=video_dur,
                     target_duration=audio_data.duration,
                 )
@@ -1041,14 +1061,15 @@ class MontageGenerator:
             # Also triggered by mix_fade_transitions (FEAT-050) which shares
             # the same FFmpeg pass to burn fade-to-black at track boundaries.
             wants_mix_fades = (
-                config.mix_fade_transitions and bool(config.mix_track_segments)
+                render_config.mix_fade_transitions
+                and bool(render_config.mix_track_segments)
             )
-            if config.text_overlay_enabled or wants_mix_fades:
+            if render_config.text_overlay_enabled or wants_mix_fades:
                 from src.core.text_overlay import build_text_events
 
                 text_events = (
                     build_text_events(config, audio_path)
-                    if config.text_overlay_enabled
+                    if render_config.text_overlay_enabled
                     else []
                 )
                 if text_events or wants_mix_fades:
@@ -1056,7 +1077,12 @@ class MontageGenerator:
                         pre_text = output_path + ".pre_text.mp4"
                         shutil.move(output_path, pre_text)
                         try:
-                            apply_text_overlay(pre_text, output_path, text_events, config)
+                            apply_text_overlay(
+                                pre_text,
+                                output_path,
+                                text_events,
+                                render_config,
+                            )
                         finally:
                             if os.path.exists(pre_text):
                                 os.remove(pre_text)

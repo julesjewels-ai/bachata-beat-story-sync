@@ -21,6 +21,12 @@ from src.core.ffmpeg_utils import (
 )
 from src.core.interfaces import ProgressObserver
 from src.core.models import PacingConfig, SegmentPlan
+from src.core.pacing_views import (
+    OverlayConfig,
+    RenderConfig,
+    overlay_config_from_pacing,
+    render_config_from_pacing,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +80,20 @@ INTRO_EFFECTS: dict[str, Callable[[float], list[str]]] = {
 }
 
 
+def _as_render_config(config: RenderConfig | PacingConfig) -> RenderConfig:
+    """Normalize external config to the render-specific view."""
+    if isinstance(config, RenderConfig):
+        return config
+    return render_config_from_pacing(config)
+
+
+def _as_overlay_config(config: OverlayConfig | PacingConfig) -> OverlayConfig:
+    """Normalize external config to the overlay-specific view."""
+    if isinstance(config, OverlayConfig):
+        return config
+    return overlay_config_from_pacing(config)
+
+
 def _build_intro_filters(effect: str, duration: float) -> list[str]:
     """Look up *effect* in the registry and return VF filter strings.
 
@@ -99,7 +119,7 @@ def _build_intro_filters(effect: str, duration: float) -> list[str]:
 
 
 def _build_pacing_filters(
-    config: PacingConfig,
+    config: RenderConfig | PacingConfig,
     seg: SegmentPlan,
     beat_times: list[float] | None,
     target_w: int,
@@ -121,14 +141,15 @@ def _build_pacing_filters(
     Returns:
         List of FFmpeg VF filter strings, empty when no effects are active.
     """
+    render_config = _as_render_config(config)
     filters: list[str] = []
 
-    if config.pacing_drift_zoom:
+    if render_config.pacing_drift_zoom:
         # Ken Burns — slow 100→105% drift over the segment.
         # zoompan needs explicit size; d=1 means 1 output frame per input.
         filters.append(f"zoompan=z='1+0.0025*in':d=1:s={target_w}x{target_h}")
 
-    if config.pacing_crop_tighten and not config.pacing_drift_zoom:
+    if render_config.pacing_crop_tighten and not render_config.pacing_drift_zoom:
         # Mutually exclusive with drift_zoom — both use zoompan and
         # chaining two zoompan filters produces broken output.
         # Zoom in over ~10s (300 frames @30fps), cap at 105%.
@@ -146,7 +167,7 @@ def _build_pacing_filters(
             bt - seg_start for bt in beat_times if seg_start <= bt < seg_end
         ][:16]  # Cap at 16 terms for FFmpeg expression length safety
 
-    if config.pacing_saturation_pulse and local_beats:
+    if render_config.pacing_saturation_pulse and local_beats:
         # Build a beat-relative pulse expression.
         # For each beat inside this segment's window, emit a brief
         # +0.3 saturation bump that decays over 0.15s.
@@ -156,7 +177,7 @@ def _build_pacing_filters(
 
     # ------- FEAT-024: Advanced Beat-Synced Effects -------
 
-    if config.pacing_micro_jitters and local_beats:
+    if render_config.pacing_micro_jitters and local_beats:
         # 2-pixel random offset on each beat — alternates direction for
         # variety.  Uses geq to shift x/y per beat.
         jitter_terms = []
@@ -172,14 +193,14 @@ def _build_pacing_filters(
             f":cr='cr(X-({jitter_expr}),Y-({jitter_expr}))'"
         )
 
-    if config.pacing_light_leaks and local_beats:
+    if render_config.pacing_light_leaks and local_beats:
         # Warm amber colour sweep — colorbalance enabled for ~200ms per
         # beat.  Each flash simulates an analog film light leak.
         enable_parts = [f"between(t,{b:.3f},{b + 0.2:.3f})" for b in local_beats]
         enable_expr = "+".join(enable_parts)
         filters.append(f"colorbalance=rs=0.3:gs=0.1:bs=-0.1:enable='{enable_expr}'")
 
-    if config.pacing_alternating_bokeh and seg_index % 2 == 0:
+    if render_config.pacing_alternating_bokeh and seg_index % 2 == 0:
         # Subtle luma-only blur on even-numbered segments.
         # boxblur is cheaper than true Gaussian and preserves colours.
         filters.append("boxblur=luma_radius=4")
@@ -193,7 +214,7 @@ def _build_variable_speed_filter_complex(
     t_width: int,
     t_height: int,
     is_shorts: bool,
-    config: PacingConfig,
+    config: RenderConfig | PacingConfig,
     beat_times: list[float] | None = None,
     seg_index: int = 0,
 ) -> tuple[str, float]:
@@ -215,6 +236,7 @@ def _build_variable_speed_filter_complex(
     Returns:
         Tuple of (filter_complex_string, extract_duration_in_seconds)
     """
+    render_config = _as_render_config(config)
     if not speed_curve or len(speed_curve) == 0:
         raise ValueError("speed_curve must be non-empty")
 
@@ -235,8 +257,10 @@ def _build_variable_speed_filter_complex(
     preceding = []
 
     # FEAT-029: Static Zoom / Crop Factor
-    if config.zoom_factor != 1.0:
-        preceding.append(f"crop=iw*{config.zoom_factor}:ih*{config.zoom_factor}")
+    if render_config.zoom_factor != 1.0:
+        preceding.append(
+            f"crop=iw*{render_config.zoom_factor}:ih*{render_config.zoom_factor}"
+        )
 
     if is_shorts:
         preceding.extend(
@@ -288,15 +312,18 @@ def _build_variable_speed_filter_complex(
     trailing = []
 
     # Intro Visual Effect — first segment only (FEAT-022)
-    if seg_index == 0 and config.intro_effect != "none":
+    if seg_index == 0 and render_config.intro_effect != "none":
         trailing.extend(
-            _build_intro_filters(config.intro_effect, config.intro_effect_duration)
+            _build_intro_filters(
+                render_config.intro_effect,
+                render_config.intro_effect_duration,
+            )
         )
 
     # Pacing Visual Effects — all segments (FEAT-023 / FEAT-024)
     trailing.extend(
         _build_pacing_filters(
-            config,
+            render_config,
             seg,
             beat_times,
             t_width,
@@ -306,7 +333,7 @@ def _build_variable_speed_filter_complex(
     )
 
     # Video Style Filter (FEAT-012)
-    style_vf = _VIDEO_STYLE_FILTERS.get(config.video_style, "")
+    style_vf = _VIDEO_STYLE_FILTERS.get(render_config.video_style, "")
     if style_vf:
         trailing.append(style_vf)
 
@@ -323,7 +350,7 @@ def _build_variable_speed_filter_complex(
 def extract_segments(
     segments: list[SegmentPlan],
     temp_dir: str,
-    config: PacingConfig,
+    config: RenderConfig | PacingConfig,
     observer: ProgressObserver | None = None,
     beat_times: list[float] | None = None,
 ) -> list[str]:
@@ -333,6 +360,7 @@ def extract_segments(
     Only ONE FFmpeg process runs at a time. Each completes and
     releases all resources before the next starts.
     """
+    render_config = _as_render_config(config)
     segment_files: list[str] = []
     total = len(segments)
 
@@ -351,18 +379,22 @@ def extract_segments(
 
         output_file = os.path.join(temp_dir, f"seg_{i:04d}.mp4")
 
-        t_width = 1080 if config.is_shorts else TARGET_WIDTH
-        t_height = 1920 if config.is_shorts else TARGET_HEIGHT
+        t_width = 1080 if render_config.is_shorts else TARGET_WIDTH
+        t_height = 1920 if render_config.is_shorts else TARGET_HEIGHT
 
         # FEAT-036: Use variable speed filter_complex if speed_curve is populated
-        if seg.speed_curve and len(seg.speed_curve) > 1 and config.speed_ramp_organic:
+        if (
+            seg.speed_curve
+            and len(seg.speed_curve) > 1
+            and render_config.speed_ramp_organic
+        ):
             filter_complex, extract_duration = _build_variable_speed_filter_complex(
                 seg,
                 seg.speed_curve,
                 t_width,
                 t_height,
-                config.is_shorts,
-                config,
+                render_config.is_shorts,
+                render_config,
                 beat_times=beat_times,
                 seg_index=i,
             )
@@ -425,10 +457,12 @@ def extract_segments(
             vf_parts = []
 
             # FEAT-029: Static Zoom / Crop Factor (applied first)
-            if config.zoom_factor != 1.0:
-                vf_parts.append(f"crop=iw*{config.zoom_factor}:ih*{config.zoom_factor}")
+            if render_config.zoom_factor != 1.0:
+                vf_parts.append(
+                    f"crop=iw*{render_config.zoom_factor}:ih*{render_config.zoom_factor}"
+                )
 
-            if config.is_shorts:
+            if render_config.is_shorts:
                 # Crop center to 9:16 aspect ratio (safe for
                 # horizontal drop-ins and vertical variances)
                 vf_parts.extend(
@@ -448,24 +482,28 @@ def extract_segments(
             if seg.speed_factor != 1.0:
                 vf_parts.append(f"setpts=PTS/{seg.speed_factor}")
                 # FEAT-010: Smooth Slow Motion Interpolation
-                if seg.speed_factor < 1.0 and config.interpolation_method != "none":
-                    if config.interpolation_method == "mci":
+                if (
+                    seg.speed_factor < 1.0
+                    and render_config.interpolation_method != "none"
+                ):
+                    if render_config.interpolation_method == "mci":
                         vf_parts.append(f"minterpolate=fps={TARGET_FPS}:mi_mode=mci")
                     else:
                         vf_parts.append(f"minterpolate=fps={TARGET_FPS}:mi_mode=blend")
 
             # Intro Visual Effect — first segment only (FEAT-022)
-            if i == 0 and config.intro_effect != "none":
+            if i == 0 and render_config.intro_effect != "none":
                 vf_parts.extend(
                     _build_intro_filters(
-                        config.intro_effect, config.intro_effect_duration
+                        render_config.intro_effect,
+                        render_config.intro_effect_duration,
                     )
                 )
 
             # Pacing Visual Effects — all segments (FEAT-023 / FEAT-024)
             vf_parts.extend(
                 _build_pacing_filters(
-                    config,
+                    render_config,
                     seg,
                     beat_times,
                     t_width,
@@ -475,7 +513,7 @@ def extract_segments(
             )
 
             # Video Style Filter (FEAT-012)
-            style_vf = _VIDEO_STYLE_FILTERS.get(config.video_style, "")
+            style_vf = _VIDEO_STYLE_FILTERS.get(render_config.video_style, "")
             if style_vf:
                 vf_parts.append(style_vf)
 
@@ -676,7 +714,7 @@ def overlay_audio(
     video_path: str,
     audio_path: str,
     output_path: str,
-    config: PacingConfig,
+    config: OverlayConfig | PacingConfig,
     video_duration: float = 0.0,
     target_duration: float = 0.0,
 ) -> None:
@@ -697,14 +735,16 @@ def overlay_audio(
             the (potentially shorter) rendered video, preventing the song
             from being cut short due to any residual video/audio length gap.
     """
+    overlay_config = _as_overlay_config(config)
+
     # Compute timeout proportional to video length
     vid_dur = video_duration or get_video_duration(video_path)
     overlay_timeout = timeout_for_duration(vid_dur) if vid_dur > 0 else None
 
     # Build audio input args: optional seek + input file
     audio_input_args: list[str] = []
-    if config.audio_start_offset > 0:
-        audio_input_args.extend(["-ss", f"{config.audio_start_offset:.3f}"])
+    if overlay_config.audio_start_offset > 0:
+        audio_input_args.extend(["-ss", f"{overlay_config.audio_start_offset:.3f}"])
     audio_input_args.extend(["-i", audio_path])
 
     # Trim to target_duration (the original audio length) when available.
@@ -715,7 +755,7 @@ def overlay_audio(
     if trim_dur > 0:
         trim_args.extend(["-t", f"{trim_dur:.3f}"])
 
-    if config.audio_overlay == "none":
+    if overlay_config.audio_overlay == "none":
         cmd = [
             "ffmpeg",
             "-y",
@@ -735,22 +775,22 @@ def overlay_audio(
             output_path,
         ]
     else:
-        video_width = 1080 if config.is_shorts else 1920
+        video_width = 1080 if overlay_config.is_shorts else 1920
         # Overlay takes up ~20% of the video width
         overlay_w = int(video_width * 0.2)
         overlay_h = 120
-        opacity = max(0.0, min(1.0, config.audio_overlay_opacity))
-        pad = config.audio_overlay_padding
+        opacity = max(0.0, min(1.0, overlay_config.audio_overlay_opacity))
+        pad = overlay_config.audio_overlay_padding
 
         # Compute X position
-        if config.audio_overlay_position == "left":
+        if overlay_config.audio_overlay_position == "left":
             x_expr = f"{pad}"
-        elif config.audio_overlay_position == "center":
+        elif overlay_config.audio_overlay_position == "center":
             x_expr = f"(W-{overlay_w})/2"
         else:  # right (default)
             x_expr = f"W-{overlay_w}-{pad}"
 
-        if config.audio_overlay == "waveform":
+        if overlay_config.audio_overlay == "waveform":
             # line-based waveform
             f_str = (
                 f"[1:a]showwaves=s={overlay_w}x{overlay_h}"
@@ -792,21 +832,23 @@ def overlay_audio(
     run_ffmpeg(cmd, "audio overlay", timeout_seconds=overlay_timeout)
 
 
-def _build_mix_fade_filters(config: PacingConfig) -> list[str]:
+def _build_mix_fade_filters(config: RenderConfig | PacingConfig) -> list[str]:
     """Build fade-to-black/fade-up FFmpeg filters for mix track boundaries.
 
     Returns a list of ``fade=...`` filter strings, one pair per boundary
     (fade-out before the boundary, fade-in after). Empty when the config
     doesn't enable mix fades or has fewer than two segments.
     """
-    if not config.mix_fade_transitions or not config.mix_track_segments:
+    render_config = _as_render_config(config)
+
+    if not render_config.mix_fade_transitions or not render_config.mix_track_segments:
         return []
-    d = config.mix_fade_duration
+    d = render_config.mix_fade_duration
     if d <= 0:
         return []
 
     filters: list[str] = []
-    for seg in config.mix_track_segments[1:]:
+    for seg in render_config.mix_track_segments[1:]:
         t = seg.start_time
         if t <= 0:
             continue
@@ -822,7 +864,7 @@ def apply_text_overlay(
     video_path: str,
     output_path: str,
     events: list,
-    config: PacingConfig,
+    config: RenderConfig | PacingConfig,
 ) -> None:
     """Burn timed text overlays onto a rendered video (FEAT-045).
 
@@ -841,11 +883,13 @@ def apply_text_overlay(
     """
     from src.core.text_overlay import build_drawtext_filter_chain, resolve_font
 
-    video_w = 1080 if config.is_shorts else 1920
+    render_config = _as_render_config(config)
 
-    font_path = resolve_font(config.text_overlay_font)
+    video_w = 1080 if render_config.is_shorts else 1920
+
+    font_path = resolve_font(render_config.text_overlay_font)
     text_chain = build_drawtext_filter_chain(events, font_path, video_w)
-    fade_filters = _build_mix_fade_filters(config)
+    fade_filters = _build_mix_fade_filters(render_config)
 
     # Fades must run before drawtext so the text stays visible and the
     # black dip only affects the underlying video content.

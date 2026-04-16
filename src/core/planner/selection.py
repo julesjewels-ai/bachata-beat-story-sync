@@ -6,7 +6,8 @@ import random
 from collections.abc import Callable
 from typing import NamedTuple
 
-from src.core.models import PacingConfig, VideoAnalysisResult
+from src.core.models import VideoAnalysisResult
+from src.core.pacing_views import PlanningConfig
 
 
 class ClipSelection(NamedTuple):
@@ -30,7 +31,7 @@ def select_clip(
     broll_idx: int,
     timeline_pos: float,
     last_broll_time: float,
-    config: PacingConfig,
+    config: PlanningConfig,
     pools: dict[str, list[VideoAnalysisResult]],
     pool_indices: dict[str, int],
     level: str,
