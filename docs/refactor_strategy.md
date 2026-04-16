@@ -58,3 +58,5 @@
 
 - Active branch: `codex/refactor-architecture-hardening`
 - Completed: Phase 1 initial safety rails and tests.
+- Completed: Phase 2 clip-selection and tail-coverage extraction into
+  `src/core/planner/` with full test pass.

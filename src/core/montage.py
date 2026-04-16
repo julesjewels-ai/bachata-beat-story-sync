@@ -16,7 +16,6 @@ import re
 import shutil
 import tempfile
 import uuid
-from typing import NamedTuple
 
 from src.config.app_config import load_app_config
 from src.core.ffmpeg_renderer import (
@@ -36,21 +35,10 @@ from src.core.models import (
     SegmentPlan,
     VideoAnalysisResult,
 )
+from src.core.planner import append_tail_segment, select_clip
 from src.core.plan_validation import validate_segment_plan
 
 logger = logging.getLogger(__name__)
-
-
-class ClipSelection(NamedTuple):
-    """Return value of _select_clip — typed for readability."""
-
-    clip: VideoAnalysisResult
-    forced_clip_idx: int
-    broll_idx: int
-    clip_idx: int
-    last_broll_time: float
-    target_broll_interval: float
-    reason: str
 
 
 @dataclasses.dataclass
@@ -358,57 +346,6 @@ class MontageGenerator:
 
         return speed_curve
 
-    def _select_clip(
-        self,
-        *,
-        forced_clips: list[VideoAnalysisResult],
-        forced_clip_idx: int,
-        is_broll: bool,
-        broll_clips: list[VideoAnalysisResult] | None,
-        broll_idx: int,
-        timeline_pos: float,
-        last_broll_time: float,
-        config: PacingConfig,
-        pools: dict,
-        pool_indices: dict,
-        level: str,
-        clip_idx: int,
-    ) -> ClipSelection:
-        """Pick the next clip and advance the relevant index.
-
-        Returns:
-            ``(clip, forced_clip_idx, broll_idx, clip_idx,
-            last_broll_time, target_broll_interval, reason)``.
-        """
-        target_broll_interval = config.broll_interval_seconds + random.uniform(
-            -config.broll_interval_variance, config.broll_interval_variance
-        )
-        if forced_clip_idx < len(forced_clips):
-            clip = forced_clips[forced_clip_idx]
-            forced_clip_idx += 1
-            reason = "Forced prefix ordering (FEAT-008)"
-        elif is_broll:
-            assert broll_clips is not None
-            clip = broll_clips[broll_idx % len(broll_clips)]
-            broll_idx += 1
-            last_broll_time = timeline_pos
-            reason = f"B-roll interval triggered ({target_broll_interval:.1f}s)"
-        else:
-            clip = self._pick_from_pool(pools, pool_indices, level)
-            clip_idx += 1
-            reason = (
-                f"Intensity matched: {level} pool (score={clip.intensity_score:.2f})"
-            )
-        return ClipSelection(
-            clip=clip,
-            forced_clip_idx=forced_clip_idx,
-            broll_idx=broll_idx,
-            clip_idx=clip_idx,
-            last_broll_time=last_broll_time,
-            target_broll_interval=target_broll_interval,
-            reason=reason,
-        )
-
     @staticmethod
     def _compute_start_offset(
         clip: VideoAnalysisResult,
@@ -555,7 +492,7 @@ class MontageGenerator:
             if state.timeline_pos > 0.0:
                 is_broll = True
 
-        selection = self._select_clip(
+        selection = select_clip(
             forced_clips=forced_clips,
             forced_clip_idx=state.forced_clip_idx,
             is_broll=is_broll,
@@ -568,6 +505,7 @@ class MontageGenerator:
             pool_indices=pool_indices,
             level=level,
             clip_idx=state.clip_idx,
+            pick_from_pool=self._pick_from_pool,
         )
         clip = selection.clip
         state.forced_clip_idx = selection.forced_clip_idx
@@ -674,107 +612,6 @@ class MontageGenerator:
             state.beat_idx += min(beats_used, beat_count)
         else:
             state.beat_idx += beat_count
-
-    def _append_tail_segment(
-        self,
-        segments: list[SegmentPlan],
-        audio_data: AudioAnalysisResult,
-        timeline_pos: float,
-        config: PacingConfig,
-        pools: dict,
-        pool_indices: dict,
-        sorted_clips: list[VideoAnalysisResult],
-    ) -> None:
-        """Cover any audio tail that falls after the last detected beat.
-
-        librosa's beat tracker typically stops 0.5–2 s before the true
-        audio end (no beat detected in the fade/silence tail), leaving
-        those seconds unrepresented in the video.  Skip this in
-        test/limited mode since max_duration_seconds / max_clips already
-        define the intended end.
-        """
-        tail_uncovered = audio_data.duration - timeline_pos
-        logger.debug(
-            "_append_tail_segment: tail_uncovered=%.2fs, max_dur=%s, max_clips=%s, sorted_clips=%d",
-            tail_uncovered,
-            config.max_duration_seconds,
-            config.max_clips,
-            len(sorted_clips) if sorted_clips else 0,
-        )
-
-        if not (
-            tail_uncovered > 0.15  # ignore sub-frame gaps
-            and config.max_duration_seconds is None
-            and config.max_clips is None
-            and sorted_clips
-        ):
-            logger.debug(
-                "SKIP tail: uncovered>0.15=%s, max_dur_none=%s, max_clips_none=%s, has_clips=%s",
-                tail_uncovered > 0.15,
-                config.max_duration_seconds is None,
-                config.max_clips is None,
-                bool(sorted_clips),
-            )
-            return
-
-        tail_clip = self._pick_from_pool(pools, pool_indices, "low")
-        # Always start from offset 0 for the tail to guarantee we have
-        # enough source material regardless of clip length.
-        tail_available = tail_clip.duration
-        tail_duration = min(tail_uncovered, tail_available)
-
-        logger.debug(
-            "Tail segment: duration=%.2fs, min_required=%.2f, will_append=%s",
-            tail_duration,
-            config.min_clip_seconds,
-            tail_duration >= config.min_clip_seconds,
-        )
-
-        if tail_duration < config.min_clip_seconds:
-            logger.debug(
-                "SKIP tail: duration (%.2fs) < min_clip_seconds (%.2f)",
-                tail_duration,
-                config.min_clip_seconds,
-            )
-            return
-
-        tail_section = self._find_section_label(
-            audio_data.sections or [], timeline_pos
-        )
-        tail_seg = SegmentPlan(
-            video_path=tail_clip.path,
-            start_time=0.0,
-            duration=tail_duration,
-            clip_duration=tail_clip.duration,
-            timeline_position=timeline_pos,
-            intensity_level="low",
-            speed_factor=1.0,
-            section_label=tail_section,
-        )
-        segments.append(tail_seg)
-        logger.debug(
-            "APPENDED tail segment: %.2fs (was uncovered %.2fs), total_segments=%d",
-            tail_duration,
-            tail_uncovered,
-            len(segments),
-        )
-        if config.explain:
-            self._last_decisions.append(
-                SegmentDecision(
-                    timeline_start=timeline_pos,
-                    clip_path=tail_clip.path,
-                    intensity_score=tail_clip.intensity_score,
-                    section_label=tail_section,
-                    duration=tail_duration,
-                    speed=1.0,
-                    reason="Tail coverage: audio after last beat",
-                )
-            )
-        logger.debug(
-            "Tail coverage: added %.2fs segment at %.2fs to reach audio end",
-            tail_duration,
-            timeline_pos,
-        )
 
     def build_segment_plan(
         self,
@@ -921,9 +758,18 @@ class MontageGenerator:
             and sorted_clips,
         )
 
-        self._append_tail_segment(
-            segments, audio_data, state.timeline_pos,
-            config, pools, pool_indices, sorted_clips,
+        append_tail_segment(
+            segments=segments,
+            audio_data=audio_data,
+            timeline_pos=state.timeline_pos,
+            config=config,
+            pools=pools,
+            pool_indices=pool_indices,
+            sorted_clips=sorted_clips,
+            pick_from_pool=self._pick_from_pool,
+            find_section_label=self._find_section_label,
+            record_decision=self._last_decisions.append,
+            logger=logger,
         )
 
         logger.debug(
