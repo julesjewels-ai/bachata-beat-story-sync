@@ -36,6 +36,7 @@ from src.core.models import (
     SegmentPlan,
     VideoAnalysisResult,
 )
+from src.core.plan_validation import validate_segment_plan
 
 logger = logging.getLogger(__name__)
 
@@ -800,7 +801,6 @@ class MontageGenerator:
             return []
 
         beat_times = audio_data.beat_times
-        intensity_curve = audio_data.intensity_curve
 
         if not beat_times:
             return []
@@ -937,6 +937,23 @@ class MontageGenerator:
             audio_data.duration,
             100 * state.timeline_pos / audio_data.duration if audio_data.duration > 0 else 0,
         )
+
+        expected_duration = (
+            min(audio_data.duration, config.max_duration_seconds)
+            if config.max_duration_seconds is not None
+            else audio_data.duration
+        )
+        validation = validate_segment_plan(
+            segments,
+            expected_duration=expected_duration,
+            min_clip_seconds=config.min_clip_seconds,
+        )
+        if not validation.is_valid:
+            logger.warning(
+                "Segment plan validation found %d issue(s): %s",
+                len(validation.issues),
+                " | ".join(validation.issues),
+            )
 
         return segments
 
