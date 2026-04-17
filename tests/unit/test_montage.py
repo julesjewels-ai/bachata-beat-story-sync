@@ -19,6 +19,7 @@ from src.core.models import (
     AudioAnalysisResult,
     MusicalSection,
     PacingConfig,
+    SegmentPlan,
     SegmentDecision,
     VideoAnalysisResult,
 )
@@ -353,10 +354,59 @@ class TestTransitionDurationContract:
         assert planned_duration > 6.0
         assert abs(expected_render - 6.0) <= 0.10
 
+    def test_absorb_short_remainder_prefers_single_longer_segment(self, generator):
+        assert (
+            generator._absorb_short_remainder(
+                desired_duration=4.0,
+                remaining=7.5,
+                min_clip_seconds=4.0,
+                tolerance=0.10,
+            )
+            == 7.5
+        )
+        assert (
+            generator._absorb_short_remainder(
+                desired_duration=4.0,
+                remaining=8.5,
+                min_clip_seconds=4.0,
+                tolerance=0.10,
+            )
+            == 4.0
+        )
+
+    def test_transition_compensation_extends_terminal_segment_before_append(
+        self,
+        generator,
+    ):
+        segments = [
+            SegmentPlan(
+                video_path="/videos/clip.mp4",
+                start_time=0.0,
+                duration=3.715,
+                clip_duration=30.0,
+                timeline_position=0.0,
+                intensity_level="medium",
+                speed_factor=1.0,
+                section_label="outro",
+            )
+        ]
+
+        extended = generator._extend_last_segment(
+            segments=segments,
+            extra_duration=3.119,
+            explain_enabled=False,
+            tolerance=0.10,
+        )
+
+        assert abs(extended - 3.119) <= 1e-6
+        assert abs(segments[-1].duration - 6.834) <= 1e-6
+
+    @patch.object(MontageGenerator, "_extend_last_segment", return_value=0.0)
     @patch("src.core.montage.append_transition_compensation")
     def test_transition_contract_raises_when_compensation_is_skipped(
         self,
         mock_compensation,
+        mock_extend,
         generator,
         video_clips,
     ):
@@ -468,11 +518,11 @@ class TestTransitionDurationContract:
         audio = AudioAnalysisResult(
             filename="rotate.wav",
             bpm=120.0,
-            duration=30.0,
+            duration=12.0,
             peaks=[],
             sections=[],
-            beat_times=[float(i) * 0.5 for i in range(40)],
-            intensity_curve=[0.5] * 40,
+            beat_times=[float(i) * 0.5 for i in range(24)],
+            intensity_curve=[0.5] * 24,
         )
         config = PacingConfig(prefix_offset=1, max_clips=3)
         segments = generator.build_segment_plan(audio, prefixed_clips, config)
@@ -500,11 +550,11 @@ class TestTransitionDurationContract:
         audio = AudioAnalysisResult(
             filename="norotate.wav",
             bpm=120.0,
-            duration=30.0,
+            duration=8.0,
             peaks=[],
             sections=[],
-            beat_times=[float(i) * 0.5 for i in range(40)],
-            intensity_curve=[0.5] * 40,
+            beat_times=[float(i) * 0.5 for i in range(16)],
+            intensity_curve=[0.5] * 16,
         )
         config = PacingConfig(prefix_offset=0, max_clips=2)
         segments = generator.build_segment_plan(audio, prefixed_clips, config)
@@ -2684,7 +2734,7 @@ class TestAdvancedEffects:
 
     @patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")
     @patch("src.core.montage.normalize_video_duration")
-    @patch("src.core.ffmpeg_renderer.get_video_duration")
+    @patch("src.core.montage.get_video_duration")
     @patch("src.core.ffmpeg_renderer.run_ffmpeg")
     @patch("src.core.montage.tempfile.mkdtemp")
     @patch("src.core.montage.shutil.rmtree")
@@ -2723,7 +2773,7 @@ class TestAdvancedEffects:
         mock_normalize.assert_called_once()
 
     @patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")
-    @patch("src.core.ffmpeg_renderer.get_video_duration", return_value=29.7)
+    @patch("src.core.montage.get_video_duration", return_value=29.7)
     @patch("src.core.ffmpeg_renderer.run_ffmpeg")
     @patch("src.core.montage.tempfile.mkdtemp")
     @patch("src.core.montage.shutil.rmtree")

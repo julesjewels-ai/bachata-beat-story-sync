@@ -33,6 +33,9 @@ def append_transition_compensation(
             break
 
         min_required = min(min_compensation_seconds, remaining)
+        allow_short_terminal = remaining <= (
+            min_compensation_seconds + sync_tolerance
+        )
         segment = build_segment(current_timeline, remaining)
         if segment is None:
             log.debug(
@@ -48,7 +51,7 @@ def append_transition_compensation(
             )
             break
 
-        if segment.duration + 1e-6 < min_required:
+        if segment.duration + 1e-6 < min_required and not allow_short_terminal:
             log.debug(
                 "STOP transition compensation: %.3fs below minimum %.3fs",
                 segment.duration,

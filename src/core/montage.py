@@ -600,26 +600,76 @@ class MontageGenerator:
                 )
 
         # 5) Short recovery segment as last resort (>= 0.25s).
-        for recovery_clip in candidate_clips:
-            start_time, achieved = self._fit_clip_for_duration(
-                recovery_clip,
-                desired_duration,
-                1.0,
-                config,
-                clip_idx,
-                force_start_zero=True,
-            )
-            recovery_duration = min(remaining, achieved)
-            if recovery_duration >= MIN_RECOVERY_SEGMENT_SECONDS:
-                return _SegmentFit(
+        if allow_short_terminal:
+            for recovery_clip in candidate_clips:
+                start_time, achieved = self._fit_clip_for_duration(
                     recovery_clip,
-                    start_time,
-                    recovery_duration,
+                    desired_duration,
                     1.0,
-                    "Adaptive fit: short recovery segment",
+                    config,
+                    clip_idx,
+                    force_start_zero=True,
                 )
+                recovery_duration = min(remaining, achieved)
+                if recovery_duration >= MIN_RECOVERY_SEGMENT_SECONDS:
+                    return _SegmentFit(
+                        recovery_clip,
+                        start_time,
+                        recovery_duration,
+                        1.0,
+                        "Adaptive fit: short recovery segment",
+                    )
 
         return None
+
+    @staticmethod
+    def _absorb_short_remainder(
+        desired_duration: float,
+        remaining: float,
+        min_clip_seconds: float,
+        tolerance: float,
+    ) -> float:
+        """Prefer one longer segment over leaving a too-short tail remainder."""
+        trailing_remainder = max(0.0, remaining - desired_duration)
+        if 0 < trailing_remainder < max(0.0, min_clip_seconds - tolerance):
+            return remaining
+        return desired_duration
+
+    @staticmethod
+    def _max_output_extension(segment: SegmentPlan) -> float:
+        """Return how much longer this segment can grow without new source."""
+        if segment.speed_curve:
+            return 0.0
+
+        effective_speed = max(0.01, segment.speed_factor)
+        available_source = max(0.0, segment.clip_duration - segment.start_time)
+        max_output_duration = available_source / effective_speed
+        return max(0.0, max_output_duration - segment.duration)
+
+    def _extend_last_segment(
+        self,
+        *,
+        segments: list[SegmentPlan],
+        extra_duration: float,
+        explain_enabled: bool,
+        tolerance: float,
+    ) -> float:
+        """Extend the terminal segment in place before appending new tail clips."""
+        if not segments or extra_duration <= tolerance:
+            return 0.0
+
+        extendable = self._max_output_extension(segments[-1])
+        if extendable <= tolerance:
+            return 0.0
+
+        extension = min(extra_duration, extendable)
+        segments[-1].duration += extension
+
+        if explain_enabled and self._last_decisions:
+            self._last_decisions[-1].duration = segments[-1].duration
+            self._last_decisions[-1].reason += "; extended for tail alignment"
+
+        return extension
 
     def build_segment_plan(
         self,
@@ -778,6 +828,12 @@ class MontageGenerator:
                 break
 
             desired_duration = min(beat_count * spb, remaining)
+            desired_duration = self._absorb_short_remainder(
+                desired_duration,
+                remaining,
+                config.min_clip_seconds,
+                DURATION_SYNC_TOLERANCE_SECONDS,
+            )
             if desired_duration <= 0:
                 logger.debug("STOP: desired_duration <= 0 at iteration %d", iteration)
                 break
@@ -933,6 +989,20 @@ class MontageGenerator:
                 overlap_budget,
                 target_duration + overlap_budget,
             )
+            compensation_target = target_duration + overlap_budget
+            extended = self._extend_last_segment(
+                segments=segments,
+                extra_duration=max(0.0, compensation_target - state.timeline_pos),
+                explain_enabled=config.explain,
+                tolerance=DURATION_SYNC_TOLERANCE_SECONDS,
+            )
+            if extended > 0:
+                state.timeline_pos += extended
+                logger.debug(
+                    "Extended terminal segment by %.3fs before compensation append",
+                    extended,
+                )
+
             clip_by_path = {clip.path: clip for clip in sorted_clips}
 
             def build_compensation_segment(
@@ -987,9 +1057,9 @@ class MontageGenerator:
             state.timeline_pos = append_transition_compensation(
                 segments=segments,
                 timeline_pos=state.timeline_pos,
-                target_timeline_duration=target_duration + overlap_budget,
+                target_timeline_duration=compensation_target,
                 build_segment=build_compensation_segment,
-                min_compensation_seconds=1 / 30,
+                min_compensation_seconds=config.min_clip_seconds,
                 sync_tolerance=DURATION_SYNC_TOLERANCE_SECONDS,
                 logger=logger,
             )
