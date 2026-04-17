@@ -54,7 +54,7 @@ from src.core.planner import (
 
 logger = logging.getLogger(__name__)
 
-DURATION_SYNC_TOLERANCE_SECONDS = 0.10
+DURATION_SYNC_TOLERANCE_SECONDS = 0.10  # Default; overridable via PacingConfig.duration_sync_tolerance_seconds
 MIN_RECOVERY_SEGMENT_SECONDS = 0.25
 MAX_PLANNING_ITERATIONS = 5000
 
@@ -519,7 +519,7 @@ class MontageGenerator:
         """Adaptive fit strategy for short/insufficient footage."""
         min_required = min(config.min_clip_seconds, remaining)
         allow_short_terminal = remaining <= (
-            config.min_clip_seconds + DURATION_SYNC_TOLERANCE_SECONDS
+            config.min_clip_seconds + config.duration_sync_tolerance_seconds
         )
 
         def _accept(duration: float) -> bool:
@@ -724,7 +724,7 @@ class MontageGenerator:
         max_iterations = max(MAX_PLANNING_ITERATIONS, len(beat_times) * 4 + 100)
         last_anchor_beat_idx = -1
         for iteration in range(max_iterations):
-            if state.timeline_pos >= target_duration - DURATION_SYNC_TOLERANCE_SECONDS:
+            if state.timeline_pos >= target_duration - config.duration_sync_tolerance_seconds:
                 break
             if config.max_clips is not None and len(segments) >= config.max_clips:
                 logger.debug(
@@ -923,7 +923,7 @@ class MontageGenerator:
             record_decision=self._last_decisions.append,
             logger=logger,
             min_recovery_seconds=MIN_RECOVERY_SEGMENT_SECONDS,
-            sync_tolerance=DURATION_SYNC_TOLERANCE_SECONDS,
+            sync_tolerance=config.duration_sync_tolerance_seconds,
         )
 
         overlap_budget = self._compute_transition_overlap_budget(segments, config)
@@ -990,7 +990,7 @@ class MontageGenerator:
                 target_timeline_duration=target_duration + overlap_budget,
                 build_segment=build_compensation_segment,
                 min_compensation_seconds=1 / 30,
-                sync_tolerance=DURATION_SYNC_TOLERANCE_SECONDS,
+                sync_tolerance=config.duration_sync_tolerance_seconds,
                 logger=logger,
             )
 
@@ -1020,12 +1020,12 @@ class MontageGenerator:
             segments,
             expected_duration=planned_target_duration,
             min_clip_seconds=config.min_clip_seconds,
-            tolerance=DURATION_SYNC_TOLERANCE_SECONDS,
+            tolerance=config.duration_sync_tolerance_seconds,
         )
         render_validation = validate_duration_contract(
             actual_duration=expected_render_duration,
             expected_duration=target_duration,
-            tolerance=DURATION_SYNC_TOLERANCE_SECONDS,
+            tolerance=config.duration_sync_tolerance_seconds,
             subject="Expected rendered duration",
         )
         validation_issues = [
@@ -1266,7 +1266,7 @@ class MontageGenerator:
             video_dur = get_video_duration(concat_path)
             if output_target_duration > 0 and video_dur > 0:
                 delta = abs(video_dur - output_target_duration)
-                if delta > DURATION_SYNC_TOLERANCE_SECONDS:
+                if delta > config.duration_sync_tolerance_seconds:
                     raise RuntimeError(
                         "Assembled video duration mismatch before audio overlay: "
                         f"rendered={video_dur:.3f}s target={output_target_duration:.3f}s "
@@ -1286,7 +1286,7 @@ class MontageGenerator:
                     concat_path = normalized_concat
                     video_dur = get_video_duration(concat_path)
                     normalized_delta = abs(video_dur - output_target_duration)
-                    if normalized_delta > DURATION_SYNC_TOLERANCE_SECONDS:
+                    if normalized_delta > config.duration_sync_tolerance_seconds:
                         raise RuntimeError(
                             "Normalized video duration mismatch before audio overlay: "
                             f"rendered={video_dur:.3f}s target={output_target_duration:.3f}s "
@@ -1345,7 +1345,7 @@ class MontageGenerator:
             output_dur = get_video_duration(output_path)
             if output_target_duration > 0 and output_dur > 0:
                 delta = abs(output_dur - output_target_duration)
-                if delta > DURATION_SYNC_TOLERANCE_SECONDS:
+                if delta > config.duration_sync_tolerance_seconds:
                     raise RuntimeError(
                         "Output duration mismatch after post-processing: "
                         f"rendered={output_dur:.3f}s target={output_target_duration:.3f}s "

@@ -47,6 +47,7 @@ class PlanningConfig:
     prefix_offset: int
     transition_type: str
     transition_duration: float
+    duration_sync_tolerance_seconds: float
 
 
 @dataclass(frozen=True)
@@ -122,6 +123,7 @@ def planning_config_from_pacing(config: PacingConfig) -> PlanningConfig:
         prefix_offset=config.prefix_offset,
         transition_type=config.transition_type,
         transition_duration=config.transition_duration,
+        duration_sync_tolerance_seconds=config.duration_sync_tolerance_seconds,
     )
 
 

@@ -292,6 +292,17 @@ class PacingConfig(BaseModel):
         0.5, description="Duration of each transition in seconds"
     )
 
+    # Duration sync tolerance — how much the rendered video duration is
+    # allowed to diverge from the target timeline before we raise. Also
+    # used as the planner's early-stop threshold when filling the timeline.
+    # Raising this loosens beat-sync precision in exchange for letting the
+    # pipeline absorb larger FFmpeg rounding/xfade drift.
+    duration_sync_tolerance_seconds: float = Field(
+        0.10,
+        description="Maximum allowed drift (seconds) between planned and "
+        "rendered video duration. Default 0.10 (100ms).",
+    )
+
     # Frame Interpolation for Slow Motion (FEAT-010)
     interpolation_method: str = Field(
         "blend",

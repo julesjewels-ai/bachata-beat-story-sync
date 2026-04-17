@@ -1,5 +1,7 @@
-- There's a bug causeing the video clips to freeze. I've tried this with a little range of clips, totally different clips, and it seems that it sometimes just the clip freezes. It keeps that image on so it looks like there's an image on the screen. I've tried this From the UI mode I've tried running it in test mode where I can set the length of the video and then the maximum number of clips and also tried it without any settings and with some changed settings for the full video in the UI mode. And it seems that some clips are affected more than others. I think one thing to note is that some of the clips are like four seconds or under and it seems like the clip that I've identified is like three seconds long that freezes instantly. 
+
 - Transition type in the UI Advanced settings should also be a drop down. 
 
 
 - In the info box when the video is rendering there's a little loading icon where the dropdown check is. It just switches between the loading icon and the text 'CHECK' when it should actually be a down arrow. The down arrow is there when rendering is not happening but as soon as it happens the box stays open and the arrow is no longer visible. As I say it's just the text 'CHECK' in capital letters. 
+
+- So it'd be cool if we could add some more variety and some different options to the Audio visualizer, like perhaps adjustments to the size, the colors, and then also any other options that you can think of here that would make it cool and slightly more visually appealing for my older audience as well as add a little bit of variety to the video so Colored bars depending on, or colored differentiators based on, the different frequencies would be awesome. 
