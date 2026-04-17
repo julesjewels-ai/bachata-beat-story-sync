@@ -1,7 +1,10 @@
 """Unit tests for segment-plan validation helpers."""
 
 from src.core.models import SegmentPlan
-from src.core.plan_validation import validate_segment_plan
+from src.core.plan_validation import (
+    validate_duration_contract,
+    validate_segment_plan,
+)
 
 
 def _seg(start: float, duration: float) -> SegmentPlan:
@@ -81,3 +84,26 @@ def test_validate_segment_plan_detects_over_coverage() -> None:
     assert any("over-covers target duration" in msg for msg in result.issues)
     assert result.alignment_status == "over"
     assert result.duration_delta_seconds > 0
+
+
+def test_validate_duration_contract_accepts_aligned_duration() -> None:
+    result = validate_duration_contract(
+        actual_duration=6.02,
+        expected_duration=6.0,
+        tolerance=0.10,
+        subject="Rendered duration",
+    )
+    assert result.is_valid
+    assert result.alignment_status == "ok"
+
+
+def test_validate_duration_contract_detects_under_coverage() -> None:
+    result = validate_duration_contract(
+        actual_duration=5.4,
+        expected_duration=6.0,
+        tolerance=0.10,
+        subject="Rendered duration",
+    )
+    assert not result.is_valid
+    assert result.alignment_status == "under"
+    assert any("Rendered duration under-covers target duration" in msg for msg in result.issues)

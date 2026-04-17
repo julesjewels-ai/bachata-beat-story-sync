@@ -839,6 +839,44 @@ def overlay_audio(
     run_ffmpeg(cmd, "audio overlay", timeout_seconds=overlay_timeout)
 
 
+def normalize_video_duration(
+    video_path: str,
+    output_path: str,
+    target_duration: float,
+    actual_duration: float = 0.0,
+) -> None:
+    """Normalize a rendered video to ``target_duration`` using end-only edits."""
+    current_duration = actual_duration or get_video_duration(video_path)
+    if target_duration <= 0 or current_duration <= 0:
+        raise ValueError("target_duration and actual_duration must both be positive")
+
+    delta = target_duration - current_duration
+    if abs(delta) < 1e-6:
+        shutil.copy2(video_path, output_path)
+        return
+
+    if delta > 0:
+        vf = f"tpad=stop_mode=clone:stop_duration={delta:.6f},fps={TARGET_FPS}"
+    else:
+        vf = f"trim=duration={target_duration:.6f},setpts=PTS-STARTPTS,fps={TARGET_FPS}"
+
+    timeout = timeout_for_duration(max(current_duration, target_duration))
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-i",
+        video_path,
+        "-vf",
+        vf,
+        *get_h264_encoder_args(),
+        "-an",
+        "-movflags",
+        "+faststart",
+        output_path,
+    ]
+    run_ffmpeg(cmd, "duration normalization", timeout_seconds=timeout)
+
+
 def _build_mix_fade_filters(config: RenderConfig | PacingConfig) -> list[str]:
     """Build fade-to-black/fade-up FFmpeg filters for mix track boundaries.
 

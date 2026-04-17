@@ -63,8 +63,7 @@ def test_rendered_output_duration_matches_audio(
     audio_duration = result.audio_meta.duration
     delta = abs(rendered_duration - audio_duration)
 
-    # Canary threshold allows tiny mux/probe variance while catching regressions.
-    assert delta <= 0.25, (
+    assert delta <= 0.10, (
         f"Rendered duration drifted by {delta:.3f}s "
         f"(rendered={rendered_duration:.3f}s, audio={audio_duration:.3f}s)"
     )
@@ -75,9 +74,29 @@ def test_rendered_output_duration_matches_audio_with_transitions(
     tmp_path: Path,
 ) -> None:
     """Canary: transition overlap compensation keeps final render aligned."""
+    dry_result = run_story_workflow(
+        synthetic_story_media["sectioned_audio_path"],
+        synthetic_story_media["clips_dir"],
+        "unused.mp4",
+        pacing_overrides={
+            **_CANARY_PACING,
+            "dry_run": True,
+            "transition_type": "fade",
+            "transition_duration": 0.5,
+        },
+    )
+    assert dry_result.segments
+    group_count = 1
+    current_label = dry_result.segments[0].section_label
+    for segment in dry_result.segments[1:]:
+        if segment.section_label != current_label:
+            group_count += 1
+            current_label = segment.section_label
+    assert group_count > 1, "Expected transition canary to plan multiple groups"
+
     output_path = tmp_path / "story_canary_transitions.mp4"
     result = run_story_workflow(
-        synthetic_story_media["audio_path"],
+        synthetic_story_media["sectioned_audio_path"],
         synthetic_story_media["clips_dir"],
         str(output_path),
         pacing_overrides={
@@ -94,7 +113,7 @@ def test_rendered_output_duration_matches_audio_with_transitions(
     audio_duration = result.audio_meta.duration
     delta = abs(rendered_duration - audio_duration)
 
-    assert delta <= 0.25, (
+    assert delta <= 0.10, (
         f"Transition render drifted by {delta:.3f}s "
         f"(rendered={rendered_duration:.3f}s, audio={audio_duration:.3f}s)"
     )

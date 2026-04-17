@@ -24,6 +24,7 @@ from src.core.ffmpeg_renderer import (
     concatenate_segments,
     extract_segments,
     get_video_duration,
+    normalize_video_duration,
     overlay_audio,
 )
 from src.core.interfaces import ProgressObserver
@@ -44,7 +45,12 @@ from src.core.pacing_views import (
     render_config_from_pacing,
 )
 from src.core.plan_validation import validate_segment_plan
-from src.core.planner import append_tail_segment, select_clip
+from src.core.plan_validation import validate_duration_contract
+from src.core.planner import (
+    append_tail_segment,
+    append_transition_compensation,
+    select_clip,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -920,58 +926,115 @@ class MontageGenerator:
             sync_tolerance=DURATION_SYNC_TOLERANCE_SECONDS,
         )
 
-        planned_target_duration = target_duration
         overlap_budget = self._compute_transition_overlap_budget(segments, config)
-        if overlap_budget > 0:
-            planned_target_duration += overlap_budget
+        if overlap_budget > 0 and segments:
             logger.debug(
                 "Transition overlap compensation: +%.2fs (planned target %.2fs)",
                 overlap_budget,
-                planned_target_duration,
+                target_duration + overlap_budget,
             )
-            state.timeline_pos = append_tail_segment(
+            clip_by_path = {clip.path: clip for clip in sorted_clips}
+
+            def build_compensation_segment(
+                timeline_position: float,
+                remaining: float,
+            ) -> SegmentPlan | None:
+                reference = segments[-1]
+                primary = clip_by_path.get(reference.video_path)
+                if primary is None:
+                    return None
+
+                candidate_clips = self._build_candidate_clips(primary, sorted_clips)
+                base_speed = reference.speed_factor if not reference.speed_curve else 1.0
+                fit = self._fit_segment_adaptive(
+                    candidate_clips=candidate_clips,
+                    desired_duration=remaining,
+                    base_speed=base_speed,
+                    remaining=remaining,
+                    config=config,
+                    clip_idx=len(segments),
+                )
+                if fit is None or fit.duration <= 0:
+                    return None
+
+                segment = SegmentPlan(
+                    video_path=fit.clip.path,
+                    start_time=fit.start_time,
+                    duration=fit.duration,
+                    clip_duration=fit.clip.duration,
+                    timeline_position=timeline_position,
+                    intensity_level=reference.intensity_level,
+                    speed_factor=fit.speed,
+                    section_label=reference.section_label,
+                )
+                if config.explain:
+                    reason = "Transition overlap compensation"
+                    if fit.reason_suffix:
+                        reason = f"{reason}; {fit.reason_suffix}"
+                    self._last_decisions.append(
+                        SegmentDecision(
+                            timeline_start=timeline_position,
+                            clip_path=fit.clip.path,
+                            intensity_score=fit.clip.intensity_score,
+                            section_label=reference.section_label,
+                            duration=fit.duration,
+                            speed=fit.speed,
+                            reason=reason,
+                        )
+                    )
+                return segment
+
+            state.timeline_pos = append_transition_compensation(
                 segments=segments,
-                audio_data=audio_data,
                 timeline_pos=state.timeline_pos,
-                target_duration=planned_target_duration,
-                config=config,
-                pools=pools,
-                pool_indices=pool_indices,
-                sorted_clips=sorted_clips,
-                pick_from_pool=self._pick_from_pool,
-                find_section_label=section_label_lookup,
-                record_decision=self._last_decisions.append,
-                logger=logger,
-                min_recovery_seconds=MIN_RECOVERY_SEGMENT_SECONDS,
+                target_timeline_duration=target_duration + overlap_budget,
+                build_segment=build_compensation_segment,
+                min_compensation_seconds=1 / 30,
                 sync_tolerance=DURATION_SYNC_TOLERANCE_SECONDS,
+                logger=logger,
             )
 
         planned_duration = (
             segments[-1].timeline_position + segments[-1].duration if segments else 0.0
         )
+        final_overlap_budget = self._compute_transition_overlap_budget(segments, config)
+        planned_target_duration = target_duration + final_overlap_budget
+        expected_render_duration = max(0.0, planned_duration - final_overlap_budget)
         logger.debug(
             "=== build_segment_plan END ===\n"
             "  Total segments: %d\n"
             "  Planned duration: %.2fs\n"
-            "  Target duration: %.2fs\n"
-            "  Delta: %.3fs",
+            "  Target timeline: %.2fs\n"
+            "  Expected render duration: %.2fs\n"
+            "  Render target: %.2fs\n"
+            "  Timeline delta: %.3fs",
             len(segments),
             planned_duration,
             planned_target_duration,
+            expected_render_duration,
+            target_duration,
             planned_duration - planned_target_duration,
         )
 
-        validation = validate_segment_plan(
+        timeline_validation = validate_segment_plan(
             segments,
             expected_duration=planned_target_duration,
             min_clip_seconds=config.min_clip_seconds,
             tolerance=DURATION_SYNC_TOLERANCE_SECONDS,
         )
-        if not validation.is_valid:
-            logger.warning(
-                "Segment plan validation found %d issue(s): %s",
-                len(validation.issues),
-                " | ".join(validation.issues),
+        render_validation = validate_duration_contract(
+            actual_duration=expected_render_duration,
+            expected_duration=target_duration,
+            tolerance=DURATION_SYNC_TOLERANCE_SECONDS,
+            subject="Expected rendered duration",
+        )
+        validation_issues = [
+            *timeline_validation.issues,
+            *render_validation.issues,
+        ]
+        if validation_issues:
+            raise ValueError(
+                "Invalid segment plan: " + " | ".join(validation_issues)
             )
 
         return segments
@@ -1200,21 +1263,38 @@ class MontageGenerator:
                 concat_path = os.path.join(temp_dir, "concat_output.mp4")
                 concatenate_segments(segment_files, concat_path)
 
+            video_dur = get_video_duration(concat_path)
+            if output_target_duration > 0 and video_dur > 0:
+                delta = abs(video_dur - output_target_duration)
+                if delta > DURATION_SYNC_TOLERANCE_SECONDS:
+                    raise RuntimeError(
+                        "Assembled video duration mismatch before audio overlay: "
+                        f"rendered={video_dur:.3f}s target={output_target_duration:.3f}s "
+                        f"delta={delta:.3f}s"
+                    )
+                if delta > 1e-3:
+                    normalized_concat = os.path.join(
+                        temp_dir,
+                        "concat_output.normalized.mp4",
+                    )
+                    normalize_video_duration(
+                        concat_path,
+                        normalized_concat,
+                        output_target_duration,
+                        actual_duration=video_dur,
+                    )
+                    concat_path = normalized_concat
+                    video_dur = get_video_duration(concat_path)
+                    normalized_delta = abs(video_dur - output_target_duration)
+                    if normalized_delta > DURATION_SYNC_TOLERANCE_SECONDS:
+                        raise RuntimeError(
+                            "Normalized video duration mismatch before audio overlay: "
+                            f"rendered={video_dur:.3f}s target={output_target_duration:.3f}s "
+                            f"delta={normalized_delta:.3f}s"
+                        )
+
             # 4. Overlay audio (or just copy if no audio)
             if audio_path and os.path.exists(audio_path):
-                video_dur = get_video_duration(concat_path)
-                # Warn early if there's a significant length gap before overlaying
-                if (
-                    output_target_duration > 0
-                    and abs(video_dur - output_target_duration) > 0.5
-                ):
-                    logger.warning(
-                        "Video length (%.1fs) differs from target (%.1fs) by %.1fs "
-                        "before overlay — possible dropped segments",
-                        video_dur,
-                        output_target_duration,
-                        output_target_duration - video_dur,
-                    )
                 overlay_audio(
                     concat_path,
                     audio_path,
@@ -1265,21 +1345,18 @@ class MontageGenerator:
             output_dur = get_video_duration(output_path)
             if output_target_duration > 0 and output_dur > 0:
                 delta = abs(output_dur - output_target_duration)
-                if delta > 0.5:
-                    logger.warning(
-                        "Output duration mismatch: rendered=%.2fs  target=%.2fs  "
-                        "delta=%.2fs — run with --verbose to investigate",
-                        output_dur,
-                        output_target_duration,
-                        delta,
+                if delta > DURATION_SYNC_TOLERANCE_SECONDS:
+                    raise RuntimeError(
+                        "Output duration mismatch after post-processing: "
+                        f"rendered={output_dur:.3f}s target={output_target_duration:.3f}s "
+                        f"delta={delta:.3f}s"
                     )
-                else:
-                    logger.debug(
-                        "Duration check OK: rendered=%.2fs  target=%.2fs  delta=%.2fs",
-                        output_dur,
-                        output_target_duration,
-                        delta,
-                    )
+                logger.debug(
+                    "Duration check OK: rendered=%.2fs  target=%.2fs  delta=%.2fs",
+                    output_dur,
+                    output_target_duration,
+                    delta,
+                )
 
             logger.info("Montage complete: %s", output_path)
             return output_path

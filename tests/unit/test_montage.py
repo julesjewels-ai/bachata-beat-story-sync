@@ -14,7 +14,7 @@ from typing import Any, cast
 from unittest.mock import MagicMock, patch
 
 import pytest
-from src.core.ffmpeg_renderer import overlay_audio
+from src.core.ffmpeg_renderer import normalize_video_duration, overlay_audio
 from src.core.models import (
     AudioAnalysisResult,
     MusicalSection,
@@ -269,6 +269,110 @@ class TestBuildSegmentPlan:
                 assert seg.video_path == "/videos/calm_footage.mp4", (
                     "Low-intensity beat should use the calm clip"
                 )
+
+
+class TestTransitionDurationContract:
+    """Tests for transition overlap compensation and duration contract checks."""
+
+    @staticmethod
+    def _sectioned_audio() -> AudioAnalysisResult:
+        return AudioAnalysisResult(
+            filename="sections.wav",
+            bpm=120.0,
+            duration=6.0,
+            peaks=[],
+            sections=[
+                MusicalSection(
+                    label="intro",
+                    start_time=0.0,
+                    end_time=3.0,
+                    avg_intensity=0.4,
+                ),
+                MusicalSection(
+                    label="outro",
+                    start_time=3.0,
+                    end_time=6.0,
+                    avg_intensity=0.2,
+                ),
+            ],
+            beat_times=[float(i) * 0.5 for i in range(12)],
+            intensity_curve=[0.5] * 12,
+        )
+
+    def test_transition_compensation_preserves_existing_groups(
+        self,
+        generator,
+        video_clips,
+    ):
+        config = PacingConfig(
+            speed_ramp_enabled=False,
+            transition_type="fade",
+            transition_duration=0.5,
+        )
+
+        segments = generator.build_segment_plan(
+            self._sectioned_audio(),
+            video_clips,
+            config,
+        )
+
+        groups = generator._group_segments_by_section(segments)
+        planned_duration = segments[-1].timeline_position + segments[-1].duration
+        expected_render = planned_duration - generator._compute_transition_overlap_budget(
+            segments,
+            config,
+        )
+
+        assert len(groups) == 2
+        assert segments[-1].section_label == "outro"
+        assert abs(expected_render - 6.0) <= 0.10
+
+    def test_transition_compensation_supports_sub_250ms_duration(
+        self,
+        generator,
+        video_clips,
+    ):
+        config = PacingConfig(
+            speed_ramp_enabled=False,
+            transition_type="fade",
+            transition_duration=0.2,
+        )
+
+        segments = generator.build_segment_plan(
+            self._sectioned_audio(),
+            video_clips,
+            config,
+        )
+
+        planned_duration = segments[-1].timeline_position + segments[-1].duration
+        expected_render = planned_duration - generator._compute_transition_overlap_budget(
+            segments,
+            config,
+        )
+
+        assert planned_duration > 6.0
+        assert abs(expected_render - 6.0) <= 0.10
+
+    @patch("src.core.montage.append_transition_compensation")
+    def test_transition_contract_raises_when_compensation_is_skipped(
+        self,
+        mock_compensation,
+        generator,
+        video_clips,
+    ):
+        config = PacingConfig(
+            speed_ramp_enabled=False,
+            transition_type="fade",
+            transition_duration=0.5,
+        )
+        mock_compensation.side_effect = lambda **kwargs: kwargs["timeline_pos"]
+
+        with pytest.raises(ValueError, match="Expected rendered duration under-covers"):
+            generator.build_segment_plan(
+                self._sectioned_audio(),
+                video_clips,
+                config,
+            )
 
     def test_pool_fallback_when_empty(
         self,
@@ -2535,3 +2639,121 @@ class TestAdvancedEffects:
             if "xfade" in cmd_str and "colorbalance" in cmd_str:
                 found = True
         assert found, "Expected colorbalance warm-wash in xfade transition calls"
+
+    @patch("src.core.ffmpeg_renderer.run_ffmpeg")
+    def test_normalize_video_duration_clone_pads_short_render(
+        self,
+        mock_run,
+        tmp_path,
+    ):
+        input_path = str(tmp_path / "short.mp4")
+        with open(input_path, "w") as f:
+            f.write("fake")
+
+        normalize_video_duration(
+            input_path,
+            str(tmp_path / "normalized.mp4"),
+            target_duration=5.05,
+            actual_duration=5.0,
+        )
+
+        cmd = mock_run.call_args[0][0]
+        cmd_str = " ".join(str(arg) for arg in cmd)
+        assert "tpad=stop_mode=clone:stop_duration=0.050000" in cmd_str
+
+    @patch("src.core.ffmpeg_renderer.run_ffmpeg")
+    def test_normalize_video_duration_trims_long_render(
+        self,
+        mock_run,
+        tmp_path,
+    ):
+        input_path = str(tmp_path / "long.mp4")
+        with open(input_path, "w") as f:
+            f.write("fake")
+
+        normalize_video_duration(
+            input_path,
+            str(tmp_path / "normalized.mp4"),
+            target_duration=4.95,
+            actual_duration=5.0,
+        )
+
+        cmd = mock_run.call_args[0][0]
+        cmd_str = " ".join(str(arg) for arg in cmd)
+        assert "trim=duration=4.950000" in cmd_str
+
+    @patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")
+    @patch("src.core.montage.normalize_video_duration")
+    @patch("src.core.ffmpeg_renderer.get_video_duration")
+    @patch("src.core.ffmpeg_renderer.run_ffmpeg")
+    @patch("src.core.montage.tempfile.mkdtemp")
+    @patch("src.core.montage.shutil.rmtree")
+    @patch("src.core.montage.os.path.exists", return_value=True)
+    def test_generate_normalizes_small_pre_audio_drift(
+        self,
+        mock_exists,
+        mock_rmtree,
+        mock_mkdtemp,
+        mock_run,
+        mock_get_duration,
+        mock_normalize,
+        mock_which,
+        generator,
+        audio_data,
+        video_clips,
+        tmp_path,
+    ):
+        temp_dir = str(tmp_path / "normalize_temp")
+        os.makedirs(temp_dir, exist_ok=True)
+        mock_mkdtemp.return_value = temp_dir
+        mock_run.return_value = None
+        mock_get_duration.side_effect = [29.95, 30.0, 30.0]
+
+        concat_path = os.path.join(temp_dir, "concat_output.mp4")
+        with open(concat_path, "w") as f:
+            f.write("fake video data")
+
+        generator.generate(
+            audio_data,
+            video_clips,
+            str(tmp_path / "output.mp4"),
+            audio_path="/audio/song.wav",
+        )
+
+        mock_normalize.assert_called_once()
+
+    @patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")
+    @patch("src.core.ffmpeg_renderer.get_video_duration", return_value=29.7)
+    @patch("src.core.ffmpeg_renderer.run_ffmpeg")
+    @patch("src.core.montage.tempfile.mkdtemp")
+    @patch("src.core.montage.shutil.rmtree")
+    @patch("src.core.montage.os.path.exists", return_value=True)
+    def test_generate_raises_on_large_pre_audio_drift(
+        self,
+        mock_exists,
+        mock_rmtree,
+        mock_mkdtemp,
+        mock_run,
+        mock_get_duration,
+        mock_which,
+        generator,
+        audio_data,
+        video_clips,
+        tmp_path,
+    ):
+        temp_dir = str(tmp_path / "drift_temp")
+        os.makedirs(temp_dir, exist_ok=True)
+        mock_mkdtemp.return_value = temp_dir
+        mock_run.return_value = None
+
+        concat_path = os.path.join(temp_dir, "concat_output.mp4")
+        with open(concat_path, "w") as f:
+            f.write("fake video data")
+
+        with pytest.raises(RuntimeError, match="Assembled video duration mismatch"):
+            generator.generate(
+                audio_data,
+                video_clips,
+                str(tmp_path / "output.mp4"),
+                audio_path="/audio/song.wav",
+            )

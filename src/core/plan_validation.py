@@ -27,6 +27,49 @@ class SegmentPlanValidationResult:
         return not self.issues
 
 
+def validate_duration_contract(
+    *,
+    actual_duration: float,
+    expected_duration: float,
+    tolerance: float = 0.10,
+    subject: str = "Duration",
+) -> SegmentPlanValidationResult:
+    """Validate a simple actual-versus-expected duration contract."""
+    issues: list[str] = []
+    duration_delta = actual_duration - expected_duration
+    absolute_delta = abs(duration_delta)
+    alignment_status = (
+        "over"
+        if duration_delta > tolerance
+        else "under"
+        if duration_delta < -tolerance
+        else "ok"
+    )
+
+    if expected_duration > 0:
+        if duration_delta < -tolerance:
+            issues.append(
+                f"{subject} under-covers target duration by "
+                f"{abs(duration_delta):.3f}s "
+                f"(actual={actual_duration:.3f}s, expected={expected_duration:.3f}s)."
+            )
+        elif duration_delta > tolerance:
+            issues.append(
+                f"{subject} over-covers target duration by "
+                f"{duration_delta:.3f}s "
+                f"(actual={actual_duration:.3f}s, expected={expected_duration:.3f}s)."
+            )
+
+    return SegmentPlanValidationResult(
+        issues=issues,
+        expected_duration=expected_duration,
+        actual_duration=actual_duration,
+        duration_delta_seconds=duration_delta,
+        absolute_delta_seconds=absolute_delta,
+        alignment_status=alignment_status,
+    )
+
+
 def validate_segment_plan(
     segments: list[SegmentPlan],
     *,
@@ -78,32 +121,19 @@ def validate_segment_plan(
         previous_end = seg.timeline_position + seg.duration
 
     actual_duration = previous_end if segments else 0.0
-    duration_delta = actual_duration - expected_duration
-    absolute_delta = abs(duration_delta)
-    alignment_status = (
-        "over"
-        if duration_delta > tolerance
-        else "under"
-        if duration_delta < -tolerance
-        else "ok"
+    duration_validation = validate_duration_contract(
+        actual_duration=actual_duration,
+        expected_duration=expected_duration,
+        tolerance=tolerance,
+        subject="Plan",
     )
-    if expected_duration > 0:
-        if duration_delta < -tolerance:
-            issues.append(
-                f"Plan under-covers target duration by {abs(duration_delta):.3f}s "
-                f"(planned={actual_duration:.3f}s, expected={expected_duration:.3f}s)."
-            )
-        elif duration_delta > tolerance:
-            issues.append(
-                f"Plan over-covers target duration by {duration_delta:.3f}s "
-                f"(planned={actual_duration:.3f}s, expected={expected_duration:.3f}s)."
-            )
+    issues.extend(duration_validation.issues)
 
     return SegmentPlanValidationResult(
         issues=issues,
         expected_duration=expected_duration,
         actual_duration=actual_duration,
-        duration_delta_seconds=duration_delta,
-        absolute_delta_seconds=absolute_delta,
-        alignment_status=alignment_status,
+        duration_delta_seconds=duration_validation.duration_delta_seconds,
+        absolute_delta_seconds=duration_validation.absolute_delta_seconds,
+        alignment_status=duration_validation.alignment_status,
     )

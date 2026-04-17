@@ -18,6 +18,7 @@ def _write_click_track(
     duration: float = 6.0,
     bpm: float = 120.0,
     sample_rate: int = 22050,
+    amplitude_fn=None,
 ) -> None:
     """Write a simple click-track WAV with clear beat onsets."""
     total_samples = int(duration * sample_rate)
@@ -27,12 +28,17 @@ def _write_click_track(
 
     for beat in range(int(duration / beat_interval) + 1):
         start = int(beat * beat_interval * sample_rate)
+        amplitude = amplitude_fn(beat * beat_interval) if amplitude_fn else 0.9
         for i in range(click_len):
             idx = start + i
             if idx >= total_samples:
                 break
             envelope = 1.0 - (i / click_len)
-            value = 0.9 * math.sin(2 * math.pi * 880 * (i / sample_rate)) * envelope
+            value = (
+                amplitude
+                * math.sin(2 * math.pi * 880 * (i / sample_rate))
+                * envelope
+            )
             samples[idx] += value
 
     with wave.open(str(path), "wb") as wav:
@@ -86,12 +92,19 @@ def synthetic_story_media(tmp_path_factory: pytest.TempPathFactory) -> dict[str,
 
     root = tmp_path_factory.mktemp("story_media")
     audio_path = root / "click_track.wav"
+    sectioned_audio_path = root / "sectioned_click_track.wav"
     clips_dir = root / "clips"
     short_clips_dir = root / "short_clips"
     clips_dir.mkdir(parents=True, exist_ok=True)
     short_clips_dir.mkdir(parents=True, exist_ok=True)
 
     _write_click_track(audio_path, duration=6.0, bpm=120.0)
+    _write_click_track(
+        sectioned_audio_path,
+        duration=6.0,
+        bpm=120.0,
+        amplitude_fn=lambda t: 0.2 if t < 3.0 else 1.0,
+    )
     _render_clip(clips_dir / "clip_motion.mp4", "testsrc=size=640x360:rate=30")
     _render_clip(clips_dir / "clip_static.mp4", "color=c=blue:size=640x360:rate=30")
     _render_clip(
@@ -107,6 +120,7 @@ def synthetic_story_media(tmp_path_factory: pytest.TempPathFactory) -> dict[str,
 
     return {
         "audio_path": str(audio_path),
+        "sectioned_audio_path": str(sectioned_audio_path),
         "clips_dir": str(clips_dir),
         "short_clips_dir": str(short_clips_dir),
         "audio_duration": "6.0",
