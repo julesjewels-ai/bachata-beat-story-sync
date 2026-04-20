@@ -122,6 +122,14 @@ def build_pacing_kwargs(args: argparse.Namespace) -> dict:
         kwargs["audio_overlay_position"] = args.audio_overlay_position
     if getattr(args, "audio_overlay_padding", None) is not None:
         kwargs["audio_overlay_padding"] = args.audio_overlay_padding
+    if getattr(args, "audio_overlay_color", None):
+        kwargs["audio_overlay_color"] = args.audio_overlay_color
+    if getattr(args, "audio_overlay_palette", None):
+        kwargs["audio_overlay_palette"] = args.audio_overlay_palette
+    if getattr(args, "audio_overlay_width_pct", None) is not None:
+        kwargs["audio_overlay_width_pct"] = args.audio_overlay_width_pct
+    if getattr(args, "audio_overlay_height", None) is not None:
+        kwargs["audio_overlay_height"] = args.audio_overlay_height
     if getattr(args, "broll_interval", None) is not None:
         kwargs["broll_interval_seconds"] = args.broll_interval
     if getattr(args, "broll_variance", None) is not None:
@@ -205,8 +213,18 @@ def add_visual_args(parser: argparse.ArgumentParser) -> None:
         "--audio-overlay",
         type=str,
         default=None,
-        choices=["none", "waveform", "bars"],
-        help="Music-synced visualizer pattern: none, waveform, bars",
+        choices=[
+            "none",
+            "waveform",
+            "waveform_centered",
+            "bars",
+            "spectrum",
+            "cqt",
+        ],
+        help=(
+            "Music-synced visualizer pattern: none, waveform, "
+            "waveform_centered, bars, spectrum, cqt"
+        ),
     )
     parser.add_argument(
         "--audio-overlay-opacity",
@@ -226,6 +244,46 @@ def add_visual_args(parser: argparse.ArgumentParser) -> None:
         type=int,
         default=None,
         help="Distance in pixels from screen edge for audio overlay (default: 10)",
+    )
+    parser.add_argument(
+        "--audio-overlay-color",
+        type=str,
+        default=None,
+        help=(
+            "Visualizer color when palette is 'none' or 'custom'. "
+            "Hex ('#FF8800') or FFmpeg color name ('gold'). Default: white."
+        ),
+    )
+    parser.add_argument(
+        "--audio-overlay-palette",
+        type=str,
+        default=None,
+        choices=[
+            "none",
+            "warm",
+            "cool",
+            "sunset",
+            "neon",
+            "rainbow",
+            "mono",
+            "custom",
+        ],
+        help=(
+            "Named color palette. 'none'/'custom' use --audio-overlay-color; "
+            "other values apply a curated multi-color palette across bands."
+        ),
+    )
+    parser.add_argument(
+        "--audio-overlay-width-pct",
+        type=float,
+        default=None,
+        help="Visualizer width as a fraction of video width (0.05–1.0, default 0.2).",
+    )
+    parser.add_argument(
+        "--audio-overlay-height",
+        type=int,
+        default=None,
+        help="Visualizer height in pixels (40–400, default 120).",
     )
     parser.add_argument(
         "--broll-interval",

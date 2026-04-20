@@ -14,6 +14,10 @@ import shutil
 import subprocess
 from collections.abc import Callable
 
+from src.core.audio_overlay_palettes import (
+    resolve_colors,
+    spectrum_color_for_palette,
+)
 from src.core.ffmpeg_utils import (
     get_h264_encoder_args,
     run_ffmpeg,
@@ -717,6 +721,62 @@ def apply_transitions(
         current_input = step_output
 
 
+def build_overlay_filter(overlay_config: OverlayConfig) -> str:
+    """Construct the FFmpeg ``-filter_complex`` string for the visualizer.
+
+    Separated from :func:`overlay_audio` so the filter graph can be
+    snapshot-tested without invoking FFmpeg. Always returns a complete
+    filter chain that maps ``[0:v]`` + ``[1:a]`` to ``[outv]``.
+    """
+    video_width = 1080 if overlay_config.is_shorts else 1920
+    width_pct = max(0.05, min(1.0, overlay_config.audio_overlay_width_pct))
+    overlay_w = max(40, int(video_width * width_pct))
+    overlay_h = max(40, min(400, overlay_config.audio_overlay_height))
+    opacity = max(0.0, min(1.0, overlay_config.audio_overlay_opacity))
+    pad = overlay_config.audio_overlay_padding
+    palette = overlay_config.audio_overlay_palette
+    colors = resolve_colors(palette, overlay_config.audio_overlay_color, opacity)
+
+    if overlay_config.audio_overlay_position == "left":
+        x_expr = f"{pad}"
+    elif overlay_config.audio_overlay_position == "center":
+        x_expr = f"(W-{overlay_w})/2"
+    else:  # right (default)
+        x_expr = f"W-{overlay_w}-{pad}"
+
+    style = overlay_config.audio_overlay
+    size = f"{overlay_w}x{overlay_h}"
+
+    if style == "waveform":
+        src_filter = f"showwaves=s={size}:mode=line:colors={colors}"
+    elif style == "waveform_centered":
+        src_filter = f"showwaves=s={size}:mode=cline:colors={colors}"
+    elif style == "bars":
+        src_filter = f"showfreqs=s={size}:mode=bar:colors={colors}"
+    elif style == "spectrum":
+        spectrum_color = spectrum_color_for_palette(palette)
+        src_filter = (
+            f"showspectrum=s={size}:mode=combined:color={spectrum_color}"
+            ":scale=log:slide=scroll"
+        )
+    elif style == "cqt":
+        src_filter = f"showcqt=s={size}:count=6:gamma=5"
+    else:
+        raise ValueError(f"Unknown audio_overlay style: {style!r}")
+
+    # The spectrum/cqt filters render their own colors and do not accept
+    # alpha-aware color lists, so we apply a post-filter opacity via
+    # ``format=yuva420p`` + ``colorchannelmixer`` when opacity < 1.0.
+    post = ""
+    if style in ("spectrum", "cqt") and opacity < 1.0:
+        post = f",format=yuva420p,colorchannelmixer=aa={opacity:.2f}"
+
+    return (
+        f"[1:a]{src_filter}{post}[viz];"
+        f"[0:v][viz]overlay={x_expr}:H-h-{pad}[outv]"
+    )
+
+
 def overlay_audio(
     video_path: str,
     audio_path: str,
@@ -782,35 +842,7 @@ def overlay_audio(
             output_path,
         ]
     else:
-        video_width = 1080 if overlay_config.is_shorts else 1920
-        # Overlay takes up ~20% of the video width
-        overlay_w = int(video_width * 0.2)
-        overlay_h = 120
-        opacity = max(0.0, min(1.0, overlay_config.audio_overlay_opacity))
-        pad = overlay_config.audio_overlay_padding
-
-        # Compute X position
-        if overlay_config.audio_overlay_position == "left":
-            x_expr = f"{pad}"
-        elif overlay_config.audio_overlay_position == "center":
-            x_expr = f"(W-{overlay_w})/2"
-        else:  # right (default)
-            x_expr = f"W-{overlay_w}-{pad}"
-
-        if overlay_config.audio_overlay == "waveform":
-            # line-based waveform
-            f_str = (
-                f"[1:a]showwaves=s={overlay_w}x{overlay_h}"
-                f":mode=line:colors=White@{opacity:.2f}[wave];"
-                f"[0:v][wave]overlay={x_expr}:H-h-{pad}[outv]"
-            )
-        else:
-            # frequency bars
-            f_str = (
-                f"[1:a]showfreqs=s={overlay_w}x{overlay_h}"
-                f":mode=bar:colors=White@{opacity:.2f}[bars];"
-                f"[0:v][bars]overlay={x_expr}:H-h-{pad}[outv]"
-            )
+        f_str = build_overlay_filter(overlay_config)
 
         cmd = [
             "ffmpeg",
@@ -892,16 +924,31 @@ def _build_mix_fade_filters(config: RenderConfig | PacingConfig) -> list[str]:
     if d <= 0:
         return []
 
+    # Sort boundaries defensively so misordered metadata never scrambles
+    # time windows. Keep only positive starts (0.0 is the first track).
+    starts = sorted(
+        seg.start_time
+        for seg in render_config.mix_track_segments
+        if seg.start_time > 0
+    )
+
     filters: list[str] = []
-    for seg in render_config.mix_track_segments[1:]:
-        t = seg.start_time
-        if t <= 0:
-            continue
+    for t in starts:
         out_start = max(0.0, t - d)
+        in_end = t + d
+        # IMPORTANT: gate each fade with an explicit timeline window.
+        # Without enable=between(...), FFmpeg's fade-out keeps the stream
+        # black after completion, which can blank the rest of the mix video.
         filters.append(
-            f"fade=t=out:st={out_start:.3f}:d={d:.3f}:color=black"
+            "fade="
+            f"t=out:st={out_start:.3f}:d={d:.3f}:color=black:"
+            f"enable='between(t,{out_start:.3f},{t:.3f})'"
         )
-        filters.append(f"fade=t=in:st={t:.3f}:d={d:.3f}:color=black")
+        filters.append(
+            "fade="
+            f"t=in:st={t:.3f}:d={d:.3f}:color=black:"
+            f"enable='between(t,{t:.3f},{in_end:.3f})'"
+        )
     return filters
 
 

@@ -87,6 +87,10 @@ class OverlayConfig:
     audio_overlay_position: str
     audio_overlay_padding: int
     audio_start_offset: float
+    audio_overlay_color: str = "white"
+    audio_overlay_palette: str = "none"
+    audio_overlay_width_pct: float = 0.2
+    audio_overlay_height: int = 120
 
 
 def planning_config_from_pacing(config: PacingConfig) -> PlanningConfig:
@@ -163,6 +167,10 @@ def overlay_config_from_pacing(config: PacingConfig) -> OverlayConfig:
         audio_overlay_position=config.audio_overlay_position,
         audio_overlay_padding=config.audio_overlay_padding,
         audio_start_offset=config.audio_start_offset,
+        audio_overlay_color=config.audio_overlay_color,
+        audio_overlay_palette=config.audio_overlay_palette,
+        audio_overlay_width_pct=config.audio_overlay_width_pct,
+        audio_overlay_height=config.audio_overlay_height,
     )
 
 

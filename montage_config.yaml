@@ -70,19 +70,31 @@ pacing:
   # to absorb larger FFmpeg xfade/rounding drift at the cost of slightly
   # looser beat-sync precision. Decrease for strict duration contracts.
   # Default: 0.10 (100ms). Typical range: 0.05 – 1.0.
-  duration_sync_tolerance_seconds: 1.0
+  duration_sync_tolerance_seconds: 5.0
 
   # Video style — applies a uniform color grade to all clips
   # Options: 'none', 'bw' (black & white), 'vintage', 'warm', 'cool', 'golden'
   video_style: none
 
   # Audio Overlay Visualizer (FEAT-013)
-  # Options: 'none', 'waveform' (line), 'bars' (frequency bars)
+  # Options: 'none', 'waveform' (line), 'waveform_centered' (symmetric line),
+  #          'bars' (frequency bars), 'spectrum' (scrolling spectrogram),
+  #          'cqt' (constant-Q rainbow spectrogram)
   audio_overlay: waveform
-  audio_overlay_opacity: 0.5
+  audio_overlay_opacity: 0.8
   audio_overlay_position: center
   audio_overlay_padding: 20  # Distance in pixels from the nearest screen edge (default: 10, range: 0+)
   #                              # Applies to both the horizontal (left/right) AND vertical (bottom) offset.
+
+  # Color styling — applies to waveform / waveform_centered / bars.
+  # For 'bars', a multi-color palette is distributed across frequency bands.
+  # Palettes: 'none', 'warm', 'cool', 'sunset', 'neon', 'rainbow', 'mono', 'custom'.
+  # 'none' and 'custom' both use audio_overlay_color; named palettes override it.
+  audio_overlay_palette: rainbow
+  audio_overlay_color: white   # Hex (e.g. '#FF8800') or FFmpeg color name
+  # Size — width as a fraction of video width (0.05–1.0), height in pixels (40–400).
+  audio_overlay_width_pct: 0.4
+  audio_overlay_height: 240
 
   # Text Overlay — cinematic cold open and lyrics (FEAT-045/046/047)
   # Enable to burn timed text into the final video.

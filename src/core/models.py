@@ -325,10 +325,14 @@ class PacingConfig(BaseModel):
     )
 
     # Audio Overlay (FEAT-013)
-    audio_overlay: Literal["none", "waveform", "bars"] = Field(
+    audio_overlay: Literal[
+        "none", "waveform", "waveform_centered", "bars", "spectrum", "cqt"
+    ] = Field(
         "none",
-        description="Music-synced visualizer pattern. "
-        "Options: 'none', 'waveform' (lines), 'bars' (frequency bars)",
+        description="Music-synced visualizer pattern. Options: 'none', "
+        "'waveform' (line), 'waveform_centered' (symmetric line), "
+        "'bars' (frequency bars), 'spectrum' (scrolling spectrogram), "
+        "'cqt' (constant-Q rainbow spectrogram)",
     )
     audio_overlay_opacity: float = Field(
         0.5, description="Opacity of the audio visualizer block (0.0 to 1.0)"
@@ -341,6 +345,31 @@ class PacingConfig(BaseModel):
     audio_overlay_padding: int = Field(
         10,
         description="Distance in pixels from the screen edge (FEAT-021)",
+    )
+    audio_overlay_color: str = Field(
+        "white",
+        description="Custom color for the visualizer when palette is 'none' "
+        "or 'custom'. Accepts a hex string (e.g. '#FF8800') or an FFmpeg "
+        "color name (e.g. 'gold').",
+    )
+    audio_overlay_palette: Literal[
+        "none", "warm", "cool", "sunset", "neon", "rainbow", "mono", "custom"
+    ] = Field(
+        "none",
+        description="Named color palette. 'none' and 'custom' use "
+        "audio_overlay_color; other values apply a curated multi-color "
+        "palette. For the 'bars' style, colors are distributed across "
+        "frequency bands.",
+    )
+    audio_overlay_width_pct: float = Field(
+        0.2,
+        description="Width of the visualizer as a fraction of the video "
+        "width (0.05–1.0). Default 0.2 (20%).",
+    )
+    audio_overlay_height: int = Field(
+        120,
+        description="Height of the visualizer in pixels (40–400). "
+        "Default 120.",
     )
 
     # Audio Hook Detection (FEAT-019)
@@ -565,6 +594,23 @@ class PacingConfig(BaseModel):
                     f"Valid options: {', '.join(sorted(valid_styles))}"
                 )
         return v
+
+    @field_validator("audio_overlay_color", mode="after")
+    @classmethod
+    def validate_audio_overlay_color(cls, v: str) -> str:
+        from src.core.audio_overlay_palettes import validate_color
+
+        return validate_color(v)
+
+    @field_validator("audio_overlay_width_pct", mode="after")
+    @classmethod
+    def validate_audio_overlay_width_pct(cls, v: float) -> float:
+        return max(0.05, min(1.0, v))
+
+    @field_validator("audio_overlay_height", mode="after")
+    @classmethod
+    def validate_audio_overlay_height(cls, v: int) -> int:
+        return max(40, min(400, v))
 
 
 class AudioMixConfig(BaseModel):

@@ -8,6 +8,11 @@ VIDEO_STYLE ?=
 AUDIO_OVERLAY ?=
 AUDIO_OVERLAY_OPACITY ?=
 AUDIO_OVERLAY_POSITION ?=
+AUDIO_OVERLAY_PADDING ?=
+AUDIO_OVERLAY_COLOR ?=
+AUDIO_OVERLAY_PALETTE ?=
+AUDIO_OVERLAY_WIDTH_PCT ?=
+AUDIO_OVERLAY_HEIGHT ?=
 BROLL_INTERVAL ?=
 BROLL_VARIANCE ?=
 EXPLAIN ?=
@@ -60,6 +65,26 @@ endif
 
 ifneq ($(AUDIO_OVERLAY_POSITION),)
   EXTRA_FLAGS += --audio-overlay-position $(AUDIO_OVERLAY_POSITION)
+endif
+
+ifneq ($(AUDIO_OVERLAY_PADDING),)
+  EXTRA_FLAGS += --audio-overlay-padding $(AUDIO_OVERLAY_PADDING)
+endif
+
+ifneq ($(AUDIO_OVERLAY_COLOR),)
+  EXTRA_FLAGS += --audio-overlay-color $(AUDIO_OVERLAY_COLOR)
+endif
+
+ifneq ($(AUDIO_OVERLAY_PALETTE),)
+  EXTRA_FLAGS += --audio-overlay-palette $(AUDIO_OVERLAY_PALETTE)
+endif
+
+ifneq ($(AUDIO_OVERLAY_WIDTH_PCT),)
+  EXTRA_FLAGS += --audio-overlay-width-pct $(AUDIO_OVERLAY_WIDTH_PCT)
+endif
+
+ifneq ($(AUDIO_OVERLAY_HEIGHT),)
+  EXTRA_FLAGS += --audio-overlay-height $(AUDIO_OVERLAY_HEIGHT)
 endif
 
 ifneq ($(BROLL_INTERVAL),)
