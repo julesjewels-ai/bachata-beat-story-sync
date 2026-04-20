@@ -18,6 +18,35 @@ logger = logging.getLogger(__name__)
 FFMPEG_TIMEOUT = 600
 
 
+def _libx264_fallback_args() -> list[str]:
+    """Return the software H.264 encoder arguments."""
+    return [
+        "-c:v",
+        "libx264",
+        "-preset",
+        "fast",
+        "-crf",
+        "23",
+        "-pix_fmt",
+        "yuv420p",
+    ]
+
+
+def _with_libx264_fallback(cmd: list[str]) -> list[str] | None:
+    """Swap a VideoToolbox encoder invocation for a libx264 fallback."""
+    try:
+        idx = cmd.index("h264_videotoolbox")
+    except ValueError:
+        return None
+
+    start = idx - 1
+    end = idx + 1
+    while end < len(cmd) and cmd[end] in {"-b:v", "-pix_fmt"}:
+        end += 2
+
+    return [*cmd[:start], *_libx264_fallback_args(), *cmd[end:]]
+
+
 def timeout_for_duration(duration_seconds: float) -> int:
     """
     Compute a reasonable FFmpeg timeout based on media duration.
@@ -69,7 +98,27 @@ def run_ffmpeg(
         )  # nosec B603
 
         if result.returncode != 0:
-            stderr_tail = result.stderr[-500:] if result.stderr else ""
+            stderr_text = result.stderr or ""
+            if "h264_videotoolbox" in cmd and "videotoolbox" in stderr_text.lower():
+                fallback_cmd = _with_libx264_fallback(cmd)
+                if fallback_cmd is not None:
+                    logger.warning(
+                        "FFmpeg [%s] failed with VideoToolbox; retrying with libx264.",
+                        stage_name,
+                    )
+                    retry_result = subprocess.run(
+                        fallback_cmd,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.PIPE,
+                        text=True,
+                        timeout=effective_timeout,
+                        shell=False,
+                    )  # nosec B603
+                    if retry_result.returncode == 0:
+                        return
+                    stderr_text = retry_result.stderr or stderr_text
+
+            stderr_tail = stderr_text[-500:] if stderr_text else ""
             raise RuntimeError(
                 f"FFmpeg failed during {stage_name} "
                 f"(exit code {result.returncode}): {stderr_tail}"
@@ -137,13 +186,4 @@ def get_h264_encoder_args() -> list[str]:
         ]
 
     # Standard software encoding fallback
-    return [
-        "-c:v",
-        "libx264",
-        "-preset",
-        "fast",
-        "-crf",
-        "23",
-        "-pix_fmt",
-        "yuv420p",
-    ]
+    return _libx264_fallback_args()

@@ -16,14 +16,32 @@ from __future__ import annotations
 import argparse
 import logging
 import os
-import re
 import subprocess
 import sys
-import uuid
-from typing import TYPE_CHECKING, Any
+from functools import partial
+from typing import TYPE_CHECKING
 
 from pydantic import ValidationError
 
+from src.application.pipeline_helpers import (
+    discover_audio_files as _discover_audio_files,
+)
+from src.application.pipeline_helpers import (
+    extract_track_metadata as _extract_track_metadata,
+)
+from src.application.pipeline_helpers import get_track_video_dir as _get_track_video_dir
+from src.application.pipeline_helpers import (
+    get_track_video_style as _get_track_video_style,
+)
+from src.application.pipeline_helpers import safe_filename as _safe_filename
+from src.application.pipeline_phases import (
+    PipelinePhaseSupport,
+    generate_compilation_phase,
+    generate_mix_video_phase,
+    process_individual_tracks,
+    run_dry_run_phase,
+    write_summary,
+)
 from src.application.pipeline_workflow import (
     PipelineWorkflow,
     PipelineWorkflowDependencies,
@@ -31,22 +49,13 @@ from src.application.pipeline_workflow import (
 from src.cli_utils import (
     add_shorts_args,
     add_visual_args,
-    generate_shorts_batch,
-    run_dry_run_handler,
     strip_thumbnails,
 )
-from src.config.app_config import PipelineConfig
-from src.core.compilation import generate_compilation
 
 if TYPE_CHECKING:
-    from src.core.models import AudioAnalysisResult, VideoAnalysisResult
+    from src.core.models import VideoAnalysisResult
 
 from src.core.app import BachataSyncEngine
-from src.core.audio_analyzer import AudioAnalysisInput, AudioAnalyzer
-from src.core.audio_mixer import (
-    SUPPORTED_AUDIO_EXTENSIONS,
-)
-from src.core.models import PacingConfig
 from src.ui.console import PipelineLogger, RichProgressObserver
 
 logger = logging.getLogger(__name__)
@@ -55,17 +64,6 @@ logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------
 # Helpers
 # ------------------------------------------------------------------
-
-
-def _discover_audio_files(folder_path: str) -> list[str]:
-    """Return sorted list of audio files in *folder_path*, excluding cache."""
-    files = []
-    for name in os.listdir(folder_path):
-        if name == "_mixed_audio.wav":
-            continue
-        if os.path.splitext(name)[1].lower() in SUPPORTED_AUDIO_EXTENSIONS:
-            files.append(os.path.join(folder_path, name))
-    return sorted(files)
 
 
 def _scan_videos(
@@ -90,555 +88,6 @@ def _scan_videos(
         broll = strip_thumbnails(broll)
 
     return clips, broll
-
-
-def _safe_filename(path: str) -> str:
-    """Derive a filesystem-safe name from an audio file path."""
-    stem = os.path.splitext(os.path.basename(path))[0]
-    return stem
-
-
-def _get_track_video_dir(
-    track_path: str,
-    pipeline_config: PipelineConfig,
-    global_video_dir: str,
-) -> str:
-    """
-    Resolve the video clip directory for a track (FEAT-030).
-
-    If a per-track clip folder is configured for the track, use it.
-    Otherwise, fall back to the global video directory.
-
-    Args:
-        track_path: Absolute path to the audio track file.
-        pipeline_config: Loaded PipelineConfig with per-track clip mappings.
-        global_video_dir: Fallback global video directory path.
-
-    Returns:
-        Path to the video clip directory for this track.
-
-    Raises:
-        FileNotFoundError: If per-track folder is configured but doesn't exist.
-    """
-    track_filename = os.path.basename(track_path)
-    per_track_clips = pipeline_config.track_clips or {}
-
-    if track_filename in per_track_clips:
-        per_track_dir = per_track_clips[track_filename]
-        if not os.path.isdir(per_track_dir):
-            raise FileNotFoundError(
-                f"Per-track clip folder not found for {track_filename}: {per_track_dir}"
-            )
-        logger.info(
-            "Using per-track clip folder for %s: %s",
-            track_filename,
-            per_track_dir,
-        )
-        return per_track_dir
-
-    logger.info(
-        "No per-track clip folder configured for %s, using global: %s",
-        track_filename,
-        global_video_dir,
-    )
-    return global_video_dir
-
-
-def _get_track_video_style(
-    track_path: str,
-    pipeline_config: PipelineConfig,
-    default_style: str,
-) -> str:
-    """
-    Resolve the video style filter for a track (FEAT-031).
-
-    If a per-track style is configured for the track, use it.
-    Otherwise, use the global video_style from the config.
-
-    Args:
-        track_path: Absolute path to the audio track file.
-        pipeline_config: Loaded PipelineConfig with per-track style mappings.
-        default_style: Global fallback style from pacing config.
-
-    Returns:
-        Style name (e.g. 'bw', 'vintage', 'none', etc.).
-
-    Raises:
-        ValueError: If per-track style is invalid.
-    """
-    track_filename = os.path.basename(track_path)
-    per_track_styles = pipeline_config.track_styles or {}
-    valid_styles = {"none", "bw", "vintage", "warm", "cool", "golden"}
-
-    if track_filename in per_track_styles:
-        style = per_track_styles[track_filename]
-        if style not in valid_styles:
-            raise ValueError(
-                f"Invalid per-track style for {track_filename}: {style}. "
-                f"Valid options: {', '.join(sorted(valid_styles))}"
-            )
-        logger.info(
-            "Using per-track video style for %s: %s",
-            track_filename,
-            style,
-        )
-        return style
-
-    logger.info(
-        "No per-track style configured for %s, using global: %s",
-        track_filename,
-        default_style,
-    )
-    return default_style
-
-
-def _extract_track_metadata(
-    track_path: str,
-    pipeline_config: PipelineConfig,
-) -> tuple[str, str]:
-    """
-    Extract artist and title for a track using a fallback chain.
-
-    Priority order:
-    1. Sidecar {track}.meta.txt file (2 lines: artist, title)
-    2. Config mapping in pipeline.per_track_metadata
-    3. Filename extraction (assume "Artist - Title.wav" format)
-    4. Empty strings (no metadata)
-
-    Returns:
-        (artist, title) tuple, both strings (may be empty).
-    """
-    track_filename = os.path.basename(track_path)
-    track_stem = os.path.splitext(track_filename)[0]
-
-    # 1. Sidecar .meta.txt file
-    meta_path = os.path.splitext(track_path)[0] + ".meta.txt"
-    if os.path.isfile(meta_path):
-        try:
-            with open(meta_path, encoding="utf-8") as fh:
-                lines = [line.strip() for line in fh.readlines() if line.strip()]
-            if len(lines) >= 2:
-                # Strip numeric prefixes (e.g. "1 Artist Name" → "Artist Name")
-                artist = re.sub(r"^\d+\s+", "", lines[0]).strip()
-                title = re.sub(r"^\d+\s+", "", lines[1]).strip()
-                logger.info("Track metadata loaded from sidecar: %s", meta_path)
-                return (artist, title)
-        except OSError:
-            logger.warning("Could not read metadata sidecar: %s", meta_path)
-
-    # 2. Config mapping
-    per_track_metadata = pipeline_config.per_track_metadata or {}
-    if track_filename in per_track_metadata:
-        meta = per_track_metadata[track_filename]
-        artist = meta.get("artist", "").strip()
-        title = meta.get("title", "").strip()
-        if artist or title:
-            logger.info(
-                "Track metadata from config for %s: %s — %s",
-                track_filename,
-                artist,
-                title,
-            )
-            return (artist, title)
-
-    # 3. Filename extraction (assume "Artist - Title.wav" format)
-    if " - " in track_stem:
-        parts = track_stem.split(" - ", 1)
-        artist = parts[0].strip()
-        title = parts[1].strip()
-        logger.info(
-            "Track metadata extracted from filename: %s — %s", artist, title
-        )
-        return (artist, title)
-
-    # 4. No metadata found
-    logger.debug("No metadata found for %s, will use empty strings", track_filename)
-    return ("", "")
-
-
-# ------------------------------------------------------------------
-# Core Generation Helpers
-# ------------------------------------------------------------------
-
-
-def _generate_video(
-    engine: BachataSyncEngine,
-    audio_meta: AudioAnalysisResult,
-    clips: list[VideoAnalysisResult],
-    output_path: str,
-    audio_path: str,
-    pacing_kwargs: dict[str, Any],
-    broll_clips: list[VideoAnalysisResult] | None = None,
-) -> str:
-    """Generate a single horizontal music video."""
-    pacing = PacingConfig(**pacing_kwargs) if pacing_kwargs else None
-    with RichProgressObserver() as obs:
-        return engine.generate_story(
-            audio_meta,
-            clips,
-            output_path,
-            broll_clips=broll_clips,
-            audio_path=audio_path,
-            observer=obs,
-            pacing=pacing,
-        )
-
-
-# ------------------------------------------------------------------
-# Pipeline Phase Functions
-# ------------------------------------------------------------------
-
-
-def _run_dry_run_phase(
-    args: argparse.Namespace,
-    engine: BachataSyncEngine,
-    analyzer: AudioAnalyzer,
-    individual_tracks: list[str],
-    pacing_kwargs: dict[str, Any],
-    base_pacing: PacingConfig,
-    pipeline_config: PipelineConfig,
-    shared_clips: list[VideoAnalysisResult],
-    broll_dir: str | None,
-    log: PipelineLogger,
-    mix_path: str,
-) -> None:
-    """Phase: dry-run — plan-only, skip all rendering."""
-    reports: list[str] = []
-
-    # Plan for mix
-    if not args.skip_mix:
-        mix_audio_input = AudioAnalysisInput(file_path=mix_path)
-        with log.status("Analyzing mix audio…"):
-            mix_meta = analyzer.analyze(mix_audio_input)
-        clips_for_mix = (
-            shared_clips
-            if args.shared_scan
-            else _scan_videos(engine, args.video_dir, broll_dir)[0]
-        )
-        report = run_dry_run_handler(
-            engine,
-            mix_meta,
-            clips_for_mix,
-            pacing_kwargs,
-            dry_run_output=None,
-            output_json=getattr(args, "output_json", None),
-            report_prefix="=== Mix ===\n",
-        )
-        reports.append(report)
-
-    # Plan per track
-    for idx, track_path in enumerate(individual_tracks, start=1):
-        track_name = _safe_filename(track_path)
-        track_input = AudioAnalysisInput(file_path=track_path)
-        with log.status(f"Analyzing track {idx} audio…"):
-            track_meta = analyzer.analyze(track_input)
-
-        track_video_dir = _get_track_video_dir(
-            track_path, pipeline_config, args.video_dir
-        )
-        clips_for_track = (
-            shared_clips
-            if args.shared_scan
-            else _scan_videos(engine, track_video_dir, broll_dir)[0]
-        )
-
-        track_pacing_kwargs = {**pacing_kwargs, "prefix_offset": idx - 1}
-        track_style = _get_track_video_style(
-            track_path,
-            pipeline_config,
-            base_pacing.video_style,
-        )
-        if track_style != base_pacing.video_style:
-            track_pacing_kwargs["video_style"] = track_style
-
-        track_artist, track_title = _extract_track_metadata(
-            track_path, pipeline_config
-        )
-        if track_artist:
-            track_pacing_kwargs["track_artist"] = track_artist
-        if track_title:
-            track_pacing_kwargs["track_title"] = track_title
-
-        report = run_dry_run_handler(
-            engine,
-            track_meta,
-            clips_for_track,
-            track_pacing_kwargs,
-            dry_run_output=None,
-            output_json=getattr(args, "output_json", None)
-            if not reports
-            else None,
-            report_prefix=f"=== Track {idx}: {track_name} ===\n",
-        )
-        reports.append(report)
-
-    from src.services.plan_report import write_plan_report  # noqa: WPS433
-
-    write_plan_report(
-        "\n\n".join(reports),
-        getattr(args, "dry_run_output", None),
-    )
-
-    log.step("Dry-run complete — no videos rendered.")
-
-
-def _generate_mix_video_phase(
-    args: argparse.Namespace,
-    engine: BachataSyncEngine,
-    analyzer: AudioAnalyzer,
-    pacing_kwargs: dict[str, Any],
-    shared_clips: list[VideoAnalysisResult],
-    shared_broll: list[VideoAnalysisResult] | None,
-    broll_dir: str | None,
-    log: PipelineLogger,
-    mix_path: str,
-    mix_track_segments: list[dict[str, Any]],
-) -> tuple[str, AudioAnalysisResult]:
-    """Phase: generate the combined mix video.
-
-    Returns:
-        Tuple of (output_path, mix_audio_analysis).
-    """
-    log.phase("🎬 Generating Mix Video")
-    mix_audio_input = AudioAnalysisInput(file_path=mix_path)
-    with log.status("Analyzing mix audio…"):
-        mix_meta = analyzer.analyze(mix_audio_input)
-    log.detail(
-        f"BPM={mix_meta.bpm:.1f}  peaks={len(mix_meta.peaks)}"
-        f"  duration={mix_meta.duration:.1f}s"
-    )
-
-    if args.shared_scan:
-        clips, broll = shared_clips, shared_broll
-    else:
-        with log.status("Scanning video library…"):
-            clips, broll = _scan_videos(engine, args.video_dir, broll_dir)
-
-    mix_out = os.path.join(args.output_dir, "mix.mp4")
-    # FEAT-050: per-track cold opens + fade-to-black transitions in mix
-    mix_pacing_kwargs = dict(pacing_kwargs)
-    if mix_track_segments:
-        mix_pacing_kwargs["mix_track_segments"] = mix_track_segments
-        mix_pacing_kwargs["mix_fade_transitions"] = True
-    with log.status("Rendering mix video…"):
-        result = _generate_video(
-            engine,
-            mix_meta,
-            clips,
-            mix_out,
-            mix_path,
-            mix_pacing_kwargs,
-            broll_clips=broll,
-        )
-    log.success(f"Mix video: [bold]{result}[/bold]")
-    return result, mix_meta
-
-
-def _process_individual_tracks(
-    args: argparse.Namespace,
-    engine: BachataSyncEngine,
-    analyzer: AudioAnalyzer,
-    individual_tracks: list[str],
-    pacing_kwargs: dict[str, Any],
-    base_pacing: PacingConfig,
-    pipeline_config: PipelineConfig,
-    shared_clips: list[VideoAnalysisResult],
-    shared_broll: list[VideoAnalysisResult] | None,
-    broll_dir: str | None,
-    log: PipelineLogger,
-    min_dur: float,
-    max_dur: float,
-) -> tuple[list[str], list[str], list[str]]:
-    """Phase: generate per-track videos and shorts.
-
-    Returns:
-        Tuple of (generated_files, track_videos, track_audio_files).
-    """
-    generated_files: list[str] = []
-    track_videos: list[str] = []
-    track_audio_files: list[str] = []
-
-    for idx, track_path in enumerate(individual_tracks, start=1):
-        track_name = _safe_filename(track_path)
-        track_label = f"track_{idx:02d}_{track_name}"
-
-        log.phase(f"🎸 Track {idx}/{len(individual_tracks)}: {track_name}")
-
-        # Analyze this track's audio independently
-        track_input = AudioAnalysisInput(file_path=track_path)
-        with log.status("Analyzing track audio…"):
-            track_meta = analyzer.analyze(track_input)
-        log.detail(
-            f"BPM={track_meta.bpm:.1f}  peaks={len(track_meta.peaks)}"
-            f"  duration={track_meta.duration:.1f}s"
-        )
-
-        # FEAT-030: Resolve per-track clip directory (or fall back to global)
-        track_video_dir = _get_track_video_dir(
-            track_path, pipeline_config, args.video_dir
-        )
-
-        # Scan (or reuse shared scan)
-        if args.shared_scan:
-            clips, broll = shared_clips, shared_broll
-        else:
-            with log.status("Scanning video library…"):
-                clips, broll = _scan_videos(engine, track_video_dir, broll_dir)
-
-        # FEAT-017 + FEAT-031: Build per-track pacing config
-        track_seed = pacing_kwargs.get("seed") or str(uuid.uuid4())
-        track_pacing = {
-            **pacing_kwargs,
-            "prefix_offset": idx - 1,
-            "seed": f"{track_seed}_track_{idx}",
-        }
-        track_style = _get_track_video_style(
-            track_path,
-            pipeline_config,
-            base_pacing.video_style,
-        )
-        if track_style != base_pacing.video_style:
-            track_pacing["video_style"] = track_style
-
-        # FEAT-048: Extract per-track metadata (artist/title) for cold open
-        track_artist, track_title = _extract_track_metadata(
-            track_path, pipeline_config
-        )
-        if track_artist:
-            track_pacing["track_artist"] = track_artist
-        if track_title:
-            track_pacing["track_title"] = track_title
-
-        # Generate horizontal video
-        track_out = os.path.join(args.output_dir, f"{track_label}.mp4")
-        with log.status("Rendering track video…"):
-            result = _generate_video(
-                engine,
-                track_meta,
-                clips,
-                track_out,
-                track_path,
-                track_pacing,
-                broll_clips=broll,
-            )
-        generated_files.append(result)
-        log.success(f"Track video: [bold]{result}[/bold]")
-
-        # FEAT-049: Collect for compilation
-        track_videos.append(result)
-        track_audio_files.append(track_path)
-
-        # Generate shorts (FEAT-015)
-        if args.shorts_count > 0:
-            shorts_dir = os.path.join(args.output_dir, "shorts", f"track_{idx:02d}")
-            with log.status(f"Rendering {args.shorts_count} short(s)…"):
-                shorts = generate_shorts_batch(
-                    engine,
-                    track_meta,
-                    clips,
-                    track_path,
-                    shorts_dir,
-                    args.shorts_count,
-                    min_dur,
-                    max_dur,
-                    track_pacing,
-                    smart_start=args.smart_start,
-                    dynamic_flow=getattr(args, "dynamic_flow", False),
-                    human_touch=getattr(args, "human_touch", False),
-                    cliffhanger=getattr(args, "cliffhanger", False),
-                )
-            generated_files.extend(shorts)
-            log.success(
-                f"{len(shorts)} short(s) saved in [bold]{shorts_dir}[/bold]"
-            )
-
-    return generated_files, track_videos, track_audio_files
-
-
-def _generate_compilation_phase(
-    app_config: Any,
-    args: argparse.Namespace,
-    track_videos: list[str],
-    track_audio_files: list[str],
-    log: PipelineLogger,
-) -> str | None:
-    """Phase: generate compilation video (FEAT-049).
-
-    Returns:
-        Path to the compilation video, or None if skipped/failed.
-    """
-    compilation_enabled = app_config.compilation.enabled
-    if args.no_compilation:
-        compilation_enabled = False
-    elif args.compilation:
-        compilation_enabled = True
-
-    if not (compilation_enabled and track_videos):
-        return None
-
-    log.phase("🎞️  Generating Compilation Video")
-    compilation_out = os.path.join(args.output_dir, "compilation.mp4")
-    with log.status("Concatenating track videos…"):
-        try:
-            result = generate_compilation(
-                track_videos,
-                track_audio_files,
-                compilation_out,
-                app_config.compilation,
-            )
-            log.success(f"Compilation video: [bold]{result}[/bold]")
-
-            chapters_path = compilation_out.replace(".mp4", "_chapters.json")
-            if os.path.exists(chapters_path):
-                chapters_txt = compilation_out.replace(".mp4", "_chapters.txt")
-                log.detail(
-                    f"Chapter markers: [bold]{chapters_txt}[/bold] "
-                    "(paste into YouTube description)"
-                )
-            return result
-        except Exception as e:
-            log.warn(f"Compilation generation failed: {e}")
-            logger.exception("Compilation error:")
-            return None
-
-
-def _write_summary(
-    args: argparse.Namespace,
-    generated_files: list[str],
-    pacing_kwargs: dict[str, Any],
-    clips: list[VideoAnalysisResult] | None,
-    log: PipelineLogger,
-    elapsed: float,
-    last_audio_meta: AudioAnalysisResult | None,
-) -> None:
-    """Phase: emit pipeline summary and optional JSON output."""
-    log.summary(generated_files, elapsed)
-
-    summary_path = os.path.join(args.output_dir, "pipeline_summary.txt")
-    summary_lines = [
-        f"Pipeline complete in {elapsed:.0f}s",
-        f"Total files generated: {len(generated_files)}",
-        "",
-    ]
-    for f in generated_files:
-        summary_lines.append(f"  {f}")
-    with open(summary_path, "w") as fh:
-        fh.write("\n".join(summary_lines) + "\n")
-
-    # FEAT-028: Emit structured JSON output
-    if getattr(args, "output_json", None) and last_audio_meta:
-        from src.services.json_output import build_json_output, write_json_output
-
-        data = build_json_output(
-            last_audio_meta,
-            strip_thumbnails(clips) if clips else [],
-            None,
-            PacingConfig(**pacing_kwargs),
-        )
-        data["generated_files"] = generated_files
-        write_json_output(data, args.output_json)
-
-
 # ------------------------------------------------------------------
 # CLI
 # ------------------------------------------------------------------
@@ -646,15 +95,22 @@ def _write_summary(
 
 def _build_workflow_dependencies() -> PipelineWorkflowDependencies:
     """Build dependency bundle for the application-layer pipeline workflow."""
+    phase_support = PipelinePhaseSupport(
+        scan_videos=_scan_videos,
+        safe_filename=_safe_filename,
+        get_track_video_dir=_get_track_video_dir,
+        get_track_video_style=_get_track_video_style,
+        extract_track_metadata=_extract_track_metadata,
+    )
     return PipelineWorkflowDependencies(
         discover_audio_files=_discover_audio_files,
         extract_track_metadata=_extract_track_metadata,
         scan_videos=_scan_videos,
-        run_dry_run_phase=_run_dry_run_phase,
-        generate_mix_video_phase=_generate_mix_video_phase,
-        process_individual_tracks=_process_individual_tracks,
-        generate_compilation_phase=_generate_compilation_phase,
-        write_summary=_write_summary,
+        run_dry_run_phase=partial(run_dry_run_phase, phase_support),
+        generate_mix_video_phase=partial(generate_mix_video_phase, phase_support),
+        process_individual_tracks=partial(process_individual_tracks, phase_support),
+        generate_compilation_phase=generate_compilation_phase,
+        write_summary=write_summary,
     )
 
 

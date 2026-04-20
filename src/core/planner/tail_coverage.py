@@ -31,6 +31,8 @@ def append_tail_segment(
     ],
     find_section_label: Callable[[list[MusicalSection], float], str | None],
     record_decision: Callable[[SegmentDecision], None] | None = None,
+    target_level: str = "low",
+    speed_factor: float = 1.0,
     min_recovery_seconds: float = 0.25,
     sync_tolerance: float = 0.10,
     max_tail_segments: int = 512,
@@ -38,6 +40,16 @@ def append_tail_segment(
 ) -> float:
     """Cover any uncovered tail until timeline reaches ``target_duration``."""
     log = logger or logging.getLogger(__name__)
+    level_target_seconds = {
+        "high": config.high_intensity_seconds,
+        "medium": config.medium_intensity_seconds,
+        "low": config.low_intensity_seconds,
+    }
+    target_segment_seconds = level_target_seconds.get(
+        target_level,
+        config.low_intensity_seconds,
+    )
+    target_segment_seconds = max(target_segment_seconds, config.min_clip_seconds)
 
     current_timeline = timeline_pos
     tail_uncovered = target_duration - current_timeline
@@ -71,13 +83,13 @@ def append_tail_segment(
             )
             break
 
-        tail_clip = pick_from_pool(pools, pool_indices, "low")
+        tail_clip = pick_from_pool(pools, pool_indices, target_level)
         if tail_clip.duration <= 0:
             log.debug("SKIP tail iteration: selected clip has invalid duration")
             break
 
         # Always start from offset 0 for deterministic tail fill.
-        tail_duration = min(remaining, tail_clip.duration)
+        tail_duration = min(remaining, tail_clip.duration, target_segment_seconds)
         min_required = min(config.min_clip_seconds, remaining)
         allow_short_terminal = remaining <= (config.min_clip_seconds + sync_tolerance)
 
@@ -85,7 +97,15 @@ def append_tail_segment(
             # Retry with the longest available clip before giving up.
             longest_clip = max(sorted_clips, key=lambda c: c.duration)
             tail_clip = longest_clip
-            tail_duration = min(remaining, tail_clip.duration)
+            tail_duration = min(remaining, tail_clip.duration, target_segment_seconds)
+
+        leftover_after = remaining - tail_duration
+        if (
+            leftover_after > sync_tolerance
+            and leftover_after < config.min_clip_seconds
+            and tail_clip.duration >= remaining
+        ):
+            tail_duration = remaining
 
         if tail_duration + 1e-6 < min_required and not allow_short_terminal:
             log.debug(
@@ -110,8 +130,8 @@ def append_tail_segment(
             duration=tail_duration,
             clip_duration=tail_clip.duration,
             timeline_position=current_timeline,
-            intensity_level="low",
-            speed_factor=1.0,
+            intensity_level=target_level,
+            speed_factor=speed_factor,
             section_label=tail_section,
         )
         segments.append(tail_seg)
@@ -132,7 +152,7 @@ def append_tail_segment(
                     intensity_score=tail_clip.intensity_score,
                     section_label=tail_section,
                     duration=tail_duration,
-                    speed=1.0,
+                    speed=speed_factor,
                     reason="Tail coverage: iterative fill",
                 )
             )

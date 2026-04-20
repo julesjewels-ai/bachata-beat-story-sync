@@ -18,12 +18,12 @@ import tempfile
 import uuid
 
 from src.config.app_config import load_app_config
+from src.core import ffmpeg_renderer
 from src.core.ffmpeg_renderer import (
     apply_text_overlay,
     apply_transitions,
     concatenate_segments,
     extract_segments,
-    get_video_duration,
     normalize_video_duration,
     overlay_audio,
 )
@@ -36,6 +36,12 @@ from src.core.models import (
     SegmentPlan,
     VideoAnalysisResult,
 )
+from src.core.montage_explain import write_explain_html, write_explain_log
+from src.core.montage_rendering import (
+    MontageRenderOps,
+    group_segments_by_section,
+    render_montage,
+)
 from src.core.pacing_views import (
     OverlayConfig,
     PlanningConfig,
@@ -44,8 +50,7 @@ from src.core.pacing_views import (
     planning_config_from_pacing,
     render_config_from_pacing,
 )
-from src.core.plan_validation import validate_segment_plan
-from src.core.plan_validation import validate_duration_contract
+from src.core.plan_validation import validate_duration_contract, validate_segment_plan
 from src.core.planner import (
     append_tail_segment,
     append_transition_compensation,
@@ -54,7 +59,8 @@ from src.core.planner import (
 
 logger = logging.getLogger(__name__)
 
-DURATION_SYNC_TOLERANCE_SECONDS = 0.10  # Default; overridable via PacingConfig.duration_sync_tolerance_seconds
+# Default; overridable via PacingConfig.duration_sync_tolerance_seconds.
+DURATION_SYNC_TOLERANCE_SECONDS = 0.10
 MIN_RECOVERY_SEGMENT_SECONDS = 0.25
 MAX_PLANNING_ITERATIONS = 5000
 
@@ -455,7 +461,7 @@ class MontageGenerator:
         """Estimate total timeline overlap caused by section transitions."""
         if not cls._transitions_enabled(config):
             return 0.0
-        groups = cls._group_segments_by_section(segments)
+        groups = group_segments_by_section(segments)
         overlap_count = max(0, len(groups) - 1)
         return overlap_count * config.transition_duration
 
@@ -720,11 +726,16 @@ class MontageGenerator:
                 )
             ),
         )
+        tail_level = "low"
+        tail_speed = 1.0
 
         max_iterations = max(MAX_PLANNING_ITERATIONS, len(beat_times) * 4 + 100)
         last_anchor_beat_idx = -1
         for iteration in range(max_iterations):
-            if state.timeline_pos >= target_duration - config.duration_sync_tolerance_seconds:
+            if (
+                state.timeline_pos
+                >= target_duration - config.duration_sync_tolerance_seconds
+            ):
                 break
             if config.max_clips is not None and len(segments) >= config.max_clips:
                 logger.debug(
@@ -775,6 +786,18 @@ class MontageGenerator:
             beat_count = min(target_beats, available_beats)
             if beat_count <= 0:
                 logger.debug("STOP: beat_count <= 0 at iteration %d", iteration)
+                break
+            if available_beats < min_beats:
+                tail_level = level
+                tail_speed = speed
+                logger.debug(
+                    "STOP: insufficient beats for full segment at iteration %d "
+                    "(available=%d < min_beats=%d); deferring %.2fs to tail fill",
+                    iteration,
+                    available_beats,
+                    min_beats,
+                    remaining,
+                )
                 break
 
             desired_duration = min(beat_count * spb, remaining)
@@ -886,6 +909,8 @@ class MontageGenerator:
 
             state.timeline_pos += seg.duration
             last_anchor_beat_idx = beat_idx
+            tail_level = level
+            tail_speed = seg.speed_factor
         else:
             logger.warning(
                 "Planning loop hit max iterations (%d) at timeline_pos=%.2fs",
@@ -921,6 +946,8 @@ class MontageGenerator:
             pick_from_pool=self._pick_from_pool,
             find_section_label=section_label_lookup,
             record_decision=self._last_decisions.append,
+            target_level=tail_level,
+            speed_factor=tail_speed,
             logger=logger,
             min_recovery_seconds=MIN_RECOVERY_SEGMENT_SECONDS,
             sync_tolerance=config.duration_sync_tolerance_seconds,
@@ -945,7 +972,9 @@ class MontageGenerator:
                     return None
 
                 candidate_clips = self._build_candidate_clips(primary, sorted_clips)
-                base_speed = reference.speed_factor if not reference.speed_curve else 1.0
+                base_speed = (
+                    reference.speed_factor if not reference.speed_curve else 1.0
+                )
                 fit = self._fit_segment_adaptive(
                     candidate_clips=candidate_clips,
                     desired_duration=remaining,
@@ -1000,6 +1029,15 @@ class MontageGenerator:
         final_overlap_budget = self._compute_transition_overlap_budget(segments, config)
         planned_target_duration = target_duration + final_overlap_budget
         expected_render_duration = max(0.0, planned_duration - final_overlap_budget)
+        clipped_by_max_clips = (
+            config.max_clips is not None and len(segments) >= config.max_clips
+        )
+        validation_target_duration = (
+            planned_duration if clipped_by_max_clips else planned_target_duration
+        )
+        render_target_duration = (
+            expected_render_duration if clipped_by_max_clips else target_duration
+        )
         logger.debug(
             "=== build_segment_plan END ===\n"
             "  Total segments: %d\n"
@@ -1018,13 +1056,13 @@ class MontageGenerator:
 
         timeline_validation = validate_segment_plan(
             segments,
-            expected_duration=planned_target_duration,
+            expected_duration=validation_target_duration,
             min_clip_seconds=config.min_clip_seconds,
             tolerance=config.duration_sync_tolerance_seconds,
         )
         render_validation = validate_duration_contract(
             actual_duration=expected_render_duration,
-            expected_duration=target_duration,
+            expected_duration=render_target_duration,
             tolerance=config.duration_sync_tolerance_seconds,
             subject="Expected rendered duration",
         )
@@ -1044,55 +1082,8 @@ class MontageGenerator:
         output_path: str,
         config: PacingConfig,
     ) -> None:
-        """Write collected decisions to a Markdown file next to output.
-
-        File is named ``{output_stem}_explain.md``.
-        """
-        stem = os.path.splitext(output_path)[0]
-        log_path = f"{stem}_explain.md"
-
-        lines: list[str] = [
-            "# Decision Explainability Log\n",
-            "",
-            "## Segment Decisions\n",
-            "",
-            "| # | Time | Clip | Intensity | Section | Duration | Speed | Reason |",
-            "|---|------|------|-----------|---------|----------|-------|--------|",
-        ]
-        for i, d in enumerate(self._last_decisions, 1):
-            clip_name = os.path.basename(d.clip_path)
-            section = d.section_label or "—"
-            lines.append(
-                f"| {i} | {d.timeline_start:.2f}s "
-                f"| {clip_name} "
-                f"| {d.intensity_score:.2f} "
-                f"| {section} "
-                f"| {d.duration:.2f}s "
-                f"| {d.speed:.2f}x "
-                f"| {d.reason} |"
-            )
-
-        lines.append("")
-        lines.append("## Config Applied\n")
-        lines.append("")
-        lines.append(f"- **Min clip duration**: {config.min_clip_seconds}s")
-        lines.append(
-            f"- **Intensity durations**: "
-            f"high={config.high_intensity_seconds}s "
-            f"mid={config.medium_intensity_seconds}s "
-            f"low={config.low_intensity_seconds}s"
-        )
-        lines.append(f"- **Max clips**: {config.max_clips}")
-        lines.append(f"- **Max duration**: {config.max_duration_seconds}")
-        if config.video_style and config.video_style != "none":
-            lines.append(f"- **Video style**: {config.video_style}")
-        if config.audio_overlay and config.audio_overlay != "none":
-            lines.append(f"- **Audio overlay**: {config.audio_overlay}")
-        lines.append("")
-
-        with open(log_path, "w", encoding="utf-8") as f:
-            f.write("\n".join(lines))
-        logger.info("Explain log written to: %s", log_path)
+        """Write collected decisions to a Markdown file next to output."""
+        write_explain_log(output_path, self._last_decisions, config)
 
     def _write_explain_html(
         self,
@@ -1100,22 +1091,9 @@ class MontageGenerator:
         config: PacingConfig,
         audio_data: AudioAnalysisResult,
     ) -> None:
-        """Write collected decisions to an HTML report file.
-
-        File path is taken from config.explain_html.
-        """
-        from src.services.explain_html import generate_explain_html  # noqa: WPS433
-
-        if not config.explain_html or not self._last_decisions:
-            return
-
-        generate_explain_html(
-            config.explain_html,
-            audio_data,
-            self._last_decisions,
-            config,
-        )
-        logger.info("HTML explain report written to: %s", config.explain_html)
+        """Write collected decisions to an HTML report file."""
+        _ = output_path
+        write_explain_html(config, audio_data, self._last_decisions)
 
     def generate(
         self,
@@ -1205,189 +1183,34 @@ class MontageGenerator:
             if config.explain_html:
                 self._write_explain_html(output_path, config, audio_data)
 
-        # Create temp directory for intermediate files
-        temp_dir = tempfile.mkdtemp(prefix="montage_")
-
-        try:
-            # 2. Extract segments (one FFmpeg process at a time)
-            segment_files = extract_segments(
-                segments,
-                temp_dir,
-                render_config,
-                observer,
-                beat_times=audio_data.beat_times,
-            )
-
-            # 3. Group-and-transition or simple concat
-            transitions_enabled = (
-                render_config.transition_type
-                and render_config.transition_type.lower() != "none"
-            )
-
-            if transitions_enabled:
-                # Group segments by musical section
-                groups = self._group_segments_by_section(segments)
-
-                if len(groups) > 1:
-                    # Concat within each group, then xfade between groups
-                    group_files = []
-                    file_idx = 0
-                    for g_idx, group in enumerate(groups):
-                        group_seg_files = segment_files[
-                            file_idx : file_idx + len(group)
-                        ]
-                        file_idx += len(group)
-
-                        if len(group_seg_files) == 1:
-                            group_files.append(group_seg_files[0])
-                        else:
-                            group_out = os.path.join(temp_dir, f"group_{g_idx:04d}.mp4")
-                            concatenate_segments(group_seg_files, group_out)
-                            group_files.append(group_out)
-
-                    # Apply xfade transitions between groups
-                    concat_path = os.path.join(temp_dir, "concat_output.mp4")
-                    apply_transitions(
-                        group_files,
-                        concat_path,
-                        render_config.transition_type,
-                        render_config.transition_duration,
-                        warm_wash=render_config.pacing_warm_wash,
-                    )
-                else:
-                    # Only one section — fall back to simple concat
-                    concat_path = os.path.join(temp_dir, "concat_output.mp4")
-                    concatenate_segments(segment_files, concat_path)
-            else:
-                # No transitions — simple concat (current behaviour)
-                concat_path = os.path.join(temp_dir, "concat_output.mp4")
-                concatenate_segments(segment_files, concat_path)
-
-            video_dur = get_video_duration(concat_path)
-            if output_target_duration > 0 and video_dur > 0:
-                delta = abs(video_dur - output_target_duration)
-                if delta > config.duration_sync_tolerance_seconds:
-                    raise RuntimeError(
-                        "Assembled video duration mismatch before audio overlay: "
-                        f"rendered={video_dur:.3f}s target={output_target_duration:.3f}s "
-                        f"delta={delta:.3f}s"
-                    )
-                if delta > 1e-3:
-                    normalized_concat = os.path.join(
-                        temp_dir,
-                        "concat_output.normalized.mp4",
-                    )
-                    normalize_video_duration(
-                        concat_path,
-                        normalized_concat,
-                        output_target_duration,
-                        actual_duration=video_dur,
-                    )
-                    concat_path = normalized_concat
-                    video_dur = get_video_duration(concat_path)
-                    normalized_delta = abs(video_dur - output_target_duration)
-                    if normalized_delta > config.duration_sync_tolerance_seconds:
-                        raise RuntimeError(
-                            "Normalized video duration mismatch before audio overlay: "
-                            f"rendered={video_dur:.3f}s target={output_target_duration:.3f}s "
-                            f"delta={normalized_delta:.3f}s"
-                        )
-
-            # 4. Overlay audio (or just copy if no audio)
-            if audio_path and os.path.exists(audio_path):
-                overlay_audio(
-                    concat_path,
-                    audio_path,
-                    output_path,
-                    overlay_config,
-                    video_duration=video_dur,
-                    target_duration=output_target_duration,
-                )
-            else:
-                shutil.move(concat_path, output_path)
-
-            # 5. Text overlay (FEAT-045) — post-processing pass.
-            # Also triggered by mix_fade_transitions (FEAT-050) which shares
-            # the same FFmpeg pass to burn fade-to-black at track boundaries.
-            wants_mix_fades = (
-                render_config.mix_fade_transitions
-                and bool(render_config.mix_track_segments)
-            )
-            if render_config.text_overlay_enabled or wants_mix_fades:
-                from src.core.text_overlay import build_text_events
-
-                text_events = (
-                    build_text_events(config, audio_path)
-                    if render_config.text_overlay_enabled
-                    else []
-                )
-                if text_events or wants_mix_fades:
-                    if os.path.isfile(output_path):
-                        pre_text = output_path + ".pre_text.mp4"
-                        shutil.move(output_path, pre_text)
-                        try:
-                            apply_text_overlay(
-                                pre_text,
-                                output_path,
-                                text_events,
-                                render_config,
-                            )
-                        finally:
-                            if os.path.exists(pre_text):
-                                os.remove(pre_text)
-                    else:
-                        logger.warning(
-                            "Skipping text overlay post-pass because %s was not created.",
-                            output_path,
-                        )
-
-            # Post-render duration sanity check (regression canary)
-            output_dur = get_video_duration(output_path)
-            if output_target_duration > 0 and output_dur > 0:
-                delta = abs(output_dur - output_target_duration)
-                if delta > config.duration_sync_tolerance_seconds:
-                    raise RuntimeError(
-                        "Output duration mismatch after post-processing: "
-                        f"rendered={output_dur:.3f}s target={output_target_duration:.3f}s "
-                        f"delta={delta:.3f}s"
-                    )
-                logger.debug(
-                    "Duration check OK: rendered=%.2fs  target=%.2fs  delta=%.2fs",
-                    output_dur,
-                    output_target_duration,
-                    delta,
-                )
-
-            logger.info("Montage complete: %s", output_path)
-            return output_path
-
-        finally:
-            # Clean up temp directory (memory safety guarantee)
-            shutil.rmtree(temp_dir, ignore_errors=True)
+        return render_montage(
+            segments=segments,
+            audio_data=audio_data,
+            output_path=output_path,
+            audio_path=audio_path,
+            observer=observer,
+            config=config,
+            planning_config=planning_config,
+            render_config=render_config,
+            overlay_config=overlay_config,
+            output_target_duration=output_target_duration,
+            ops=MontageRenderOps(
+                extract_segments=extract_segments,
+                concatenate_segments=concatenate_segments,
+                apply_transitions=apply_transitions,
+                get_video_duration=ffmpeg_renderer.get_video_duration,
+                normalize_video_duration=normalize_video_duration,
+                overlay_audio=overlay_audio,
+                apply_text_overlay=apply_text_overlay,
+                temp_dir_factory=tempfile.mkdtemp,
+                cleanup_dir=shutil.rmtree,
+                path_exists=os.path.exists,
+            ),
+        )
 
     @staticmethod
     def _group_segments_by_section(
         segments: list[SegmentPlan],
     ) -> list[list[SegmentPlan]]:
-        """
-        Group consecutive segments that share the same section_label.
-
-        Returns a list of groups, where each group is a list of
-        SegmentPlan objects with the same musical section label.
-        Adjacent segments with matching labels are merged into one group.
-        """
-        if not segments:
-            return []
-
-        groups: list[list[SegmentPlan]] = []
-        current_group: list[SegmentPlan] = [segments[0]]
-
-        for seg in segments[1:]:
-            if seg.section_label == current_group[-1].section_label:
-                current_group.append(seg)
-            else:
-                groups.append(current_group)
-                current_group = [seg]
-
-        groups.append(current_group)
-        return groups
+        """Group consecutive segments that share the same section label."""
+        return group_segments_by_section(segments)

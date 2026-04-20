@@ -62,7 +62,7 @@ pacing:
   # Beat-snap transitions — applied at musical section boundaries
   # Set to 'none' to keep hard cuts (default/current behaviour)
   # Options: 'fade', 'wipeleft', 'wiperight', 'slideup', 'slidedown', etc.
-  transition_type: fade
+  transition_type: none
   transition_duration: 0.5        # Duration of each transition (seconds)
 
   # Duration sync tolerance — how far the rendered video duration is allowed
@@ -70,7 +70,7 @@ pacing:
   # to absorb larger FFmpeg xfade/rounding drift at the cost of slightly
   # looser beat-sync precision. Decrease for strict duration contracts.
   # Default: 0.10 (100ms). Typical range: 0.05 – 1.0.
-  duration_sync_tolerance_seconds: 5.0
+  duration_sync_tolerance_seconds: 0.10
 
   # Video style — applies a uniform color grade to all clips
   # Options: 'none', 'bw' (black & white), 'vintage', 'warm', 'cool', 'golden'
