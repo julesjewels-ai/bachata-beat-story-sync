@@ -191,6 +191,7 @@ make full-pipeline AUDIO=./tracks/ VIDEO_DIR=./clips/
 | `VIDEO_DIR` | — | **(Required)** Folder containing `.mp4` clips |
 | `OUTPUT_DIR` | `output_pipeline` | Where to save all outputs |
 | `COMPILATION` | `0` | Set to `1` to generate a compilation video; `0` to skip |
+| `SKIP_MIX` | `0` | Set to `1` to skip generating the combined mix video (useful when you only want individual track videos or the compilation) |
 | `SHARED_SCAN` | `0` | Set to `1` to reuse the same video analysis for all tracks (faster, less variation) |
 | `TEST_MODE` | `0` | Set to `1` to generate test outputs (4 clips, 10s each) |
 | `VIDEO_STYLE` | — | Color grading applied to all videos |
@@ -217,6 +218,13 @@ This also generates:
 ```bash
 make full-pipeline AUDIO=./tracks/ VIDEO_DIR=./clips/ COMPILATION=1 VIDEO_STYLE=warm
 ```
+
+**Skip the mix video, generate only individual track videos + compilation:**
+```bash
+make full-pipeline AUDIO=./tracks/ VIDEO_DIR=./clips/ SKIP_MIX=1 COMPILATION=1
+```
+
+Use this when the combined mix isn't coming out well and you just want the per-track videos concatenated together.
 
 **Full pipeline in test mode (fast iteration):**
 ```bash

@@ -39,6 +39,9 @@ make full-pipeline AUDIO=path/to/audio_folder/ VIDEO_DIR=path/to/clips/
 # Full pipeline with compilation (concatenates individual track videos with transitions + chapter markers)
 make full-pipeline AUDIO=path/to/audio_folder/ VIDEO_DIR=path/to/clips/ COMPILATION=1
 
+# Skip mix video, generate only individual track videos + compilation
+make full-pipeline AUDIO=path/to/audio_folder/ VIDEO_DIR=path/to/clips/ SKIP_MIX=1 COMPILATION=1
+
 # Dry-run (plan without rendering)
 make run AUDIO=track.wav VIDEO_DIR=clips/ DRY_RUN=1
 

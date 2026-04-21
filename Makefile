@@ -31,6 +31,7 @@ OUTPUT_DIR ?= output_pipeline
 SHARED_SCAN ?= 0
 SMART_START ?=
 COMPILATION ?=
+SKIP_MIX ?=
 
 # Build optional flags
 EXTRA_FLAGS =
@@ -137,6 +138,10 @@ endif
 
 ifeq ($(COMPILATION),0)
   EXTRA_FLAGS += --no-compilation
+endif
+
+ifeq ($(SKIP_MIX),1)
+  EXTRA_FLAGS += --skip-mix
 endif
 
 .PHONY: install run ui run-shorts full-pipeline mcp-serve test lint lint-fix format check-types refactor clean download-demo
