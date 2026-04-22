@@ -19,6 +19,12 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
+from src.application.batch_bridge import (
+    load_batch as _load_batch,
+    plan_song_from_batch as _plan_song_from_batch,
+    render_song_from_batch as _render_song_from_batch,
+    save_batch as _save_batch,
+)
 from src.config.app_config import build_pacing_config, load_app_config
 from src.cli_utils import analyze_audio as _analyze_audio
 from src.cli_utils import detect_broll_dir, strip_thumbnails
@@ -36,6 +42,7 @@ engine = BachataSyncEngine()
 _state: dict[str, Any] = {
     "latest_audio": None,   # serialized AudioAnalysisResult dict
     "latest_videos": None,  # list of serialized VideoAnalysisResult dicts
+    "latest_batch": None,   # serialized batch JSON dict
     "config_overrides": {}, # user-applied PacingConfig overrides for this session
 }
 
@@ -65,6 +72,22 @@ def analyze_audio(audio_path: str) -> dict:
     result = audio_meta.model_dump()
     _state["latest_audio"] = result
     return result
+
+
+@mcp.tool()
+def load_batch(batch_path: str) -> dict:
+    """Load a batch JSON file and cache it in session state."""
+    batch = _load_batch(batch_path)
+    _state["latest_batch"] = batch
+    return batch
+
+
+@mcp.tool()
+def save_batch(batch_path: str, batch: dict) -> dict:
+    """Save a batch JSON file and cache it in session state."""
+    _save_batch(batch_path, batch)
+    _state["latest_batch"] = batch
+    return batch
 
 
 @mcp.tool()
@@ -126,6 +149,25 @@ def plan_montage(
 
 
 @mcp.tool()
+def plan_batch_song(
+    batch_path: str,
+    song_id: str,
+    video_dir: str,
+    config_overrides: dict | None = None,
+) -> list[dict]:
+    """Plan a montage for one song inside a batch."""
+    segments = _plan_song_from_batch(
+        batch_path=batch_path,
+        song_id=song_id,
+        video_dir=video_dir,
+        config_overrides=config_overrides,
+        engine=engine,
+    )
+    _state["latest_batch"] = _load_batch(batch_path)
+    return segments
+
+
+@mcp.tool()
 def render_montage(
     audio_path: str,
     video_dir: str,
@@ -171,6 +213,27 @@ def render_montage(
         pacing=pacing,
     )
     return {"output_path": result_path, "status": "success"}
+
+
+@mcp.tool()
+def render_batch_song(
+    batch_path: str,
+    song_id: str,
+    video_dir: str,
+    output_path: str,
+    config_overrides: dict | None = None,
+) -> dict:
+    """Render one song from a batch and persist video state back to JSON."""
+    result = _render_song_from_batch(
+        batch_path=batch_path,
+        song_id=song_id,
+        video_dir=video_dir,
+        output_path=output_path,
+        config_overrides=config_overrides,
+        engine=engine,
+    )
+    _state["latest_batch"] = result["batch"]
+    return {"output_path": result["output_path"], "status": "success"}
 
 
 @mcp.tool()
@@ -229,6 +292,7 @@ def analysis_latest() -> str:
         {
             "audio": _state["latest_audio"],
             "videos": _state["latest_videos"],
+            "batch": _state["latest_batch"],
         },
         indent=2,
     )
