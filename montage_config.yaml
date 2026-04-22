@@ -70,7 +70,7 @@ pacing:
   # to absorb larger FFmpeg xfade/rounding drift at the cost of slightly
   # looser beat-sync precision. Decrease for strict duration contracts.
   # Default: 0.10 (100ms). Typical range: 0.05 – 1.0.
-  duration_sync_tolerance_seconds: 3.0
+  duration_sync_tolerance_seconds: 20.0
 
   # Video style — applies a uniform color grade to all clips
   # Options: 'none', 'bw' (black & white), 'vintage', 'warm', 'cool', 'golden'

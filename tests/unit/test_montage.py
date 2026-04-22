@@ -2683,13 +2683,14 @@ class TestAdvancedEffects:
         assert "trim=duration=4.950000" in cmd_str
 
     @patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")
+    @patch("src.core.montage.fill_tail_gap", return_value=True)
     @patch("src.core.montage.normalize_video_duration")
     @patch("src.core.ffmpeg_renderer.get_video_duration")
     @patch("src.core.ffmpeg_renderer.run_ffmpeg")
     @patch("src.core.montage.tempfile.mkdtemp")
     @patch("src.core.montage.shutil.rmtree")
     @patch("src.core.montage.os.path.exists", return_value=True)
-    def test_generate_normalizes_small_pre_audio_drift(
+    def test_generate_prefers_tail_fill_over_normalize_on_short_drift(
         self,
         mock_exists,
         mock_rmtree,
@@ -2697,16 +2698,18 @@ class TestAdvancedEffects:
         mock_run,
         mock_get_duration,
         mock_normalize,
+        mock_fill,
         mock_which,
         generator,
         audio_data,
         video_clips,
         tmp_path,
     ):
-        temp_dir = str(tmp_path / "normalize_temp")
+        temp_dir = str(tmp_path / "fill_temp")
         os.makedirs(temp_dir, exist_ok=True)
         mock_mkdtemp.return_value = temp_dir
         mock_run.return_value = None
+        # concat pre-fill (short), post-fill (exact), final overlay check
         mock_get_duration.side_effect = [29.95, 30.0, 30.0]
 
         concat_path = os.path.join(temp_dir, "concat_output.mp4")
@@ -2720,6 +2723,98 @@ class TestAdvancedEffects:
             audio_path="/audio/song.wav",
         )
 
+        mock_fill.assert_called_once()
+        fill_args = mock_fill.call_args
+        # signed delta passed as positional arg 2: target_duration - video_dur ≈ 0.05
+        assert fill_args[0][2] == pytest.approx(0.05, abs=1e-3)
+        mock_normalize.assert_not_called()
+
+    @patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")
+    @patch("src.core.montage.fill_tail_gap", return_value=False)
+    @patch("src.core.montage.normalize_video_duration")
+    @patch("src.core.ffmpeg_renderer.get_video_duration")
+    @patch("src.core.ffmpeg_renderer.run_ffmpeg")
+    @patch("src.core.montage.tempfile.mkdtemp")
+    @patch("src.core.montage.shutil.rmtree")
+    @patch("src.core.montage.os.path.exists", return_value=True)
+    def test_generate_falls_back_to_normalize_when_tail_fill_fails(
+        self,
+        mock_exists,
+        mock_rmtree,
+        mock_mkdtemp,
+        mock_run,
+        mock_get_duration,
+        mock_normalize,
+        mock_fill,
+        mock_which,
+        generator,
+        audio_data,
+        video_clips,
+        tmp_path,
+    ):
+        temp_dir = str(tmp_path / "fallback_temp")
+        os.makedirs(temp_dir, exist_ok=True)
+        mock_mkdtemp.return_value = temp_dir
+        mock_run.return_value = None
+        # concat measurement then post-overlay check (no re-measure since fill failed)
+        mock_get_duration.side_effect = [29.95, 30.0, 30.0]
+
+        concat_path = os.path.join(temp_dir, "concat_output.mp4")
+        with open(concat_path, "w") as f:
+            f.write("fake video data")
+
+        generator.generate(
+            audio_data,
+            video_clips,
+            str(tmp_path / "output.mp4"),
+            audio_path="/audio/song.wav",
+        )
+
+        mock_fill.assert_called_once()
+        mock_normalize.assert_called_once()
+
+    @patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")
+    @patch("src.core.montage.fill_tail_gap")
+    @patch("src.core.montage.normalize_video_duration")
+    @patch("src.core.ffmpeg_renderer.get_video_duration")
+    @patch("src.core.ffmpeg_renderer.run_ffmpeg")
+    @patch("src.core.montage.tempfile.mkdtemp")
+    @patch("src.core.montage.shutil.rmtree")
+    @patch("src.core.montage.os.path.exists", return_value=True)
+    def test_generate_does_not_tail_fill_when_video_longer_than_target(
+        self,
+        mock_exists,
+        mock_rmtree,
+        mock_mkdtemp,
+        mock_run,
+        mock_get_duration,
+        mock_normalize,
+        mock_fill,
+        mock_which,
+        generator,
+        audio_data,
+        video_clips,
+        tmp_path,
+    ):
+        temp_dir = str(tmp_path / "long_temp")
+        os.makedirs(temp_dir, exist_ok=True)
+        mock_mkdtemp.return_value = temp_dir
+        mock_run.return_value = None
+        # Video longer than target — should go straight to normalize (trim), not fill
+        mock_get_duration.side_effect = [30.05, 30.0, 30.0]
+
+        concat_path = os.path.join(temp_dir, "concat_output.mp4")
+        with open(concat_path, "w") as f:
+            f.write("fake video data")
+
+        generator.generate(
+            audio_data,
+            video_clips,
+            str(tmp_path / "output.mp4"),
+            audio_path="/audio/song.wav",
+        )
+
+        mock_fill.assert_not_called()
         mock_normalize.assert_called_once()
 
     @patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")

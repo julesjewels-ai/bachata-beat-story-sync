@@ -24,6 +24,7 @@ from src.core.ffmpeg_renderer import (
     apply_transitions,
     concatenate_segments,
     extract_segments,
+    fill_tail_gap,
     normalize_video_duration,
     overlay_audio,
 )
@@ -1164,10 +1165,18 @@ class MontageGenerator:
             )
 
         total_dur = segments[-1].timeline_position + segments[-1].duration
+        overlap_budget = self._compute_transition_overlap_budget(
+            segments, planning_config
+        )
+        expected_render_dur = max(0.0, total_dur - overlap_budget)
         logger.info(
-            "Built segment plan: %d segments, total duration: %.1fs",
+            "Built segment plan: %d segments, timeline=%.1fs "
+            "expected_render=%.1fs (overlap_budget=%.2fs) audio_target=%.1fs",
             len(segments),
             total_dur,
+            expected_render_dur,
+            overlap_budget,
+            output_target_duration,
         )
         if planning_config.max_clips or planning_config.max_duration_seconds:
             logger.info(
@@ -1200,6 +1209,7 @@ class MontageGenerator:
                 apply_transitions=apply_transitions,
                 get_video_duration=ffmpeg_renderer.get_video_duration,
                 normalize_video_duration=normalize_video_duration,
+                fill_tail_gap=fill_tail_gap,
                 overlay_audio=overlay_audio,
                 apply_text_overlay=apply_text_overlay,
                 temp_dir_factory=tempfile.mkdtemp,

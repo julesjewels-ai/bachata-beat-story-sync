@@ -871,6 +871,84 @@ def overlay_audio(
     run_ffmpeg(cmd, "audio overlay", timeout_seconds=overlay_timeout)
 
 
+def fill_tail_gap(
+    concat_path: str,
+    segment_files: list[str],
+    delta_seconds: float,
+    temp_dir: str,
+    output_path: str,
+) -> bool:
+    """Cover a short tail gap by reusing already-extracted segment files.
+
+    Avoids the frozen-frame look produced by ``tpad=stop_mode=clone``: picks
+    the trailing segment(s) (which match the song's ending context), trims
+    the total to exactly ``delta_seconds``, and concat-demuxes them onto
+    ``concat_path``.
+
+    Returns True on success, False if the gap could not be filled — caller
+    should fall back to ``normalize_video_duration``.
+    """
+    if delta_seconds <= 0 or not segment_files:
+        return False
+
+    remaining = delta_seconds
+    fillers: list[str] = []
+    idx = 0
+    for source in reversed(segment_files):
+        source_dur = get_video_duration(source)
+        if source_dur <= 0:
+            continue
+
+        take = min(source_dur, remaining)
+        if take <= 1e-3:
+            break
+
+        filler_out = os.path.join(temp_dir, f"tail_fill_{idx:03d}.mp4")
+        cmd = [
+            "ffmpeg",
+            "-y",
+            "-i",
+            source,
+            "-t",
+            f"{take:.3f}",
+            *get_h264_encoder_args(),
+            "-an",
+            "-movflags",
+            "+faststart",
+            filler_out,
+        ]
+        try:
+            run_ffmpeg(cmd, f"tail gap fill {idx}")
+        except RuntimeError as exc:
+            logger.warning("tail gap fill failed for %s: %s", source, exc)
+            return False
+
+        fillers.append(filler_out)
+        idx += 1
+        remaining -= take
+        if remaining <= 1e-3:
+            break
+
+    if not fillers:
+        return False
+
+    try:
+        concatenate_segments([concat_path, *fillers], output_path)
+    except RuntimeError as exc:
+        logger.warning("tail gap concat failed: %s", exc)
+        return False
+
+    filled_dur = get_video_duration(output_path)
+    logger.info(
+        "Tail gap filled: appended %d clip(s) (%.3fs requested, residual %.3fs) → %.3fs",
+        len(fillers),
+        delta_seconds,
+        max(0.0, remaining),
+        filled_dur,
+    )
+    return True
+
+
 def normalize_video_duration(
     video_path: str,
     output_path: str,

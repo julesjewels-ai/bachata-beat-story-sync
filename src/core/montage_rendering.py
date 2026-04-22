@@ -24,6 +24,7 @@ class MontageRenderOps:
     apply_transitions: Any
     get_video_duration: Any
     normalize_video_duration: Any
+    fill_tail_gap: Any
     overlay_audio: Any
     apply_text_overlay: Any
     temp_dir_factory: Any
@@ -120,6 +121,15 @@ def render_montage(
         video_dur = ops.get_video_duration(concat_path)
         if output_target_duration > 0 and video_dur > 0:
             delta = abs(video_dur - output_target_duration)
+            signed_delta = output_target_duration - video_dur
+            logger.info(
+                "Pre-overlay duration check: rendered=%.3fs target=%.3fs "
+                "delta=%+.3fs tolerance=%.3fs",
+                video_dur,
+                output_target_duration,
+                signed_delta,
+                config.duration_sync_tolerance_seconds,
+            )
             if delta > config.duration_sync_tolerance_seconds:
                 raise RuntimeError(
                     "Assembled video duration mismatch before audio overlay: "
@@ -127,26 +137,44 @@ def render_montage(
                     f"delta={delta:.3f}s"
                 )
             if delta > 1e-3:
-                normalized_concat = os.path.join(
-                    temp_dir,
-                    "concat_output.normalized.mp4",
-                )
-                ops.normalize_video_duration(
-                    concat_path,
-                    normalized_concat,
-                    output_target_duration,
-                    actual_duration=video_dur,
-                )
-                concat_path = normalized_concat
-                video_dur = ops.get_video_duration(concat_path)
-                normalized_delta = abs(video_dur - output_target_duration)
-                if normalized_delta > config.duration_sync_tolerance_seconds:
-                    raise RuntimeError(
-                        "Normalized video duration mismatch before audio overlay: "
-                        f"rendered={video_dur:.3f}s "
-                        f"target={output_target_duration:.3f}s "
-                        f"delta={normalized_delta:.3f}s"
+                if signed_delta > 0:
+                    tail_filled = os.path.join(
+                        temp_dir,
+                        "concat_output.tail_filled.mp4",
                     )
+                    filled = ops.fill_tail_gap(
+                        concat_path,
+                        segment_files,
+                        signed_delta,
+                        temp_dir,
+                        tail_filled,
+                    )
+                    if filled:
+                        concat_path = tail_filled
+                        video_dur = ops.get_video_duration(concat_path)
+                        delta = abs(video_dur - output_target_duration)
+
+                if delta > 1e-3:
+                    normalized_concat = os.path.join(
+                        temp_dir,
+                        "concat_output.normalized.mp4",
+                    )
+                    ops.normalize_video_duration(
+                        concat_path,
+                        normalized_concat,
+                        output_target_duration,
+                        actual_duration=video_dur,
+                    )
+                    concat_path = normalized_concat
+                    video_dur = ops.get_video_duration(concat_path)
+                    normalized_delta = abs(video_dur - output_target_duration)
+                    if normalized_delta > config.duration_sync_tolerance_seconds:
+                        raise RuntimeError(
+                            "Normalized video duration mismatch before audio overlay: "
+                            f"rendered={video_dur:.3f}s "
+                            f"target={output_target_duration:.3f}s "
+                            f"delta={normalized_delta:.3f}s"
+                        )
 
         if audio_path and ops.path_exists(audio_path):
             ops.overlay_audio(
