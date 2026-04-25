@@ -11,6 +11,63 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
+class PhaseVariation(BaseModel):
+    """One named editorial variation for a video phase."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(..., description="Unique name for this variation (e.g. 'golden_bloom')")
+    intro_effect: str = Field(
+        "none",
+        description="Visual effect for segments in this phase: 'none', 'bloom', 'vignette_breathe'",
+    )
+    intro_effect_duration: float | None = Field(
+        None,
+        description="Effect duration override in seconds. None = use global intro_effect_duration.",
+    )
+    pacing_saturation_pulse: bool = Field(False)
+    pacing_light_leaks: bool = Field(False)
+    pacing_micro_jitters: bool = Field(False)
+    pacing_drift_zoom: bool = Field(False)
+    pacing_alternating_bokeh: bool = Field(False)
+    clip_selection: Literal["intensity", "highest_intensity"] = Field(
+        "intensity",
+        description="'intensity' = normal pool matching; "
+        "'highest_intensity' = always pick the globally highest-scored clip.",
+    )
+    target_duration_seconds: float | None = Field(
+        None,
+        description="Override clip duration (seconds) for all segments in this phase. "
+        "None = use standard intensity-based duration.",
+    )
+
+
+class PhaseConfig(BaseModel):
+    """Configuration for one editorial phase window (hook, intro, or warmup)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = Field(True, description="Set to false to skip this phase entirely.")
+    end_time_seconds: float = Field(
+        ...,
+        description="Absolute timeline end of this phase (e.g. 4.0, 10.0, 30.0).",
+    )
+    variations: list[PhaseVariation] = Field(
+        default_factory=list,
+        description="Pool of named variations to choose from per track.",
+    )
+    variation_selection: Literal["rotate", "random", "fixed"] = Field(
+        "rotate",
+        description="How to pick a variation per track: "
+        "'rotate' = track_index %% len(variations), "
+        "'random' = seeded random, 'fixed' = always fixed_variation_index.",
+    )
+    fixed_variation_index: int = Field(
+        0,
+        description="Index used when variation_selection='fixed'.",
+    )
+
+
 class MusicalSection(BaseModel):
     """
     A detected musical section within a track.
@@ -120,6 +177,33 @@ class SegmentPlan(BaseModel):
         description="Per-beat speed multipliers (FEAT-036). "
         "Non-empty = organic variable speed; "
         "overrides scalar speed_factor during rendering.",
+    )
+
+    # Video Phase System fields
+    phase: str = Field(
+        "main",
+        description="Editorial phase: 'hook', 'intro', 'warmup', or 'main'.",
+    )
+    phase_variation_name: str | None = Field(
+        None,
+        description="Name of the PhaseVariation selected for this phase, or None.",
+    )
+    phase_intro_effect: str = Field(
+        "none",
+        description="Intro effect resolved from the active PhaseVariation. "
+        "Overrides the global seg_index==0 check in the renderer.",
+    )
+    phase_intro_effect_duration: float | None = Field(
+        None,
+        description="Per-segment intro effect duration override. "
+        "None = use global intro_effect_duration.",
+    )
+    phase_pacing_effects: list[str] | None = Field(
+        None,
+        description="Pacing effects active for this segment. "
+        "None = fall through to global RenderConfig flags. "
+        "[] = no pacing effects. "
+        "['drift_zoom', ...] = only these named effects.",
     )
 
 
@@ -322,6 +406,20 @@ class PacingConfig(BaseModel):
         0,
         description="Rotate the forced prefix clip list by this many positions. "
         "Pipeline sets this to track_index to vary intros across videos.",
+    )
+
+    # Video Phase System
+    hook_phase: PhaseConfig | None = Field(
+        None,
+        description="Hook phase config (0 to ~4 s). None = disabled.",
+    )
+    intro_phase: PhaseConfig | None = Field(
+        None,
+        description="Intro phase config (~4 s to ~10 s). None = disabled.",
+    )
+    warmup_phase: PhaseConfig | None = Field(
+        None,
+        description="Warmup phase config (~10 s to ~30 s). None = disabled.",
     )
 
     # Audio Overlay (FEAT-013)

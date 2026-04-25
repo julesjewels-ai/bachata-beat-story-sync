@@ -53,6 +53,7 @@ from src.core.pacing_views import (
 )
 from src.core.plan_validation import validate_duration_contract, validate_segment_plan
 from src.core.planner import (
+    PhaseManager,
     append_tail_segment,
     append_transition_compensation,
     select_clip,
@@ -707,6 +708,15 @@ class MontageGenerator:
             pool_offset,
         )
 
+        # Video Phase System: pre-select one variation per phase for this track
+        phase_manager = PhaseManager(
+            hook_phase=config.hook_phase,
+            intro_phase=config.intro_phase,
+            warmup_phase=config.warmup_phase,
+            track_index=config.prefix_offset,
+            seed=config.seed,
+        )
+
         segments: list[SegmentPlan] = []
         self._last_decisions: list[SegmentDecision] = []
         intensity_curve = audio_data.intensity_curve
@@ -783,6 +793,11 @@ class MontageGenerator:
                 min_beats,
             )
 
+            # Video Phase System: override duration from active phase variation
+            _phase_dur = phase_manager.get_target_duration_override(state.timeline_pos)
+            if _phase_dur is not None:
+                target_beats = max(min_beats, round(_phase_dur / spb))
+
             available_beats = len(beat_times) - beat_idx
             beat_count = min(target_beats, available_beats)
             if beat_count <= 0:
@@ -817,26 +832,58 @@ class MontageGenerator:
             ):
                 is_broll = True
 
-            selection = select_clip(
-                forced_clips=forced_clips,
-                forced_clip_idx=state.forced_clip_idx,
-                is_broll=is_broll,
-                broll_clips=broll_clips,
-                broll_idx=state.broll_idx,
-                timeline_pos=state.timeline_pos,
-                last_broll_time=state.last_broll_time,
-                config=config,
-                pools=pools,
-                pool_indices=pool_indices,
-                level=level,
-                clip_idx=state.clip_idx,
-                pick_from_pool=self._pick_from_pool,
+            # Video Phase System: use highest-intensity clip when phase variation requests it,
+            # but only if no forced prefix clips are pending and it's not a b-roll slot.
+            _use_phase_hi = (
+                phase_manager.needs_highest_intensity(state.timeline_pos)
+                and state.forced_clip_idx >= len(forced_clips)
+                and not is_broll
             )
-            state.forced_clip_idx = selection.forced_clip_idx
-            state.broll_idx = selection.broll_idx
-            state.clip_idx = selection.clip_idx
-            state.last_broll_time = selection.last_broll_time
-            state.target_broll_interval = selection.target_broll_interval
+            if _use_phase_hi:
+                _hi = sorted_clips[0]
+                _phase_pools: dict = {"high": [_hi], "medium": [_hi], "low": [_hi]}
+                _phase_pool_indices: dict = {"high": 0, "medium": 0, "low": 0}
+                selection = select_clip(
+                    forced_clips=[],
+                    forced_clip_idx=0,
+                    is_broll=False,
+                    broll_clips=None,
+                    broll_idx=state.broll_idx,
+                    timeline_pos=state.timeline_pos,
+                    last_broll_time=state.last_broll_time,
+                    config=config,
+                    pools=_phase_pools,
+                    pool_indices=_phase_pool_indices,
+                    level=level,
+                    clip_idx=state.clip_idx,
+                    pick_from_pool=self._pick_from_pool,
+                )
+                # Don't advance forced_clip_idx — phase selection doesn't consume prefix clips
+                state.broll_idx = selection.broll_idx
+                state.clip_idx = selection.clip_idx
+                state.last_broll_time = selection.last_broll_time
+                state.target_broll_interval = selection.target_broll_interval
+            else:
+                selection = select_clip(
+                    forced_clips=forced_clips,
+                    forced_clip_idx=state.forced_clip_idx,
+                    is_broll=is_broll,
+                    broll_clips=broll_clips,
+                    broll_idx=state.broll_idx,
+                    timeline_pos=state.timeline_pos,
+                    last_broll_time=state.last_broll_time,
+                    config=config,
+                    pools=pools,
+                    pool_indices=pool_indices,
+                    level=level,
+                    clip_idx=state.clip_idx,
+                    pick_from_pool=self._pick_from_pool,
+                )
+                state.forced_clip_idx = selection.forced_clip_idx
+                state.broll_idx = selection.broll_idx
+                state.clip_idx = selection.clip_idx
+                state.last_broll_time = selection.last_broll_time
+                state.target_broll_interval = selection.target_broll_interval
 
             candidate_clips = self._build_candidate_clips(
                 selection.clip,
@@ -883,6 +930,9 @@ class MontageGenerator:
                     speed_curve = self._compute_speed_curve(intensity_slice, config)
                     seg.speed_curve = speed_curve
                     seg.speed_factor = sum(speed_curve) / len(speed_curve)
+
+            # Video Phase System: stamp hook/intro/warmup phase metadata
+            phase_manager.apply_to_segment(seg, seg.timeline_position)
 
             segments.append(seg)
 
@@ -935,6 +985,7 @@ class MontageGenerator:
                 self._audio_time_for_timeline(timeline_time, config),
             )
 
+        _tail_start_idx = len(segments)
         state.timeline_pos = append_tail_segment(
             segments=segments,
             audio_data=audio_data,
@@ -953,6 +1004,8 @@ class MontageGenerator:
             min_recovery_seconds=MIN_RECOVERY_SEGMENT_SECONDS,
             sync_tolerance=config.duration_sync_tolerance_seconds,
         )
+        for _tail_seg in segments[_tail_start_idx:]:
+            phase_manager.apply_to_segment(_tail_seg, _tail_seg.timeline_position)
 
         overlap_budget = self._compute_transition_overlap_budget(segments, config)
         if overlap_budget > 0 and segments:
@@ -997,6 +1050,7 @@ class MontageGenerator:
                     speed_factor=fit.speed,
                     section_label=reference.section_label,
                 )
+                phase_manager.apply_to_segment(segment, timeline_position)
                 if config.explain:
                     reason = "Transition overlap compensation"
                     if fit.reason_suffix:

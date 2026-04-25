@@ -135,6 +135,58 @@ pacing:
   # pacing_warm_wash: false            # Amber flash at transitions
   # pacing_alternating_bokeh: false    # Blur on alternating segments
 
+  # Video Phase System — editorial structure for the first 30 seconds
+  # Each phase has a pool of named variations; one is selected per track
+  # (rotating, random, or fixed) so no two videos open identically.
+  # Genre presets include built-in phase configs. Uncomment to override.
+  #
+  # hook_phase:                        # 0 – end_time_seconds (~4s)
+  #   enabled: true
+  #   end_time_seconds: 4.0
+  #   variation_selection: rotate      # rotate | random | fixed
+  #   fixed_variation_index: 0
+  #   variations:
+  #     - name: dramatic_bloom
+  #       intro_effect: bloom          # bloom | vignette_breathe | none
+  #       intro_effect_duration: 1.5
+  #       pacing_saturation_pulse: true
+  #       clip_selection: highest_intensity  # intensity | highest_intensity
+  #     - name: vignette_reveal
+  #       intro_effect: vignette_breathe
+  #       intro_effect_duration: 2.0
+  #       pacing_drift_zoom: true
+  #       clip_selection: highest_intensity
+  #     - name: cold_cut
+  #       intro_effect: none
+  #       pacing_micro_jitters: true
+  #       pacing_light_leaks: true
+  #       clip_selection: highest_intensity
+  #
+  # intro_phase:                       # hook end – end_time_seconds (~10s)
+  #   enabled: true
+  #   end_time_seconds: 10.0
+  #   variation_selection: rotate
+  #   variations:
+  #     - name: curiosity_build
+  #       pacing_saturation_pulse: true
+  #       pacing_drift_zoom: true
+  #       target_duration_seconds: 4.0  # Override clip length for this phase
+  #     - name: rhythm_lock
+  #       pacing_light_leaks: true
+  #     - name: story_unfold
+  #       pacing_alternating_bokeh: true
+  #
+  # warmup_phase:                      # intro end – end_time_seconds (~30s)
+  #   enabled: true
+  #   end_time_seconds: 30.0
+  #   variation_selection: rotate
+  #   variations:
+  #     - name: flowing
+  #       pacing_drift_zoom: true
+  #     - name: punchy
+  #       pacing_saturation_pulse: true
+  #       pacing_micro_jitters: true
+
 # Pipeline Configuration (Full Pipeline Mode)
 # Controls per-track customization when running the full pipeline (src/pipeline.py)
 # Each mapping uses the audio filename (e.g. 'track1.wav') as the key.
