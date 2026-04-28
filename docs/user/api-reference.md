@@ -27,6 +27,43 @@ Runs the full pipeline: audio analysis → video scanning → montage generation
 
 ---
 
+## `src.application.batch_bridge` — Batch Handoff
+
+### `load_batch(batch_path: str | os.PathLike[str]) → dict`
+Load a batch JSON file from disk.
+
+### `save_batch(batch_path: str | os.PathLike[str], batch: dict) → None`
+Write a batch JSON file to disk.
+
+### `plan_song_from_batch(batch_path: str | os.PathLike[str], song_id: str, video_dir: str, config_overrides: dict | None = None, engine: BachataSyncEngine | None = None) → list[dict]`
+Plan a montage for one song inside a batch by resolving the stored audio path and scanning the clip directory.
+
+### `render_song_from_batch(batch_path: str | os.PathLike[str], song_id: str, video_dir: str, output_path: str, config_overrides: dict | None = None, engine: BachataSyncEngine | None = None) → dict`
+Render one song from a batch and write the updated video state back to the batch JSON.
+
+**Stops early if:**
+- the song has no audio asset path
+- the clip directory is missing
+- the video render cannot complete
+
+---
+
+## `mcp_server.py` — MCP Tools
+
+### `load_batch(batch_path: str) → dict`
+Load a batch JSON file and cache it in session state.
+
+### `save_batch(batch_path: str, batch: dict) → dict`
+Save a batch JSON file and cache it in session state.
+
+### `plan_batch_song(batch_path: str, song_id: str, video_dir: str, config_overrides: dict | None = None) → list[dict]`
+Plan one song from a batch through the MCP server.
+
+### `render_batch_song(batch_path: str, song_id: str, video_dir: str, output_path: str, config_overrides: dict | None = None) → dict`
+Render one song from a batch through the MCP server and update the in-memory batch cache.
+
+---
+
 ## `src.core.app` — Engine
 
 ### `BachataSyncEngine`

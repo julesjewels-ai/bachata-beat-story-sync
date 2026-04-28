@@ -168,6 +168,21 @@ All montage behavior is further configurable via [`montage_config.yaml`](montage
 
 ---
 
+## Batch Workflow
+
+This repo now accepts batch handoff from the lyric pipeline.
+
+- MCP server: `./venv/bin/python mcp_server.py`
+- Batch tools: `load_batch`, `save_batch`, `plan_batch_song`, `render_batch_song`
+- Batch render expects:
+  - a batch JSON file
+  - a real audio asset path in that batch
+  - a real clip directory
+
+See [docs/user/batch-workflow.md](docs/user/batch-workflow.md) for the full handoff flow.
+
+---
+
 ## Architecture
 
 ```

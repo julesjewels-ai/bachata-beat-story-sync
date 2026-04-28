@@ -5,6 +5,7 @@ This folder contains documentation that is **shipped with the product** and inte
 ## Contents
 
 - **user-guide.md** — Getting started, tutorials, and feature walkthroughs
+- **batch-workflow.md** — Lyric batch handoff, MCP tools, and render flow
 - **configuration.md** — All CLI arguments, environment variables, and setup options
 - **api-reference.md** — Programmatic API documentation
 - **security.md** — Security practices, data privacy, and best practices
