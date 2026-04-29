@@ -3,11 +3,9 @@ Entry point for the Bachata Beat-Story Sync application.
 """
 import argparse
 import logging
-import sys
 
-from pydantic import ValidationError
 from src.application.story_workflow import run_story_workflow
-from src.cli_utils import add_visual_args, build_pacing_kwargs
+from src.cli_utils import add_visual_args, build_pacing_kwargs, handle_cli_errors, setup_logging
 from src.services.json_output import build_json_output, write_json_output
 from src.services.plan_report import write_plan_report
 from src.services.reporting import ExcelReportGenerator
@@ -79,17 +77,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
 
-    # FEAT-028: Route logs to stderr when JSON goes to stdout
-    log_stream = {}
-    if getattr(args, "output_json", None) == "-":
-        log_stream["stream"] = sys.stderr
-
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s',
-        **log_stream,
-    )
-
+    setup_logging(args)
     logger = logging.getLogger(__name__)
     logger.info("Starting Bachata Beat-Story Sync...")
 
@@ -156,12 +144,8 @@ def main() -> None:
                 result.audio_meta, result.video_clips, args.export_report
             )
 
-    except ValidationError as e:
-        logger.error("Input validation error: %s", e)
-        sys.exit(1)
-    except Exception as e:
-        logger.error("An error occurred during processing: %s", e)
-        sys.exit(1)
+    except (Exception, KeyboardInterrupt) as e:
+        handle_cli_errors(e, logger)
 
 
 if __name__ == "__main__":

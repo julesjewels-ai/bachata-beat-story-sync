@@ -2,7 +2,7 @@
 Core interfaces and protocols for Bachata Beat-Story Sync.
 """
 
-from typing import Protocol
+from typing import Any, Protocol
 
 
 class ProgressObserver(Protocol):
@@ -20,3 +20,13 @@ class ProgressObserver(Protocol):
             message: A descriptive message about the current operation.
         """
         ...
+
+
+class ManagedProgressObserver(ProgressObserver, Protocol):
+    """ProgressObserver that also supports context manager usage."""
+
+    def __enter__(self) -> "ManagedProgressObserver": ...
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None: ...
+
+    def close(self) -> None: ...

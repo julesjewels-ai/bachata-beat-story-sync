@@ -5,9 +5,6 @@ Batch Generator for YouTube Shorts.
 import argparse
 import logging
 import os
-import sys
-
-from pydantic import ValidationError
 
 from src.cli_utils import (
     add_shorts_args,
@@ -15,11 +12,13 @@ from src.cli_utils import (
     analyze_audio,
     build_pacing_kwargs,
     generate_shorts_batch,
+    handle_cli_errors,
     parse_duration,
     run_dry_run_handler,
+    setup_logging,
     strip_thumbnails,
 )
-from src.config.app_config import load_app_config
+from src.config.app_config import build_pacing_config
 from src.core.app import BachataSyncEngine
 from src.ui.console import RichProgressObserver
 
@@ -58,6 +57,11 @@ def parse_args() -> argparse.Namespace:
         "--count", type=int, default=1, help="Number of unique shorts to generate"
     )
 
+    parser.add_argument(
+        "--test-mode",
+        action="store_true",
+        help="Run in test mode (max 4 clips, 10 seconds of music)",
+    )
     add_visual_args(parser)
     add_shorts_args(parser)
 
@@ -67,14 +71,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
 
-    # FEAT-028: Route logs to stderr when JSON goes to stdout
-    log_level = logging.INFO
-    log_format = "%(asctime)s - %(levelname)s - %(message)s"
-
-    if getattr(args, "output_json", None) == "-":
-        logging.basicConfig(level=log_level, format=log_format, stream=sys.stderr)
-    else:
-        logging.basicConfig(level=log_level, format=log_format)
+    setup_logging(args)
 
     min_dur, max_dur = parse_duration(args.duration)
 
@@ -102,9 +99,7 @@ def main() -> None:
         montage_clips = strip_thumbnails(video_clips)
 
         # 3. Generate Shorts (delegate to shared function)
-        # Load base YAML config and merge with CLI overrides
-        base_pacing = load_app_config().pacing
-        pacing_kwargs = {**base_pacing.model_dump(), **build_pacing_kwargs(args)}
+        pacing_kwargs = build_pacing_config(build_pacing_kwargs(args)).model_dump()
 
         # FEAT-026 + FEAT-028: Dry-run — preview plan without rendering.
         # Logic lives in cli_utils.run_dry_run_handler to avoid duplication
@@ -158,12 +153,8 @@ def main() -> None:
             data["shorts"] = results
             write_json_output(data, args.output_json)
 
-    except ValidationError as e:
-        logger.error("Input validation error: %s", e)
-        sys.exit(1)
-    except Exception as e:
-        logger.error("An error occurred during processing: %s", e)
-        sys.exit(1)
+    except (Exception, KeyboardInterrupt) as e:
+        handle_cli_errors(e, logger)
 
 
 if __name__ == "__main__":

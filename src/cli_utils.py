@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import argparse
 import logging
+import subprocess
+import sys
 import os
 import random
 import uuid
@@ -20,6 +22,45 @@ if TYPE_CHECKING:
 
 
 logger = logging.getLogger(__name__)
+
+
+def setup_logging(args: argparse.Namespace) -> None:
+    """Configure root logging for CLI entry points (main.py, shorts_maker.py)."""
+    log_format = "%(asctime)s - %(levelname)s - %(message)s"
+    stream = sys.stderr if getattr(args, "output_json", None) == "-" else None
+    kwargs: dict[str, Any] = {"level": logging.INFO, "format": log_format}
+    if stream is not None:
+        kwargs["stream"] = stream
+    logging.basicConfig(**kwargs)
+
+
+def handle_cli_errors(
+    e: Exception,
+    entry_logger: logging.Logger,
+    *,
+    verbose: bool = False,
+) -> None:
+    """Log a CLI exception and exit. Matches pipeline.py error coverage."""
+    from pydantic import ValidationError
+
+    if isinstance(e, ValidationError):
+        entry_logger.error("Input validation error: %s", e)
+    elif isinstance(e, FileNotFoundError):
+        entry_logger.error("File or directory not found: %s", e)
+    elif isinstance(e, PermissionError):
+        entry_logger.error("Permission denied: %s", e)
+    elif isinstance(e, subprocess.CalledProcessError):
+        entry_logger.error("FFmpeg process failed (exit code %d)", e.returncode)
+        if verbose:
+            entry_logger.debug("FFmpeg stderr:\n%s", e.stderr)
+    elif isinstance(e, KeyboardInterrupt):
+        entry_logger.warning("Cancelled by user.")
+        sys.exit(130)
+    else:
+        entry_logger.error("An error occurred during processing: %s", e)
+        if verbose:
+            entry_logger.exception("Full traceback:")
+    sys.exit(1)
 
 
 def detect_broll_dir(

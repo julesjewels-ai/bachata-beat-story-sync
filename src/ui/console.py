@@ -7,6 +7,7 @@ from __future__ import annotations
 import sys
 from collections.abc import Generator
 from contextlib import contextmanager
+from typing import Any
 
 from rich.console import Console
 from rich.panel import Panel
@@ -38,8 +39,6 @@ class RichProgressObserver:
 
     def __enter__(self) -> RichProgressObserver:
         return self
-
-    from typing import Any
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         self.close()
