@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bachata Beat-Story Sync — UI Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Serif+Display:ital@0;1&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ── Precision Gate Design Tokens ─────────────────────────── */
+:root {
+  --charcoal:      #2A2A2A;
+  --amber:         #FDB833;
+  --amber-dark:    #E5A520;
+  --amber-glow:    rgba(253,184,51,0.35);
+  --amber-tint:    rgba(253,184,51,0.07);
+  --ghost:         #F5F5F5;
+  --black:         #0A0A0A;
+  --surface:       #1E1E1E;
+  --border-amber:  rgba(253,184,51,0.25);
+  --border-subtle: rgba(255,255,255,0.08);
+  --text-secondary:#888888;
+  --radius-card:   28px;
+  --radius-btn:    24px;
+  --radius-input:  12px;
+  --max-w:         940px;
+}
+
+/* ── Reset & Base ──────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--ghost);
+  color: var(--black);
+  font-family: 'Space Grotesk', sans-serif;
+  min-height: 100vh;
+  padding: 1.5rem 1rem;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Film-grain noise overlay */
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.container {
+  max-width: var(--max-w);
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* ── Typography ────────────────────────────────────────────── */
+h1 { font-size: 2.8rem; font-weight: 700; letter-spacing: -1.5px; line-height: 1.1; }
+h2 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.5px; }
+h3 { font-size: 1.1rem; font-weight: 600; }
+.mono { font-family: 'IBM Plex Mono', monospace; }
+.serif-italic { font-family: 'DM Serif Display', serif; font-style: italic; }
+
+/* ── Animations ────────────────────────────────────────────── */
+@keyframes amber-pulse {
+  0%   { box-shadow: 0 4px 24px rgba(253,184,51,0.2); }
+  50%  { box-shadow: 0 8px 40px rgba(253,184,51,0.5), 0 0 0 4px rgba(253,184,51,0.15); }
+  100% { box-shadow: 0 4px 24px rgba(253,184,51,0.2); }
+}
+@keyframes progress-glow {
+  0%, 100% { box-shadow: 0 0 8px rgba(253,184,51,0.4); }
+  50%       { box-shadow: 0 0 20px rgba(253,184,51,0.7); }
+}
+@keyframes dot-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes log-scroll {
+  0%   { transform: translateY(0); }
+  100% { transform: translateY(-50%); }
+}
+@keyframes progress-bar {
+  from { width: 0%; }
+  to   { width: 72%; }
+}
+
+/* ── Buttons ───────────────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+  font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 0.95rem;
+  letter-spacing: 0.5px; text-transform: uppercase; cursor: pointer; border: none;
+  border-radius: var(--radius-btn); padding: 14px 32px; min-height: 52px;
+  transition: transform 0.18s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.18s ease;
+  text-decoration: none; white-space: nowrap;
+}
+.btn-primary {
+  background: linear-gradient(135deg, var(--amber) 0%, var(--amber-dark) 100%);
+  color: var(--black);
+  box-shadow: 0 4px 24px rgba(253,184,51,0.2);
+  animation: amber-pulse 2.8s ease-in-out infinite;
+}
+.btn-primary:hover { transform: scale(1.05); box-shadow: 0 8px 32px var(--amber-glow), 0 0 0 2px var(--amber) !important; animation: none; }
+.btn-primary:active { transform: scale(0.97); }
+.btn-secondary {
+  background: transparent; color: var(--amber);
+  border: 2px solid var(--border-amber);
+}
+.btn-secondary:hover { border-color: var(--amber); background: rgba(253,184,51,0.08); transform: scale(1.03); }
+.btn-ghost {
+  background: transparent; color: var(--text-secondary);
+  border: 1.5px solid rgba(0,0,0,0.15); font-size: 0.85rem; padding: 10px 20px; min-height: 40px;
+}
+.btn-ghost:hover { border-color: var(--text-secondary); color: var(--black); }
+.btn-full { width: 100%; }
+.btn-sm { padding: 10px 20px; min-height: 42px; font-size: 0.85rem; }
+
+/* ── Cards ─────────────────────────────────────────────────── */
+.card {
+  background: #fff; border-radius: var(--radius-card);
+  border: 1px solid var(--border-amber);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+  padding: 1.8rem;
+}
+.card-dark {
+  background: var(--charcoal); color: #F5F5F5;
+  border-radius: var(--radius-card);
+  border: 1px solid rgba(253,184,51,0.2);
+}
+
+/* ── Page states (JS-controlled) ──────────────────────────── */
+.page-state { display: none; animation: fade-in 0.3s ease forwards; }
+.page-state.active { display: block; }
+
+/* ═══════════════════════════════════════════════════════════ */
+/* STATE 1: IDLE / HERO                                        */
+/* ═══════════════════════════════════════════════════════════ */
+
+.hero-card {
+  background: var(--charcoal);
+  border-radius: var(--radius-card);
+  padding: 3.5rem 3rem 3rem;
+  text-align: center;
+  margin-bottom: 1.5rem;
+  border: 1px solid rgba(253,184,51,0.2);
+  box-shadow: 0 16px 64px rgba(0,0,0,0.18);
+}
+.hero-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.72rem; letter-spacing: 3.5px; color: var(--amber);
+  text-transform: uppercase; margin-bottom: 1rem; display: block;
+}
+.hero-title { color: #F5F5F5; margin-bottom: 0.65rem; }
+.hero-sub {
+  font-family: 'DM Serif Display', serif; font-style: italic;
+  font-size: 1.25rem; color: rgba(245,245,245,0.65); margin-bottom: 2.5rem; line-height: 1.4;
+}
+.hero-ctas {
+  display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;
+}
+
+/* ── Input Section ─────────────────────────────────────────── */
+.input-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;
+}
+.input-label {
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.68rem;
+  letter-spacing: 2px; color: var(--amber); text-transform: uppercase;
+  display: block; margin-bottom: 0.6rem;
+}
+.drop-zone {
+  border: 2px dashed rgba(253,184,51,0.4); border-radius: 16px;
+  background: rgba(253,184,51,0.03); padding: 1.4rem 1rem;
+  text-align: center; cursor: pointer; transition: all 0.2s ease;
+  margin-bottom: 0.6rem;
+}
+.drop-zone:hover, .drop-zone.has-file {
+  border-color: var(--amber); background: rgba(253,184,51,0.07);
+  box-shadow: 0 0 0 3px rgba(253,184,51,0.12);
+}
+.drop-zone-icon { font-size: 1.8rem; margin-bottom: 0.4rem; display: block; }
+.drop-zone-text { font-size: 0.82rem; color: var(--text-secondary); }
+.drop-zone.has-file .drop-zone-text { color: var(--amber-dark); font-weight: 600; }
+.input-row { display: flex; gap: 0.5rem; align-items: stretch; }
+.text-input {
+  flex: 1; background: #fff; border: 1.5px solid rgba(0,0,0,0.15);
+  border-radius: var(--radius-input); color: var(--black);
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.88rem;
+  padding: 10px 14px; outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+}
+.text-input:focus { border-color: var(--amber); box-shadow: 0 0 0 3px rgba(253,184,51,0.18); }
+.icon-btn {
+  background: #fff; border: 1.5px solid rgba(0,0,0,0.15); border-radius: 10px;
+  padding: 6px 12px; cursor: pointer; font-size: 1rem; transition: all 0.2s;
+  display: flex; align-items: center;
+}
+.icon-btn:hover { background: rgba(253,184,51,0.1); border-color: var(--amber); }
+
+/* ── Advanced Settings Accordion ──────────────────────────── */
+.accordion { margin-bottom: 1rem; }
+.accordion-trigger {
+  width: 100%; background: #fff; border: 1px solid var(--border-amber);
+  border-radius: 16px; padding: 0.9rem 1.4rem; cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between;
+  font-family: 'Space Grotesk', sans-serif; font-weight: 600;
+  color: var(--amber-dark); transition: all 0.2s;
+}
+.accordion-trigger:hover { background: rgba(253,184,51,0.05); border-color: var(--amber); }
+.accordion-trigger.open { border-radius: 16px 16px 0 0; }
+.chevron { transition: transform 0.25s ease; font-style: normal; }
+.accordion-trigger.open .chevron { transform: rotate(180deg); }
+.accordion-body {
+  display: none; background: #fff; border: 1px solid rgba(0,0,0,0.08);
+  border-top: none; border-radius: 0 0 16px 16px; padding: 1.4rem;
+}
+.accordion-body.open { display: block; }
+.settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+.setting-group { display: flex; flex-direction: column; gap: 0.3rem; }
+.select-input {
+  background: #fff; border: 1.5px solid rgba(0,0,0,0.15);
+  border-radius: var(--radius-input); color: var(--black);
+  font-family: 'Space Grotesk', sans-serif; font-size: 0.92rem;
+  padding: 10px 14px; outline: none; cursor: pointer; transition: all 0.2s;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23E5A520' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 14px center;
+  padding-right: 36px;
+}
+.select-input:focus { border-color: var(--amber); box-shadow: 0 0 0 3px rgba(253,184,51,0.18); }
+.checkbox-row { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.checkbox-label {
+  display: flex; align-items: center; gap: 0.5rem;
+  font-size: 0.92rem; color: var(--black); cursor: pointer;
+}
+.checkbox-label input[type=checkbox] {
+  accent-color: var(--amber); width: 16px; height: 16px; cursor: pointer;
+}
+.sub-section { margin-top: 1.2rem; padding-top: 1.2rem; border-top: 1px solid rgba(0,0,0,0.06); }
+.sub-section-title {
+  font-weight: 600; font-size: 0.88rem; color: var(--black); margin-bottom: 0.8rem;
+}
+.checkbox-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem 1.5rem; margin-bottom: 0.5rem; }
+.slider-row { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 0.8rem; }
+.slider-label-row { display: flex; justify-content: space-between; font-size: 0.82rem; color: var(--text-secondary); }
+input[type=range] { accent-color: var(--amber); width: 100%; height: 4px; }
+.speed-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-top: 0.8rem; }
+
+/* ── Generate CTA ──────────────────────────────────────────── */
+.generate-cta { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-amber); }
+.cta-wrap { max-width: 360px; margin: 0 auto; }
+
+/* ═══════════════════════════════════════════════════════════ */
+/* STATE 2: PROCESSING                                          */
+/* ═══════════════════════════════════════════════════════════ */
+
+.compact-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 1.5rem; padding: 1rem 0;
+}
+.compact-brand { font-weight: 700; font-size: 1.1rem; }
+.compact-brand span { color: var(--amber); }
+.processing-badge {
+  display: flex; align-items: center; gap: 0.5rem;
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem;
+  color: var(--amber-dark); font-weight: 500;
+}
+.badge-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--amber);
+  animation: dot-blink 1.2s ease-in-out infinite;
+}
+
+.progress-track {
+  height: 8px; background: rgba(0,0,0,0.08); border-radius: 4px;
+  overflow: hidden; margin-bottom: 1.5rem;
+}
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--amber) 0%, var(--amber-dark) 100%);
+  border-radius: 4px;
+  animation: progress-bar 3.5s cubic-bezier(0.1,0.9,0.3,1) forwards,
+             progress-glow 2s ease-in-out infinite;
+  box-shadow: 0 0 12px rgba(253,184,51,0.4);
+}
+
+.status-card {
+  background: var(--charcoal); border-radius: var(--radius-card);
+  border: 1px solid rgba(253,184,51,0.2); padding: 2rem; margin-bottom: 1rem;
+}
+.stage-label {
+  font-family: 'IBM Plex Mono', monospace; color: var(--amber);
+  font-size: 0.85rem; letter-spacing: 1px; text-transform: uppercase;
+  margin-bottom: 1.5rem;
+}
+.metrics-row {
+  display: grid; grid-template-columns: repeat(4,1fr); gap: 0.75rem; margin-bottom: 1.5rem;
+}
+.metric-card {
+  background: rgba(255,255,255,0.05); border-radius: 12px;
+  padding: 1rem; border-top: 3px solid var(--amber);
+}
+.metric-label {
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.6rem;
+  letter-spacing: 1.8px; text-transform: uppercase; color: var(--text-secondary);
+  margin-bottom: 0.4rem; display: block;
+}
+.metric-value {
+  font-family: 'IBM Plex Mono', monospace; font-size: 1.5rem;
+  font-weight: 500; color: var(--amber-dark);
+}
+
+.log-area {
+  background: var(--surface); border-radius: 12px; padding: 1rem;
+  height: 180px; overflow: hidden; position: relative;
+}
+.log-scroll {
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.75rem;
+  color: rgba(245,245,245,0.7); line-height: 1.8;
+  animation: log-scroll 12s linear infinite;
+}
+.log-line { padding: 1px 0; }
+.log-line.amber { color: var(--amber); }
+.log-line.green { color: #4CAF50; }
+
+/* ═══════════════════════════════════════════════════════════ */
+/* STATE 3: RESULT                                             */
+/* ═══════════════════════════════════════════════════════════ */
+
+.result-header {
+  display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;
+}
+.result-check {
+  width: 52px; height: 52px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--amber), var(--amber-dark));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem; flex-shrink: 0;
+  box-shadow: 0 4px 20px rgba(253,184,51,0.4);
+}
+.result-heading { font-size: 2rem; font-weight: 700; }
+.result-sub { color: var(--text-secondary); font-size: 0.9rem; }
+
+.video-player {
+  background: var(--charcoal); border-radius: 20px;
+  aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center;
+  margin-bottom: 1.5rem;
+  border: 1px solid rgba(253,184,51,0.3);
+  box-shadow: 0 12px 48px rgba(0,0,0,0.3), 0 0 0 1px rgba(253,184,51,0.15);
+  cursor: pointer; overflow: hidden; position: relative;
+}
+.video-player::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(ellipse at 30% 40%, rgba(253,184,51,0.08) 0%, transparent 60%);
+}
+.play-btn {
+  width: 72px; height: 72px; border-radius: 50%;
+  background: rgba(253,184,51,0.9); display: flex; align-items: center; justify-content: center;
+  font-size: 1.8rem; box-shadow: 0 4px 32px rgba(253,184,51,0.5);
+  transition: transform 0.2s; cursor: pointer; z-index: 1;
+}
+.play-btn:hover { transform: scale(1.1); }
+.video-caption {
+  position: absolute; bottom: 1rem; left: 0; right: 0; text-align: center;
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.75rem;
+  color: rgba(245,245,245,0.5); letter-spacing: 1px;
+}
+
+.download-row { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+.download-btn {
+  flex: 1; min-width: 140px;
+  background: #fff; border: 1.5px solid var(--border-amber);
+  border-radius: 16px; padding: 1rem; text-align: center; cursor: pointer;
+  transition: all 0.2s; display: flex; flex-direction: column;
+  align-items: center; gap: 0.4rem;
+}
+.download-btn:hover { border-color: var(--amber); background: rgba(253,184,51,0.05); transform: translateY(-2px); box-shadow: 0 4px 16px rgba(253,184,51,0.15); }
+.download-icon { font-size: 1.4rem; }
+.download-label { font-size: 0.82rem; font-weight: 600; color: var(--black); }
+.download-sub { font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem; color: var(--text-secondary); }
+
+.result-metrics {
+  display: grid; grid-template-columns: repeat(4,1fr); gap: 0.75rem; margin-bottom: 1.5rem;
+}
+.result-metric {
+  background: #fff; border-radius: 16px; padding: 1.2rem;
+  border-top: 3px solid var(--amber); border: 1px solid rgba(0,0,0,0.08);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+}
+
+.again-wrap { text-align: center; }
+
+/* ── State navigation pills (prototype only) ─────────────── */
+.state-nav {
+  position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 1000;
+  display: flex; flex-direction: column; gap: 0.5rem; align-items: flex-end;
+}
+.state-pill {
+  background: var(--charcoal); color: #F5F5F5;
+  border: 1px solid rgba(253,184,51,0.3); border-radius: 20px;
+  padding: 6px 14px; font-size: 0.72rem; font-family: 'IBM Plex Mono', monospace;
+  cursor: pointer; letter-spacing: 1px; text-transform: uppercase;
+  transition: all 0.2s;
+}
+.state-pill:hover { border-color: var(--amber); color: var(--amber); }
+.state-pill.active { border-color: var(--amber); color: var(--amber); background: rgba(253,184,51,0.1); }
+.state-nav-label {
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.6rem;
+  color: var(--text-secondary); text-align: right; letter-spacing: 1px; text-transform: uppercase;
+}
+
+/* ── Speed controls collapse ───────────────────────────────── */
+.speed-controls { display: none; }
+.speed-controls.visible { display: block; }
+
+/* ── Responsive ────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  h1 { font-size: 2rem; }
+  .input-grid { grid-template-columns: 1fr; }
+  .settings-grid { grid-template-columns: 1fr; }
+  .metrics-row { grid-template-columns: repeat(2,1fr); }
+  .result-metrics { grid-template-columns: repeat(2,1fr); }
+  .hero-ctas { flex-direction: column; align-items: center; }
+  .btn { min-width: 260px; }
+  .download-row { flex-direction: column; }
+  .compact-header { flex-wrap: wrap; gap: 0.5rem; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── Prototype State Navigation ────────────────────────── -->
+<nav class="state-nav">
+  <div class="state-nav-label">Prototype States</div>
+  <div class="state-pill active" onclick="showState('idle')">1 · Idle</div>
+  <div class="state-pill" onclick="showState('processing')">2 · Processing</div>
+  <div class="state-pill" onclick="showState('result')">3 · Result</div>
+</nav>
+
+<div class="container">
+
+  <!-- ════════════════════════════════════════════════════════
+       STATE 1: IDLE / HERO
+       ════════════════════════════════════════════════════════ -->
+  <div class="page-state active" id="state-idle">
+
+    <!-- Hero Card -->
+    <div class="hero-card">
+      <span class="hero-label mono">Beat-Synced Video Automation</span>
+      <h1 class="hero-title">Bachata Beat-Story Sync</h1>
+      <p class="hero-sub serif-italic">Beat-Synced in Seconds. Professional Montages in Minutes.</p>
+      <div class="hero-ctas">
+        <button class="btn btn-primary" onclick="showState('processing')">▶&nbsp; Try the Demo — Free</button>
+        <button class="btn btn-secondary" onclick="showState('processing')">Quick Dry-Run Preview (10s)</button>
+      </div>
+    </div>
+
+    <!-- File Inputs -->
+    <div class="input-grid">
+      <div class="card">
+        <label class="input-label mono">Audio File</label>
+        <div class="drop-zone" id="audio-drop" onclick="simulateFilePick('audio')">
+          <span class="drop-zone-icon">🎵</span>
+          <div class="drop-zone-text" id="audio-drop-text">Drop .wav / .mp3 here or click to browse</div>
+        </div>
+        <div class="input-row">
+          <input class="text-input" id="audio-path" type="text" placeholder="/path/to/track.wav" readonly>
+          <button class="icon-btn" onclick="simulateFilePick('audio')">📁</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <label class="input-label mono">Video Clips Folder</label>
+        <div class="drop-zone" id="video-drop" onclick="simulateFilePick('video')">
+          <span class="drop-zone-icon">🎬</span>
+          <div class="drop-zone-text" id="video-drop-text">Drop folder here or click to browse</div>
+        </div>
+        <div class="input-row">
+          <input class="text-input" id="video-path" type="text" placeholder="/path/to/clips/" readonly>
+          <button class="icon-btn" onclick="simulateFilePick('video')">📁</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Advanced Settings Accordion -->
+    <div class="accordion">
+      <button class="accordion-trigger" onclick="toggleAccordion(this)">
+        <span>⚙&nbsp;&nbsp;Advanced Settings — Visual Style, Effects &amp; Limits</span>
+        <span class="chevron">▾</span>
+      </button>
+      <div class="accordion-body">
+
+        <!-- Row 1: Selects -->
+        <div class="settings-grid">
+          <div class="setting-group">
+            <label class="input-label mono">Genre Preset</label>
+            <select class="select-input">
+              <option>(none)</option>
+              <option>Bachata</option>
+              <option>Salsa</option>
+              <option>Reggaeton</option>
+              <option>Kizomba</option>
+            </select>
+          </div>
+          <div class="setting-group">
+            <label class="input-label mono">Colour Grade</label>
+            <select class="select-input">
+              <option value="none">None</option>
+              <option>Warm</option>
+              <option>Vintage</option>
+              <option>Cool</option>
+              <option>B&amp;W</option>
+              <option>Golden</option>
+            </select>
+          </div>
+          <div class="setting-group">
+            <label class="input-label mono">Transition Type</label>
+            <select class="select-input">
+              <option>None</option>
+              <option>Fade</option>
+              <option>Wipe Left</option>
+              <option>Wipe Right</option>
+              <option>Slide Up</option>
+            </select>
+          </div>
+          <div class="setting-group">
+            <label class="input-label mono">Intro Effect</label>
+            <select class="select-input">
+              <option>None</option>
+              <option>Bloom</option>
+              <option>Vignette Breathe</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Checkboxes -->
+        <div class="input-label mono" style="margin-bottom:0.6rem;">Limits &amp; Output</div>
+        <div class="checkbox-row">
+          <label class="checkbox-label"><input type="checkbox"> Test mode (4 clips, 10s)</label>
+          <label class="checkbox-label"><input type="checkbox"> Dry run (plan only)</label>
+          <label class="checkbox-label"><input type="checkbox"> Export Excel report</label>
+        </div>
+
+        <!-- Speed Ramping -->
+        <div class="sub-section">
+          <div class="sub-section-title">Speed Ramping</div>
+          <label class="checkbox-label" style="margin-bottom:0.8rem;">
+            <input type="checkbox" id="speed-toggle" onchange="toggleSpeedControls(this)"> Organic per-beat speed
+          </label>
+          <div class="speed-controls" id="speed-controls">
+            <div class="slider-row">
+              <div class="slider-label-row">
+                <span>Sensitivity</span>
+                <span class="mono" id="sens-val">1.0</span>
+              </div>
+              <input type="range" min="3" max="20" value="10"
+                     oninput="document.getElementById('sens-val').textContent=(this.value/10).toFixed(1)">
+            </div>
+            <div class="settings-grid" style="margin-bottom:0.8rem;">
+              <div class="setting-group">
+                <label class="input-label mono">Curve Type</label>
+                <select class="select-input">
+                  <option>ease_in_out</option><option>linear</option>
+                  <option>ease_in</option><option>ease_out</option>
+                </select>
+              </div>
+              <div></div>
+            </div>
+            <div class="speed-grid">
+              <div class="setting-group">
+                <label class="input-label mono">Min Speed</label>
+                <input class="text-input" type="number" value="0.8" step="0.1" min="0.3" max="1.0">
+              </div>
+              <div class="setting-group">
+                <label class="input-label mono">Max Speed</label>
+                <input class="text-input" type="number" value="1.3" step="0.1" min="1.0" max="2.0">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Beat Effects -->
+        <div class="sub-section">
+          <div class="sub-section-title">Beat-Synced Effects</div>
+          <div class="checkbox-grid-2">
+            <label class="checkbox-label"><input type="checkbox"> Drift zoom (Ken Burns)</label>
+            <label class="checkbox-label"><input type="checkbox"> Crop tighten</label>
+            <label class="checkbox-label"><input type="checkbox"> Saturation pulse</label>
+            <label class="checkbox-label"><input type="checkbox"> Micro-jitters</label>
+            <label class="checkbox-label"><input type="checkbox"> Light leaks</label>
+            <label class="checkbox-label"><input type="checkbox"> Warm wash</label>
+            <label class="checkbox-label"><input type="checkbox"> Alternating bokeh</label>
+          </div>
+        </div>
+
+        <!-- Text Overlays -->
+        <div class="sub-section">
+          <div class="input-label mono" style="margin-bottom:0.6rem;">Text Overlays</div>
+          <label class="checkbox-label" style="margin-bottom:1rem;">
+            <input type="checkbox" id="overlay-toggle" onchange="toggleOverlayControls(this)"> Enable text overlays
+          </label>
+          <div id="overlay-controls" style="display:none;">
+            <div class="settings-grid" style="margin-bottom:0.8rem;">
+              <div class="setting-group">
+                <label class="input-label mono">Artist Name</label>
+                <input class="text-input" type="text" placeholder="e.g. Romeo Santos">
+              </div>
+              <div class="setting-group">
+                <label class="input-label mono">Song Title</label>
+                <input class="text-input" type="text" placeholder="e.g. Propuesta Indecente">
+              </div>
+            </div>
+            <div class="checkbox-row">
+              <label class="checkbox-label"><input type="checkbox" checked> Cinematic cold open</label>
+              <label class="checkbox-label"><input type="checkbox" checked> LRC lyrics overlay</label>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /accordion-body -->
+    </div><!-- /accordion -->
+
+    <!-- Generate CTA -->
+    <div class="generate-cta">
+      <div class="cta-wrap">
+        <button class="btn btn-primary btn-full" onclick="showState('processing')">
+          ▶&nbsp;&nbsp;Generate Montage
+        </button>
+      </div>
+    </div>
+
+  </div><!-- /state-idle -->
+
+  <!-- ════════════════════════════════════════════════════════
+       STATE 2: PROCESSING
+       ════════════════════════════════════════════════════════ -->
+  <div class="page-state" id="state-processing">
+
+    <!-- Compact Header -->
+    <div class="compact-header">
+      <div class="compact-brand">Bachata <span>Beat-Story</span> Sync</div>
+      <div style="display:flex;align-items:center;gap:1rem;">
+        <div class="processing-badge">
+          <span class="badge-dot"></span>
+          <span class="mono">Processing…</span>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="showState('idle')">Cancel</button>
+      </div>
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="progress-track">
+      <div class="progress-fill" id="progress-fill"></div>
+    </div>
+
+    <!-- Status Card -->
+    <div class="status-card">
+      <div class="stage-label" id="stage-label">▶ Analysing audio… extracting BPM and beat grid</div>
+
+      <!-- Metrics -->
+      <div class="metrics-row">
+        <div class="metric-card">
+          <span class="metric-label">BPM</span>
+          <div class="metric-value">128</div>
+        </div>
+        <div class="metric-card">
+          <span class="metric-label">Clips Found</span>
+          <div class="metric-value" id="clips-count">47</div>
+        </div>
+        <div class="metric-card">
+          <span class="metric-label">Duration</span>
+          <div class="metric-value">3:24</div>
+        </div>
+        <div class="metric-card">
+          <span class="metric-label">Stage</span>
+          <div class="metric-value" id="stage-pct">42%</div>
+        </div>
+      </div>
+
+      <!-- Log Terminal -->
+      <div class="log-area">
+        <div class="log-scroll" id="log-scroll">
+          <div class="log-line amber">▶ [00:00.1] Starting BachataSyncEngine…</div>
+          <div class="log-line">· Loading audio: bachata_track.wav (204s)</div>
+          <div class="log-line">· Detecting BPM with librosa beat tracker…</div>
+          <div class="log-line amber">✓ BPM detected: 128.0 | 261 beats found</div>
+          <div class="log-line">· Segmenting audio into 8 sections…</div>
+          <div class="log-line">· Section 0: bars 1-16, intensity=0.42 (verse)</div>
+          <div class="log-line">· Section 1: bars 17-32, intensity=0.71 (chorus)</div>
+          <div class="log-line">· Scanning video library: /clips/ …</div>
+          <div class="log-line amber">✓ Found 47 video clips (total: 18m 32s)</div>
+          <div class="log-line">· Analysing clip intensities via OpenCV…</div>
+          <div class="log-line">· [clip 01/47] scene_changes=3, intensity=0.65</div>
+          <div class="log-line">· [clip 05/47] scene_changes=1, intensity=0.88</div>
+          <div class="log-line">· [clip 12/47] scene_changes=5, intensity=0.92</div>
+          <div class="log-line amber">▶ Building segment plan (23 segments)…</div>
+          <div class="log-line green">✓ Segment plan validated</div>
+          <div class="log-line">· Applying colour grade: warm</div>
+          <div class="log-line">· Intro effect: bloom (first segment)</div>
+          <div class="log-line">· Transition: fade (0.45s)</div>
+          <div class="log-line amber">▶ Rendering via FFmpeg…</div>
+          <div class="log-line">· Segment 01/23 → [00:00–00:08.8] clip_07.mp4</div>
+          <div class="log-line">· Segment 02/23 → [00:08.8–00:16.0] clip_23.mp4</div>
+          <!-- duplicate for scroll loop -->
+          <div class="log-line amber">▶ [00:00.1] Starting BachataSyncEngine…</div>
+          <div class="log-line">· Loading audio: bachata_track.wav (204s)</div>
+          <div class="log-line">· Detecting BPM with librosa beat tracker…</div>
+          <div class="log-line amber">✓ BPM detected: 128.0 | 261 beats found</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Auto-advance hint -->
+    <div style="text-align:center;margin-top:1rem;">
+      <span class="mono" style="font-size:0.72rem;color:var(--text-secondary);letter-spacing:1px;">
+        AUTO-ADVANCING TO RESULT IN <span id="countdown">5</span>s
+      </span>
+    </div>
+
+  </div><!-- /state-processing -->
+
+  <!-- ════════════════════════════════════════════════════════
+       STATE 3: RESULT
+       ════════════════════════════════════════════════════════ -->
+  <div class="page-state" id="state-result">
+
+    <!-- Result Header -->
+    <div class="result-header">
+      <div class="result-check">✓</div>
+      <div>
+        <h2 class="result-heading">Montage ready!</h2>
+        <p class="result-sub">bachata_track_montage.mp4 · 204s · 47 MB</p>
+      </div>
+    </div>
+
+    <!-- Video Player -->
+    <div class="video-player">
+      <div class="play-btn">▶</div>
+      <div class="video-caption mono">bachata_track_montage.mp4 · 3:24 · 1080p</div>
+    </div>
+
+    <!-- Downloads -->
+    <div class="download-row">
+      <div class="download-btn">
+        <div class="download-icon">🎬</div>
+        <div class="download-label">Download MP4</div>
+        <div class="download-sub mono">204s · 47 MB</div>
+      </div>
+      <div class="download-btn">
+        <div class="download-icon">📄</div>
+        <div class="download-label">Plan Report</div>
+        <div class="download-sub mono">Markdown · 23 segments</div>
+      </div>
+      <div class="download-btn">
+        <div class="download-icon">📊</div>
+        <div class="download-label">Excel Report</div>
+        <div class="download-sub mono">analysis.xlsx</div>
+      </div>
+    </div>
+
+    <!-- Result Metrics -->
+    <div class="result-metrics">
+      <div class="result-metric">
+        <span class="metric-label mono">BPM Detected</span>
+        <div class="metric-value mono" style="color:var(--amber-dark)">128</div>
+      </div>
+      <div class="result-metric">
+        <span class="metric-label mono">Clips Used</span>
+        <div class="metric-value mono" style="color:var(--amber-dark)">23 / 47</div>
+      </div>
+      <div class="result-metric">
+        <span class="metric-label mono">Output Duration</span>
+        <div class="metric-value mono" style="color:var(--amber-dark)">3:24</div>
+      </div>
+      <div class="result-metric">
+        <span class="metric-label mono">Effects Applied</span>
+        <div class="metric-value mono" style="color:var(--amber-dark)">4</div>
+      </div>
+    </div>
+
+    <div class="again-wrap">
+      <button class="btn btn-secondary" onclick="showState('idle')">▶&nbsp; Generate Another</button>
+    </div>
+
+  </div><!-- /state-result -->
+
+</div><!-- /container -->
+
+<script>
+/* ── State machine ─────────────────────────────────────────── */
+let countdownTimer = null;
+let stageTimer = null;
+
+function showState(name) {
+  // Clear timers
+  if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+  if (stageTimer)     { clearInterval(stageTimer);     stageTimer = null; }
+
+  document.querySelectorAll('.page-state').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.state-pill').forEach(el => el.classList.remove('active'));
+
+  document.getElementById('state-' + name).classList.add('active');
+  const idx = ['idle','processing','result'].indexOf(name);
+  document.querySelectorAll('.state-pill')[idx].classList.add('active');
+
+  if (name === 'processing') startProcessing();
+}
+
+const stages = [
+  '▶ Analysing audio… extracting BPM and beat grid',
+  '▶ Scanning 47 video clips with OpenCV…',
+  '▶ Building segment plan (23 segments)…',
+  '▶ Rendering via FFmpeg… (segment 08/23)',
+  '▶ Concatenating clips and applying audio…',
+];
+let stageIdx = 0;
+
+function startProcessing() {
+  // Reset progress bar animation
+  const fill = document.getElementById('progress-fill');
+  fill.style.animation = 'none';
+  fill.offsetHeight; // reflow
+  fill.style.animation = 'progress-bar 5s cubic-bezier(0.1,0.9,0.3,1) forwards, progress-glow 2s ease-in-out infinite';
+
+  stageIdx = 0;
+  document.getElementById('stage-label').textContent = stages[0];
+  document.getElementById('stage-pct').textContent = '0%';
+
+  let pct = 0;
+  stageTimer = setInterval(() => {
+    pct = Math.min(pct + 7, 72);
+    document.getElementById('stage-pct').textContent = pct + '%';
+    stageIdx = Math.min(Math.floor(pct / 15), stages.length - 1);
+    document.getElementById('stage-label').textContent = stages[stageIdx];
+    if (pct >= 72) clearInterval(stageTimer);
+  }, 400);
+
+  let n = 5;
+  document.getElementById('countdown').textContent = n;
+  countdownTimer = setInterval(() => {
+    n--;
+    document.getElementById('countdown').textContent = n;
+    if (n <= 0) { clearInterval(countdownTimer); showState('result'); }
+  }, 1000);
+}
+
+/* ── Accordion ─────────────────────────────────────────────── */
+function toggleAccordion(btn) {
+  btn.classList.toggle('open');
+  btn.nextElementSibling.classList.toggle('open');
+}
+
+/* ── Speed controls visibility ─────────────────────────────── */
+function toggleSpeedControls(cb) {
+  document.getElementById('speed-controls').classList.toggle('visible', cb.checked);
+}
+
+/* ── Overlay controls visibility ───────────────────────────── */
+function toggleOverlayControls(cb) {
+  document.getElementById('overlay-controls').style.display = cb.checked ? 'block' : 'none';
+}
+
+/* ── Simulated file picker ─────────────────────────────────── */
+const audioFiles = ['bachata_track.wav','romeo_santos_mix.wav','salsa_vibes.mp3'];
+const videoDirs  = ['/home/dancer/clips/', '/media/recordings/2025/', '/Users/studio/dance_takes/'];
+let picks = { audio: 0, video: 0 };
+
+function simulateFilePick(type) {
+  if (type === 'audio') {
+    const f = audioFiles[picks.audio++ % audioFiles.length];
+    document.getElementById('audio-path').value = '/music/' + f;
+    const dz = document.getElementById('audio-drop');
+    dz.classList.add('has-file');
+    document.getElementById('audio-drop-text').textContent = '🎵 ' + f;
+  } else {
+    const d = videoDirs[picks.video++ % videoDirs.length];
+    document.getElementById('video-path').value = d;
+    const dz = document.getElementById('video-drop');
+    dz.classList.add('has-file');
+    document.getElementById('video-drop-text').textContent = '📁 ' + d.split('/').filter(Boolean).pop() + '/';
+  }
+}
+</script>
+</body>
+</html>
