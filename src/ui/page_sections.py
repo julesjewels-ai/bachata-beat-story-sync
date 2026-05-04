@@ -61,14 +61,14 @@ def render_page_header(state: SessionState, show_welcome: bool) -> None:
             demo_full_clicked = st.button(
                 "▶  Try the Demo — Free",
                 type="primary",
-                use_container_width=True,
+                width="stretch",
                 key="hero_demo_btn",
                 help="Run the tool with built-in sample clips and audio (~2 min).",
             )
             demo_preview_clicked = st.button(
                 "Quick Dry-Run Preview (10s)",
                 type="secondary",
-                use_container_width=True,
+                width="stretch",
                 key="hero_preview_btn",
                 help="See the beat-sync plan instantly — no video rendering.",
             )
@@ -169,14 +169,14 @@ def render_progress_fragment() -> None:
         if line.startswith("__DONE__"):
             done = True
         elif line.startswith("__RESULT__"):
-            state.result_path = line[len("__RESULT__"):]
+            state.result_path = line[len("__RESULT__") :]
         elif line.startswith("__ERROR__"):
-            state.error = line[len("__ERROR__"):]
+            state.error = line[len("__ERROR__") :]
         elif line.startswith("__PLAN_REPORT__"):
-            state.plan_report = line[len("__PLAN_REPORT__"):]
+            state.plan_report = line[len("__PLAN_REPORT__") :]
         elif line.startswith("__METADATA__"):
             try:
-                state.result_metadata = json.loads(line[len("__METADATA__"):])
+                state.result_metadata = json.loads(line[len("__METADATA__") :])
             except (ValueError, KeyError):
                 pass
         else:
@@ -222,9 +222,7 @@ def render_progress_fragment() -> None:
     st.divider()
 
     with st.expander("SYSTEM LOG", expanded=False):
-        recent = (
-            state.log_lines[-25:] if len(state.log_lines) > 25 else state.log_lines
-        )
+        recent = state.log_lines[-25:] if len(state.log_lines) > 25 else state.log_lines
         st.text_area(
             "log",
             value="\n".join(recent),
@@ -256,7 +254,7 @@ def render_error_panel(state: SessionState) -> None:
     if st.button(
         "Clear Results",
         type="secondary",
-        use_container_width=True,
+        width="stretch",
         key="clear_error_btn",
     ):
         state.clear_results()
@@ -273,11 +271,11 @@ def render_result_panel(state: SessionState) -> None:
     st.markdown(
         f'<div class="pg-result-header">'
         f'<div class="pg-result-check">✓</div>'
-        f'<div>'
+        f"<div>"
         f'<p class="pg-result-heading">Montage ready!</p>'
         f'<p class="pg-result-sub">{result_sub}</p>'
-        f'</div>'
-        f'</div>',
+        f"</div>"
+        f"</div>",
         unsafe_allow_html=True,
     )
 
@@ -298,7 +296,7 @@ def render_result_panel(state: SessionState) -> None:
             if st.button(
                 "Run Demo Again",
                 type="secondary",
-                use_container_width=True,
+                width="stretch",
                 key="demo_again_btn",
             ):
                 state.clear_results()
@@ -308,7 +306,7 @@ def render_result_panel(state: SessionState) -> None:
             if st.button(
                 "▶  Try Your Own Clips",
                 type="primary",
-                use_container_width=True,
+                width="stretch",
                 key="try_own_btn",
             ):
                 state.demo_mode = False
@@ -321,7 +319,7 @@ def render_result_panel(state: SessionState) -> None:
             if st.button(
                 "▶  Generate Another",
                 type="secondary",
-                use_container_width=True,
+                width="stretch",
                 key="clear_results_btn",
             ):
                 state.clear_results()
@@ -348,20 +346,20 @@ def _render_result_metrics(state: SessionState) -> None:
         f'<div class="pg-result-metric">'
         f'<span class="pg-result-metric-label">BPM Detected</span>'
         f'<span class="pg-result-metric-value">{bpm}</span>'
-        f'</div>'
+        f"</div>"
         f'<div class="pg-result-metric">'
         f'<span class="pg-result-metric-label">Clips Found</span>'
         f'<span class="pg-result-metric-value">{clips_total}</span>'
-        f'</div>'
+        f"</div>"
         f'<div class="pg-result-metric">'
         f'<span class="pg-result-metric-label">Duration</span>'
         f'<span class="pg-result-metric-value">{duration_str}</span>'
-        f'</div>'
+        f"</div>"
         f'<div class="pg-result-metric">'
         f'<span class="pg-result-metric-label">Effects Applied</span>'
         f'<span class="pg-result-metric-value">{effects}</span>'
-        f'</div>'
-        f'</div>',
+        f"</div>"
+        f"</div>",
         unsafe_allow_html=True,
     )
 
@@ -386,7 +384,7 @@ def render_plan_report_panel(state: SessionState) -> None:
             if st.button(
                 "Run Full Demo",
                 type="secondary",
-                use_container_width=True,
+                width="stretch",
                 key="plan_demo_again",
             ):
                 state.clear_results()
@@ -396,7 +394,7 @@ def render_plan_report_panel(state: SessionState) -> None:
             if st.button(
                 "▶  Try Your Own Clips",
                 type="primary",
-                use_container_width=True,
+                width="stretch",
                 key="plan_try_own",
             ):
                 state.demo_mode = False
@@ -407,7 +405,7 @@ def render_plan_report_panel(state: SessionState) -> None:
         if st.button(
             "Clear Results",
             type="secondary",
-            use_container_width=True,
+            width="stretch",
             key="clear_plan_btn",
         ):
             state.clear_results()

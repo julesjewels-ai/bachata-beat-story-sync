@@ -14,5 +14,3 @@ level = "info"
 
 [ui]
 hideTopBar = false
-hideFooter = true
-hideSidebarNav = false

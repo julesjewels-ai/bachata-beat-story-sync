@@ -338,7 +338,7 @@ def render_run_controls(state: SessionState) -> bool:
             if st.button(
                 "Cancel",
                 type="secondary",
-                use_container_width=True,
+                width="stretch",
                 help="Stop the current processing run.",
             ):
                 state.is_running = False
@@ -349,7 +349,7 @@ def render_run_controls(state: SessionState) -> bool:
         return st.button(
             "▶  Generate Montage",
             type="primary",
-            use_container_width=True,
+            width="stretch",
             help=(
                 "Process audio and video clips. This may take several minutes "
                 "depending on video length."

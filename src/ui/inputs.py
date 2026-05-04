@@ -5,14 +5,17 @@ Consolidates repeated deployed/local conditional logic for file inputs.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import streamlit as st
 
 from src.io.file_picker import pick_audio_file, pick_folder, pick_output_file
 from src.state.session import SessionState
 from src.ui.video_cache import get_cached_clips
-from pathlib import Path
 
-DEMO_AUDIO = Path(__file__).parent.parent.parent / "demo" / "audio" / "sample_bachata.mp3"
+DEMO_AUDIO = (
+    Path(__file__).parent.parent.parent / "demo" / "audio" / "sample_bachata.mp3"
+)
 DEMO_CLIPS = Path(__file__).parent.parent.parent / "demo" / "clips"
 
 
@@ -25,7 +28,9 @@ def demo_assets_available() -> bool:
     return bool(list(DEMO_CLIPS.glob("*.mp4")))
 
 
-def audio_input_component(state: SessionState, is_deployed: bool, disabled: bool = False) -> str:
+def audio_input_component(
+    state: SessionState, is_deployed: bool, disabled: bool = False
+) -> str:
     """Audio file input with deploy-aware fallback.
 
     Args:
@@ -42,9 +47,9 @@ def audio_input_component(state: SessionState, is_deployed: bool, disabled: bool
         if state.demo_mode:
             st.markdown(
                 f'<div class="pg-callout">'
-                f'<span style="font-family:\'IBM Plex Mono\',monospace;font-size:0.7rem;'
+                f"<span style=\"font-family:'IBM Plex Mono',monospace;font-size:0.7rem;"
                 f'letter-spacing:2px;color:#FDB833;text-transform:uppercase;">DEMO AUDIO</span><br>'
-                f'<span style="font-family:\'Space Grotesk\',sans-serif;font-size:0.88rem;">'
+                f"<span style=\"font-family:'Space Grotesk',sans-serif;font-size:0.88rem;\">"
                 f"Using <code>{DEMO_AUDIO.name}</code></span>"
                 f"</div>",
                 unsafe_allow_html=True,
@@ -54,7 +59,13 @@ def audio_input_component(state: SessionState, is_deployed: bool, disabled: bool
             else:
                 st.error("Demo audio not found. Run `make download-demo`.")
 
-            if st.button("Exit Demo Mode", key="exit_demo_audio", type="secondary", use_container_width=True, disabled=disabled):
+            if st.button(
+                "Exit Demo Mode",
+                key="exit_demo_audio",
+                type="secondary",
+                width="stretch",
+                disabled=disabled,
+            ):
                 state.demo_mode = False
                 state.clear_results()
                 st.rerun()
@@ -78,7 +89,9 @@ def audio_input_component(state: SessionState, is_deployed: bool, disabled: bool
             # Local: upload + file picker (stacked vertically)
             # Transfer any file-picker result before the widget is instantiated.
             if "_audio_path_pending" in st.session_state:
-                st.session_state["audio_path"] = st.session_state.pop("_audio_path_pending")
+                st.session_state["audio_path"] = st.session_state.pop(
+                    "_audio_path_pending"
+                )
 
             st.markdown("**Upload audio file**")
             uploaded_audio = st.file_uploader(
@@ -102,7 +115,13 @@ def audio_input_component(state: SessionState, is_deployed: bool, disabled: bool
                     disabled=disabled,
                 )
             with col_btn:
-                if st.button("📁", key="pick_audio", help="Browse for audio file", use_container_width=True, disabled=disabled):
+                if st.button(
+                    "📁",
+                    key="pick_audio",
+                    help="Browse for audio file",
+                    width="stretch",
+                    disabled=disabled,
+                ):
                     picked = pick_audio_file()
                     if picked:
                         st.session_state["_audio_path_pending"] = picked
@@ -113,7 +132,9 @@ def audio_input_component(state: SessionState, is_deployed: bool, disabled: bool
             return audio_path
 
 
-def video_input_component(state: SessionState, is_deployed: bool, disabled: bool = False) -> str:
+def video_input_component(
+    state: SessionState, is_deployed: bool, disabled: bool = False
+) -> str:
     """Video clips input with deploy-aware fallback.
 
     Args:
@@ -130,9 +151,9 @@ def video_input_component(state: SessionState, is_deployed: bool, disabled: bool
         if state.demo_mode:
             st.markdown(
                 '<div class="pg-callout">'
-                '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:0.7rem;'
+                "<span style=\"font-family:'IBM Plex Mono',monospace;font-size:0.7rem;"
                 'letter-spacing:2px;color:#FDB833;text-transform:uppercase;">DEMO CLIPS</span><br>'
-                '<span style="font-family:\'Space Grotesk\',sans-serif;font-size:0.88rem;">'
+                "<span style=\"font-family:'Space Grotesk',sans-serif;font-size:0.88rem;\">"
                 "Using sample footage gallery</span>"
                 "</div>",
                 unsafe_allow_html=True,
@@ -146,15 +167,21 @@ def video_input_component(state: SessionState, is_deployed: bool, disabled: bool
                     for idx, clip in enumerate(clips):
                         with cols[idx % 4]:
                             if clip.thumbnail_data:
-                                st.image(clip.thumbnail_data, use_container_width=True)
-                            st.caption(f"Clip {idx+1}")
+                                st.image(clip.thumbnail_data, width="stretch")
+                            st.caption(f"Clip {idx + 1}")
                     st.caption(f"Total: {len(clips)} demo clips loaded.")
                 else:
                     st.warning("No demo clips found in demo/clips/")
             else:
                 st.error("Demo directory not found.")
 
-            if st.button("Exit Demo Mode", key="exit_demo_video", type="secondary", use_container_width=True, disabled=disabled):
+            if st.button(
+                "Exit Demo Mode",
+                key="exit_demo_video",
+                type="secondary",
+                width="stretch",
+                disabled=disabled,
+            ):
                 state.demo_mode = False
                 state.clear_results()
                 st.rerun()
@@ -177,7 +204,9 @@ def video_input_component(state: SessionState, is_deployed: bool, disabled: bool
         else:
             # Local: upload + folder picker (stacked vertically)
             if "_video_dir_pending" in st.session_state:
-                st.session_state["video_dir"] = st.session_state.pop("_video_dir_pending")
+                st.session_state["video_dir"] = st.session_state.pop(
+                    "_video_dir_pending"
+                )
 
             st.markdown("**Upload video files**")
             st.file_uploader(
@@ -202,17 +231,27 @@ def video_input_component(state: SessionState, is_deployed: bool, disabled: bool
                     disabled=disabled,
                 )
             with col_btn:
-                if st.button("📁", key="pick_video", help="Browse for video clips folder", use_container_width=True, disabled=disabled):
+                if st.button(
+                    "📁",
+                    key="pick_video",
+                    help="Browse for video clips folder",
+                    width="stretch",
+                    disabled=disabled,
+                ):
                     picked = pick_folder("Select folder containing video clips")
                     if picked:
                         st.session_state["_video_dir_pending"] = picked
                         st.rerun()
 
-            st.caption("Upload individual video files or select the root directory containing your dance footage.")
+            st.caption(
+                "Upload individual video files or select the root directory containing your dance footage."
+            )
             return video_path
 
 
-def broll_input_component(state: SessionState, is_deployed: bool, disabled: bool = False) -> str:
+def broll_input_component(
+    state: SessionState, is_deployed: bool, disabled: bool = False
+) -> str:
     """B-roll folder input with deploy-aware fallback.
 
     Args:
@@ -225,15 +264,25 @@ def broll_input_component(state: SessionState, is_deployed: bool, disabled: bool
     """
     with st.container(border=True):
         st.subheader("B-roll", anchor=None)
-        st.caption("OPTIONAL — Add texture clips, atmospheric shots, or environment b-roll to be used as transitions and overlays during musical swells.")
+        st.caption(
+            "OPTIONAL — Add texture clips, atmospheric shots, or environment b-roll to be used as transitions and overlays during musical swells."
+        )
 
         if not is_deployed:
             if "_broll_dir_pending" in st.session_state:
-                st.session_state["broll_dir"] = st.session_state.pop("_broll_dir_pending")
+                st.session_state["broll_dir"] = st.session_state.pop(
+                    "_broll_dir_pending"
+                )
 
             col_path, col_btn = st.columns([4, 1])
             with col_btn:
-                if st.button("📁", key="pick_broll", help="Browse for B-roll folder", use_container_width=True, disabled=disabled):
+                if st.button(
+                    "📁",
+                    key="pick_broll",
+                    help="Browse for B-roll folder",
+                    width="stretch",
+                    disabled=disabled,
+                ):
                     picked = pick_folder("Select B-roll folder")
                     if picked:
                         st.session_state["_broll_dir_pending"] = picked
@@ -249,11 +298,15 @@ def broll_input_component(state: SessionState, is_deployed: bool, disabled: bool
                 )
             return broll_path
         else:
-            st.info("💡 B-roll support is available when running locally. Include B-roll files with your video uploads for now.")
+            st.info(
+                "💡 B-roll support is available when running locally. Include B-roll files with your video uploads for now."
+            )
             return ""
 
 
-def output_input_component(state: SessionState, is_deployed: bool, disabled: bool = False) -> str:
+def output_input_component(
+    state: SessionState, is_deployed: bool, disabled: bool = False
+) -> str:
     """Output file input with deploy-aware fallback.
 
     Args:
@@ -281,11 +334,19 @@ def output_input_component(state: SessionState, is_deployed: bool, disabled: boo
         else:
             # Local: full path picker
             if "_output_path_pending" in st.session_state:
-                st.session_state["output_path"] = st.session_state.pop("_output_path_pending")
+                st.session_state["output_path"] = st.session_state.pop(
+                    "_output_path_pending"
+                )
 
             col_path, col_btn = st.columns([4, 1])
             with col_btn:
-                if st.button("📁", key="pick_output", help="Browse and save output video", use_container_width=True, disabled=disabled):
+                if st.button(
+                    "📁",
+                    key="pick_output",
+                    help="Browse and save output video",
+                    width="stretch",
+                    disabled=disabled,
+                ):
                     picked = pick_output_file()
                     if picked:
                         st.session_state["_output_path_pending"] = picked
