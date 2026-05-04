@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import queue
 import sys
@@ -67,6 +68,26 @@ def run_streamlit_generation(
         if result.output_path is not None:
             log_queue.put("✓ Video rendered successfully!")
             log_queue.put(f"   → Saved to: {result.output_path}")
+
+            # Collect metadata for result metrics panel
+            bpm = round(result.audio_meta.bpm, 1) if result.audio_meta else 0
+            clips_total = len(result.video_clips) if result.video_clips else 0
+            duration_s = (
+                round(result.audio_meta.duration, 1) if result.audio_meta else 0
+            )
+            effects_count = sum([
+                bool(pacing_kwargs.get("video_style") not in (None, "none")),
+                bool(pacing_kwargs.get("intro_effect") not in (None, "none")),
+                bool(pacing_kwargs.get("transition_type") not in (None, "none")),
+                bool(pacing_kwargs.get("speed_ramp_organic")),
+            ])
+            metadata = {
+                "bpm": bpm,
+                "clips_total": clips_total,
+                "duration_s": duration_s,
+                "effects_count": effects_count,
+            }
+            log_queue.put("__METADATA__" + json.dumps(metadata))
             log_queue.put("__RESULT__" + result.output_path)
         log_queue.put("__DONE__")
 

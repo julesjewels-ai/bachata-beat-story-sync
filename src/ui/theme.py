@@ -573,6 +573,193 @@ hr, .stMarkdown hr {{
     line-height: 1.55 !important;
 }}
 
+/* ── Processing status card (dark charcoal wrapper) ──────── */
+.pg-status-card {{
+    background: var(--charcoal);
+    border-radius: var(--radius-card);
+    border: 1px solid rgba(253,184,51,0.2);
+    padding: 1.6rem 1.8rem;
+    margin-bottom: 1rem;
+}}
+
+.pg-status-card .stProgress > div {{
+    background: rgba(255,255,255,0.1) !important;
+    border-radius: 4px !important;
+}}
+
+.pg-status-card .stProgress > div > div {{
+    background: linear-gradient(90deg, var(--amber) 0%, var(--amber-dark) 100%) !important;
+    border-radius: 4px !important;
+    box-shadow: 0 0 12px rgba(253,184,51,0.5) !important;
+}}
+
+/* Metric cards inside dark card */
+.pg-status-card [data-testid="stMetric"],
+.pg-status-card .stMetric {{
+    background: rgba(255,255,255,0.05) !important;
+    border-top: 3px solid var(--amber) !important;
+    border: none !important;
+    border-top: 3px solid var(--amber) !important;
+    box-shadow: none !important;
+}}
+
+.pg-status-card [data-testid="stMetricLabel"] > div,
+.pg-status-card .stMetric label {{
+    color: rgba(245,245,245,0.55) !important;
+}}
+
+.pg-status-card [data-testid="stMetricValue"],
+.pg-status-card [data-testid="stMetricValue"] > div {{
+    color: var(--amber) !important;
+}}
+
+/* Log terminal — dark bg inside status card */
+.pg-status-card .stTextArea textarea,
+.pg-status-card [data-testid="stTextArea"] textarea {{
+    background: var(--surface) !important;
+    color: rgba(245,245,245,0.75) !important;
+    border: 1px solid rgba(255,255,255,0.08) !important;
+    font-size: 0.78rem !important;
+    line-height: 1.65 !important;
+}}
+
+/* Stage label above progress bar */
+.pg-stage-label {{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    letter-spacing: 2px;
+    color: var(--amber);
+    text-transform: uppercase;
+    margin-bottom: 0.75rem;
+    display: block;
+}}
+
+/* ── Result metrics row ───────────────────────────────────── */
+.pg-result-metrics {{
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+}}
+
+.pg-result-metric {{
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 1.1rem 1.2rem;
+    border: 1px solid rgba(0,0,0,0.08);
+    border-top: 3px solid var(--amber);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+}}
+
+.pg-result-metric-label {{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 1.8px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-bottom: 0.35rem;
+    display: block;
+}}
+
+.pg-result-metric-value {{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1.5rem;
+    font-weight: 500;
+    color: var(--amber-dark);
+    line-height: 1;
+}}
+
+@media (max-width: 768px) {{
+    .pg-result-metrics {{ grid-template-columns: repeat(2, 1fr); }}
+}}
+
+/* ── Download tiles row ───────────────────────────────────── */
+.pg-download-row {{
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+}}
+
+.pg-download-tile {{
+    background: #ffffff;
+    border: 1.5px solid var(--border-amber);
+    border-radius: 16px;
+    padding: 1.1rem 0.8rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.3rem;
+}}
+
+.pg-download-tile:hover {{
+    border-color: var(--amber);
+    background: rgba(253,184,51,0.05);
+    box-shadow: 0 4px 16px rgba(253,184,51,0.15);
+    transform: translateY(-2px);
+}}
+
+.pg-download-tile-icon {{ font-size: 1.3rem; }}
+
+.pg-download-tile-label {{
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--black);
+}}
+
+.pg-download-tile-sub {{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.62rem;
+    color: var(--text-secondary);
+}}
+
+@media (max-width: 600px) {{
+    .pg-download-row {{ grid-template-columns: 1fr; }}
+}}
+
+/* ── Result success header ────────────────────────────────── */
+.pg-result-header {{
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}}
+
+.pg-result-check {{
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--amber) 0%, var(--amber-dark) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.35rem;
+    flex-shrink: 0;
+    box-shadow: 0 4px 20px rgba(253,184,51,0.4);
+}}
+
+.pg-result-heading {{
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 1.7rem;
+    font-weight: 700;
+    color: var(--black);
+    letter-spacing: -0.5px;
+    line-height: 1.1;
+    margin: 0;
+}}
+
+.pg-result-sub {{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    letter-spacing: 0.5px;
+    margin-top: 0.2rem;
+}}
+
 /* ── Global Icon Fix — prevent font-family overrides from turning icons into text ─ */
 span[data-testid="stIconMaterial"] {{
     font-family: "Material Symbols Outlined", "Material Icons" !important;

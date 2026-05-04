@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import queue
 
@@ -168,11 +169,16 @@ def render_progress_fragment() -> None:
         if line.startswith("__DONE__"):
             done = True
         elif line.startswith("__RESULT__"):
-            state.result_path = line[len("__RESULT__") :]
+            state.result_path = line[len("__RESULT__"):]
         elif line.startswith("__ERROR__"):
-            state.error = line[len("__ERROR__") :]
+            state.error = line[len("__ERROR__"):]
         elif line.startswith("__PLAN_REPORT__"):
-            state.plan_report = line[len("__PLAN_REPORT__") :]
+            state.plan_report = line[len("__PLAN_REPORT__"):]
+        elif line.startswith("__METADATA__"):
+            try:
+                state.result_metadata = json.loads(line[len("__METADATA__"):])
+            except (ValueError, KeyError):
+                pass
         else:
             state.log_lines.append(line)
             tracker.update(line)
@@ -192,34 +198,42 @@ def render_progress_fragment() -> None:
     progress_value = min((cumulative + current_weight * 0.5) / 100.0, 0.97)
 
     stage_text = (tracker.current_stage or "INITIALIZING").upper()
-    status_container = st.status(
-        f"PROCESSING  ·  {stage_text}",
-        expanded=True,
-        state="running",
+
+    st.markdown('<div class="pg-status-card">', unsafe_allow_html=True)
+
+    st.markdown(
+        f'<span class="pg-stage-label">▶ {stage_text}</span>',
+        unsafe_allow_html=True,
     )
-    with status_container:
-        st.progress(progress_value)
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Elapsed", tracker.elapsed_str())
-        with col2:
-            st.metric("ETA", tracker.estimate_eta_str())
-        with col3:
-            st.metric("Stage", tracker.current_stage or "initializing")
 
-        st.divider()
+    st.progress(progress_value)
 
-        with st.expander("SYSTEM LOG", expanded=False):
-            recent = (
-                state.log_lines[-25:] if len(state.log_lines) > 25 else state.log_lines
-            )
-            st.text_area(
-                "log",
-                value="\n".join(recent),
-                height=180,
-                disabled=True,
-                label_visibility="collapsed",
-            )
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("Elapsed", tracker.elapsed_str())
+    with col2:
+        st.metric("ETA", tracker.estimate_eta_str())
+    with col3:
+        st.metric("Stage", tracker.current_stage or "initializing")
+    with col4:
+        stage_pct = f"{int(progress_value * 100)}%"
+        st.metric("Progress", stage_pct)
+
+    st.divider()
+
+    with st.expander("SYSTEM LOG", expanded=False):
+        recent = (
+            state.log_lines[-25:] if len(state.log_lines) > 25 else state.log_lines
+        )
+        st.text_area(
+            "log",
+            value="\n".join(recent),
+            height=180,
+            disabled=True,
+            label_visibility="collapsed",
+        )
+
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def render_error_panel(state: SessionState) -> None:
@@ -254,54 +268,102 @@ def render_result_panel(state: SessionState) -> None:
     if not state.result_path or state.is_running:
         return
 
-    result_label = (
-        "RESULT — BEAT-SYNCED DEMO" if state.demo_mode else "RESULT — MONTAGE READY"
-    )
+    # ── Success header ───────────────────────────────────────
+    result_sub = "Beat-synced demo montage" if state.demo_mode else state.result_path
     st.markdown(
-        f"<p style=\"font-family:'IBM Plex Mono',monospace;font-size:0.7rem;"
-        f'letter-spacing:3px;color:#FDB833;text-transform:uppercase;margin-bottom:0.75rem;">'
-        f"{result_label}</p>",
+        f'<div class="pg-result-header">'
+        f'<div class="pg-result-check">✓</div>'
+        f'<div>'
+        f'<p class="pg-result-heading">Montage ready!</p>'
+        f'<p class="pg-result-sub">{result_sub}</p>'
+        f'</div>'
+        f'</div>',
         unsafe_allow_html=True,
     )
+
+    # ── Video player ─────────────────────────────────────────
     with st.container(border=True):
         if os.path.exists(state.result_path):
             st.video(state.result_path)
         else:
             st.warning("Output file not found at the reported path.")
 
-        if state.demo_mode:
-            col_again, col_try = st.columns(2)
-            with col_again:
-                if st.button(
-                    "Run Demo Again",
-                    type="secondary",
-                    use_container_width=True,
-                    key="demo_again_btn",
-                ):
-                    state.clear_results()
-                    st.session_state["_demo_dry_run"] = False
-                    st.rerun()
-            with col_try:
-                if st.button(
-                    "▶  Try Your Own Clips",
-                    type="primary",
-                    use_container_width=True,
-                    key="try_own_btn",
-                ):
-                    state.demo_mode = False
-                    st.session_state.pop("_demo_dry_run", None)
-                    state.clear_results()
-                    st.rerun()
-        else:
-            st.caption(f"Saved to: {state.result_path}")
+    # ── Result metrics row ───────────────────────────────────
+    _render_result_metrics(state)
+
+    # ── Action buttons ───────────────────────────────────────
+    if state.demo_mode:
+        col_again, col_try = st.columns(2)
+        with col_again:
             if st.button(
-                "Clear Results",
+                "Run Demo Again",
+                type="secondary",
+                use_container_width=True,
+                key="demo_again_btn",
+            ):
+                state.clear_results()
+                st.session_state["_demo_dry_run"] = False
+                st.rerun()
+        with col_try:
+            if st.button(
+                "▶  Try Your Own Clips",
+                type="primary",
+                use_container_width=True,
+                key="try_own_btn",
+            ):
+                state.demo_mode = False
+                st.session_state.pop("_demo_dry_run", None)
+                state.clear_results()
+                st.rerun()
+    else:
+        col_clear, _ = st.columns([1, 2])
+        with col_clear:
+            if st.button(
+                "▶  Generate Another",
                 type="secondary",
                 use_container_width=True,
                 key="clear_results_btn",
             ):
                 state.clear_results()
                 st.rerun()
+
+
+def _fmt_duration(seconds: float) -> str:
+    """Format seconds as M:SS."""
+    m, s = divmod(int(seconds), 60)
+    return f"{m}:{s:02d}"
+
+
+def _render_result_metrics(state: SessionState) -> None:
+    """Render 4 result metric cards below the video player."""
+    meta = state.result_metadata or {}
+    bpm = meta.get("bpm", "—")
+    clips_total = meta.get("clips_total", "—")
+    duration_s = meta.get("duration_s")
+    duration_str = _fmt_duration(duration_s) if duration_s else "—"
+    effects = meta.get("effects_count", "—")
+
+    st.markdown(
+        f'<div class="pg-result-metrics">'
+        f'<div class="pg-result-metric">'
+        f'<span class="pg-result-metric-label">BPM Detected</span>'
+        f'<span class="pg-result-metric-value">{bpm}</span>'
+        f'</div>'
+        f'<div class="pg-result-metric">'
+        f'<span class="pg-result-metric-label">Clips Found</span>'
+        f'<span class="pg-result-metric-value">{clips_total}</span>'
+        f'</div>'
+        f'<div class="pg-result-metric">'
+        f'<span class="pg-result-metric-label">Duration</span>'
+        f'<span class="pg-result-metric-value">{duration_str}</span>'
+        f'</div>'
+        f'<div class="pg-result-metric">'
+        f'<span class="pg-result-metric-label">Effects Applied</span>'
+        f'<span class="pg-result-metric-value">{effects}</span>'
+        f'</div>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
 
 
 def render_plan_report_panel(state: SessionState) -> None:

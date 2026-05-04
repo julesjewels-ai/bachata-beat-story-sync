@@ -38,6 +38,7 @@ class SessionState:
             "result_path": None,
             "error": None,
             "plan_report": None,
+            "result_metadata": None,
             "log_queue": queue.Queue(),
             "audio_path": "",
             "video_dir": "",
@@ -146,6 +147,15 @@ class SessionState:
         """Set the plan report."""
         st.session_state["plan_report"] = value
 
+    @property
+    def result_metadata(self) -> dict | None:
+        """Result metrics dict (bpm, clips_used, clips_total, duration_s, effects_count)."""
+        return st.session_state.get("result_metadata")
+
+    @result_metadata.setter
+    def result_metadata(self, value: dict | None) -> None:
+        st.session_state["result_metadata"] = value
+
     # =========================================================================
     # File paths (user inputs)
     # =========================================================================
@@ -201,6 +211,7 @@ class SessionState:
         self.result_path = None
         self.error = None
         self.plan_report = None
+        self.result_metadata = None
         self.log_queue = queue.Queue()
         self.progress_tracker = ProgressTracker()
 
@@ -220,4 +231,5 @@ class SessionState:
         self.result_path = None
         self.error = None
         self.plan_report = None
+        self.result_metadata = None
         self.log_lines = []
