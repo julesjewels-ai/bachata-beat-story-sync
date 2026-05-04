@@ -350,39 +350,50 @@ button[data-testid="baseButton-secondary"]:hover:not(:disabled) {{
     font-family: "Material Icons", "Material Symbols Outlined" !important;
 }}
 
-/* ── Text inputs — white surface, amber focus ─────────────── */
+/* ── Text inputs — target BaseWeb container (visible border) ─ */
+[data-baseweb="input"],
+[data-testid="stTextInputRootElement"] {{
+    background: #ffffff !important;
+    border: 1.5px solid rgba(0,0,0,0.12) !important;
+    border-radius: var(--radius-input) !important;
+    box-shadow: none !important;
+}}
+
+[data-baseweb="input"]:focus-within,
+[data-testid="stTextInputRootElement"]:focus-within {{
+    border-color: var(--amber) !important;
+    box-shadow: 0 0 0 3px rgba(253,184,51,0.18) !important;
+}}
+
+/* Inner <input> — no border (lives on wrapper), white bg, dark text */
+[data-baseweb="input"] input,
 .stTextInput input,
 .stNumberInput input,
 [data-testid="stTextInput"] input,
 [data-testid="stNumberInput"] input {{
     background: #ffffff !important;
-    border: 1.5px solid rgba(0,0,0,0.15) !important;
-    border-radius: var(--radius-input) !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
     color: var(--black) !important;
+    -webkit-text-fill-color: var(--black) !important;
     font-family: 'IBM Plex Mono', monospace !important;
     font-size: 0.88rem !important;
     padding: 10px 14px !important;
 }}
 
-.stTextInput input:focus,
-.stNumberInput input:focus {{
-    border-color: var(--amber) !important;
-    box-shadow: 0 0 0 3px rgba(253,184,51,0.18) !important;
-    background: #ffffff !important;
-}}
-
 /* ── Number input stepper buttons (+/−) ──────────────────── */
 [data-testid="stNumberInput"] button,
 .stNumberInput button {{
-    background: #ffffff !important;
-    border: 1.5px solid rgba(0,0,0,0.15) !important;
+    background: transparent !important;
+    border: none !important;
+    border-left: 1px solid rgba(0,0,0,0.1) !important;
     color: var(--black) !important;
 }}
 
 [data-testid="stNumberInput"] button:hover,
 .stNumberInput button:hover {{
     background: rgba(253,184,51,0.1) !important;
-    border-color: var(--amber) !important;
     color: var(--black) !important;
 }}
 
@@ -463,21 +474,22 @@ button[data-testid="baseButton-secondary"]:hover:not(:disabled) {{
 }}
 
 /* ── File uploader — amber dashed border ──────────────────── */
-[data-testid="stFileUploadDropzone"] {{
+[data-testid="stFileUploaderDropzone"] {{
     border: 2px dashed var(--border-amber) !important;
     border-radius: 16px !important;
-    background: rgba(253,184,51,0.03) !important;
+    background: #ffffff !important;
     transition: all 0.2s ease;
 }}
 
-[data-testid="stFileUploadDropzone"]:hover {{
+[data-testid="stFileUploaderDropzone"]:hover {{
     border-color: var(--amber) !important;
-    background: rgba(253,184,51,0.07) !important;
+    background: rgba(253,184,51,0.04) !important;
     box-shadow: 0 0 0 3px rgba(253,184,51,0.12);
 }}
 
-/* Fix for File Uploader text color */
-[data-testid="stFileUploadDropzone"] span,
+/* File uploader text color */
+[data-testid="stFileUploaderDropzone"] span,
+[data-testid="stFileUploaderDropzone"] p,
 .st-emotion-cache-lyxlwd {{
     color: var(--black) !important;
 }}

@@ -243,6 +243,7 @@ def broll_input_component(state: SessionState, is_deployed: bool, disabled: bool
                     "Overlays folder",
                     placeholder="/Users/Artist/Documents/Stock/Atmosph",
                     key="broll_dir",
+                    label_visibility="collapsed",
                     help="Auto-detected as a 'broll/' subfolder inside the clips folder if it exists.",
                     disabled=disabled,
                 )
