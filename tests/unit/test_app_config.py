@@ -76,3 +76,9 @@ def test_build_pacing_config_merges_overrides(tmp_path) -> None:
     assert pacing.video_style == "bw"
     assert pacing.max_clips == 4
     assert pacing.max_duration_seconds == 12.0
+
+
+def test_root_config_keeps_duration_tolerance_strict() -> None:
+    pacing = build_pacing_config()
+
+    assert pacing.duration_sync_tolerance_seconds <= 1.0
