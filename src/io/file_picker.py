@@ -14,18 +14,19 @@ import subprocess
 import sys
 
 
-def _run_safe_tk_dialog(script: str) -> str | None:
+def _run_safe_tk_dialog(script: str, *args: str) -> str | None:
     """Execute tkinter script in separate process to avoid macOS main-thread issues.
 
     Args:
         script: Python script to execute (should print the selected path on success)
+        args: Additional arguments to pass to the script via sys.argv
 
     Returns:
         User-selected path, or None if dialog was cancelled or execution failed.
     """
     try:
-        result = subprocess.run(
-            [sys.executable, "-c", script],
+        result = subprocess.run(  # nosec B603
+            [sys.executable, "-c", script, *args],
             capture_output=True,
             text=True,
             check=False,
@@ -46,21 +47,20 @@ def pick_folder(title: str = "Select folder") -> str | None:
     Returns:
         Selected folder path, or None if cancelled/unavailable.
     """
-    # Safely serialize title to avoid injection attacks
-    safe_title = json.dumps(title)
-
-    script = f"""
+    script = """
+import sys
 import tkinter as tk
 from tkinter import filedialog
 root = tk.Tk()
 root.withdraw()
 root.wm_attributes("-topmost", True)
-path = filedialog.askdirectory(title={safe_title})
+title = sys.argv[1] if len(sys.argv) > 1 else "Select folder"
+path = filedialog.askdirectory(title=title)
 root.destroy()
 if path:
     print(path)
 """
-    return _run_safe_tk_dialog(script)
+    return _run_safe_tk_dialog(script, title)
 
 
 def pick_audio_file() -> str | None:
