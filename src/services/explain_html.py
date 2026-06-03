@@ -79,7 +79,6 @@ def _build_timeline_svg(
 
     # SVG dimensions
     width = 1000
-    height = 100
     margin = 40
     bar_height = 40
     section_label_height = 30
@@ -149,16 +148,12 @@ def _build_timeline_svg(
 
     # Add legend
     legend_y = total_height - 10
-    lines.append(
-        '<g font-size="11" font-family="Arial" fill="#666">'
-    )
+    lines.append('<g font-size="11" font-family="Arial" fill="#666">')
     lines.append(
         f'<rect x="{margin}" y="{legend_y}" width="12" height="12" '
         f'fill="#ef4444" stroke="#333" stroke-width="1"/>'
     )
-    lines.append(
-        f'<text x="{margin + 16}" y="{legend_y + 10}">High Intensity</text>'
-    )
+    lines.append(f'<text x="{margin + 16}" y="{legend_y + 10}">High Intensity</text>')
     lines.append(
         f'<rect x="{margin + 150}" y="{legend_y}" width="12" height="12" '
         f'fill="#eab308" stroke="#333" stroke-width="1"/>'
@@ -170,9 +165,7 @@ def _build_timeline_svg(
         f'<rect x="{margin + 330}" y="{legend_y}" width="12" height="12" '
         f'fill="#3b82f6" stroke="#333" stroke-width="1"/>'
     )
-    lines.append(
-        f'<text x="{margin + 346}" y="{legend_y + 10}">Low Intensity</text>'
-    )
+    lines.append(f'<text x="{margin + 346}" y="{legend_y + 10}">Low Intensity</text>')
     lines.append("</g>")
 
     lines.append("</svg>")
@@ -263,7 +256,9 @@ def _build_stats_summary(
     min_speed = min(speeds)
     max_speed = max(speeds)
     total_montage_duration = sum(d.duration for d in decisions)
-    coverage_pct = (total_montage_duration / audio_duration * 100) if audio_duration > 0 else 0
+    coverage_pct = (
+        (total_montage_duration / audio_duration * 100) if audio_duration > 0 else 0
+    )
 
     rows = [
         "<div style='display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; "
@@ -329,9 +324,7 @@ def _build_config_summary(config: PacingConfig) -> str:
         rows.append(f"<li>Video style: <strong>{config.video_style}</strong></li>")
 
     if config.audio_overlay and config.audio_overlay != "none":
-        rows.append(
-            f"<li>Audio overlay: <strong>{config.audio_overlay}</strong></li>"
-        )
+        rows.append(f"<li>Audio overlay: <strong>{config.audio_overlay}</strong></li>")
 
     if config.genre:
         rows.append(f"<li>Genre: <strong>{config.genre}</strong></li>")
@@ -378,7 +371,11 @@ def generate_explain_html(
     duration_str = _fmt_time(audio_meta.duration)
 
     # Build sections
-    timeline_svg = _build_timeline_svg(decisions, audio_meta.duration, audio_meta.sections)
+    timeline_svg = _build_timeline_svg(
+        decisions,
+        audio_meta.duration,
+        audio_meta.sections,
+    )
     decision_table = _build_decision_table(decisions)
     stats_summary = _build_stats_summary(decisions, audio_meta.duration)
     config_summary = _build_config_summary(config)

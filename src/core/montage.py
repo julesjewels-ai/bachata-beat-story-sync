@@ -192,7 +192,7 @@ class MontageGenerator:
     def _build_intensity_pools(
         clips: list[VideoAnalysisResult],
         config: PlanningConfig,
-    ) -> dict:
+    ) -> tuple[dict[str, list[VideoAnalysisResult]], dict[str, int]]:
         """
         Bucket clips into high / medium / low pools by intensity_score.
 
@@ -203,7 +203,11 @@ class MontageGenerator:
         Returns both the pools and pool_offset, which rotates the starting index
         for round-robin selection to ensure first clips vary per track.
         """
-        pools: dict = {"high": [], "medium": [], "low": []}
+        pools: dict[str, list[VideoAnalysisResult]] = {
+            "high": [],
+            "medium": [],
+            "low": [],
+        }
         for clip in clips:
             if clip.intensity_score >= config.high_intensity_threshold:
                 pools["high"].append(clip)
@@ -220,7 +224,7 @@ class MontageGenerator:
             rng.shuffle(pools[level])
 
         # Compute starting offset for each pool based on seed to vary opening clips
-        pool_offset = {}
+        pool_offset: dict[str, int] = {}
         if shuffle_seed:
             offset_seed = int(
                 hashlib.md5(f"{shuffle_seed}_offset".encode()).hexdigest()[:8],
@@ -1072,9 +1076,7 @@ class MontageGenerator:
             *render_validation.issues,
         ]
         if validation_issues:
-            raise ValueError(
-                "Invalid segment plan: " + " | ".join(validation_issues)
-            )
+            raise ValueError("Invalid segment plan: " + " | ".join(validation_issues))
 
         return segments
 

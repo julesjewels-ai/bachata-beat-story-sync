@@ -126,7 +126,8 @@ class TestBuildSegmentPlan:
         audio = AudioAnalysisResult(
             filename="high.wav",
             bpm=120.0,
-            duration=8.0,  # just above beat coverage (7.5s); tail < min_clip so not added
+            # Just above beat coverage (7.5s); tail < min_clip so not added.
+            duration=8.0,
             peaks=[],
             sections=[],
             beat_times=[float(i) * 0.5 for i in range(16)],
@@ -318,9 +319,12 @@ class TestTransitionDurationContract:
 
         groups = generator._group_segments_by_section(segments)
         planned_duration = segments[-1].timeline_position + segments[-1].duration
-        expected_render = planned_duration - generator._compute_transition_overlap_budget(
-            segments,
-            config,
+        expected_render = (
+            planned_duration
+            - generator._compute_transition_overlap_budget(
+                segments,
+                config,
+            )
         )
 
         assert len(groups) == 2
@@ -345,9 +349,12 @@ class TestTransitionDurationContract:
         )
 
         planned_duration = segments[-1].timeline_position + segments[-1].duration
-        expected_render = planned_duration - generator._compute_transition_overlap_budget(
-            segments,
-            config,
+        expected_render = (
+            planned_duration
+            - generator._compute_transition_overlap_budget(
+                segments,
+                config,
+            )
         )
 
         assert planned_duration > 6.0
@@ -767,7 +774,8 @@ class TestFFmpegOrchestration:
         audio = AudioAnalysisResult(
             filename="slow.wav",
             bpm=120.0,
-            duration=5.5,  # just above beat coverage (5.0s); tail < min_clip so not added
+            # Just above beat coverage (5.0s); tail < min_clip so not added.
+            duration=5.5,
             peaks=[],
             sections=[],
             beat_times=[float(i) * 0.5 for i in range(10)],

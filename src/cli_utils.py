@@ -9,10 +9,10 @@ from __future__ import annotations
 
 import argparse
 import logging
-import subprocess
-import sys
 import os
 import random
+import subprocess
+import sys
 import uuid
 from typing import TYPE_CHECKING, Any
 
@@ -35,7 +35,7 @@ def setup_logging(args: argparse.Namespace) -> None:
 
 
 def handle_cli_errors(
-    e: Exception,
+    e: Exception | KeyboardInterrupt,
     entry_logger: logging.Logger,
     *,
     verbose: bool = False,
@@ -349,8 +349,7 @@ def add_visual_args(parser: argparse.ArgumentParser) -> None:
         type=str,
         default=None,
         metavar="PATH",
-        help="Path to write an HTML decision report. "
-        "Automatically enables --explain.",
+        help="Path to write an HTML decision report. Automatically enables --explain.",
     )
 
     # Intro Visual Effects (FEAT-022) — choices derived from registry
@@ -489,7 +488,9 @@ def add_visual_args(parser: argparse.ArgumentParser) -> None:
         "--no-cold-open",
         action="store_true",
         default=False,
-        help="Disable the cinematic cold open (scene-setter + artist/title lower-third)",
+        help=(
+            "Disable the cinematic cold open (scene-setter + artist/title lower-third)"
+        ),
     )
     parser.add_argument(
         "--no-lyrics",

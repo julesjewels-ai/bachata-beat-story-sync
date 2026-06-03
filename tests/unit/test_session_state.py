@@ -6,12 +6,8 @@ we test it by verifying the wrapper methods work correctly.
 
 from __future__ import annotations
 
-import queue
-from unittest.mock import MagicMock, patch
-
-import pytest
-
-from src.workers.progress import ProgressTracker
+from typing import Any
+from unittest.mock import patch
 
 
 class TestSessionStateDefaults:
@@ -19,24 +15,34 @@ class TestSessionStateDefaults:
 
     def test_ensures_defaults_on_init(self):
         """Verify all default keys are created during initialization."""
-        mock_st_session_state = {}
+        mock_st_session_state: dict[str, Any] = {}
 
         with patch("src.state.session.st.session_state", mock_st_session_state):
             from src.state.session import SessionState
 
-            state = SessionState()
+            SessionState()
 
         # Check that defaults were created
         expected_keys = {
-            "running", "log_lines", "result_path", "error", "plan_report",
-            "result_metadata", "log_queue", "audio_path", "video_dir", "broll_dir",
-            "output_path", "progress_tracker", "demo_mode"
+            "running",
+            "log_lines",
+            "result_path",
+            "error",
+            "plan_report",
+            "result_metadata",
+            "log_queue",
+            "audio_path",
+            "video_dir",
+            "broll_dir",
+            "output_path",
+            "progress_tracker",
+            "demo_mode",
         }
         assert set(mock_st_session_state.keys()) == expected_keys
 
     def test_default_running_is_false(self):
         """is_running defaults to False."""
-        mock_st_session_state = {}
+        mock_st_session_state: dict[str, Any] = {}
 
         with patch("src.state.session.st.session_state", mock_st_session_state):
             from src.state.session import SessionState
@@ -46,7 +52,7 @@ class TestSessionStateDefaults:
 
     def test_default_output_path_is_filename(self):
         """output_path defaults to 'output_story.mp4'."""
-        mock_st_session_state = {}
+        mock_st_session_state: dict[str, Any] = {}
 
         with patch("src.state.session.st.session_state", mock_st_session_state):
             from src.state.session import SessionState
@@ -60,7 +66,7 @@ class TestSessionStatePropertyAccess:
 
     def test_is_running_setter(self):
         """is_running property can be set."""
-        mock_st_session_state = {}
+        mock_st_session_state: dict[str, Any] = {}
 
         with patch("src.state.session.st.session_state", mock_st_session_state):
             from src.state.session import SessionState
@@ -72,7 +78,7 @@ class TestSessionStatePropertyAccess:
 
     def test_audio_path_setter(self):
         """audio_path property can be set."""
-        mock_st_session_state = {}
+        mock_st_session_state: dict[str, Any] = {}
 
         with patch("src.state.session.st.session_state", mock_st_session_state):
             from src.state.session import SessionState
@@ -84,7 +90,7 @@ class TestSessionStatePropertyAccess:
 
     def test_video_dir_setter(self):
         """video_dir property can be set."""
-        mock_st_session_state = {}
+        mock_st_session_state: dict[str, Any] = {}
 
         with patch("src.state.session.st.session_state", mock_st_session_state):
             from src.state.session import SessionState
@@ -96,7 +102,7 @@ class TestSessionStatePropertyAccess:
 
     def test_output_path_setter(self):
         """output_path property can be set."""
-        mock_st_session_state = {}
+        mock_st_session_state: dict[str, Any] = {}
 
         with patch("src.state.session.st.session_state", mock_st_session_state):
             from src.state.session import SessionState
@@ -108,7 +114,7 @@ class TestSessionStatePropertyAccess:
 
     def test_demo_mode_setter(self):
         """demo_mode property can be set."""
-        mock_st_session_state = {}
+        mock_st_session_state: dict[str, Any] = {}
 
         with patch("src.state.session.st.session_state", mock_st_session_state):
             from src.state.session import SessionState
@@ -124,7 +130,7 @@ class TestSessionStateBatchOperations:
 
     def test_reset_execution_clears_state(self):
         """reset_execution clears results and sets running to True."""
-        mock_st_session_state = {}
+        mock_st_session_state: dict[str, Any] = {}
 
         with patch("src.state.session.st.session_state", mock_st_session_state):
             from src.state.session import SessionState
@@ -143,7 +149,7 @@ class TestSessionStateBatchOperations:
 
     def test_finish_with_error(self):
         """finish_with_error sets error and clears is_running."""
-        mock_st_session_state = {}
+        mock_st_session_state: dict[str, Any] = {}
 
         with patch("src.state.session.st.session_state", mock_st_session_state):
             from src.state.session import SessionState
@@ -157,7 +163,7 @@ class TestSessionStateBatchOperations:
 
     def test_finish_with_result(self):
         """finish_with_result sets result_path and clears is_running."""
-        mock_st_session_state = {}
+        mock_st_session_state: dict[str, Any] = {}
 
         with patch("src.state.session.st.session_state", mock_st_session_state):
             from src.state.session import SessionState
@@ -172,7 +178,7 @@ class TestSessionStateBatchOperations:
 
     def test_clear_results(self):
         """clear_results removes all result-related state."""
-        mock_st_session_state = {}
+        mock_st_session_state: dict[str, Any] = {}
 
         with patch("src.state.session.st.session_state", mock_st_session_state):
             from src.state.session import SessionState

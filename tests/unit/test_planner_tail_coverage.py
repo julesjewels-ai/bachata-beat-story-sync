@@ -7,6 +7,7 @@ from src.core.models import (
     SegmentPlan,
     VideoAnalysisResult,
 )
+from src.core.pacing_views import planning_config_from_pacing
 from src.core.planner.tail_coverage import append_tail_segment
 
 
@@ -53,7 +54,7 @@ def test_append_tail_segment_adds_tail_when_eligible() -> None:
         audio_data=_audio(duration=10.0),
         timeline_pos=8.0,
         target_duration=10.0,
-        config=PacingConfig(min_clip_seconds=1.5),
+        config=planning_config_from_pacing(PacingConfig(min_clip_seconds=1.5)),
         pools={"high": [], "medium": [], "low": [tail_clip]},
         pool_indices={"high": 0, "medium": 0, "low": 0},
         sorted_clips=[tail_clip],
@@ -77,7 +78,7 @@ def test_append_tail_segment_skips_when_limited_mode_enabled() -> None:
         audio_data=_audio(duration=10.0),
         timeline_pos=8.0,
         target_duration=10.0,
-        config=PacingConfig(max_clips=1),
+        config=planning_config_from_pacing(PacingConfig(max_clips=1)),
         pools={"high": [], "medium": [], "low": [tail_clip]},
         pool_indices={"high": 0, "medium": 0, "low": 0},
         sorted_clips=[tail_clip],
@@ -98,7 +99,7 @@ def test_append_tail_segment_records_explain_decision() -> None:
         audio_data=_audio(duration=10.0),
         timeline_pos=8.0,
         target_duration=10.0,
-        config=PacingConfig(explain=True),
+        config=planning_config_from_pacing(PacingConfig(explain=True)),
         pools={"high": [], "medium": [], "low": [tail_clip]},
         pool_indices={"high": 0, "medium": 0, "low": 0},
         sorted_clips=[tail_clip],

@@ -1,6 +1,7 @@
 """Unit tests for planner clip selection helpers."""
 
 from src.core.models import PacingConfig, VideoAnalysisResult
+from src.core.pacing_views import planning_config_from_pacing
 from src.core.planner.selection import select_clip
 
 
@@ -26,7 +27,7 @@ def test_select_clip_prefers_forced_prefix() -> None:
         broll_idx=0,
         timeline_pos=0.0,
         last_broll_time=0.0,
-        config=PacingConfig(),
+        config=planning_config_from_pacing(PacingConfig()),
         pools={"high": [regular], "medium": [], "low": []},
         pool_indices={"high": 0, "medium": 0, "low": 0},
         level="high",
@@ -50,7 +51,7 @@ def test_select_clip_uses_broll_when_requested() -> None:
         broll_idx=0,
         timeline_pos=12.0,
         last_broll_time=0.0,
-        config=PacingConfig(),
+        config=planning_config_from_pacing(PacingConfig()),
         pools={"high": [], "medium": [], "low": []},
         pool_indices={"high": 0, "medium": 0, "low": 0},
         level="low",
@@ -80,7 +81,7 @@ def test_select_clip_falls_back_to_pool_selection() -> None:
         broll_idx=0,
         timeline_pos=3.0,
         last_broll_time=0.0,
-        config=PacingConfig(),
+        config=planning_config_from_pacing(PacingConfig()),
         pools={"high": [regular], "medium": [], "low": []},
         pool_indices={"high": 0, "medium": 0, "low": 0},
         level="high",

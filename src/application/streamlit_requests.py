@@ -9,7 +9,6 @@ from typing import Any
 
 import streamlit as st
 
-from src.state.session import SessionState
 from src.ui.inputs import DEMO_AUDIO, DEMO_CLIPS
 from src.ui.settings_form import GenerationSettings
 
@@ -26,7 +25,7 @@ class PreparedRunRequest:
     report_path: str | None
 
 
-def should_trigger_demo_run(state: SessionState) -> bool:
+def should_trigger_demo_run(state: Any) -> bool:
     """Return True when demo mode should auto-start a run."""
     return (
         state.demo_mode
@@ -39,7 +38,7 @@ def should_trigger_demo_run(state: SessionState) -> bool:
 
 
 def prepare_run_request(
-    state: SessionState,
+    state: Any,
     settings: GenerationSettings,
     audio_path_text: str,
     video_dir: str,
@@ -55,6 +54,8 @@ def prepare_run_request(
     )
     if errors:
         return None, errors
+    if resolved_inputs is None:
+        return None, ["Could not resolve run inputs."]
 
     pacing_kwargs = build_pacing_kwargs(
         settings,
@@ -88,7 +89,7 @@ class _ResolvedInputs:
 
 
 def _resolve_inputs(
-    state: SessionState,
+    state: Any,
     audio_path_text: str,
     video_dir: str,
     broll_dir_input: str,
@@ -244,7 +245,7 @@ def build_pacing_kwargs(
 
 
 def resolve_output_targets(
-    state: SessionState,
+    state: Any,
     settings: GenerationSettings,
     output_path: str,
     pacing_kwargs: dict[str, Any],

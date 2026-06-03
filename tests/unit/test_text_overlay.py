@@ -5,8 +5,6 @@ from __future__ import annotations
 import os
 import tempfile
 
-import pytest
-
 from src.core.text_overlay import (
     TextEvent,
     _most_repeated_lrc_line,
@@ -17,7 +15,6 @@ from src.core.text_overlay import (
     lrc_to_text_events,
     parse_lrc,
 )
-
 
 # ---------------------------------------------------------------------------
 # escape_drawtext
@@ -341,7 +338,10 @@ def test_cold_open_no_sources_no_wash():
 
 
 def test_cold_open_artist_title_lower_third():
-    config = _make_config(track_artist="Romeo Santos", track_title="Propuesta Indecente")
+    config = _make_config(
+        track_artist="Romeo Santos",
+        track_title="Propuesta Indecente",
+    )
     events = build_cold_open_events(config)
     lower = [e for e in events if e.style == "lower_third"]
     assert len(lower) == 1

@@ -49,9 +49,7 @@ def mock_isdir():
 
 @pytest.fixture
 def mock_get_video_duration():
-    with patch(
-        "src.core.video_analyzer.get_video_duration", return_value=10.0
-    ) as mock:
+    with patch("src.core.video_analyzer.get_video_duration", return_value=10.0) as mock:
         yield mock
 
 
@@ -139,7 +137,12 @@ def create_mock_cap(
     ],
 )
 def test_analyze_video_success(
-    analyzer, mock_video_capture, mock_exists, mock_isdir, mock_get_video_duration, scenario
+    analyzer,
+    mock_video_capture,
+    mock_exists,
+    mock_isdir,
+    mock_get_video_duration,
+    scenario,
 ):
     """Test successful video analysis for different formats."""
     mock_cap = create_mock_cap(
@@ -278,7 +281,13 @@ def test_thumbnail_extraction_failure(
     assert result.duration == 10.0
 
 
-def test_thumbnail_exception(analyzer, mock_video_capture, mock_exists, mock_isdir, mock_get_video_duration):
+def test_thumbnail_exception(
+    analyzer,
+    mock_video_capture,
+    mock_exists,
+    mock_isdir,
+    mock_get_video_duration,
+):
     """Test exception handling during thumbnail extraction."""
     mock_cap = create_mock_cap()
     mock_video_capture.return_value = mock_cap
@@ -363,7 +372,7 @@ def _create_scene_change_cap(
     black = np.zeros((180, 320, 3), dtype=np.uint8)
     white = np.full((180, 320, 3), 255, dtype=np.uint8)
 
-    reads = []
+    reads: list[tuple[bool, object]] = []
     # First read is for thumbnail extraction
     reads.append((True, black.copy()))
     # Remaining reads for intensity / scene-change loop

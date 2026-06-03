@@ -4,17 +4,17 @@ import streamlit as st
 
 # Design tokens: Precision Gate palette
 DESIGN_TOKENS = {
-    "charcoal":      "#2A2A2A",   # hero sections, cards, dark backgrounds
-    "amber":         "#FDB833",   # CTAs, beat markers, progress, highlights
-    "amber_dark":    "#E5A520",   # amber hover state
-    "amber_glow":    "rgba(253, 184, 51, 0.35)",
-    "amber_tint":    "rgba(253, 184, 51, 0.07)",
-    "ghost":         "#F5F5F5",   # page background
-    "black":         "#0A0A0A",   # headings, body text
-    "surface":       "#1E1E1E",   # dark card inner fill
-    "border_amber":  "rgba(253, 184, 51, 0.25)",
+    "charcoal": "#2A2A2A",  # hero sections, cards, dark backgrounds
+    "amber": "#FDB833",  # CTAs, beat markers, progress, highlights
+    "amber_dark": "#E5A520",  # amber hover state
+    "amber_glow": "rgba(253, 184, 51, 0.35)",
+    "amber_tint": "rgba(253, 184, 51, 0.07)",
+    "ghost": "#F5F5F5",  # page background
+    "black": "#0A0A0A",  # headings, body text
+    "surface": "#1E1E1E",  # dark card inner fill
+    "border_amber": "rgba(253, 184, 51, 0.25)",
     "border_subtle": "rgba(255, 255, 255, 0.08)",
-    "text_secondary":"#888888",
+    "text_secondary": "#888888",
 }
 
 # Google Fonts: Space Grotesk, DM Serif Display, IBM Plex Mono
@@ -28,10 +28,12 @@ FONT_IMPORTS = """
 
 # Noise overlay — analog film / studio acoustics feel (5% opacity)
 NOISE_OVERLAY = """
-<svg style="position:fixed;top:0;left:0;width:100vw;height:100vh;pointer-events:none;z-index:9999;opacity:0.04;"
+<svg style="position:fixed;top:0;left:0;width:100vw;height:100vh;
+            pointer-events:none;z-index:9999;opacity:0.04;"
      xmlns="http://www.w3.org/2000/svg">
   <filter id="pg-noise">
-    <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch"/>
+    <feTurbulence type="fractalNoise" baseFrequency="0.65"
+                  numOctaves="3" stitchTiles="stitch"/>
     <feColorMatrix type="saturate" values="0"/>
   </filter>
   <rect width="100%" height="100%" filter="url(#pg-noise)"/>
@@ -42,17 +44,17 @@ THEME_CSS = f"""
 <style>
 /* ── Root variables ───────────────────────────────────────── */
 :root {{
-    --charcoal:      {DESIGN_TOKENS['charcoal']};
-    --amber:         {DESIGN_TOKENS['amber']};
-    --amber-dark:    {DESIGN_TOKENS['amber_dark']};
-    --amber-glow:    {DESIGN_TOKENS['amber_glow']};
-    --amber-tint:    {DESIGN_TOKENS['amber_tint']};
-    --ghost:         {DESIGN_TOKENS['ghost']};
-    --black:         {DESIGN_TOKENS['black']};
-    --surface:       {DESIGN_TOKENS['surface']};
-    --border-amber:  {DESIGN_TOKENS['border_amber']};
-    --border-subtle: {DESIGN_TOKENS['border_subtle']};
-    --text-secondary:{DESIGN_TOKENS['text_secondary']};
+    --charcoal:      {DESIGN_TOKENS["charcoal"]};
+    --amber:         {DESIGN_TOKENS["amber"]};
+    --amber-dark:    {DESIGN_TOKENS["amber_dark"]};
+    --amber-glow:    {DESIGN_TOKENS["amber_glow"]};
+    --amber-tint:    {DESIGN_TOKENS["amber_tint"]};
+    --ghost:         {DESIGN_TOKENS["ghost"]};
+    --black:         {DESIGN_TOKENS["black"]};
+    --surface:       {DESIGN_TOKENS["surface"]};
+    --border-amber:  {DESIGN_TOKENS["border_amber"]};
+    --border-subtle: {DESIGN_TOKENS["border_subtle"]};
+    --text-secondary:{DESIGN_TOKENS["text_secondary"]};
     --radius-card:   28px;
     --radius-btn:    24px;
     --radius-input:  12px;
@@ -123,14 +125,20 @@ code, pre,
 /* ── Amber pulse keyframes ────────────────────────────────── */
 @keyframes amber-pulse {{
     0%   {{ box-shadow: 0 4px 24px rgba(253,184,51,0.2); }}
-    50%  {{ box-shadow: 0 8px 40px rgba(253,184,51,0.5), 0 0 0 4px rgba(253,184,51,0.15); }}
+    50%  {{
+        box-shadow:
+            0 8px 40px rgba(253,184,51,0.5),
+            0 0 0 4px rgba(253,184,51,0.15);
+    }}
     100% {{ box-shadow: 0 4px 24px rgba(253,184,51,0.2); }}
 }}
 
 /* ── Buttons — primary (amber gradient, snap-to-beat hover) ─ */
 button[data-testid="baseButton-primary"],
 button[kind="primary"] {{
-    background: linear-gradient(135deg, var(--amber) 0%, var(--amber-dark) 100%) !important;
+    background:
+        linear-gradient(135deg, var(--amber) 0%, var(--amber-dark) 100%)
+        !important;
     color: var(--black) !important;
     border: none !important;
     border-radius: var(--radius-btn) !important;
@@ -259,7 +267,9 @@ button[data-testid="baseButton-secondary"]:hover:not(:disabled) {{
 }}
 
 [data-testid="stProgressBar"] > div > div {{
-    background: linear-gradient(90deg, var(--amber) 0%, var(--amber-dark) 100%) !important;
+    background:
+        linear-gradient(90deg, var(--amber) 0%, var(--amber-dark) 100%)
+        !important;
     border-radius: 4px !important;
     box-shadow: 0 0 12px rgba(253,184,51,0.4) !important;
 }}
@@ -600,7 +610,9 @@ hr, .stMarkdown hr {{
 }}
 
 .pg-status-card .stProgress > div > div {{
-    background: linear-gradient(90deg, var(--amber) 0%, var(--amber-dark) 100%) !important;
+    background:
+        linear-gradient(90deg, var(--amber) 0%, var(--amber-dark) 100%)
+        !important;
     border-radius: 4px !important;
     box-shadow: 0 0 12px rgba(253,184,51,0.5) !important;
 }}

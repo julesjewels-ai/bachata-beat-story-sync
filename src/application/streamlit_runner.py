@@ -75,12 +75,14 @@ def run_streamlit_generation(
             duration_s = (
                 round(result.audio_meta.duration, 1) if result.audio_meta else 0
             )
-            effects_count = sum([
-                bool(pacing_kwargs.get("video_style") not in (None, "none")),
-                bool(pacing_kwargs.get("intro_effect") not in (None, "none")),
-                bool(pacing_kwargs.get("transition_type") not in (None, "none")),
-                bool(pacing_kwargs.get("speed_ramp_organic")),
-            ])
+            effects_count = sum(
+                [
+                    bool(pacing_kwargs.get("video_style") not in (None, "none")),
+                    bool(pacing_kwargs.get("intro_effect") not in (None, "none")),
+                    bool(pacing_kwargs.get("transition_type") not in (None, "none")),
+                    bool(pacing_kwargs.get("speed_ramp_organic")),
+                ]
+            )
             metadata = {
                 "bpm": bpm,
                 "clips_total": clips_total,

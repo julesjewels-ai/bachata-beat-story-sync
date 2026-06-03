@@ -76,7 +76,11 @@ def test_plan_song_from_batch(monkeypatch, tmp_path: Path) -> None:
         ],
     }
     batch_path.write_text(json.dumps(batch), encoding="utf-8")
-    monkeypatch.setattr(batch_bridge, "_analyze_audio", lambda path: (path, DummyMeta()))
+    monkeypatch.setattr(
+        batch_bridge,
+        "_analyze_audio",
+        lambda path: (path, DummyMeta()),
+    )
 
     segments = batch_bridge.plan_song_from_batch(
         batch_path=batch_path,
@@ -102,7 +106,11 @@ def test_render_song_from_batch_updates_json(monkeypatch, tmp_path: Path) -> Non
         ],
     }
     batch_path.write_text(json.dumps(batch), encoding="utf-8")
-    monkeypatch.setattr(batch_bridge, "_analyze_audio", lambda path: (path, DummyMeta()))
+    monkeypatch.setattr(
+        batch_bridge,
+        "_analyze_audio",
+        lambda path: (path, DummyMeta()),
+    )
 
     result = batch_bridge.render_song_from_batch(
         batch_path=batch_path,

@@ -106,4 +106,6 @@ def test_validate_duration_contract_detects_under_coverage() -> None:
     )
     assert not result.is_valid
     assert result.alignment_status == "under"
-    assert any("Rendered duration under-covers target duration" in msg for msg in result.issues)
+    assert any(
+        "Rendered duration under-covers target duration" in msg for msg in result.issues
+    )

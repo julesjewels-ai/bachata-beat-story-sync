@@ -7,6 +7,7 @@ magic string keys throughout the UI code.
 from __future__ import annotations
 
 import queue
+from typing import Any, cast
 
 import streamlit as st
 
@@ -58,7 +59,7 @@ class SessionState:
     @property
     def is_running(self) -> bool:
         """Whether the pipeline is currently running."""
-        return st.session_state.get("running", False)
+        return cast(bool, st.session_state.get("running", False))
 
     @is_running.setter
     def is_running(self, value: bool) -> None:
@@ -68,7 +69,7 @@ class SessionState:
     @property
     def demo_mode(self) -> bool:
         """Whether the app is running in demo mode with bundled assets."""
-        return st.session_state.get("demo_mode", False)
+        return cast(bool, st.session_state.get("demo_mode", False))
 
     @demo_mode.setter
     def demo_mode(self, value: bool) -> None:
@@ -82,7 +83,7 @@ class SessionState:
     @property
     def log_lines(self) -> list[str]:
         """List of log messages to display to the user."""
-        return st.session_state.get("log_lines", [])
+        return cast(list[str], st.session_state.get("log_lines", []))
 
     @log_lines.setter
     def log_lines(self, value: list[str]) -> None:
@@ -94,19 +95,22 @@ class SessionState:
         st.session_state["log_lines"].append(line)
 
     @property
-    def log_queue(self) -> queue.Queue:
+    def log_queue(self) -> queue.Queue[Any]:
         """Thread-safe queue for collecting logs from background worker."""
-        return st.session_state.get("log_queue", queue.Queue())
+        return cast(queue.Queue[Any], st.session_state.get("log_queue", queue.Queue()))
 
     @log_queue.setter
-    def log_queue(self, value: queue.Queue) -> None:
+    def log_queue(self, value: queue.Queue[Any]) -> None:
         """Set the log queue."""
         st.session_state["log_queue"] = value
 
     @property
     def progress_tracker(self) -> ProgressTracker:
         """Progress tracker for ETA estimation and stage updates."""
-        return st.session_state.get("progress_tracker", ProgressTracker())
+        return cast(
+            ProgressTracker,
+            st.session_state.get("progress_tracker", ProgressTracker()),
+        )
 
     @progress_tracker.setter
     def progress_tracker(self, value: ProgressTracker) -> None:
@@ -149,7 +153,7 @@ class SessionState:
 
     @property
     def result_metadata(self) -> dict | None:
-        """Result metrics dict (bpm, clips_used, clips_total, duration_s, effects_count)."""
+        """Result metrics dict for the latest pipeline execution."""
         return st.session_state.get("result_metadata")
 
     @result_metadata.setter
@@ -163,7 +167,7 @@ class SessionState:
     @property
     def audio_path(self) -> str:
         """Path to the audio file (user-selected or uploaded)."""
-        return st.session_state.get("audio_path", "")
+        return cast(str, st.session_state.get("audio_path", ""))
 
     @audio_path.setter
     def audio_path(self, value: str) -> None:
@@ -173,7 +177,7 @@ class SessionState:
     @property
     def video_dir(self) -> str:
         """Path to the video clips directory."""
-        return st.session_state.get("video_dir", "")
+        return cast(str, st.session_state.get("video_dir", ""))
 
     @video_dir.setter
     def video_dir(self, value: str) -> None:
@@ -183,7 +187,7 @@ class SessionState:
     @property
     def broll_dir(self) -> str:
         """Path to the B-roll directory (optional)."""
-        return st.session_state.get("broll_dir", "")
+        return cast(str, st.session_state.get("broll_dir", ""))
 
     @broll_dir.setter
     def broll_dir(self, value: str) -> None:
@@ -193,7 +197,7 @@ class SessionState:
     @property
     def output_path(self) -> str:
         """Path where the output video will be saved."""
-        return st.session_state.get("output_path", "output_story.mp4")
+        return cast(str, st.session_state.get("output_path", "output_story.mp4"))
 
     @output_path.setter
     def output_path(self, value: str) -> None:

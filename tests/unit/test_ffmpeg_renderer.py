@@ -29,12 +29,10 @@ def test_build_mix_fade_filters_adds_timeline_enable_windows():
 
     assert len(filters) == 2
     assert (
-        "fade=t=out:st=12.250:d=0.250:color=black:"
-        "enable='between(t,12.250,12.500)'"
+        "fade=t=out:st=12.250:d=0.250:color=black:enable='between(t,12.250,12.500)'"
     ) in filters
     assert (
-        "fade=t=in:st=12.500:d=0.250:color=black:"
-        "enable='between(t,12.500,12.750)'"
+        "fade=t=in:st=12.500:d=0.250:color=black:enable='between(t,12.500,12.750)'"
     ) in filters
 
 

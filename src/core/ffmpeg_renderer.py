@@ -771,10 +771,7 @@ def build_overlay_filter(overlay_config: OverlayConfig) -> str:
     if style in ("spectrum", "cqt") and opacity < 1.0:
         post = f",format=yuva420p,colorchannelmixer=aa={opacity:.2f}"
 
-    return (
-        f"[1:a]{src_filter}{post}[viz];"
-        f"[0:v][viz]overlay={x_expr}:H-h-{pad}[outv]"
-    )
+    return f"[1:a]{src_filter}{post}[viz];[0:v][viz]overlay={x_expr}:H-h-{pad}[outv]"
 
 
 def overlay_audio(
@@ -940,7 +937,8 @@ def fill_tail_gap(
 
     filled_dur = get_video_duration(output_path)
     logger.info(
-        "Tail gap filled: appended %d clip(s) (%.3fs requested, residual %.3fs) → %.3fs",
+        "Tail gap filled: appended %d clip(s) "
+        "(%.3fs requested, residual %.3fs) → %.3fs",
         len(fillers),
         delta_seconds,
         max(0.0, remaining),
@@ -1005,9 +1003,7 @@ def _build_mix_fade_filters(config: RenderConfig | PacingConfig) -> list[str]:
     # Sort boundaries defensively so misordered metadata never scrambles
     # time windows. Keep only positive starts (0.0 is the first track).
     starts = sorted(
-        seg.start_time
-        for seg in render_config.mix_track_segments
-        if seg.start_time > 0
+        seg.start_time for seg in render_config.mix_track_segments if seg.start_time > 0
     )
 
     filters: list[str] = []

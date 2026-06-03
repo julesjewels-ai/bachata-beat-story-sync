@@ -6,6 +6,7 @@ Consolidates repeated deployed/local conditional logic for file inputs.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import cast
 
 import streamlit as st
 
@@ -48,8 +49,10 @@ def audio_input_component(
             st.markdown(
                 f'<div class="pg-callout">'
                 f"<span style=\"font-family:'IBM Plex Mono',monospace;font-size:0.7rem;"
-                f'letter-spacing:2px;color:#FDB833;text-transform:uppercase;">DEMO AUDIO</span><br>'
-                f"<span style=\"font-family:'Space Grotesk',sans-serif;font-size:0.88rem;\">"
+                "letter-spacing:2px;color:#FDB833;text-transform:uppercase;"
+                '">DEMO AUDIO</span><br>'
+                f"<span style=\"font-family:'Space Grotesk',sans-serif;"
+                'font-size:0.88rem;">'
                 f"Using <code>{DEMO_AUDIO.name}</code></span>"
                 f"</div>",
                 unsafe_allow_html=True,
@@ -83,7 +86,7 @@ def audio_input_component(
                 disabled=disabled,
             )
             if uploaded_audio:
-                return uploaded_audio.name
+                return cast(str, uploaded_audio.name)
             return ""
         else:
             # Local: upload + file picker (stacked vertically)
@@ -128,8 +131,8 @@ def audio_input_component(
                         st.rerun()
 
             if uploaded_audio:
-                return uploaded_audio.name
-            return audio_path
+                return cast(str, uploaded_audio.name)
+            return cast(str, audio_path)
 
 
 def video_input_component(
@@ -152,8 +155,10 @@ def video_input_component(
             st.markdown(
                 '<div class="pg-callout">'
                 "<span style=\"font-family:'IBM Plex Mono',monospace;font-size:0.7rem;"
-                'letter-spacing:2px;color:#FDB833;text-transform:uppercase;">DEMO CLIPS</span><br>'
-                "<span style=\"font-family:'Space Grotesk',sans-serif;font-size:0.88rem;\">"
+                "letter-spacing:2px;color:#FDB833;text-transform:uppercase;"
+                '">DEMO CLIPS</span><br>'
+                "<span style=\"font-family:'Space Grotesk',sans-serif;"
+                'font-size:0.88rem;">'
                 "Using sample footage gallery</span>"
                 "</div>",
                 unsafe_allow_html=True,
@@ -244,9 +249,10 @@ def video_input_component(
                         st.rerun()
 
             st.caption(
-                "Upload individual video files or select the root directory containing your dance footage."
+                "Upload individual video files or select the root directory "
+                "containing your dance footage."
             )
-            return video_path
+            return cast(str, video_path)
 
 
 def broll_input_component(
@@ -265,7 +271,8 @@ def broll_input_component(
     with st.container(border=True):
         st.subheader("B-roll", anchor=None)
         st.caption(
-            "OPTIONAL — Add texture clips, atmospheric shots, or environment b-roll to be used as transitions and overlays during musical swells."
+            "OPTIONAL — Add texture clips, atmospheric shots, or environment "
+            "b-roll to be used as transitions and overlays during musical swells."
         )
 
         if not is_deployed:
@@ -293,13 +300,17 @@ def broll_input_component(
                     placeholder="/Users/Artist/Documents/Stock/Atmosph",
                     key="broll_dir",
                     label_visibility="collapsed",
-                    help="Auto-detected as a 'broll/' subfolder inside the clips folder if it exists.",
+                    help=(
+                        "Auto-detected as a 'broll/' subfolder inside the "
+                        "clips folder if it exists."
+                    ),
                     disabled=disabled,
                 )
             return broll_path
         else:
             st.info(
-                "💡 B-roll support is available when running locally. Include B-roll files with your video uploads for now."
+                "💡 B-roll support is available when running locally. "
+                "Include B-roll files with your video uploads for now."
             )
             return ""
 

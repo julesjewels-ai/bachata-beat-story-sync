@@ -10,9 +10,9 @@ import cv2
 import numpy as np
 from pydantic import BaseModel, Field, field_validator
 
+from src.core.ffmpeg_renderer import get_video_duration
 from src.core.models import VideoAnalysisResult
 from src.core.validation import validate_file_path
-from src.core.ffmpeg_renderer import get_video_duration
 
 logger = logging.getLogger(__name__)
 
@@ -221,7 +221,7 @@ class VideoAnalyzer:
 
             if prev_frame is not None:
                 frame_delta = cv2.absdiff(prev_frame, processed_frame)
-                score = float(np.mean(frame_delta))
+                score = float(np.mean(frame_delta.astype(np.float64)))
                 motion_scores.append(score)
 
                 # FEAT-020: scene-change detection

@@ -10,9 +10,11 @@ from __future__ import annotations
 
 import streamlit as st
 
+from src.core.app import BachataSyncEngine
+
 
 @st.cache_resource(show_spinner="Loading engine…")
-def load_engine():
+def load_engine() -> BachataSyncEngine:
     """Lazy-load and cache the BachataSyncEngine.
 
     Returns:
@@ -65,6 +67,7 @@ def get_intro_effects() -> list[str]:
     except ImportError as e:
         st.error(f"Could not load intro effects: {e}")
         st.stop()
+
 
 def get_transitions() -> list[str]:
     """Get list of artistically relevant FFmpeg xfade transition names.

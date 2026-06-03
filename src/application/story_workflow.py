@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any, Protocol, cast
@@ -52,7 +53,7 @@ def build_story_pacing(overrides: dict[str, Any] | None = None) -> PacingConfig:
 @contextmanager
 def _observer_scope(
     factory: ObserverFactory | None,
-) -> ProgressObserver | None:
+) -> Iterator[ProgressObserver | None]:
     """Create an observer and enter it if it supports context management."""
     if factory is None:
         yield None
@@ -63,7 +64,7 @@ def _observer_scope(
     exit_ = getattr(observer, "__exit__", None)
 
     if callable(enter) and callable(exit_):
-        with observer as managed:
+        with cast(Any, observer) as managed:
             yield cast(ProgressObserver, managed)
         return
 

@@ -3,25 +3,49 @@ from __future__ import annotations
 import json
 import os
 from copy import deepcopy
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol, cast
 
+from src.cli_utils import analyze_audio as _analyze_audio
 from src.cli_utils import detect_broll_dir, strip_thumbnails
 from src.config.app_config import build_pacing_config
 from src.core.app import BachataSyncEngine
-from src.cli_utils import analyze_audio as _analyze_audio
+
+
+class BatchEngine(Protocol):
+    def scan_video_library(
+        self,
+        directory: str,
+        exclude_dirs: list[str] | None = None,
+    ) -> list[Any]: ...
+
+    def plan_story(
+        self,
+        audio_meta: Any,
+        clips: list[Any],
+        pacing: Any = None,
+    ) -> list[Any]: ...
+
+    def generate_story(
+        self,
+        audio_meta: Any,
+        clips: list[Any],
+        output_path: str,
+        *,
+        broll_clips: list[Any] | None = None,
+        audio_path: str | None = None,
+        pacing: Any = None,
+    ) -> str: ...
 
 
 def utc_now() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace(
-        "+00:00", "Z"
-    )
+    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def load_batch(batch_path: str | os.PathLike[str]) -> dict[str, Any]:
     with Path(batch_path).open("r", encoding="utf-8") as handle:
-        return json.load(handle)
+        return cast(dict[str, Any], json.load(handle))
 
 
 def save_batch(batch_path: str | os.PathLike[str], batch: dict[str, Any]) -> None:
@@ -57,7 +81,7 @@ def resolve_batch_paths(
 def _song_by_id(batch: dict[str, Any], song_id: str) -> dict[str, Any]:
     for song in batch.get("songs", []):
         if song.get("song_id") == song_id:
-            return song
+            return cast(dict[str, Any], song)
     raise KeyError(f"song_id not found: {song_id}")
 
 
@@ -82,7 +106,7 @@ def plan_song_from_batch(
     song_id: str,
     video_dir: str,
     config_overrides: dict | None = None,
-    engine: BachataSyncEngine | None = None,
+    engine: BatchEngine | None = None,
 ) -> list[dict[str, Any]]:
     batch = resolve_batch_paths(load_batch(batch_path), Path(batch_path).parent)
     song = _song_by_id(batch, song_id)
@@ -111,7 +135,7 @@ def render_song_from_batch(
     video_dir: str,
     output_path: str,
     config_overrides: dict | None = None,
-    engine: BachataSyncEngine | None = None,
+    engine: BatchEngine | None = None,
 ) -> dict[str, Any]:
     batch_file = Path(batch_path)
     raw_batch = load_batch(batch_file)

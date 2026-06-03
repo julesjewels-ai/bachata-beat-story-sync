@@ -1,0 +1,31 @@
+{
+  "date": "2026-05-04",
+  "url": "http://localhost:8503/",
+  "healthScore": 96,
+  "issues": [
+    {
+      "id": "ISSUE-001",
+      "title": "Streamlit startup prints invalid config warnings",
+      "severity": "Medium",
+      "category": "Functional / Dev Experience",
+      "fixStatus": "verified"
+    },
+    {
+      "id": "ISSUE-002",
+      "title": "Quick demo dry-run could pass with zero planned segments",
+      "severity": "High",
+      "category": "Functional",
+      "fixStatus": "verified"
+    }
+  ],
+  "categoryScores": {
+    "console": 100,
+    "links": 100,
+    "visual": 96,
+    "functional": 92,
+    "ux": 96,
+    "performance": 100,
+    "content": 100,
+    "accessibility": 90
+  }
+}

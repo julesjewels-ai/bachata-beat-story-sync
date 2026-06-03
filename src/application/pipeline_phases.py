@@ -7,7 +7,7 @@ import logging
 import os
 import uuid
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 from src.cli_utils import generate_shorts_batch, run_dry_run_handler, strip_thumbnails
 from src.config.app_config import PipelineConfig
@@ -42,14 +42,17 @@ def generate_video(
     """Generate a single horizontal music video."""
     pacing = PacingConfig(**pacing_kwargs) if pacing_kwargs else None
     with RichProgressObserver() as obs:
-        return engine.generate_story(
-            audio_meta,
-            clips,
-            output_path,
-            broll_clips=broll_clips,
-            audio_path=audio_path,
-            observer=obs,
-            pacing=pacing,
+        return cast(
+            str,
+            engine.generate_story(
+                audio_meta,
+                clips,
+                output_path,
+                broll_clips=broll_clips,
+                audio_path=audio_path,
+                observer=obs,
+                pacing=pacing,
+            ),
         )
 
 

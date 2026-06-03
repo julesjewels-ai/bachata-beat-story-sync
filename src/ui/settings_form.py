@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any, cast
 
 import streamlit as st
 
@@ -158,9 +159,9 @@ def render_advanced_settings(
         max_duration_input=int(max_duration_input),
         dry_run=dry_run,
         export_report=export_report,
-        **speed_settings,
-        **beat_effects,
-        **text_overlay,
+        **cast(Any, speed_settings),
+        **cast(Any, beat_effects),
+        **cast(Any, text_overlay),
     )
     return settings, broll_dir_input, output_path
 

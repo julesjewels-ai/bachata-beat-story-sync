@@ -368,8 +368,7 @@ class PacingConfig(BaseModel):
     )
     audio_overlay_height: int = Field(
         120,
-        description="Height of the visualizer in pixels (40–400). "
-        "Default 120.",
+        description="Height of the visualizer in pixels (40–400). Default 120.",
     )
 
     # Audio Hook Detection (FEAT-019)
@@ -658,7 +657,9 @@ class CompilationConfig(BaseModel):
     )
     transition_type: Literal["fade", "crossfade", "none"] = Field(
         "fade",
-        description="Type of transition between track videos: 'fade', 'crossfade', 'none'",
+        description=(
+            "Type of transition between track videos: 'fade', 'crossfade', 'none'"
+        ),
     )
     transition_duration: float = Field(
         0.5,
