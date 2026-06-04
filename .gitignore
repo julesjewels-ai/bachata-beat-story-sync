@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.egg-info/
+montage_config.py
 
 # Environments
 venv/
@@ -36,6 +37,8 @@ out_shorts/
 .pytest_cache/
 .mypy_cache/
 .claude/
+.video_cache.json
+.video_cache.json.tmp
 
 # Reports and logs
 *.xlsx

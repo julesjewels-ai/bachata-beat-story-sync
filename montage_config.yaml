@@ -90,7 +90,7 @@ pacing:
   # For 'bars', a multi-color palette is distributed across frequency bands.
   # Palettes: 'none', 'warm', 'cool', 'sunset', 'neon', 'rainbow', 'mono', 'custom'.
   # 'none' and 'custom' both use audio_overlay_color; named palettes override it.
-  audio_overlay_palette: sunset
+  audio_overlay_palette: mono
   audio_overlay_color: white   # Hex (e.g. '#FF8800') or FFmpeg color name
   # Size — width as a fraction of video width (0.05–1.0), height in pixels (40–400).
   audio_overlay_width_pct: 0.6

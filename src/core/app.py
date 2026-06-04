@@ -16,6 +16,7 @@ from src.core.video_analyzer import (
     VideoAnalysisInput,
     VideoAnalyzer,
 )
+from src.core.video_cache_manager import VideoAnalysisCache
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,7 @@ class BachataSyncEngine:
     def __init__(self) -> None:
         self.video_analyzer = VideoAnalyzer()
         self.montage_generator = MontageGenerator()
+        self.cache = VideoAnalysisCache()
 
     def scan_video_library(
         self,
@@ -49,12 +51,25 @@ class BachataSyncEngine:
         try:
             for i, video_path in enumerate(files_to_process):
                 filename = os.path.basename(video_path)
+
+                # Check cache first
+                cached_result = self.cache.get(video_path)
+                if cached_result is not None:
+                    if observer:
+                        observer.on_progress(
+                            i, total_files, f"Scanning {filename} (cached)..."
+                        )
+                    clips.append(cached_result)
+                    continue
+
                 if observer:
                     observer.on_progress(i, total_files, f"Scanning {filename}...")
 
                 if result := self._process_video_file(video_path):
+                    self.cache.set(video_path, result)
                     clips.append(result)
         finally:
+            self.cache.save()
             if observer:
                 observer.on_progress(total_files, total_files, "Scan complete.")
 
