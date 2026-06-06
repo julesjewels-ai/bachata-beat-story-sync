@@ -721,7 +721,7 @@ def apply_transitions(
         current_input = step_output
 
 
-def build_overlay_filter(overlay_config: OverlayConfig) -> str:
+def build_overlay_filter(overlay_config: OverlayConfig, intro_duration: float = 0.0) -> str:
     """Construct the FFmpeg ``-filter_complex`` string for the visualizer.
 
     Separated from :func:`overlay_audio` so the filter graph can be
@@ -771,7 +771,8 @@ def build_overlay_filter(overlay_config: OverlayConfig) -> str:
     if style in ("spectrum", "cqt") and opacity < 1.0:
         post = f",format=yuva420p,colorchannelmixer=aa={opacity:.2f}"
 
-    return f"[1:a]{src_filter}{post}[viz];[0:v][viz]overlay={x_expr}:H-h-{pad}[outv]"
+    enable_expr = f":enable='gt(t,{intro_duration:.3f})'" if intro_duration > 0 else ""
+    return f"[1:a]{src_filter}{post}[viz];[0:v][viz]overlay={x_expr}:H-h-{pad}{enable_expr}[outv]"
 
 
 def overlay_audio(
@@ -781,6 +782,7 @@ def overlay_audio(
     config: OverlayConfig | PacingConfig,
     video_duration: float = 0.0,
     target_duration: float = 0.0,
+    intro_duration: float = 0.0,
 ) -> None:
     """
     Replace the video's audio track with the original song.
@@ -839,7 +841,7 @@ def overlay_audio(
             output_path,
         ]
     else:
-        f_str = build_overlay_filter(overlay_config)
+        f_str = build_overlay_filter(overlay_config, intro_duration)
 
         cmd = [
             "ffmpeg",

@@ -158,6 +158,11 @@ class MontageGenerator:
 
         # Only force the first prefix clip as the intro;
         # remaining prefix clips return to the regular pool.
+        if forced_clips:
+            intro_clip = forced_clips[0]
+            if intro_clip in unique_clips:
+                unique_clips.remove(intro_clip)
+
         if len(forced_clips) > 1:
             overflow = forced_clips[1:]
             forced_clips = forced_clips[:1]
@@ -528,9 +533,15 @@ class MontageGenerator:
         clip_idx: int,
     ) -> _SegmentFit | None:
         """Adaptive fit strategy for short/insufficient footage."""
-        min_required = min(config.min_clip_seconds, remaining)
+        # Check if the primary clip is a forced/numeric-prefixed clip (e.g. '01_intro-bumper.mp4')
+        primary = candidate_clips[0]
+        basename = os.path.basename(primary.path)
+        is_forced = bool(re.match(r"^(\d+)_", basename))
+
+        min_clip_limit = MIN_RECOVERY_SEGMENT_SECONDS if is_forced else config.min_clip_seconds
+        min_required = min(min_clip_limit, remaining)
         allow_short_terminal = remaining <= (
-            config.min_clip_seconds + config.duration_sync_tolerance_seconds
+            min_clip_limit + config.duration_sync_tolerance_seconds
         )
 
         def _accept(duration: float) -> bool:
@@ -805,7 +816,19 @@ class MontageGenerator:
                 )
                 break
 
-            desired_duration = min(beat_count * spb, remaining)
+            # If the next clip is a forced intro bumper/clip, let it play fully up to its actual duration
+            is_next_forced = state.forced_clip_idx < len(forced_clips)
+            if is_next_forced:
+                forced_clip = forced_clips[state.forced_clip_idx]
+                basename = os.path.basename(forced_clip.path).lower()
+                is_intro_bumper = "intro" in basename or "bumper" in basename
+                if is_intro_bumper:
+                    desired_duration = min(forced_clip.duration / speed, remaining)
+                else:
+                    desired_duration = min(beat_count * spb, remaining)
+            else:
+                desired_duration = min(beat_count * spb, remaining)
+
             if desired_duration <= 0:
                 logger.debug("STOP: desired_duration <= 0 at iteration %d", iteration)
                 break

@@ -6,6 +6,8 @@ debug/reporting layers without coupling to FFmpeg rendering.
 
 from __future__ import annotations
 
+import os
+import re
 from dataclasses import dataclass, field
 
 from src.core.models import SegmentPlan
@@ -94,8 +96,10 @@ def validate_segment_plan(
             issues.append(
                 f"Segment {idx} has non-positive duration ({seg.duration:.3f}s)."
             )
-        # Allow a shorter terminal segment for exact tail coverage.
-        if idx < total_segments and seg.duration + tolerance < min_clip_seconds:
+        # Allow a shorter terminal segment for exact tail coverage or forced clips.
+        basename = os.path.basename(seg.video_path)
+        is_forced = bool(re.match(r"^(\d+)_", basename))
+        if idx < total_segments and not is_forced and seg.duration + tolerance < min_clip_seconds:
             issues.append(
                 f"Segment {idx} is below min_clip_seconds "
                 f"({seg.duration:.3f}s < {min_clip_seconds:.3f}s)."

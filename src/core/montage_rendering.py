@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import shutil
 from dataclasses import dataclass
 from typing import Any
@@ -177,6 +178,14 @@ def render_montage(
                         )
 
         if audio_path and ops.path_exists(audio_path):
+            # Calculate intro duration if first clip is forced/numeric
+            intro_duration = 0.0
+            if segments:
+                first_seg = segments[0]
+                basename = os.path.basename(first_seg.video_path)
+                if re.match(r"^(\d+)_", basename):
+                    intro_duration = first_seg.duration
+
             ops.overlay_audio(
                 concat_path,
                 audio_path,
@@ -184,6 +193,7 @@ def render_montage(
                 overlay_config,
                 video_duration=video_dur,
                 target_duration=output_target_duration,
+                intro_duration=intro_duration,
             )
         else:
             shutil.move(concat_path, output_path)
