@@ -299,18 +299,32 @@ class MontageGenerator:
             Tuple of (target_beats, level_name, speed_factor)
         """
         # Pick target duration and speed based on intensity level
-        if intensity >= config.high_intensity_threshold:
-            target_seconds = config.high_intensity_seconds
-            level = "high"
-            speed = config.high_intensity_speed if config.speed_ramp_enabled else 1.0
-        elif intensity < config.low_intensity_threshold:
-            target_seconds = config.low_intensity_seconds
-            level = "low"
-            speed = config.low_intensity_speed if config.speed_ramp_enabled else 1.0
+        if config.speed_ramp_organic:
+            # Plan for the worst-case (fastest possible speed) so we don't overestimate
+            # achievable duration and later run out of source frames when the curve is applied.
+            speed = config.speed_ramp_max
+            if intensity >= config.high_intensity_threshold:
+                target_seconds = config.high_intensity_seconds
+                level = "high"
+            elif intensity < config.low_intensity_threshold:
+                target_seconds = config.low_intensity_seconds
+                level = "low"
+            else:
+                target_seconds = config.medium_intensity_seconds
+                level = "medium"
         else:
-            target_seconds = config.medium_intensity_seconds
-            level = "medium"
-            speed = config.medium_intensity_speed if config.speed_ramp_enabled else 1.0
+            if intensity >= config.high_intensity_threshold:
+                target_seconds = config.high_intensity_seconds
+                level = "high"
+                speed = config.high_intensity_speed if config.speed_ramp_enabled else 1.0
+            elif intensity < config.low_intensity_threshold:
+                target_seconds = config.low_intensity_seconds
+                level = "low"
+                speed = config.low_intensity_speed if config.speed_ramp_enabled else 1.0
+            else:
+                target_seconds = config.medium_intensity_seconds
+                level = "medium"
+                speed = config.medium_intensity_speed if config.speed_ramp_enabled else 1.0
 
         # Dynamic Flow: accelerate pacing towards the end (reduce duration by up to 40%)
         if config.accelerate_pacing:

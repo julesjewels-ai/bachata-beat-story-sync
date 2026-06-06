@@ -263,41 +263,48 @@ def process_individual_tracks(
 
         track_out = os.path.join(args.output_dir, f"{track_label}.mp4")
         with log.status("Rendering track video…"):
-            result = generate_video(
-                engine,
-                track_meta,
-                clips,
-                track_out,
-                track_path,
-                track_pacing,
-                broll_clips=broll,
-            )
-        generated_files.append(result)
-        log.success(f"Track video: [bold]{result}[/bold]")
+            try:
+                result = generate_video(
+                    engine,
+                    track_meta,
+                    clips,
+                    track_out,
+                    track_path,
+                    track_pacing,
+                    broll_clips=broll,
+                )
+                generated_files.append(result)
+                log.success(f"Track video: [bold]{result}[/bold]")
 
-        track_videos.append(result)
-        track_audio_files.append(track_path)
+                track_videos.append(result)
+                track_audio_files.append(track_path)
+            except Exception as e:
+                log.warn(f"Failed to generate track video for {track_name}: {e}. Skipping this track.")
+                continue
 
         if args.shorts_count > 0:
             shorts_dir = os.path.join(args.output_dir, "shorts", f"track_{idx:02d}")
             with log.status(f"Rendering {args.shorts_count} short(s)…"):
-                shorts = generate_shorts_batch(
-                    engine,
-                    track_meta,
-                    clips,
-                    track_path,
-                    shorts_dir,
-                    args.shorts_count,
-                    min_dur,
-                    max_dur,
-                    track_pacing,
-                    smart_start=args.smart_start,
-                    dynamic_flow=getattr(args, "dynamic_flow", False),
-                    human_touch=getattr(args, "human_touch", False),
-                    cliffhanger=getattr(args, "cliffhanger", False),
-                )
-            generated_files.extend(shorts)
-            log.success(f"{len(shorts)} short(s) saved in [bold]{shorts_dir}[/bold]")
+                try:
+                    shorts = generate_shorts_batch(
+                        engine,
+                        track_meta,
+                        clips,
+                        track_path,
+                        shorts_dir,
+                        args.shorts_count,
+                        min_dur,
+                        max_dur,
+                        track_pacing,
+                        smart_start=args.smart_start,
+                        dynamic_flow=getattr(args, "dynamic_flow", False),
+                        human_touch=getattr(args, "human_touch", False),
+                        cliffhanger=getattr(args, "cliffhanger", False),
+                    )
+                    generated_files.extend(shorts)
+                    log.success(f"{len(shorts)} short(s) saved in [bold]{shorts_dir}[/bold]")
+                except Exception as e:
+                    log.warn(f"Failed to generate shorts for {track_name}: {e}. Skipping shorts for this track.")
 
     return generated_files, track_videos, track_audio_files
 
