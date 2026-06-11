@@ -52,6 +52,45 @@ def test_validate_segment_plan_detects_overlap() -> None:
     assert any("Overlap before segment 2" in msg for msg in result.issues)
 
 
+def test_validate_segment_plan_detects_footage_shortfall() -> None:
+    short_source = SegmentPlan(
+        video_path="/videos/short.mp4",
+        start_time=1.0,
+        duration=3.0,
+        clip_duration=3.5,  # only 2.5s left after start_time
+        timeline_position=2.0,
+        intensity_level="medium",
+        speed_factor=1.0,
+    )
+    result = validate_segment_plan(
+        [_seg(0.0, 2.0), short_source],
+        expected_duration=5.0,
+        min_clip_seconds=1.5,
+    )
+    assert not result.is_valid
+    assert any("source footage" in msg for msg in result.issues)
+
+
+def test_validate_segment_plan_footage_check_accounts_for_speed() -> None:
+    # 2s output at 1.2x needs 2.4s of source; only 2.2s remain.
+    fast_seg = SegmentPlan(
+        video_path="/videos/fast.mp4",
+        start_time=0.8,
+        duration=2.0,
+        clip_duration=3.0,
+        timeline_position=2.0,
+        intensity_level="high",
+        speed_factor=1.2,
+    )
+    result = validate_segment_plan(
+        [_seg(0.0, 2.0), fast_seg],
+        expected_duration=4.0,
+        min_clip_seconds=1.5,
+    )
+    assert not result.is_valid
+    assert any("source footage" in msg for msg in result.issues)
+
+
 def test_validate_segment_plan_detects_min_clip_violation() -> None:
     result = validate_segment_plan(
         [_seg(0.0, 1.2), _seg(1.2, 2.0)],

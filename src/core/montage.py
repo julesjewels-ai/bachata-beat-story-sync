@@ -913,8 +913,19 @@ class MontageGenerator:
                 ]
                 if intensity_slice:
                     speed_curve = self._compute_speed_curve(intensity_slice, config)
+                    mean_speed = sum(speed_curve) / len(speed_curve)
+                    # The curve is computed after the footage fit, so its mean
+                    # speed can demand more source material than the clip has
+                    # left — the render would silently starve and come up
+                    # short. Rescale the whole curve to the available footage.
+                    required_source = seg.duration * mean_speed
+                    available_source = fit.clip.duration - fit.start_time
+                    if 0 < available_source < required_source:
+                        scale = available_source / required_source
+                        speed_curve = [s * scale for s in speed_curve]
+                        mean_speed *= scale
                     seg.speed_curve = speed_curve
-                    seg.speed_factor = sum(speed_curve) / len(speed_curve)
+                    seg.speed_factor = mean_speed
 
             segments.append(seg)
 

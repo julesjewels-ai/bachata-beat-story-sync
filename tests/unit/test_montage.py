@@ -898,8 +898,10 @@ class TestFFmpegOrchestration:
     @patch("src.core.ffmpeg_renderer.run_ffmpeg")
     @patch("src.core.montage.tempfile.mkdtemp")
     @patch("src.core.montage.shutil.rmtree")
+    @patch("src.core.montage.os.path.exists", return_value=True)
     def test_temp_dir_cleaned_on_error(
         self,
+        mock_exists,
         mock_rmtree,
         mock_mkdtemp,
         mock_run,
@@ -2918,7 +2920,7 @@ class TestAdvancedEffects:
         mock_normalize.assert_called_once()
 
     @patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")
-    @patch("src.core.ffmpeg_renderer.get_video_duration", return_value=29.7)
+    @patch("src.core.ffmpeg_renderer.get_video_duration")
     @patch("src.core.ffmpeg_renderer.run_ffmpeg")
     @patch("src.core.montage.tempfile.mkdtemp")
     @patch("src.core.montage.shutil.rmtree")
@@ -2940,6 +2942,11 @@ class TestAdvancedEffects:
         os.makedirs(temp_dir, exist_ok=True)
         mock_mkdtemp.return_value = temp_dir
         mock_run.return_value = None
+        # Per-segment probes track the plan; the assembled concat measures
+        # 29.7s against a 30.0s target — a 0.3s mismatch that must raise.
+        mock_get_duration.side_effect = _concat_duration_sequence(
+            [29.7, 29.7, 29.7]
+        )
 
         concat_path = os.path.join(temp_dir, "concat_output.mp4")
         with open(concat_path, "w") as f:

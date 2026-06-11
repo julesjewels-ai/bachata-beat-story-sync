@@ -368,6 +368,18 @@ def extract_segments(
     segment_files: list[str] = []
     total = len(segments)
 
+    # Pre-flight: a missing source file guarantees the final duration check
+    # fails, but only after every other segment has been encoded. Fail here,
+    # before any FFmpeg work, listing every missing file at once.
+    missing_sources = sorted(
+        {seg.video_path for seg in segments if not os.path.exists(seg.video_path)}
+    )
+    if missing_sources:
+        raise FileNotFoundError(
+            f"{len(missing_sources)} source clip(s) missing — aborting before "
+            "rendering: " + ", ".join(missing_sources)
+        )
+
     # Drift correction: every encoded segment quantizes to the frame grid
     # (1/TARGET_FPS), so rendered durations differ from planned ones by up
     # to ~17ms each. Left uncorrected, the error accumulates across the
@@ -376,17 +388,13 @@ def extract_segments(
     # and fold the accumulated drift into the next segment's duration.
     planned_pos = 0.0
     rendered_pos = 0.0
+    drift_tolerance = max(0.0, render_config.duration_sync_tolerance_seconds)
+    # A single segment more than 1s off is beyond what neighbouring
+    # segments can plausibly absorb — abort instead of rendering on.
+    drift_hard_cap = max(1.0, 2 * drift_tolerance)
+    drift_stalled_segments = 0
 
     for i, seg in enumerate(segments):
-        if not os.path.exists(seg.video_path):
-            logger.warning(
-                "Skipping segment %d/%d: source file missing: %s",
-                i + 1,
-                total,
-                seg.video_path,
-            )
-            continue
-
         if observer:
             observer.on_progress(i, total, f"Extracting segment {i + 1}/{total}...")
 
@@ -553,10 +561,12 @@ def extract_segments(
         run_ffmpeg(cmd, f"segment extraction {i + 1}")
         segment_files.append(output_file)
 
+        prev_abs_drift = abs(rendered_pos - planned_pos)
         planned_pos += seg.duration
         rendered_dur = get_video_duration(output_file)
         rendered_pos += rendered_dur if rendered_dur > 0 else seg.duration
-        if abs(rendered_pos - planned_pos) > 0.05:
+        abs_drift = abs(rendered_pos - planned_pos)
+        if abs_drift > 0.05:
             logger.debug(
                 "Segment %d/%d render drift: planned_pos=%.3fs "
                 "rendered_pos=%.3fs delta=%+.3fs",
@@ -565,6 +575,28 @@ def extract_segments(
                 planned_pos,
                 rendered_pos,
                 rendered_pos - planned_pos,
+            )
+
+        # Fail early instead of after the full render: abort when a single
+        # segment blows past the hard cap, or when the drift has sat above
+        # the final-check tolerance without shrinking for three consecutive
+        # segments (the correction is stalled and the run is already doomed).
+        if (
+            drift_tolerance > 0
+            and abs_drift > drift_tolerance
+            and abs_drift >= prev_abs_drift - 1e-3
+        ):
+            drift_stalled_segments += 1
+        else:
+            drift_stalled_segments = 0
+        if abs_drift > drift_hard_cap or drift_stalled_segments >= 3:
+            raise RuntimeError(
+                f"Unrecoverable render drift at segment {i + 1}/{total}: "
+                f"planned={planned_pos:.3f}s rendered={rendered_pos:.3f}s "
+                f"delta={rendered_pos - planned_pos:+.3f}s "
+                f"(tolerance={drift_tolerance:.3f}s). Aborting before "
+                f"rendering the remaining {total - i - 1} segment(s). "
+                f"Source clip: {seg.video_path}"
             )
 
     if segments:

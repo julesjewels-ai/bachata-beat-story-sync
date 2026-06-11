@@ -106,6 +106,20 @@ def validate_segment_plan(
                 f"({seg.timeline_position:.3f}s)."
             )
 
+        # Fail fast on footage shortfalls: rendering would clamp the extract
+        # and produce a shorter segment, only detected minutes later at the
+        # post-concat duration check.
+        if seg.clip_duration > 0:
+            required_source = seg.duration * max(seg.speed_factor, 0.01)
+            available_source = seg.clip_duration - seg.start_time
+            if required_source > available_source + tolerance:
+                issues.append(
+                    f"Segment {idx} needs {required_source:.3f}s of source "
+                    f"footage but only {available_source:.3f}s remain in "
+                    f"{seg.video_path} (start={seg.start_time:.3f}s, "
+                    f"speed={seg.speed_factor:.2f}x)."
+                )
+
         delta = seg.timeline_position - previous_end
         if delta > tolerance:
             issues.append(

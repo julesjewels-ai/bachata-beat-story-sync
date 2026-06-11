@@ -75,6 +75,7 @@ class RenderConfig:
     mix_fade_transitions: bool
     mix_track_segments: list[MixTrackSegment]
     mix_fade_duration: float
+    duration_sync_tolerance_seconds: float = 0.10
 
 
 @dataclass(frozen=True)
@@ -155,6 +156,7 @@ def render_config_from_pacing(config: PacingConfig) -> RenderConfig:
         mix_fade_transitions=config.mix_fade_transitions,
         mix_track_segments=config.mix_track_segments,
         mix_fade_duration=config.mix_fade_duration,
+        duration_sync_tolerance_seconds=config.duration_sync_tolerance_seconds,
     )
 
 
