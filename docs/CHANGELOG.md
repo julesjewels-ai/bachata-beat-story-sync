@@ -14,6 +14,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 ### Fixed
+- Beat-sync drift guards were effectively disabled: `montage_config.yaml` had
+  `duration_sync_tolerance_seconds` raised to 20.0 (via 3.0) in unrelated
+  commits, letting renders drift up to 20s from the audio before any check
+  fired — large drift was silently end-trimmed/padded instead of raised,
+  producing out-of-sync output. Restored the documented 0.10s tolerance and
+  added a config-rot regression test
+  (`test_checked_in_config_keeps_sync_guards_effective`) that fails if the
+  checked-in tolerance leaves the documented 0.05–1.0s range.
 
 ### Deprecated
 

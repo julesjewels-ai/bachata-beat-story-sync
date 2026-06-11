@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import textwrap
+from pathlib import Path
 
 from src.config.app_config import build_pacing_config, load_app_config
 from src.core.audio_mixer import load_audio_mix_config
@@ -76,3 +77,22 @@ def test_build_pacing_config_merges_overrides(tmp_path) -> None:
     assert pacing.video_style == "bw"
     assert pacing.max_clips == 4
     assert pacing.max_duration_seconds == 12.0
+
+
+def test_checked_in_config_keeps_sync_guards_effective() -> None:
+    """Guard against config rot disabling the duration/beat-sync checks.
+
+    The tolerance has historically been bumped (3s, 20s) to mask render
+    drift, which silently disables every duration guard in the pipeline
+    and lets out-of-sync output through. Keep it inside the documented
+    range (0.05 – 1.0s) so drift is repaired or raised, never absorbed.
+    """
+    repo_root = Path(__file__).resolve().parents[2]
+    pacing = load_pacing_config(str(repo_root / "montage_config.yaml"))
+
+    assert 0.05 <= pacing.duration_sync_tolerance_seconds <= 1.0, (
+        "montage_config.yaml sets duration_sync_tolerance_seconds="
+        f"{pacing.duration_sync_tolerance_seconds}, outside the documented "
+        "range 0.05 – 1.0. Large values disable beat-sync drift guards; "
+        "fix the drift source instead of loosening the tolerance."
+    )
