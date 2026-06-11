@@ -25,6 +25,23 @@ from src.core.models import (
 from src.core.montage import MontageGenerator, load_pacing_config
 
 
+def _concat_duration_sequence(values):
+    """Side effect for mocked get_video_duration in generate() tests.
+
+    Per-segment drift probes (seg_*.mp4) return 0.0 so extraction falls back
+    to the planned duration; concat/output measurements consume *values* in
+    order, preserving each test's intended duration scenario.
+    """
+    seq = iter(values)
+
+    def _fake(path):
+        if os.path.basename(path).startswith(("seg_", "tail_fill_")):
+            return 0.0
+        return next(seq)
+
+    return _fake
+
+
 @pytest.fixture
 def generator():
     return MontageGenerator()
@@ -269,6 +286,81 @@ class TestBuildSegmentPlan:
                 assert seg.video_path == "/videos/calm_footage.mp4", (
                     "Low-intensity beat should use the calm clip"
                 )
+
+
+class TestBeatAlignedDurations:
+    """Segment cuts must land on actual beat timestamps, not the global
+    average beat period — critical for mixes spanning multiple tempos."""
+
+    def test_cuts_land_on_real_beats_when_tempo_changes_mid_mix(self, generator):
+        # Simulated two-song mix: ~150 BPM (0.4s grid) then ~86 BPM (0.7s
+        # grid). Librosa reports one global BPM (120 → spb 0.5) that matches
+        # NEITHER song, so spb-derived durations would drift off both grids.
+        beat_times = [round(i * 0.4, 6) for i in range(30)]
+        last = beat_times[-1]
+        beat_times += [round(last + i * 0.7, 6) for i in range(1, 18)]
+        audio = AudioAnalysisResult(
+            filename="mix.wav",
+            bpm=120.0,
+            duration=beat_times[-1],
+            peaks=[],
+            sections=[],
+            beat_times=beat_times,
+            intensity_curve=[0.5] * len(beat_times),
+        )
+        clips = [
+            VideoAnalysisResult(
+                path=f"/videos/clip{i}.mp4",
+                intensity_score=0.5,
+                duration=60.0,
+                thumbnail_data=None,
+            )
+            for i in range(4)
+        ]
+
+        segments = generator.build_segment_plan(audio, clips, PacingConfig())
+
+        assert len(segments) >= 3
+        beat_covered_end = beat_times[-1]
+        for seg in segments[:-1]:
+            end = seg.timeline_position + seg.duration
+            if end > beat_covered_end:
+                break  # tail-coverage segments beyond the last beat
+            assert any(abs(end - bt) < 1e-6 for bt in beat_times), (
+                f"Segment ending at {end:.3f}s does not land on a beat"
+            )
+
+    def test_snap_disabled_keeps_average_beat_durations(self, generator):
+        beat_times = [round(i * 0.4, 6) for i in range(40)]
+        audio = AudioAnalysisResult(
+            filename="track.wav",
+            bpm=120.0,
+            duration=beat_times[-1],
+            peaks=[],
+            sections=[],
+            beat_times=beat_times,
+            intensity_curve=[0.5] * len(beat_times),
+        )
+        clips = [
+            VideoAnalysisResult(
+                path="/videos/clip.mp4",
+                intensity_score=0.5,
+                duration=60.0,
+                thumbnail_data=None,
+            )
+        ]
+
+        segments = generator.build_segment_plan(
+            audio,
+            clips,
+            PacingConfig(snap_to_beats=False),
+        )
+
+        assert segments
+        # With snapping off, the first segment keeps the spb-derived length
+        # (a multiple of 0.5s), which is NOT on the 0.4s beat grid.
+        first_end = segments[0].timeline_position + segments[0].duration
+        assert first_end % 0.5 == pytest.approx(0.0, abs=1e-6)
 
 
 class TestTransitionDurationContract:
@@ -1233,7 +1325,9 @@ class TestClipVariety:
         audio = AudioAnalysisResult(
             filename="test.wav",
             bpm=120.0,
-            duration=10.0,
+            # Keep duration within beat coverage so every planned segment is
+            # at least as long as the 2s clip and no variety offset can fit.
+            duration=4.0,
             peaks=[],
             sections=[],
             beat_times=[float(i) * 0.5 for i in range(8)],
@@ -2710,7 +2804,9 @@ class TestAdvancedEffects:
         mock_mkdtemp.return_value = temp_dir
         mock_run.return_value = None
         # concat pre-fill (short), post-fill (exact), final overlay check
-        mock_get_duration.side_effect = [29.95, 30.0, 30.0]
+        mock_get_duration.side_effect = _concat_duration_sequence(
+            [29.95, 30.0, 30.0]
+        )
 
         concat_path = os.path.join(temp_dir, "concat_output.mp4")
         with open(concat_path, "w") as f:
@@ -2757,7 +2853,9 @@ class TestAdvancedEffects:
         mock_mkdtemp.return_value = temp_dir
         mock_run.return_value = None
         # concat measurement then post-overlay check (no re-measure since fill failed)
-        mock_get_duration.side_effect = [29.95, 30.0, 30.0]
+        mock_get_duration.side_effect = _concat_duration_sequence(
+            [29.95, 30.0, 30.0]
+        )
 
         concat_path = os.path.join(temp_dir, "concat_output.mp4")
         with open(concat_path, "w") as f:
@@ -2801,7 +2899,9 @@ class TestAdvancedEffects:
         mock_mkdtemp.return_value = temp_dir
         mock_run.return_value = None
         # Video longer than target — should go straight to normalize (trim), not fill
-        mock_get_duration.side_effect = [30.05, 30.0, 30.0]
+        mock_get_duration.side_effect = _concat_duration_sequence(
+            [30.05, 30.0, 30.0]
+        )
 
         concat_path = os.path.join(temp_dir, "concat_output.mp4")
         with open(concat_path, "w") as f:

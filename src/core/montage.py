@@ -802,6 +802,38 @@ class MontageGenerator:
                 break
 
             desired_duration = min(beat_count * spb, remaining)
+            if config.snap_to_beats:
+                # Snap the segment end to the actual beat timestamp nearest
+                # the intended duration rather than trusting the global
+                # BPM-derived `spb`. A mixed file spans several songs with
+                # different tempos, so the average beat period drifts off the
+                # local beat grid while `beat_times` follow it. This also
+                # re-absorbs any residual offset left by a previous segment
+                # that ended between beats.
+                ideal_end = current_audio_time + desired_duration
+                end_idx = bisect.bisect_left(beat_times, ideal_end)
+                snap_candidates = [
+                    beat_times[j] - current_audio_time
+                    for j in (end_idx - 1, end_idx)
+                    if 0 <= j < len(beat_times)
+                ]
+                viable_snaps = [
+                    d
+                    for d in snap_candidates
+                    if config.min_clip_seconds <= d <= remaining
+                    # Never strand a leftover too short to plan: the gap to
+                    # the target must be either negligible or big enough for
+                    # another minimum-length segment.
+                    and (
+                        remaining - d <= config.duration_sync_tolerance_seconds
+                        or remaining - d >= config.min_clip_seconds
+                    )
+                ]
+                if viable_snaps:
+                    desired_duration = min(
+                        viable_snaps,
+                        key=lambda d: abs(d - desired_duration),
+                    )
             if desired_duration <= 0:
                 logger.debug("STOP: desired_duration <= 0 at iteration %d", iteration)
                 break

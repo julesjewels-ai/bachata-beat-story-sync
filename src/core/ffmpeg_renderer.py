@@ -368,6 +368,15 @@ def extract_segments(
     segment_files: list[str] = []
     total = len(segments)
 
+    # Drift correction: every encoded segment quantizes to the frame grid
+    # (1/TARGET_FPS), so rendered durations differ from planned ones by up
+    # to ~17ms each. Left uncorrected, the error accumulates across the
+    # whole timeline and cuts slide off the beats mid-video (worst on long
+    # mixes with hundreds of segments). Track planned vs rendered position
+    # and fold the accumulated drift into the next segment's duration.
+    planned_pos = 0.0
+    rendered_pos = 0.0
+
     for i, seg in enumerate(segments):
         if not os.path.exists(seg.video_path):
             logger.warning(
@@ -411,7 +420,7 @@ def extract_segments(
                 "-i",
                 seg.video_path,  # Input file
                 "-t",
-                f"{extract_duration:.3f}",  # Duration (adjusted for variable speed)
+                f"{extract_duration:.6f}",  # Duration (adjusted for variable speed)
                 "-filter_complex",
                 filter_complex,
                 "-map",
@@ -432,7 +441,12 @@ def extract_segments(
             # FEAT-022 / FEAT-023 / FEAT-024)
             # When speed-ramped, extract more (slow-mo) or less (fast)
             # source material so the output fills the planned duration.
-            extract_duration = seg.duration * seg.speed_factor
+            # Fold accumulated render drift into this segment's output
+            # duration so the concat timeline stays locked to the plan
+            # (never shrink below two frames).
+            drift = rendered_pos - planned_pos
+            output_target = max(2.0 / TARGET_FPS, seg.duration - drift)
+            extract_duration = output_target * seg.speed_factor
 
             # FREEZE-FIX: clamp so start_time + extract_duration never
             # exceeds the source clip's actual length.  When a short clip
@@ -452,7 +466,7 @@ def extract_segments(
                 "-i",
                 seg.video_path,  # Input file
                 "-t",
-                f"{extract_duration:.3f}",  # Duration (adjusted for speed)
+                f"{extract_duration:.6f}",  # Duration (adjusted for speed)
             ]
 
             # Build video filter chain:
@@ -538,6 +552,28 @@ def extract_segments(
 
         run_ffmpeg(cmd, f"segment extraction {i + 1}")
         segment_files.append(output_file)
+
+        planned_pos += seg.duration
+        rendered_dur = get_video_duration(output_file)
+        rendered_pos += rendered_dur if rendered_dur > 0 else seg.duration
+        if abs(rendered_pos - planned_pos) > 0.05:
+            logger.debug(
+                "Segment %d/%d render drift: planned_pos=%.3fs "
+                "rendered_pos=%.3fs delta=%+.3fs",
+                i + 1,
+                total,
+                planned_pos,
+                rendered_pos,
+                rendered_pos - planned_pos,
+            )
+
+    if segments:
+        logger.info(
+            "Segment extraction drift: planned=%.3fs rendered=%.3fs delta=%+.3fs",
+            planned_pos,
+            rendered_pos,
+            rendered_pos - planned_pos,
+        )
 
     if observer:
         observer.on_progress(total, total, "Segment extraction complete.")
