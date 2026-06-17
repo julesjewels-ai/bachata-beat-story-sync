@@ -493,7 +493,7 @@ def add_visual_args(parser: argparse.ArgumentParser) -> None:
         "--no-cold-open",
         action="store_true",
         default=False,
-        help="Disable the cinematic cold open (scene-setter + artist/title lower-third)",
+        help="Disable the cinematic cold open (scene-setter + lower-third)",
     )
     parser.add_argument(
         "--no-lyrics",
