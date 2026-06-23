@@ -349,8 +349,7 @@ def add_visual_args(parser: argparse.ArgumentParser) -> None:
         type=str,
         default=None,
         metavar="PATH",
-        help="Path to write an HTML decision report. "
-        "Automatically enables --explain.",
+        help="Path to write an HTML decision report. Automatically enables --explain.",
     )
 
     # Intro Visual Effects (FEAT-022) — choices derived from registry
