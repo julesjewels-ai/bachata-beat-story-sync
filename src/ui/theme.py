@@ -4,17 +4,17 @@ import streamlit as st
 
 # Design tokens: Precision Gate palette
 DESIGN_TOKENS = {
-    "charcoal":      "#2A2A2A",   # hero sections, cards, dark backgrounds
-    "amber":         "#FDB833",   # CTAs, beat markers, progress, highlights
-    "amber_dark":    "#E5A520",   # amber hover state
-    "amber_glow":    "rgba(253, 184, 51, 0.35)",
-    "amber_tint":    "rgba(253, 184, 51, 0.07)",
-    "ghost":         "#F5F5F5",   # page background
-    "black":         "#0A0A0A",   # headings, body text
-    "surface":       "#1E1E1E",   # dark card inner fill
-    "border_amber":  "rgba(253, 184, 51, 0.25)",
+    "charcoal": "#2A2A2A",  # hero sections, cards, dark backgrounds
+    "amber": "#FDB833",  # CTAs, beat markers, progress, highlights
+    "amber_dark": "#E5A520",  # amber hover state
+    "amber_glow": "rgba(253, 184, 51, 0.35)",
+    "amber_tint": "rgba(253, 184, 51, 0.07)",
+    "ghost": "#F5F5F5",  # page background
+    "black": "#0A0A0A",  # headings, body text
+    "surface": "#1E1E1E",  # dark card inner fill
+    "border_amber": "rgba(253, 184, 51, 0.25)",
     "border_subtle": "rgba(255, 255, 255, 0.08)",
-    "text_secondary":"#888888",
+    "text_secondary": "#888888",
 }
 
 # Google Fonts: Space Grotesk, DM Serif Display, IBM Plex Mono
@@ -42,17 +42,17 @@ THEME_CSS = f"""
 <style>
 /* ── Root variables ───────────────────────────────────────── */
 :root {{
-    --charcoal:      {DESIGN_TOKENS['charcoal']};
-    --amber:         {DESIGN_TOKENS['amber']};
-    --amber-dark:    {DESIGN_TOKENS['amber_dark']};
-    --amber-glow:    {DESIGN_TOKENS['amber_glow']};
-    --amber-tint:    {DESIGN_TOKENS['amber_tint']};
-    --ghost:         {DESIGN_TOKENS['ghost']};
-    --black:         {DESIGN_TOKENS['black']};
-    --surface:       {DESIGN_TOKENS['surface']};
-    --border-amber:  {DESIGN_TOKENS['border_amber']};
-    --border-subtle: {DESIGN_TOKENS['border_subtle']};
-    --text-secondary:{DESIGN_TOKENS['text_secondary']};
+    --charcoal:      {DESIGN_TOKENS["charcoal"]};
+    --amber:         {DESIGN_TOKENS["amber"]};
+    --amber-dark:    {DESIGN_TOKENS["amber_dark"]};
+    --amber-glow:    {DESIGN_TOKENS["amber_glow"]};
+    --amber-tint:    {DESIGN_TOKENS["amber_tint"]};
+    --ghost:         {DESIGN_TOKENS["ghost"]};
+    --black:         {DESIGN_TOKENS["black"]};
+    --surface:       {DESIGN_TOKENS["surface"]};
+    --border-amber:  {DESIGN_TOKENS["border_amber"]};
+    --border-subtle: {DESIGN_TOKENS["border_subtle"]};
+    --text-secondary:{DESIGN_TOKENS["text_secondary"]};
     --radius-card:   28px;
     --radius-btn:    24px;
     --radius-input:  12px;
