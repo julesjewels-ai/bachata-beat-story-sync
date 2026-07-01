@@ -49,7 +49,9 @@ def mock_isdir():
 
 @pytest.fixture
 def mock_get_video_duration():
-    with patch("src.core.video_analyzer.get_video_duration", return_value=10.0) as mock:
+    with patch(
+        "src.core.video_analyzer.get_video_duration", return_value=10.0
+    ) as mock:
         yield mock
 
 
@@ -137,12 +139,7 @@ def create_mock_cap(
     ],
 )
 def test_analyze_video_success(
-    analyzer,
-    mock_video_capture,
-    mock_exists,
-    mock_isdir,
-    mock_get_video_duration,
-    scenario,
+    analyzer, mock_video_capture, mock_exists, mock_isdir, mock_get_video_duration, scenario
 ):
     """Test successful video analysis for different formats."""
     mock_cap = create_mock_cap(
@@ -281,9 +278,7 @@ def test_thumbnail_extraction_failure(
     assert result.duration == 10.0
 
 
-def test_thumbnail_exception(
-    analyzer, mock_video_capture, mock_exists, mock_isdir, mock_get_video_duration
-):
+def test_thumbnail_exception(analyzer, mock_video_capture, mock_exists, mock_isdir, mock_get_video_duration):
     """Test exception handling during thumbnail extraction."""
     mock_cap = create_mock_cap()
     mock_video_capture.return_value = mock_cap

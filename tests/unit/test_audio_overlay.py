@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 from pydantic import ValidationError
+
 from src.core.audio_overlay_palettes import (
     PALETTES,
     resolve_colors,
@@ -158,13 +159,17 @@ def test_filter_spectrum_uses_color_preset_and_log_scale() -> None:
 
 
 def test_filter_cqt_renders_and_applies_opacity_mixer() -> None:
-    f = build_overlay_filter(_overlay(audio_overlay="cqt", audio_overlay_opacity=0.4))
+    f = build_overlay_filter(
+        _overlay(audio_overlay="cqt", audio_overlay_opacity=0.4)
+    )
     assert "showcqt" in f
     assert "colorchannelmixer=aa=0.40" in f
 
 
 def test_filter_cqt_opaque_omits_mixer() -> None:
-    f = build_overlay_filter(_overlay(audio_overlay="cqt", audio_overlay_opacity=1.0))
+    f = build_overlay_filter(
+        _overlay(audio_overlay="cqt", audio_overlay_opacity=1.0)
+    )
     assert "showcqt" in f
     assert "colorchannelmixer" not in f
 

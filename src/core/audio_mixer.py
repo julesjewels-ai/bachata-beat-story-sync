@@ -34,7 +34,6 @@ class MixResult(NamedTuple):
     output_path: str
     track_starts: list[tuple[str, float]]
 
-
 logger = logging.getLogger(__name__)
 
 FFMPEG_TIMEOUT = 600

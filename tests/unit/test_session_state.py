@@ -6,7 +6,12 @@ we test it by verifying the wrapper methods work correctly.
 
 from __future__ import annotations
 
-from unittest.mock import patch
+import queue
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from src.workers.progress import ProgressTracker
 
 
 class TestSessionStateDefaults:
@@ -19,22 +24,13 @@ class TestSessionStateDefaults:
         with patch("src.state.session.st.session_state", mock_st_session_state):
             from src.state.session import SessionState
 
-            SessionState()
+            state = SessionState()
 
         # Check that defaults were created
         expected_keys = {
-            "running",
-            "log_lines",
-            "result_path",
-            "error",
-            "plan_report",
-            "log_queue",
-            "audio_path",
-            "video_dir",
-            "broll_dir",
-            "output_path",
-            "progress_tracker",
-            "demo_mode",
+            "running", "log_lines", "result_path", "error", "plan_report",
+            "log_queue", "audio_path", "video_dir", "broll_dir", "output_path",
+            "progress_tracker", "demo_mode"
         }
         assert set(mock_st_session_state.keys()) == expected_keys
 

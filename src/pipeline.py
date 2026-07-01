@@ -88,8 +88,6 @@ def _scan_videos(
         broll = strip_thumbnails(broll)
 
     return clips, broll
-
-
 # ------------------------------------------------------------------
 # CLI
 # ------------------------------------------------------------------
@@ -166,7 +164,8 @@ def parse_args() -> argparse.Namespace:
         "--compilation",
         action="store_true",
         help=(
-            "Generate a compilation video by concatenating all individual track videos"
+            "Generate a compilation video by concatenating all "
+            "individual track videos"
         ),
     )
     parser.add_argument(

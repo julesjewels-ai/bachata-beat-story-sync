@@ -3,22 +3,19 @@ from __future__ import annotations
 import json
 import os
 from copy import deepcopy
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from src.cli_utils import analyze_audio as _analyze_audio
 from src.cli_utils import detect_broll_dir, strip_thumbnails
 from src.config.app_config import build_pacing_config
 from src.core.app import BachataSyncEngine
+from src.cli_utils import analyze_audio as _analyze_audio
 
 
 def utc_now() -> str:
-    return (
-        datetime.now(UTC)
-        .replace(microsecond=0)
-        .isoformat()
-        .replace("+00:00", "Z")
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace(
+        "+00:00", "Z"
     )
 
 

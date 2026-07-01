@@ -17,9 +17,7 @@ class TestStageInfo:
 
     def test_stage_info_creation(self):
         """StageInfo can be created with required fields."""
-        stage = StageInfo(
-            name="audio_analysis", current=5, total=10, estimated_percent=50.0
-        )
+        stage = StageInfo(name="audio_analysis", current=5, total=10, estimated_percent=50.0)
         assert stage.name == "audio_analysis"
         assert stage.current == 5
         assert stage.total == 10
@@ -217,13 +215,8 @@ class TestQueueLogHandler:
         handler = QueueLogHandler(q)
 
         record = logging.LogRecord(
-            name="test",
-            level=logging.INFO,
-            pathname="test.py",
-            lineno=1,
-            msg="Test message",
-            args=(),
-            exc_info=None,
+            name="test", level=logging.INFO, pathname="test.py", lineno=1,
+            msg="Test message", args=(), exc_info=None
         )
 
         handler.emit(record)
@@ -240,13 +233,8 @@ class TestQueueLogHandler:
         handler.setFormatter(formatter)
 
         record = logging.LogRecord(
-            name="test",
-            level=logging.INFO,
-            pathname="test.py",
-            lineno=1,
-            msg="Test message",
-            args=(),
-            exc_info=None,
+            name="test", level=logging.INFO, pathname="test.py", lineno=1,
+            msg="Test message", args=(), exc_info=None
         )
 
         handler.emit(record)
@@ -258,7 +246,7 @@ class TestQueueLogHandler:
 
     def test_handler_suppresses_emit_exceptions(self):
         """QueueLogHandler suppresses exceptions during emit."""
-        queue.Queue()
+        q = queue.Queue()
 
         # Create a handler with a queue that raises on put_nowait
         class FailingQueue:
@@ -268,13 +256,8 @@ class TestQueueLogHandler:
         handler = QueueLogHandler(FailingQueue())  # type: ignore
 
         record = logging.LogRecord(
-            name="test",
-            level=logging.INFO,
-            pathname="test.py",
-            lineno=1,
-            msg="Test message",
-            args=(),
-            exc_info=None,
+            name="test", level=logging.INFO, pathname="test.py", lineno=1,
+            msg="Test message", args=(), exc_info=None
         )
 
         # Should not raise exception
@@ -300,7 +283,7 @@ class TestProgressTrackerIntegration:
         time.sleep(0.05)
 
         # Check ETA estimation
-        tracker.estimate_eta_seconds()
+        eta = tracker.estimate_eta_seconds()
         # ETA might be None if elapsed is very short, so just verify it doesn't crash
 
         # Simulate video scanning
@@ -314,13 +297,8 @@ class TestProgressTrackerIntegration:
 
         # Log something
         record = logging.LogRecord(
-            name="test",
-            level=logging.INFO,
-            pathname="test.py",
-            lineno=1,
-            msg="Processing complete",
-            args=(),
-            exc_info=None,
+            name="test", level=logging.INFO, pathname="test.py", lineno=1,
+            msg="Processing complete", args=(), exc_info=None
         )
         handler.emit(record)
 

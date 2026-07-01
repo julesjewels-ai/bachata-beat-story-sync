@@ -25,9 +25,7 @@ def _make_audio_result() -> AudioAnalysisResult:
     )
 
 
-def _make_clip(
-    path: str, *, thumbnail_data: bytes | None = b"png"
-) -> VideoAnalysisResult:
+def _make_clip(path: str, *, thumbnail_data: bytes | None = b"png") -> VideoAnalysisResult:
     return VideoAnalysisResult(
         path=path,
         intensity_score=0.5,

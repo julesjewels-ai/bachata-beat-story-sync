@@ -35,7 +35,9 @@ def _write_click_track(
                 break
             envelope = 1.0 - (i / click_len)
             value = (
-                amplitude * math.sin(2 * math.pi * 880 * (i / sample_rate)) * envelope
+                amplitude
+                * math.sin(2 * math.pi * 880 * (i / sample_rate))
+                * envelope
             )
             samples[idx] += value
 

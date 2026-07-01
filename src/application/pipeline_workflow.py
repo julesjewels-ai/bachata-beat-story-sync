@@ -135,7 +135,9 @@ class PipelineWorkflow:
                 f"{audio_dir}. Supported formats: "
                 + ", ".join(sorted(SUPPORTED_AUDIO_EXTENSIONS))
             )
-        log.step(f"Found {len(individual_tracks)} track(s) in [bold]{audio_dir}[/bold]")
+        log.step(
+            f"Found {len(individual_tracks)} track(s) in [bold]{audio_dir}[/bold]"
+        )
 
         # 2. Mix tracks
         log.phase("🎵 Mixing Audio")
