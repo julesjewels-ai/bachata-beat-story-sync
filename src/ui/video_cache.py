@@ -8,7 +8,7 @@ def _get_directory_hash(directory: str) -> str:
     """Compute a fast hash of directory contents (names + sizes)."""
     if not os.path.isdir(directory):
         return "none"
-    
+
     items = []
     for root, _, files in os.walk(directory):
         for f in sorted(files):
@@ -18,16 +18,16 @@ def _get_directory_hash(directory: str) -> str:
                 items.append(f"{f}:{os.path.getsize(path)}")
             except OSError:
                 items.append(f)
-    
+
     return hashlib.md5(",".join(items).encode()).hexdigest()
 
 @st.cache_resource(show_spinner="Scanning clips...")
 def get_cached_clips(directory: str) -> list[VideoAnalysisResult]:
     """
     Scans a directory for video clips and caches the results.
-    
+
     Streamlit's @st.cache_resource uses the arguments as the cache key.
-    We pass a hash of the directory content to ensure invalidation if 
+    We pass a hash of the directory content to ensure invalidation if
     files are added or modified.
     """
     # We call a sub-function that takes the hash as a parameter

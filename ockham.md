@@ -9,3 +9,8 @@
 **Target:** `detect_sections` in `src/core/audio_analyzer.py`
 **Delta:** Complexity Score 21 -> 8
 **Summary:** Refactored the `detect_sections` function by extracting the boundary merging loop into `_merge_short_boundaries` and the section labeling if-else block into `_determine_section_label`. Used early returns in the labeling logic to reduce nesting and cyclomatic complexity.
+
+## 2026-07-01
+**Target:** `build_pacing_kwargs` in `src/cli_utils.py`
+**Delta:** Complexity Score 33 -> 15
+**Summary:** Refactored `build_pacing_kwargs` by removing 30+ repetitive `if getattr(...)` conditions and replacing them with declarative loops that map boolean flags, truthy attributes, and nullable attributes cleanly. Flattened the logic structure significantly while retaining absolute semantic parity.
