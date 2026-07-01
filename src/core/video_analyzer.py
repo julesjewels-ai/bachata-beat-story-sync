@@ -10,9 +10,9 @@ import cv2
 import numpy as np
 from pydantic import BaseModel, Field, field_validator
 
+from src.core.ffmpeg_renderer import get_video_duration
 from src.core.models import VideoAnalysisResult
 from src.core.validation import validate_file_path
-from src.core.ffmpeg_renderer import get_video_duration
 
 logger = logging.getLogger(__name__)
 

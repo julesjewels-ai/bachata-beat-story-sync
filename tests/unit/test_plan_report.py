@@ -5,7 +5,6 @@ Unit tests for the dry-run plan report formatter (FEAT-026).
 import os
 from typing import Any, cast
 
-
 from src.core.models import (
     AudioAnalysisResult,
     PacingConfig,

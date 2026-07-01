@@ -14,7 +14,6 @@ import os
 import tempfile
 
 import pytest
-
 from src.core.models import (
     AudioAnalysisResult,
     MusicalSection,
@@ -127,7 +126,7 @@ def test_generate_explain_html_contains_valid_html(
     """Test that the generated file contains valid HTML structure."""
     generate_explain_html(temp_output_path, audio_data, decisions, config)
 
-    with open(temp_output_path, "r", encoding="utf-8") as f:
+    with open(temp_output_path, encoding="utf-8") as f:
         content = f.read()
 
     assert "<!DOCTYPE html>" in content
@@ -143,7 +142,7 @@ def test_generate_explain_html_contains_audio_metadata(
     """Test that HTML includes audio metadata."""
     generate_explain_html(temp_output_path, audio_data, decisions, config)
 
-    with open(temp_output_path, "r", encoding="utf-8") as f:
+    with open(temp_output_path, encoding="utf-8") as f:
         content = f.read()
 
     assert audio_data.filename in content
@@ -157,7 +156,7 @@ def test_generate_explain_html_contains_decision_table(
     """Test that HTML includes the decision table with segment data."""
     generate_explain_html(temp_output_path, audio_data, decisions, config)
 
-    with open(temp_output_path, "r", encoding="utf-8") as f:
+    with open(temp_output_path, encoding="utf-8") as f:
         content = f.read()
 
     assert "<table" in content
@@ -174,7 +173,7 @@ def test_generate_explain_html_contains_timeline_visualization(
     """Test that HTML includes SVG timeline visualization."""
     generate_explain_html(temp_output_path, audio_data, decisions, config)
 
-    with open(temp_output_path, "r", encoding="utf-8") as f:
+    with open(temp_output_path, encoding="utf-8") as f:
         content = f.read()
 
     assert "<svg" in content
@@ -188,7 +187,7 @@ def test_generate_explain_html_contains_statistics(
     """Test that HTML includes statistics summary."""
     generate_explain_html(temp_output_path, audio_data, decisions, config)
 
-    with open(temp_output_path, "r", encoding="utf-8") as f:
+    with open(temp_output_path, encoding="utf-8") as f:
         content = f.read()
 
     assert "Statistics" in content
@@ -202,7 +201,7 @@ def test_generate_explain_html_contains_config_summary(
     """Test that HTML includes configuration summary."""
     generate_explain_html(temp_output_path, audio_data, decisions, config)
 
-    with open(temp_output_path, "r", encoding="utf-8") as f:
+    with open(temp_output_path, encoding="utf-8") as f:
         content = f.read()
 
     assert "Configuration Applied" in content
@@ -226,9 +225,11 @@ def test_generate_explain_html_escapes_special_characters(
         ),
     ]
 
-    generate_explain_html(temp_output_path, audio_data, decisions_with_special_chars, config)
+    generate_explain_html(
+        temp_output_path, audio_data, decisions_with_special_chars, config
+    )
 
-    with open(temp_output_path, "r", encoding="utf-8") as f:
+    with open(temp_output_path, encoding="utf-8") as f:
         content = f.read()
 
     # Check that dangerous characters are escaped
@@ -246,16 +247,14 @@ def test_generate_explain_html_handles_empty_decisions(
     decisions = []
     generate_explain_html(temp_output_path, audio_data, decisions, config)
 
-    with open(temp_output_path, "r", encoding="utf-8") as f:
+    with open(temp_output_path, encoding="utf-8") as f:
         content = f.read()
 
     assert os.path.exists(temp_output_path)
     assert "<!DOCTYPE html>" in content
 
 
-def test_generate_explain_html_intensity_colors(
-    temp_output_path, audio_data, config
-):
+def test_generate_explain_html_intensity_colors(temp_output_path, audio_data, config):
     """Test that intensity scores are color-coded correctly."""
     decisions_varied = [
         SegmentDecision(
@@ -289,7 +288,7 @@ def test_generate_explain_html_intensity_colors(
 
     generate_explain_html(temp_output_path, audio_data, decisions_varied, config)
 
-    with open(temp_output_path, "r", encoding="utf-8") as f:
+    with open(temp_output_path, encoding="utf-8") as f:
         content = f.read()
 
     # Check that color codes are present
@@ -305,7 +304,7 @@ def test_generate_explain_html_file_is_readable_utf8(
     generate_explain_html(temp_output_path, audio_data, decisions, config)
 
     # Should be able to read as UTF-8 without errors
-    with open(temp_output_path, "r", encoding="utf-8") as f:
+    with open(temp_output_path, encoding="utf-8") as f:
         content = f.read()
     assert len(content) > 0
 
@@ -316,7 +315,7 @@ def test_generate_explain_html_with_sections(
     """Test that musical sections are included in the timeline."""
     generate_explain_html(temp_output_path, audio_data, decisions, config)
 
-    with open(temp_output_path, "r", encoding="utf-8") as f:
+    with open(temp_output_path, encoding="utf-8") as f:
         content = f.read()
 
     # Section labels from audio_data should be present

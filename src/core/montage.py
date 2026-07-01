@@ -1072,9 +1072,7 @@ class MontageGenerator:
             *render_validation.issues,
         ]
         if validation_issues:
-            raise ValueError(
-                "Invalid segment plan: " + " | ".join(validation_issues)
-            )
+            raise ValueError("Invalid segment plan: " + " | ".join(validation_issues))
 
         return segments
 

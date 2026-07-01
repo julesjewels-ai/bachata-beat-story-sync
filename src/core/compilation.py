@@ -34,9 +34,16 @@ def _concat_copy(video_files: list[str], output_path: str) -> None:
 
     try:
         cmd = [
-            "ffmpeg", "-f", "concat", "-safe", "0",
-            "-i", demuxer_path,
-            "-c", "copy", "-y",
+            "ffmpeg",
+            "-f",
+            "concat",
+            "-safe",
+            "0",
+            "-i",
+            demuxer_path,
+            "-c",
+            "copy",
+            "-y",
             output_path,
         ]
         run_ffmpeg(cmd, "compilation concat")
@@ -71,12 +78,19 @@ def _bake_fades(
         audio_filters.append(f"afade=t=out:st={fade_start:.3f}:d={fade_duration:.3f}")
 
     cmd = [
-        "ffmpeg", "-y",
-        "-i", input_path,
-        "-vf", ",".join(video_filters),
-        "-af", ",".join(audio_filters),
+        "ffmpeg",
+        "-y",
+        "-i",
+        input_path,
+        "-vf",
+        ",".join(video_filters),
+        "-af",
+        ",".join(audio_filters),
         *get_h264_encoder_args(),
-        "-c:a", "aac", "-b:a", "192k",
+        "-c:a",
+        "aac",
+        "-b:a",
+        "192k",
         output_path,
     ]
     run_ffmpeg(cmd, f"bake fades into {os.path.basename(input_path)}")
@@ -198,7 +212,7 @@ def _generate_chapter_markers(
     chapters = []
     current_time = 0.0
 
-    for video_path, audio_path in zip(track_videos, track_audio_files):
+    for video_path, audio_path in zip(track_videos, track_audio_files, strict=False):
         track_name = _safe_filename(audio_path)
         duration = get_video_duration(video_path)
 

@@ -114,9 +114,9 @@ class TextEvent:
     end: float  # seconds from video start
     style: Literal["wash", "lower_third"]
     # Style overrides for wash events — ignored for lower_third
-    wash_font_scale: float = 0.06   # font size as fraction of video width
-    wash_opacity: float = 0.35      # 0.0–1.0
-    wash_fade: float = 0.8          # max fade in/out seconds
+    wash_font_scale: float = 0.06  # font size as fraction of video width
+    wash_opacity: float = 0.35  # 0.0–1.0
+    wash_fade: float = 0.8  # max fade in/out seconds
 
 
 # ---------------------------------------------------------------------------
@@ -227,9 +227,7 @@ def build_drawtext_filter_chain(
     """
     if not events:
         return ""
-    return ",".join(
-        _drawtext_filter(e, font_path, video_w) for e in events
-    )
+    return ",".join(_drawtext_filter(e, font_path, video_w) for e in events)
 
 
 # ---------------------------------------------------------------------------
@@ -283,7 +281,7 @@ def lrc_to_text_events(
     visible = [(ts, txt) for ts, txt in entries if txt]
 
     events: list[TextEvent] = []
-    for i, (ts, text) in enumerate(visible):
+    for _i, (ts, text) in enumerate(visible):
         if ts < cold_open_end:
             continue
 
@@ -344,7 +342,7 @@ def _most_repeated_lrc_line(lrc_path: str) -> str:
 
 
 def _cold_open_events_for_segment(
-    config: "PacingConfig",
+    config: PacingConfig,
     audio_path: str | None,
     artist: str,
     title: str,
@@ -412,7 +410,7 @@ def _cold_open_events_for_segment(
 
 
 def build_cold_open_events(
-    config: "PacingConfig",
+    config: PacingConfig,
     audio_path: str | None = None,
 ) -> list[TextEvent]:
     """Build TextEvents for the cinematic cold open (FEAT-046).
@@ -437,8 +435,8 @@ def build_cold_open_events(
 
 
 def build_mix_track_events(
-    segments: list["MixTrackSegment"],
-    config: "PacingConfig",
+    segments: list[MixTrackSegment],
+    config: PacingConfig,
 ) -> list[TextEvent]:
     """Build cold-open TextEvents for every track in a mix (FEAT-050).
 
@@ -465,7 +463,7 @@ _COLD_OPEN_END = 7.0
 
 
 def build_text_events(
-    config: "PacingConfig",
+    config: PacingConfig,
     audio_path: str | None = None,
 ) -> list[TextEvent]:
     """Collect all TextEvents from configured sources.

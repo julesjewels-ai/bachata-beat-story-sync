@@ -318,9 +318,12 @@ class TestTransitionDurationContract:
 
         groups = generator._group_segments_by_section(segments)
         planned_duration = segments[-1].timeline_position + segments[-1].duration
-        expected_render = planned_duration - generator._compute_transition_overlap_budget(
-            segments,
-            config,
+        expected_render = (
+            planned_duration
+            - generator._compute_transition_overlap_budget(
+                segments,
+                config,
+            )
         )
 
         assert len(groups) == 2
@@ -345,9 +348,12 @@ class TestTransitionDurationContract:
         )
 
         planned_duration = segments[-1].timeline_position + segments[-1].duration
-        expected_render = planned_duration - generator._compute_transition_overlap_budget(
-            segments,
-            config,
+        expected_render = (
+            planned_duration
+            - generator._compute_transition_overlap_budget(
+                segments,
+                config,
+            )
         )
 
         assert planned_duration > 6.0
