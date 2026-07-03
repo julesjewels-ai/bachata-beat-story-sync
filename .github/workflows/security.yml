@@ -14,14 +14,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         env:
-          ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         with:
           fetch-depth: 0
       - name: Run Gitleaks
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
   sast:
     name: Subprocess & Code Audit
@@ -29,7 +29,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         env:
-          ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       - name: Install Bandit
         run: pip install bandit
       - name: Run Bandit
@@ -47,7 +47,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         env:
-          ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       - name: Install pip-audit
         run: pip install pip-audit
       - name: Run pip-audit
