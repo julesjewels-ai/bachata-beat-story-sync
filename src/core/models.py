@@ -368,8 +368,7 @@ class PacingConfig(BaseModel):
     )
     audio_overlay_height: int = Field(
         120,
-        description="Height of the visualizer in pixels (40–400). "
-        "Default 120.",
+        description="Height of the visualizer in pixels (40–400). Default 120.",
     )
 
     # Audio Hook Detection (FEAT-019)

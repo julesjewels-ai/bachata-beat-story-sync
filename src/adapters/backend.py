@@ -66,6 +66,7 @@ def get_intro_effects() -> list[str]:
         st.error(f"Could not load intro effects: {e}")
         st.stop()
 
+
 def get_transitions() -> list[str]:
     """Get list of artistically relevant FFmpeg xfade transition names.
 

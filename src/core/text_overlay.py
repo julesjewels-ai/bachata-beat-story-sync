@@ -114,9 +114,9 @@ class TextEvent:
     end: float  # seconds from video start
     style: Literal["wash", "lower_third"]
     # Style overrides for wash events — ignored for lower_third
-    wash_font_scale: float = 0.06   # font size as fraction of video width
-    wash_opacity: float = 0.35      # 0.0–1.0
-    wash_fade: float = 0.8          # max fade in/out seconds
+    wash_font_scale: float = 0.06  # font size as fraction of video width
+    wash_opacity: float = 0.35  # 0.0–1.0
+    wash_fade: float = 0.8  # max fade in/out seconds
 
 
 # ---------------------------------------------------------------------------
@@ -227,9 +227,7 @@ def build_drawtext_filter_chain(
     """
     if not events:
         return ""
-    return ",".join(
-        _drawtext_filter(e, font_path, video_w) for e in events
-    )
+    return ",".join(_drawtext_filter(e, font_path, video_w) for e in events)
 
 
 # ---------------------------------------------------------------------------
