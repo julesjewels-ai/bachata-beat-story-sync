@@ -28,9 +28,18 @@ class TestSessionStateDefaults:
 
         # Check that defaults were created
         expected_keys = {
-            "running", "log_lines", "result_path", "error", "plan_report",
-            "log_queue", "audio_path", "video_dir", "broll_dir", "output_path",
-            "progress_tracker", "demo_mode"
+            "running",
+            "log_lines",
+            "result_path",
+            "error",
+            "plan_report",
+            "log_queue",
+            "audio_path",
+            "video_dir",
+            "broll_dir",
+            "output_path",
+            "progress_tracker",
+            "demo_mode",
         }
         assert set(mock_st_session_state.keys()) == expected_keys
 

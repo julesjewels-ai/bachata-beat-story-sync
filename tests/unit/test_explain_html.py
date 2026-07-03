@@ -226,7 +226,9 @@ def test_generate_explain_html_escapes_special_characters(
         ),
     ]
 
-    generate_explain_html(temp_output_path, audio_data, decisions_with_special_chars, config)
+    generate_explain_html(
+        temp_output_path, audio_data, decisions_with_special_chars, config
+    )
 
     with open(temp_output_path, "r", encoding="utf-8") as f:
         content = f.read()
@@ -253,9 +255,7 @@ def test_generate_explain_html_handles_empty_decisions(
     assert "<!DOCTYPE html>" in content
 
 
-def test_generate_explain_html_intensity_colors(
-    temp_output_path, audio_data, config
-):
+def test_generate_explain_html_intensity_colors(temp_output_path, audio_data, config):
     """Test that intensity scores are color-coded correctly."""
     decisions_varied = [
         SegmentDecision(
