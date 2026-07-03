@@ -49,5 +49,10 @@ temp_songs/
 output_story_explain.md
 refactor_progress.txt
 
+# Generated transcripts (sidecar JSON/SRT output)
+transcripts/
+*_transcript.json
+*_transcript.srt
+
 # Documentation
 docs/internal/

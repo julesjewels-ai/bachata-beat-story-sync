@@ -32,6 +32,9 @@ SHARED_SCAN ?= 0
 SMART_START ?=
 COMPILATION ?=
 SKIP_MIX ?=
+TRANSCRIBE ?=
+TRANSCRIBE_LANGUAGE ?=
+WHISPER_MODEL ?=
 
 # Build optional flags
 EXTRA_FLAGS =
@@ -144,7 +147,19 @@ ifeq ($(SKIP_MIX),1)
   EXTRA_FLAGS += --skip-mix
 endif
 
-.PHONY: install run ui run-shorts full-pipeline mcp-serve test lint lint-fix format check-types refactor clean download-demo
+ifeq ($(TRANSCRIBE),1)
+  EXTRA_FLAGS += --transcribe
+endif
+
+ifneq ($(TRANSCRIBE_LANGUAGE),)
+  EXTRA_FLAGS += --transcribe-language $(TRANSCRIBE_LANGUAGE)
+endif
+
+ifneq ($(WHISPER_MODEL),)
+  EXTRA_FLAGS += --whisper-model $(WHISPER_MODEL)
+endif
+
+.PHONY: install run ui run-shorts full-pipeline transcribe mcp-serve test lint lint-fix format check-types refactor clean download-demo
 
 download-demo:
 	@mkdir -p demo/audio demo/clips
@@ -184,6 +199,12 @@ run-shorts:
 
 full-pipeline:
 	$(BIN)/python -m src.pipeline --audio "$(AUDIO)" --video-dir "$(VIDEO_DIR)" --output-dir "$(OUTPUT_DIR)" --shorts-count $(SHORTS_COUNT) --shorts-duration "$(SHORTS_DURATION)" $(EXTRA_FLAGS)
+
+transcribe:
+	$(BIN)/python -m src.transcribe_cli "$(VIDEO)" \
+		$(if $(TRANSCRIBE_LANGUAGE),--language $(TRANSCRIBE_LANGUAGE)) \
+		$(if $(WHISPER_MODEL),--whisper-model $(WHISPER_MODEL)) \
+		$(if $(TRANSCRIBE_OUTPUT_DIR),--output-dir $(TRANSCRIBE_OUTPUT_DIR))
 
 mcp-serve:
 	$(BIN)/python mcp_server.py

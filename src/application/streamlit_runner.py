@@ -22,6 +22,7 @@ def run_streamlit_generation(
     pacing_kwargs: dict[str, Any],
     export_report_path: str | None,
     log_queue: queue.Queue,
+    youtube_metadata_dir: str | None = None,
 ) -> None:
     """Run story generation in a background thread and stream progress to a queue."""
     handler = QueueLogHandler(log_queue)
@@ -64,6 +65,34 @@ def run_streamlit_generation(
                 export_report_path,
             )
             log_queue.put(f"   → Report saved to: {export_report_path}")
+
+        if youtube_metadata_dir and result.output_path is not None:
+            log_queue.put("   → Generating YouTube metadata…")
+            try:
+                from src.services.youtube_metadata import (
+                    TrackSegment,
+                    generate_and_write,
+                )
+                artist = pacing_kwargs.get("track_artist", "")
+                title = pacing_kwargs.get("track_title", "")
+                duration = result.audio_meta.duration if result.audio_meta else 0.0
+                segments = (
+                    [TrackSegment(artist=artist, title=title, start_time=0.0)]
+                    if title
+                    else []
+                )
+                written = generate_and_write(
+                    content_type="song",
+                    track_segments=segments,
+                    total_duration_s=duration,
+                    output_dir=youtube_metadata_dir,
+                    artist=artist,
+                    title=title,
+                )
+                for path in written:
+                    log_queue.put(f"   → YouTube metadata: {path}")
+            except Exception as exc:
+                log_queue.put(f"   → YouTube metadata failed: {exc}")
 
         if result.output_path is not None:
             log_queue.put("✓ Video rendered successfully!")

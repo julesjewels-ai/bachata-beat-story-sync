@@ -154,6 +154,7 @@ if run_button or _demo_triggered:
             prepared_run.pacing_kwargs,
             prepared_run.report_path,
             state.log_queue,
+            prepared_run.youtube_metadata_dir,
         ),
         daemon=True,
     )

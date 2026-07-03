@@ -500,6 +500,59 @@ def add_visual_args(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def add_transcribe_args(parser: argparse.ArgumentParser) -> None:
+    """Register transcription arguments.
+
+    Adds: --transcribe, --transcribe-language.
+    """
+    parser.add_argument(
+        "--transcribe",
+        action="store_true",
+        default=False,
+        help=(
+            "Transcribe the compilation video after rendering using faster-whisper. "
+            "Outputs <compilation>_transcript.json and <compilation>_transcript.srt"
+        ),
+    )
+    parser.add_argument(
+        "--transcribe-language",
+        type=str,
+        default="es",
+        metavar="LANG",
+        help=(
+            "ISO 639-1 language code for transcription (default: es for Spanish). "
+            "Set 'auto' to let Whisper detect the language."
+        ),
+    )
+    parser.add_argument(
+        "--whisper-model",
+        type=str,
+        default=None,
+        metavar="SIZE",
+        help=(
+            "Whisper model size: tiny, small (default), medium, large-v2. "
+            "Larger = more accurate, slower, more disk space."
+        ),
+    )
+
+
+def add_youtube_metadata_args(parser: argparse.ArgumentParser) -> None:
+    """Register YouTube metadata generation arguments.
+
+    Adds: --youtube-metadata.
+    """
+    parser.add_argument(
+        "--youtube-metadata",
+        action="store_true",
+        default=False,
+        help=(
+            "Generate YouTube metadata (title, description with timecodes, "
+            "hashtags, backend tags) after rendering. "
+            "Writes <output_dir>/youtube_metadata.json and .txt"
+        ),
+    )
+
+
 def add_shorts_args(parser: argparse.ArgumentParser) -> None:
     """Register the shorts-specific arguments.
 

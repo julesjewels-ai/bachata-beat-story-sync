@@ -110,7 +110,7 @@ def test_resolve_output_targets_uses_demo_temp_output_and_report_suffix():
     state = SimpleNamespace(demo_mode=True)
     settings = GenerationSettings(export_report=True)
 
-    output_path, report_path = resolve_output_targets(
+    output_path, report_path, youtube_metadata_dir = resolve_output_targets(
         state,
         settings,
         output_path="",
@@ -120,6 +120,7 @@ def test_resolve_output_targets_uses_demo_temp_output_and_report_suffix():
     assert output_path.endswith("_demo.mp4")
     assert report_path is not None
     assert report_path.endswith("_demo_report.xlsx")
+    assert youtube_metadata_dir is None
 
 
 def test_prepare_run_request_reports_missing_manual_inputs():

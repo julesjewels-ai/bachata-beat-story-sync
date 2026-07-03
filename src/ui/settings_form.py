@@ -25,6 +25,7 @@ class GenerationSettings:
     max_duration_input: int = 0
     dry_run: bool = False
     export_report: bool = False
+    export_youtube_metadata: bool = False
     speed_ramp_organic: bool = False
     speed_ramp_sensitivity: float = 1.0
     speed_ramp_curve: str = "ease_in_out"
@@ -131,6 +132,15 @@ def render_advanced_settings(
                 help="Generate analysis.xlsx alongside video.",
                 disabled=controls_disabled,
             )
+            export_youtube_metadata = st.checkbox(
+                "Export YouTube metadata",
+                value=False,
+                help=(
+                    "Generate SEO-optimised title, description with timecodes, "
+                    "hashtags, and backend tags as youtube_metadata.json + .txt"
+                ),
+                disabled=controls_disabled,
+            )
 
         _render_section_label("B-roll & Output")
         broll_dir_input = broll_input_component(
@@ -159,6 +169,7 @@ def render_advanced_settings(
         max_duration_input=int(max_duration_input),
         dry_run=dry_run,
         export_report=export_report,
+        export_youtube_metadata=export_youtube_metadata,
         **cast(Any, speed_settings),
         **cast(Any, beat_effects),
         **cast(Any, text_overlay),

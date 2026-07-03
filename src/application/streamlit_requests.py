@@ -23,6 +23,7 @@ class PreparedRunRequest:
     output_path: str
     pacing_kwargs: dict[str, Any]
     report_path: str | None
+    youtube_metadata_dir: str | None = None
 
 
 def should_trigger_demo_run(state: Any) -> bool:
@@ -62,7 +63,7 @@ def prepare_run_request(
         demo_mode=state.demo_mode,
         demo_dry_run=bool(st.session_state.get("_demo_dry_run", False)),
     )
-    output_path_resolved, report_path = resolve_output_targets(
+    output_path_resolved, report_path, youtube_metadata_dir = resolve_output_targets(
         state,
         settings,
         output_path,
@@ -76,6 +77,7 @@ def prepare_run_request(
             output_path=output_path_resolved,
             pacing_kwargs=pacing_kwargs,
             report_path=report_path,
+            youtube_metadata_dir=youtube_metadata_dir,
         ),
         [],
     )
@@ -249,8 +251,8 @@ def resolve_output_targets(
     settings: GenerationSettings,
     output_path: str,
     pacing_kwargs: dict[str, Any],
-) -> tuple[str, str | None]:
-    """Resolve output video and optional report paths."""
+) -> tuple[str, str | None, str | None]:
+    """Resolve output video, optional report, and optional YouTube metadata dir."""
     if state.demo_mode and not pacing_kwargs.get("dry_run"):
         demo_tmp = tempfile.NamedTemporaryFile(
             delete=False,
@@ -266,4 +268,9 @@ def resolve_output_targets(
     if settings.export_report:
         base, _ = os.path.splitext(output_path_resolved)
         report_path = base + "_report.xlsx"
-    return output_path_resolved, report_path
+
+    youtube_metadata_dir: str | None = None
+    if settings.export_youtube_metadata:
+        youtube_metadata_dir = os.path.dirname(output_path_resolved) or "."
+
+    return output_path_resolved, report_path, youtube_metadata_dir

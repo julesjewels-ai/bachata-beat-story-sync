@@ -8,6 +8,10 @@ import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from src.application.pipeline_phases import (
+    generate_youtube_metadata_phase,
+    transcribe_compilation_phase,
+)
 from src.cli_utils import build_pacing_kwargs, detect_broll_dir, parse_duration
 from src.config.app_config import PipelineConfig, load_app_config
 from src.core.app import BachataSyncEngine
@@ -244,6 +248,24 @@ class PipelineWorkflow:
         )
         if compilation_result:
             generated_files.append(compilation_result)
+
+        # 8b. Transcribe compilation (--transcribe flag)
+        if compilation_result and getattr(args, "transcribe", False):
+            transcript_files = transcribe_compilation_phase(compilation_result, args, log)
+            generated_files.extend(transcript_files)
+
+        # 8c. YouTube metadata (--youtube-metadata flag)
+        content_type = "compilation" if compilation_result else "mix"
+        total_duration = mix_meta.duration if mix_meta else 0.0
+        yt_files = generate_youtube_metadata_phase(
+            args,
+            args.output_dir,
+            mix_track_segments,
+            total_duration,
+            content_type,
+            log,
+        )
+        generated_files.extend(yt_files)
 
         # 9. Summary
         elapsed = time.time() - t0

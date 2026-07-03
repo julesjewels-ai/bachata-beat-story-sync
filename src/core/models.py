@@ -228,6 +228,42 @@ class SkipDecision:
     reason: str
 
 
+class TranscriptWord(BaseModel):
+    """Word-level timing from Whisper transcription."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    word: str
+    start: float
+    end: float
+    probability: float = Field(1.0, description="Confidence score 0.0–1.0")
+
+
+class TranscriptSegment(BaseModel):
+    """One timed segment from Whisper transcription."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    start: float = Field(..., description="Segment start time in seconds")
+    end: float = Field(..., description="Segment end time in seconds")
+    text: str = Field(..., description="Transcribed text for this segment")
+    words: list[TranscriptWord] = Field(
+        default_factory=list, description="Word-level timings (if available)"
+    )
+
+
+class TranscriptResult(BaseModel):
+    """Full transcription output for a compiled audio/video."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    audio_path: str = Field(..., description="Source audio or video path transcribed")
+    language: str = Field(..., description="Detected or specified language code")
+    segments: list[TranscriptSegment] = Field(
+        default_factory=list, description="All timed transcript segments"
+    )
+
+
 class MixTrackSegment(BaseModel):
     """One source track's placement inside a mixed audio/video timeline.
 

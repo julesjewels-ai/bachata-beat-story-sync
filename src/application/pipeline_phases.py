@@ -14,6 +14,8 @@ from src.config.app_config import PipelineConfig
 from src.core.audio_analyzer import AudioAnalysisInput, AudioAnalyzer
 from src.core.compilation import generate_compilation
 from src.core.models import AudioAnalysisResult, PacingConfig, VideoAnalysisResult
+from src.core.srt_utils import transcript_stem, write_srt, write_transcript_json
+from src.core.transcriber import transcribe_video
 from src.ui.console import PipelineLogger, RichProgressObserver
 
 logger = logging.getLogger(__name__)
@@ -363,6 +365,90 @@ def generate_compilation_phase(
             log.warn(f"Compilation generation failed: {e}")
             logger.exception("Compilation error:")
             return None
+
+
+def transcribe_compilation_phase(
+    compilation_path: str,
+    args: argparse.Namespace,
+    log: PipelineLogger,
+) -> list[str]:
+    """Phase: transcribe compilation video → _transcript.json + _transcript.srt.
+
+    Only runs when --transcribe flag is set and compilation rendered successfully.
+    Returns list of output file paths (empty on failure).
+    """
+    language = getattr(args, "transcribe_language", "es")
+    model_size = getattr(args, "whisper_model", None) or "small"
+    stem = transcript_stem(compilation_path)
+    json_out = f"{stem}_transcript.json"
+    srt_out = f"{stem}_transcript.srt"
+
+    log.phase("📝  Transcribing Compilation")
+    with log.status(f"Running Whisper ({model_size}) on {os.path.basename(compilation_path)}…"):
+        try:
+            lang = language if language != "auto" else None
+            result = transcribe_video(
+                compilation_path,
+                language=lang,
+                model_size=model_size,
+            )
+            write_transcript_json(result, json_out)
+            write_srt(result.segments, srt_out)
+            log.success(
+                f"Transcript JSON: [bold]{json_out}[/bold] "
+                f"({len(result.segments)} segments, lang={result.language})"
+            )
+            log.detail(f"SRT subtitles:  [bold]{srt_out}[/bold]")
+            return [json_out, srt_out]
+        except Exception as e:
+            log.warn(f"Transcription failed: {e}")
+            logger.exception("Transcription error:")
+            return []
+
+
+def generate_youtube_metadata_phase(
+    args: argparse.Namespace,
+    output_dir: str,
+    mix_track_segments: list[dict[str, Any]],
+    total_duration_s: float,
+    content_type: str,
+    log: PipelineLogger,
+) -> list[str]:
+    """Phase: generate YouTube metadata files after rendering.
+
+    Writes <output_dir>/youtube_metadata.json and .txt.
+    Returns list of written file paths (empty on failure).
+    """
+    if not getattr(args, "youtube_metadata", False):
+        return []
+
+    from src.services.youtube_metadata import TrackSegment, generate_and_write
+
+    log.phase("📋  Generating YouTube Metadata")
+
+    track_segments = [
+        TrackSegment(
+            artist=seg.get("artist", ""),
+            title=seg.get("title", ""),
+            start_time=seg.get("start_time", 0.0),
+        )
+        for seg in mix_track_segments
+    ]
+
+    try:
+        written = generate_and_write(
+            content_type=content_type,
+            track_segments=track_segments,
+            total_duration_s=total_duration_s,
+            output_dir=output_dir,
+        )
+        for path in written:
+            log.success(f"YouTube metadata: [bold]{path}[/bold]")
+        return written
+    except Exception as e:
+        log.warn(f"YouTube metadata generation failed: {e}")
+        logger.exception("YouTube metadata error:")
+        return []
 
 
 def write_summary(

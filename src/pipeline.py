@@ -48,7 +48,9 @@ from src.application.pipeline_workflow import (
 )
 from src.cli_utils import (
     add_shorts_args,
+    add_transcribe_args,
     add_visual_args,
+    add_youtube_metadata_args,
     strip_thumbnails,
 )
 
@@ -180,6 +182,8 @@ def parse_args() -> argparse.Namespace:
         help="Quick iteration (max 4 clips, 10s of music per video)",
     )
     add_visual_args(parser)
+    add_transcribe_args(parser)
+    add_youtube_metadata_args(parser)
     parser.add_argument(
         "--verbose",
         action="store_true",
