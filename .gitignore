@@ -37,8 +37,12 @@ out_shorts/
 .pytest_cache/
 .mypy_cache/
 .claude/
+.gstack/
 .video_cache.json
 .video_cache.json.tmp
+
+# Run artifacts
+temp_songs/
 
 # Reports and logs
 *.xlsx
