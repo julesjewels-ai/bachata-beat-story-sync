@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from src.core.models import MixTrackSegment, PacingConfig
+from src.core.models import MixTrackSegment, PacingConfig, PhaseConfig
 
 
 @dataclass(frozen=True)
@@ -48,6 +48,9 @@ class PlanningConfig:
     transition_type: str
     transition_duration: float
     duration_sync_tolerance_seconds: float
+    hook_phase: PhaseConfig | None
+    intro_phase: PhaseConfig | None
+    warmup_phase: PhaseConfig | None
 
 
 @dataclass(frozen=True)
@@ -128,6 +131,9 @@ def planning_config_from_pacing(config: PacingConfig) -> PlanningConfig:
         transition_type=config.transition_type,
         transition_duration=config.transition_duration,
         duration_sync_tolerance_seconds=config.duration_sync_tolerance_seconds,
+        hook_phase=config.hook_phase,
+        intro_phase=config.intro_phase,
+        warmup_phase=config.warmup_phase,
     )
 
 

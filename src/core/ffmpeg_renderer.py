@@ -8,6 +8,7 @@ from FFmpeg subprocess orchestration.
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 import os
 import shutil
@@ -120,6 +121,61 @@ def _build_intro_filters(effect: str, duration: float) -> list[str]:
             f"Unknown intro effect '{effect}'. Valid options: none, {valid}"
         )
     return builder(duration)
+
+
+def _resolve_intro_effect(
+    seg: SegmentPlan,
+    render_config: RenderConfig,
+    seg_index: int,
+) -> tuple[str, float]:
+    """Return (effect_name, duration) for the intro effect to apply to *seg*.
+
+    Priority:
+      1. seg.phase_intro_effect if not 'none' (phase system override)
+      2. global render_config.intro_effect if seg_index == 0 (legacy FEAT-022)
+      3. 'none' (no effect)
+    """
+    if seg.phase_intro_effect != "none":
+        duration = (
+            seg.phase_intro_effect_duration
+            if seg.phase_intro_effect_duration is not None
+            else render_config.intro_effect_duration
+        )
+        return seg.phase_intro_effect, duration
+    if seg_index == 0 and render_config.intro_effect not in ("", "none"):
+        return render_config.intro_effect, render_config.intro_effect_duration
+    return "none", render_config.intro_effect_duration
+
+
+def _build_pacing_filters_for_segment(
+    render_config: RenderConfig,
+    seg: SegmentPlan,
+    beat_times: list[float] | None,
+    target_w: int,
+    target_h: int,
+    seg_index: int = 0,
+) -> list[str]:
+    """Return pacing filters respecting per-segment phase overrides.
+
+    If seg.phase_pacing_effects is None, falls through to global render_config flags.
+    If seg.phase_pacing_effects is a list (even empty), only those named effects are active.
+    Effect names in the list: 'drift_zoom', 'saturation_pulse', 'light_leaks',
+    'micro_jitters', 'alternating_bokeh'.
+    """
+    if seg.phase_pacing_effects is None:
+        return _build_pacing_filters(render_config, seg, beat_times, target_w, target_h, seg_index)
+
+    active = set(seg.phase_pacing_effects)
+    phase_render = dataclasses.replace(
+        render_config,
+        pacing_drift_zoom=("drift_zoom" in active),
+        pacing_crop_tighten=False,  # not exposed in PhaseVariation
+        pacing_saturation_pulse=("saturation_pulse" in active),
+        pacing_micro_jitters=("micro_jitters" in active),
+        pacing_light_leaks=("light_leaks" in active),
+        pacing_alternating_bokeh=("alternating_bokeh" in active),
+    )
+    return _build_pacing_filters(phase_render, seg, beat_times, target_w, target_h, seg_index)
 
 
 def _build_pacing_filters(
@@ -315,18 +371,14 @@ def _build_variable_speed_filter_complex(
     # These operate on the concatenated video
     trailing = []
 
-    # Intro Visual Effect — first segment only (FEAT-022)
-    if seg_index == 0 and render_config.intro_effect != "none":
-        trailing.extend(
-            _build_intro_filters(
-                render_config.intro_effect,
-                render_config.intro_effect_duration,
-            )
-        )
+    # Intro Visual Effect — phase system or legacy first-segment (FEAT-022)
+    _effect, _effect_dur = _resolve_intro_effect(seg, render_config, seg_index)
+    if _effect != "none":
+        trailing.extend(_build_intro_filters(_effect, _effect_dur))
 
-    # Pacing Visual Effects — all segments (FEAT-023 / FEAT-024)
+    # Pacing Visual Effects — phase-aware (FEAT-023 / FEAT-024)
     trailing.extend(
-        _build_pacing_filters(
+        _build_pacing_filters_for_segment(
             render_config,
             seg,
             beat_times,
@@ -495,18 +547,14 @@ def extract_segments(
                     else:
                         vf_parts.append(f"minterpolate=fps={TARGET_FPS}:mi_mode=blend")
 
-            # Intro Visual Effect — first segment only (FEAT-022)
-            if i == 0 and render_config.intro_effect != "none":
-                vf_parts.extend(
-                    _build_intro_filters(
-                        render_config.intro_effect,
-                        render_config.intro_effect_duration,
-                    )
-                )
+            # Intro Visual Effect — phase system or legacy first-segment (FEAT-022)
+            _effect, _effect_dur = _resolve_intro_effect(seg, render_config, i)
+            if _effect != "none":
+                vf_parts.extend(_build_intro_filters(_effect, _effect_dur))
 
-            # Pacing Visual Effects — all segments (FEAT-023 / FEAT-024)
+            # Pacing Visual Effects — phase-aware (FEAT-023 / FEAT-024)
             vf_parts.extend(
-                _build_pacing_filters(
+                _build_pacing_filters_for_segment(
                     render_config,
                     seg,
                     beat_times,

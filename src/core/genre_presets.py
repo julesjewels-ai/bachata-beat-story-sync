@@ -31,6 +31,65 @@ GENRE_PRESETS: dict[str, dict] = {
         "transition_type": "fade",
         "transition_duration": 0.5,
         "intro_effect": "vignette_breathe",
+        "hook_phase": {
+            "enabled": True,
+            "end_time_seconds": 4.0,
+            "variation_selection": "rotate",
+            "variations": [
+                {
+                    "name": "golden_breathe",
+                    "intro_effect": "vignette_breathe",
+                    "intro_effect_duration": 2.0,
+                    "pacing_saturation_pulse": True,
+                    "clip_selection": "highest_intensity",
+                },
+                {
+                    "name": "bloom_drift",
+                    "intro_effect": "bloom",
+                    "intro_effect_duration": 1.5,
+                    "pacing_drift_zoom": True,
+                    "clip_selection": "highest_intensity",
+                },
+                {
+                    "name": "clean_jitter",
+                    "intro_effect": "none",
+                    "pacing_micro_jitters": True,
+                    "pacing_light_leaks": True,
+                    "clip_selection": "highest_intensity",
+                },
+            ],
+        },
+        "intro_phase": {
+            "enabled": True,
+            "end_time_seconds": 10.0,
+            "variation_selection": "rotate",
+            "variations": [
+                {
+                    "name": "storytelling",
+                    "pacing_saturation_pulse": True,
+                    "pacing_alternating_bokeh": True,
+                },
+                {
+                    "name": "energetic",
+                    "pacing_light_leaks": True,
+                    "pacing_micro_jitters": True,
+                },
+                {
+                    "name": "cinematic",
+                    "pacing_drift_zoom": True,
+                },
+            ],
+        },
+        "warmup_phase": {
+            "enabled": True,
+            "end_time_seconds": 30.0,
+            "variation_selection": "rotate",
+            "variations": [
+                {"name": "building", "pacing_saturation_pulse": True},
+                {"name": "flowing", "pacing_alternating_bokeh": True},
+                {"name": "raw", "pacing_micro_jitters": True},
+            ],
+        },
     },
     "salsa": {
         "high_intensity_seconds": 1.8,
@@ -43,6 +102,53 @@ GENRE_PRESETS: dict[str, dict] = {
         "transition_type": "wipeleft",
         "transition_duration": 0.3,
         "intro_effect": "bloom",
+        "hook_phase": {
+            "enabled": True,
+            "end_time_seconds": 3.0,
+            "variation_selection": "rotate",
+            "variations": [
+                {
+                    "name": "hot_bloom",
+                    "intro_effect": "bloom",
+                    "intro_effect_duration": 1.0,
+                    "pacing_saturation_pulse": True,
+                    "pacing_micro_jitters": True,
+                    "clip_selection": "highest_intensity",
+                },
+                {
+                    "name": "fire_leak",
+                    "intro_effect": "bloom",
+                    "intro_effect_duration": 0.8,
+                    "pacing_light_leaks": True,
+                    "clip_selection": "highest_intensity",
+                },
+                {
+                    "name": "raw_cut",
+                    "intro_effect": "none",
+                    "pacing_micro_jitters": True,
+                    "clip_selection": "highest_intensity",
+                },
+            ],
+        },
+        "intro_phase": {
+            "enabled": True,
+            "end_time_seconds": 10.0,
+            "variation_selection": "rotate",
+            "variations": [
+                {"name": "pulse_drive", "pacing_saturation_pulse": True, "pacing_micro_jitters": True},
+                {"name": "heat_wave", "pacing_light_leaks": True, "pacing_saturation_pulse": True},
+                {"name": "sharp", "pacing_micro_jitters": True},
+            ],
+        },
+        "warmup_phase": {
+            "enabled": True,
+            "end_time_seconds": 30.0,
+            "variation_selection": "rotate",
+            "variations": [
+                {"name": "momentum", "pacing_saturation_pulse": True},
+                {"name": "groove", "pacing_light_leaks": True},
+            ],
+        },
     },
     "reggaeton": {
         "high_intensity_seconds": 2.2,
@@ -55,6 +161,53 @@ GENRE_PRESETS: dict[str, dict] = {
         "transition_type": "fade",
         "transition_duration": 0.4,
         "intro_effect": "bloom",
+        "hook_phase": {
+            "enabled": True,
+            "end_time_seconds": 4.0,
+            "variation_selection": "rotate",
+            "variations": [
+                {
+                    "name": "cool_bloom",
+                    "intro_effect": "bloom",
+                    "intro_effect_duration": 1.2,
+                    "pacing_light_leaks": True,
+                    "clip_selection": "highest_intensity",
+                },
+                {
+                    "name": "jitter_drop",
+                    "intro_effect": "none",
+                    "pacing_micro_jitters": True,
+                    "pacing_saturation_pulse": True,
+                    "clip_selection": "highest_intensity",
+                },
+                {
+                    "name": "drift_open",
+                    "intro_effect": "bloom",
+                    "intro_effect_duration": 1.5,
+                    "pacing_drift_zoom": True,
+                    "clip_selection": "highest_intensity",
+                },
+            ],
+        },
+        "intro_phase": {
+            "enabled": True,
+            "end_time_seconds": 10.0,
+            "variation_selection": "rotate",
+            "variations": [
+                {"name": "trap_pulse", "pacing_saturation_pulse": True, "pacing_light_leaks": True},
+                {"name": "bounce", "pacing_micro_jitters": True, "pacing_saturation_pulse": True},
+                {"name": "chill_drift", "pacing_drift_zoom": True},
+            ],
+        },
+        "warmup_phase": {
+            "enabled": True,
+            "end_time_seconds": 30.0,
+            "variation_selection": "rotate",
+            "variations": [
+                {"name": "heat", "pacing_saturation_pulse": True},
+                {"name": "leak", "pacing_light_leaks": True},
+            ],
+        },
     },
     "kizomba": {
         "high_intensity_seconds": 3.5,
@@ -67,6 +220,52 @@ GENRE_PRESETS: dict[str, dict] = {
         "transition_type": "fade",
         "transition_duration": 0.8,
         "intro_effect": "bloom",
+        "hook_phase": {
+            "enabled": True,
+            "end_time_seconds": 5.0,
+            "variation_selection": "rotate",
+            "variations": [
+                {
+                    "name": "moody_bloom",
+                    "intro_effect": "bloom",
+                    "intro_effect_duration": 2.5,
+                    "pacing_alternating_bokeh": True,
+                    "clip_selection": "highest_intensity",
+                },
+                {
+                    "name": "vignette_slow",
+                    "intro_effect": "vignette_breathe",
+                    "intro_effect_duration": 3.0,
+                    "clip_selection": "highest_intensity",
+                },
+                {
+                    "name": "drift_deep",
+                    "intro_effect": "bloom",
+                    "intro_effect_duration": 2.0,
+                    "pacing_drift_zoom": True,
+                    "clip_selection": "highest_intensity",
+                },
+            ],
+        },
+        "intro_phase": {
+            "enabled": True,
+            "end_time_seconds": 12.0,
+            "variation_selection": "rotate",
+            "variations": [
+                {"name": "soulful", "pacing_alternating_bokeh": True, "pacing_drift_zoom": True},
+                {"name": "intimate", "pacing_drift_zoom": True},
+                {"name": "shadow", "pacing_light_leaks": True},
+            ],
+        },
+        "warmup_phase": {
+            "enabled": True,
+            "end_time_seconds": 35.0,
+            "variation_selection": "rotate",
+            "variations": [
+                {"name": "grounded", "pacing_drift_zoom": True},
+                {"name": "sensual", "pacing_alternating_bokeh": True},
+            ],
+        },
     },
     "merengue": {
         "high_intensity_seconds": 1.5,
@@ -79,6 +278,46 @@ GENRE_PRESETS: dict[str, dict] = {
         "transition_type": "none",
         "transition_duration": 0.0,
         "intro_effect": "none",
+        "hook_phase": {
+            "enabled": True,
+            "end_time_seconds": 3.0,
+            "variation_selection": "rotate",
+            "variations": [
+                {
+                    "name": "fiesta_burst",
+                    "intro_effect": "bloom",
+                    "intro_effect_duration": 0.8,
+                    "pacing_saturation_pulse": True,
+                    "pacing_micro_jitters": True,
+                    "clip_selection": "highest_intensity",
+                },
+                {
+                    "name": "warm_open",
+                    "intro_effect": "bloom",
+                    "intro_effect_duration": 1.0,
+                    "pacing_light_leaks": True,
+                    "clip_selection": "highest_intensity",
+                },
+            ],
+        },
+        "intro_phase": {
+            "enabled": True,
+            "end_time_seconds": 9.0,
+            "variation_selection": "rotate",
+            "variations": [
+                {"name": "festive", "pacing_saturation_pulse": True, "pacing_micro_jitters": True},
+                {"name": "bright", "pacing_light_leaks": True, "pacing_saturation_pulse": True},
+            ],
+        },
+        "warmup_phase": {
+            "enabled": True,
+            "end_time_seconds": 25.0,
+            "variation_selection": "rotate",
+            "variations": [
+                {"name": "carnival", "pacing_saturation_pulse": True},
+                {"name": "groove", "pacing_micro_jitters": True},
+            ],
+        },
     },
     # --- General ---
     "pop": {
@@ -92,6 +331,52 @@ GENRE_PRESETS: dict[str, dict] = {
         "transition_type": "fade",
         "transition_duration": 0.5,
         "intro_effect": "none",
+        "hook_phase": {
+            "enabled": True,
+            "end_time_seconds": 4.0,
+            "variation_selection": "rotate",
+            "variations": [
+                {
+                    "name": "clean_bloom",
+                    "intro_effect": "bloom",
+                    "intro_effect_duration": 1.5,
+                    "pacing_drift_zoom": True,
+                    "clip_selection": "highest_intensity",
+                },
+                {
+                    "name": "pulse_open",
+                    "intro_effect": "none",
+                    "pacing_saturation_pulse": True,
+                    "clip_selection": "highest_intensity",
+                },
+                {
+                    "name": "vibe_check",
+                    "intro_effect": "vignette_breathe",
+                    "intro_effect_duration": 1.8,
+                    "pacing_light_leaks": True,
+                    "clip_selection": "highest_intensity",
+                },
+            ],
+        },
+        "intro_phase": {
+            "enabled": True,
+            "end_time_seconds": 10.0,
+            "variation_selection": "rotate",
+            "variations": [
+                {"name": "build_up", "pacing_drift_zoom": True, "pacing_saturation_pulse": True},
+                {"name": "steady", "pacing_alternating_bokeh": True},
+                {"name": "kinetic", "pacing_micro_jitters": True, "pacing_light_leaks": True},
+            ],
+        },
+        "warmup_phase": {
+            "enabled": True,
+            "end_time_seconds": 30.0,
+            "variation_selection": "rotate",
+            "variations": [
+                {"name": "flow", "pacing_drift_zoom": True},
+                {"name": "charged", "pacing_saturation_pulse": True},
+            ],
+        },
     },
 }
 
