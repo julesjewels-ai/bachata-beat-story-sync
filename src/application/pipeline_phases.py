@@ -158,8 +158,13 @@ def generate_mix_video_phase(
     log: PipelineLogger,
     mix_path: str,
     mix_track_segments: list[dict[str, Any]],
-) -> tuple[str, AudioAnalysisResult]:
-    """Phase: generate the combined mix video."""
+) -> tuple[str | None, AudioAnalysisResult]:
+    """Phase: generate the combined mix video.
+
+    Returns ``(None, mix_meta)`` if mix rendering fails so the pipeline can
+    continue with the individual track videos rather than aborting the whole
+    run (e.g. when the duration contract can't be met for the mix timeline).
+    """
     log.phase("🎬 Generating Mix Video")
     mix_audio_input = AudioAnalysisInput(file_path=mix_path)
     with log.status("Analyzing mix audio…"):
@@ -181,15 +186,23 @@ def generate_mix_video_phase(
         mix_pacing_kwargs["mix_track_segments"] = mix_track_segments
         mix_pacing_kwargs["mix_fade_transitions"] = True
     with log.status("Rendering mix video…"):
-        result = generate_video(
-            engine,
-            mix_meta,
-            clips,
-            mix_out,
-            mix_path,
-            mix_pacing_kwargs,
-            broll_clips=broll,
-        )
+        try:
+            result = generate_video(
+                engine,
+                mix_meta,
+                clips,
+                mix_out,
+                mix_path,
+                mix_pacing_kwargs,
+                broll_clips=broll,
+            )
+        except Exception as e:
+            log.warn(
+                f"Failed to generate mix video: {e}. "
+                "Skipping mix — continuing with individual track videos."
+            )
+            logger.exception("Mix video generation error:")
+            return None, mix_meta
     log.success(f"Mix video: [bold]{result}[/bold]")
     return result, mix_meta
 

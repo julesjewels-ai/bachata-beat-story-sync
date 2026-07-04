@@ -215,7 +215,8 @@ class PipelineWorkflow:
                 mix_path,
                 mix_track_segments,
             )
-            generated_files.append(mix_result)
+            if mix_result:
+                generated_files.append(mix_result)
 
         # 7. Per-track: video + shorts
         track_files, track_videos, track_audio_files = (
