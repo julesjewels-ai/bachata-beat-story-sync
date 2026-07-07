@@ -14,6 +14,7 @@ from typing import Any, cast
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pytest_mock import MockerFixture
 from src.core.ffmpeg_renderer import normalize_video_duration, overlay_audio
 from src.core.models import (
     AudioAnalysisResult,
@@ -3014,7 +3015,7 @@ def test_build_segment_plan_edge_cases(
 )
 def test_fit_segment_adaptive_branches(
     generator: MontageGenerator,
-    mocker,
+    mocker: MockerFixture,
     scenario: str,
 ) -> None:
     """Coverage test for _fit_segment_adaptive."""
@@ -3082,8 +3083,8 @@ def test_fit_segment_adaptive_branches(
 
     mocker.patch.object(generator, "_fit_clip_for_duration", side_effect=track_mock)
 
-
     from src.core.montage import planning_config_from_pacing
+
     plan_cfg = planning_config_from_pacing(config)
     fit = generator._fit_segment_adaptive(
         candidate_clips=clips,
