@@ -14,7 +14,7 @@ from typing import Any, cast
 from unittest.mock import MagicMock, patch
 
 import pytest
-from pytest_mock import MockerFixture
+from pytest_mock import MockerFixture  # type: ignore[import-not-found]
 from src.core.ffmpeg_renderer import normalize_video_duration, overlay_audio
 from src.core.models import (
     AudioAnalysisResult,
@@ -2864,7 +2864,8 @@ class TestAdvancedEffects:
 
 
 @pytest.mark.parametrize(
-    "scenario, video_clips, beat_times, target_duration, extra_config, broll_clips, override_max_clips",
+    "scenario, video_clips, beat_times, target_duration, extra_config, "
+    "broll_clips, override_max_clips",
     [
         ("empty_videos", [], [0.5, 1.0], 30.0, {}, None, None),
         ("empty_beats", [{"path": "/vid.mp4", "dur": 10.0}], [], 30.0, {}, None, None),

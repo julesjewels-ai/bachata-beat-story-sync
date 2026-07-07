@@ -251,9 +251,7 @@ class PipelineWorkflow:
 
         # 8b. Transcribe compilation (--transcribe flag)
         if compilation_result and getattr(args, "transcribe", False):
-            transcript_files = transcribe_compilation_phase(
-                compilation_result, args, log
-            )
+            transcript_files = transcribe_compilation_phase(compilation_result, args, log)
             generated_files.extend(transcript_files)
 
         # 8c. YouTube metadata (--youtube-metadata flag)

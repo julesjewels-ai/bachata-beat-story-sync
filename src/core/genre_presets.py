@@ -135,16 +135,8 @@ GENRE_PRESETS: dict[str, dict] = {
             "end_time_seconds": 10.0,
             "variation_selection": "rotate",
             "variations": [
-                {
-                    "name": "pulse_drive",
-                    "pacing_saturation_pulse": True,
-                    "pacing_micro_jitters": True,
-                },
-                {
-                    "name": "heat_wave",
-                    "pacing_light_leaks": True,
-                    "pacing_saturation_pulse": True,
-                },
+                {"name": "pulse_drive", "pacing_saturation_pulse": True, "pacing_micro_jitters": True},
+                {"name": "heat_wave", "pacing_light_leaks": True, "pacing_saturation_pulse": True},
                 {"name": "sharp", "pacing_micro_jitters": True},
             ],
         },
@@ -202,16 +194,8 @@ GENRE_PRESETS: dict[str, dict] = {
             "end_time_seconds": 10.0,
             "variation_selection": "rotate",
             "variations": [
-                {
-                    "name": "trap_pulse",
-                    "pacing_saturation_pulse": True,
-                    "pacing_light_leaks": True,
-                },
-                {
-                    "name": "bounce",
-                    "pacing_micro_jitters": True,
-                    "pacing_saturation_pulse": True,
-                },
+                {"name": "trap_pulse", "pacing_saturation_pulse": True, "pacing_light_leaks": True},
+                {"name": "bounce", "pacing_micro_jitters": True, "pacing_saturation_pulse": True},
                 {"name": "chill_drift", "pacing_drift_zoom": True},
             ],
         },
@@ -268,11 +252,7 @@ GENRE_PRESETS: dict[str, dict] = {
             "end_time_seconds": 12.0,
             "variation_selection": "rotate",
             "variations": [
-                {
-                    "name": "soulful",
-                    "pacing_alternating_bokeh": True,
-                    "pacing_drift_zoom": True,
-                },
+                {"name": "soulful", "pacing_alternating_bokeh": True, "pacing_drift_zoom": True},
                 {"name": "intimate", "pacing_drift_zoom": True},
                 {"name": "shadow", "pacing_light_leaks": True},
             ],
@@ -325,16 +305,8 @@ GENRE_PRESETS: dict[str, dict] = {
             "end_time_seconds": 9.0,
             "variation_selection": "rotate",
             "variations": [
-                {
-                    "name": "festive",
-                    "pacing_saturation_pulse": True,
-                    "pacing_micro_jitters": True,
-                },
-                {
-                    "name": "bright",
-                    "pacing_light_leaks": True,
-                    "pacing_saturation_pulse": True,
-                },
+                {"name": "festive", "pacing_saturation_pulse": True, "pacing_micro_jitters": True},
+                {"name": "bright", "pacing_light_leaks": True, "pacing_saturation_pulse": True},
             ],
         },
         "warmup_phase": {
@@ -391,17 +363,9 @@ GENRE_PRESETS: dict[str, dict] = {
             "end_time_seconds": 10.0,
             "variation_selection": "rotate",
             "variations": [
-                {
-                    "name": "build_up",
-                    "pacing_drift_zoom": True,
-                    "pacing_saturation_pulse": True,
-                },
+                {"name": "build_up", "pacing_drift_zoom": True, "pacing_saturation_pulse": True},
                 {"name": "steady", "pacing_alternating_bokeh": True},
-                {
-                    "name": "kinetic",
-                    "pacing_micro_jitters": True,
-                    "pacing_light_leaks": True,
-                },
+                {"name": "kinetic", "pacing_micro_jitters": True, "pacing_light_leaks": True},
             ],
         },
         "warmup_phase": {

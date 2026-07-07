@@ -317,9 +317,7 @@ class MontageGenerator:
             if intensity >= config.high_intensity_threshold:
                 target_seconds = config.high_intensity_seconds
                 level = "high"
-                speed = (
-                    config.high_intensity_speed if config.speed_ramp_enabled else 1.0
-                )
+                speed = config.high_intensity_speed if config.speed_ramp_enabled else 1.0
             elif intensity < config.low_intensity_threshold:
                 target_seconds = config.low_intensity_seconds
                 level = "low"
@@ -327,9 +325,7 @@ class MontageGenerator:
             else:
                 target_seconds = config.medium_intensity_seconds
                 level = "medium"
-                speed = (
-                    config.medium_intensity_speed if config.speed_ramp_enabled else 1.0
-                )
+                speed = config.medium_intensity_speed if config.speed_ramp_enabled else 1.0
 
         # Dynamic Flow: accelerate pacing towards the end (reduce duration by up to 40%)
         if config.accelerate_pacing:
@@ -557,9 +553,7 @@ class MontageGenerator:
         basename = os.path.basename(primary.path)
         is_forced = bool(re.match(r"^(\d+)_", basename))
 
-        min_clip_limit = (
-            MIN_RECOVERY_SEGMENT_SECONDS if is_forced else config.min_clip_seconds
-        )
+        min_clip_limit = MIN_RECOVERY_SEGMENT_SECONDS if is_forced else config.min_clip_seconds
         min_required = min(min_clip_limit, remaining)
         allow_short_terminal = remaining <= (
             min_clip_limit + config.duration_sync_tolerance_seconds
