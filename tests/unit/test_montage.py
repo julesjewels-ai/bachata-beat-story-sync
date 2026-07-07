@@ -14,6 +14,7 @@ from typing import Any, cast
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pytest_mock import MockerFixture  # type: ignore[import-not-found]
 from src.core.ffmpeg_renderer import normalize_video_duration, overlay_audio
 from src.core.models import (
     AudioAnalysisResult,
@@ -2860,3 +2861,252 @@ class TestAdvancedEffects:
                 str(tmp_path / "output.mp4"),
                 audio_path="/audio/song.wav",
             )
+
+
+@pytest.mark.parametrize(
+    "scenario, video_clips, beat_times, target_duration, extra_config, "
+    "broll_clips, override_max_clips",
+    [
+        ("empty_videos", [], [0.5, 1.0], 30.0, {}, None, None),
+        ("empty_beats", [{"path": "/vid.mp4", "dur": 10.0}], [], 30.0, {}, None, None),
+        (
+            "target_duration_zero",
+            [{"path": "/vid.mp4", "dur": 10.0}],
+            [0.5, 1.0],
+            0.0,
+            {},
+            None,
+            None,
+        ),
+        (
+            "max_clips_reached",
+            [{"path": "/vid.mp4", "dur": 10.0}],
+            [0.5, 1.0, 1.5, 2.0, 2.5],
+            30.0,
+            {"max_clips": 1, "min_clip_seconds": 0.1},
+            None,
+            None,
+        ),
+        (
+            "broll_insertion",
+            [{"path": "/vid.mp4", "dur": 10.0}],
+            [0.5, 1.0, 1.5, 2.0],
+            30.0,
+            {
+                "broll_interval_seconds": 0.1,
+                "broll_interval_variance": 0.0,
+                "min_clip_seconds": 0.1,
+            },
+            [{"path": "/broll.mp4", "dur": 5.0}],
+            None,
+        ),
+        (
+            "forced_intro_bumper",
+            [
+                {"path": "/01_intro_bumper.mp4", "dur": 1.0},
+                {"path": "/vid.mp4", "dur": 10.0},
+            ],
+            [0.5, 1.0, 1.5, 2.0],
+            30.0,
+            {"min_clip_seconds": 0.1},
+            None,
+            None,
+        ),
+        (
+            "phase_hi_trigger",
+            [{"path": "/vid.mp4", "dur": 10.0}],
+            [0.5, 1.0, 1.5, 2.0],
+            30.0,
+            {"min_clip_seconds": 0.1},
+            None,
+            None,
+        ),
+        (
+            "insufficient_beats_tail",
+            [{"path": "/vid.mp4", "dur": 10.0}],
+            [0.5, 1.0],
+            30.0,
+            {"min_clip_seconds": 2.0},
+            None,
+            None,
+        ),
+    ],
+)
+def test_build_segment_plan_edge_cases(
+    generator: MontageGenerator,
+    scenario: str,
+    video_clips: list[dict],
+    beat_times: list[float],
+    target_duration: float,
+    extra_config: dict,
+    broll_clips: list[dict] | None,
+    override_max_clips: int | None,
+) -> None:
+    """Coverage test for edge branches in build_segment_plan."""
+    clips = [
+        VideoAnalysisResult(
+            path=c["path"], duration=c["dur"], intensity_score=0.5, thumbnail_data=None
+        )
+        for c in video_clips
+    ]
+    brolls = None
+    if broll_clips is not None:
+        brolls = [
+            VideoAnalysisResult(
+                path=c["path"],
+                duration=c["dur"],
+                intensity_score=0.5,
+                thumbnail_data=None,
+            )
+            for c in broll_clips
+        ]
+
+    audio = AudioAnalysisResult(
+        filename="edge.wav",
+        bpm=120.0,
+        duration=target_duration if target_duration > 0 else 30.0,
+        peaks=[],
+        sections=[],
+        beat_times=beat_times,
+        intensity_curve=[0.5] * max(len(beat_times), 1),
+    )
+
+    config = PacingConfig(**extra_config)
+
+    if scenario == "target_duration_zero":
+        audio.duration = 0.0
+        # Wait, duration sync logic calculates target
+        config.duration_sync_tolerance_seconds = 30.0
+
+    if scenario == "phase_hi_trigger":
+        clips.append(
+            VideoAnalysisResult(
+                path="/hi.mp4", duration=10.0, intensity_score=1.0, thumbnail_data=None
+            )
+        )
+        from src.core.models import PhaseConfig, PhaseVariation
+
+        config.hook_phase = PhaseConfig(
+            enabled=True,
+            end_time_seconds=2.0,
+            variations=[PhaseVariation(name="hi", clip_selection="highest_intensity")],
+        )
+        config.prefix_offset = 0
+
+    segments = generator.build_segment_plan(
+        audio, clips, pacing=config, broll_clips=brolls
+    )
+
+    if scenario == "empty_videos":
+        assert len(segments) == 0, "Expected empty segments for no video clips"
+    elif scenario == "empty_beats":
+        assert len(segments) == 0, "Expected empty segments for no beats"
+    elif scenario == "target_duration_zero":
+        assert len(segments) == 0, "Expected empty segments for zero target duration"
+    elif scenario == "max_clips_reached":
+        assert len(segments) == 1, "Expected exactly max_clips (1)"
+    elif scenario == "forced_intro_bumper":
+        assert len(segments) > 0, "Expected at least 1 segment"
+        assert segments[0].video_path == "/01_intro_bumper.mp4", "Expected bumper first"
+
+
+@pytest.mark.parametrize(
+    "scenario",
+    ["safer_offset", "alternate_clip", "reduced_speed", "short_recovery", "none"],
+)
+def test_fit_segment_adaptive_branches(
+    generator: MontageGenerator,
+    mocker: MockerFixture,
+    scenario: str,
+) -> None:
+    """Coverage test for _fit_segment_adaptive."""
+    clips = [
+        VideoAnalysisResult(
+            path="/1_primary.mp4",
+            duration=10.0,
+            intensity_score=0.5,
+            thumbnail_data=None,
+        ),
+        VideoAnalysisResult(
+            path="/2_alt1.mp4", duration=10.0, intensity_score=0.5, thumbnail_data=None
+        ),
+        VideoAnalysisResult(
+            path="/3_alt2.mp4", duration=10.0, intensity_score=0.5, thumbnail_data=None
+        ),
+    ]
+    config = PacingConfig(min_clip_seconds=1.0)
+
+    call_idx = [0]
+
+    def track_mock(
+        clip, desired_duration, base_speed, config, clip_idx, force_start_zero=False
+    ):
+        call_idx[0] += 1
+        idx = call_idx[0]
+
+        if scenario == "safer_offset":
+            # 1: variety fails, 2: safer offset succeeds
+            if idx == 1:
+                return (0.0, 0.1)
+            if idx == 2:
+                return (0.0, 2.0)
+
+        elif scenario == "alternate_clip":
+            # 1,2: primary fail, 3: alternate clip succeeds
+            if idx <= 2:
+                return (0.0, 0.1)
+            if idx == 3:
+                return (0.0, 2.0)
+
+        elif scenario == "reduced_speed":
+            # base speed starts at 1.5.
+            # 1: primary variety 1.5 (fails)
+            # 2: primary safer 1.5 (fails)
+            # 3, 4: alternates 1.5 (fails)
+            # 5: reduced speed 1.0 (succeeds)
+            if idx <= 4:
+                return (0.0, 0.1)
+            if idx == 5:
+                return (0.0, 2.0)
+
+        elif scenario == "short_recovery":
+            # 1: primary variety 1.5 (fails)
+            # 2: primary safer 1.5 (fails)
+            # 3, 4: alternates 1.5 (fails)
+            # 5, 6: reduced speeds (1.0, 1.25) (fails)
+            # 7: recovery segment 1.0 force_start_zero=True (succeeds, must be >= 0.25)
+            if idx <= 6:
+                return (0.0, 0.1)
+            if idx == 7:
+                return (0.0, 0.3)
+
+        return (0.0, 0.0)
+
+    mocker.patch.object(generator, "_fit_clip_for_duration", side_effect=track_mock)
+
+    from src.core.montage import planning_config_from_pacing
+
+    plan_cfg = planning_config_from_pacing(config)
+    fit = generator._fit_segment_adaptive(
+        candidate_clips=clips,
+        desired_duration=2.0,
+        base_speed=1.5 if scenario in ["reduced_speed", "short_recovery"] else 1.0,
+        remaining=5.0,
+        config=plan_cfg,
+        clip_idx=0,
+    )
+
+    if scenario == "safer_offset":
+        assert fit is not None
+        assert fit.reason_suffix and "safer start offset" in fit.reason_suffix
+    elif scenario == "alternate_clip":
+        assert fit is not None
+        assert fit.reason_suffix and "alternate clip" in fit.reason_suffix
+    elif scenario == "reduced_speed":
+        assert fit is not None
+        assert fit.reason_suffix and "reduced speed aggressiveness" in fit.reason_suffix
+    elif scenario == "short_recovery":
+        assert fit is not None
+        assert fit.reason_suffix and "short recovery segment" in fit.reason_suffix
+    elif scenario == "none":
+        assert fit is None
