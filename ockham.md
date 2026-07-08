@@ -9,3 +9,7 @@
 **Target:** `detect_sections` in `src/core/audio_analyzer.py`
 **Delta:** Complexity Score 21 -> 8
 **Summary:** Refactored the `detect_sections` function by extracting the boundary merging loop into `_merge_short_boundaries` and the section labeling if-else block into `_determine_section_label`. Used early returns in the labeling logic to reduce nesting and cyclomatic complexity.
+
+Target: `render_montage` in `src/core/montage_rendering.py`
+Delta: Complexity Score 29 -> 12
+Summary: Extracted logic into `_assemble_video_segments`, `_verify_and_correct_duration`, `_apply_audio_overlay`, and `_apply_text_and_post_process` helper functions to reduce cyclomatic complexity and improve maintainability without changing behavior.
