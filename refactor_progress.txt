@@ -1,0 +1,1 @@
+src/core/montage_rendering.py:render_montage
