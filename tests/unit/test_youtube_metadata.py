@@ -15,7 +15,6 @@ from src.services.youtube_metadata import (
     write_youtube_metadata,
 )
 
-
 # ------------------------------------------------------------------
 # Timecode formatting
 # ------------------------------------------------------------------

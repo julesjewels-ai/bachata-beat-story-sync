@@ -10,9 +10,8 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
-
 
 # ---------------------------------------------------------------------------
 # SEO Strategy constants (from SEO-Marketing-Strategy.md v2.0)
@@ -20,7 +19,11 @@ from typing import Any
 
 _PRIMARY_KEYWORDS = ["Música para Recordar", "Canciones de Amor"]
 
-_SUPPORTING_KEYWORDS = ["bachata romántica", "música para bailar", "bachata para bailar"]
+_SUPPORTING_KEYWORDS = [
+    "bachata romántica",
+    "música para bailar",
+    "bachata para bailar",
+]
 
 _HASHTAGS_TIER1 = [
     "#bachataromántica",
@@ -182,9 +185,7 @@ def _hashtag_selection(content_type: str, artist_names: list[str]) -> list[str]:
     return tags[:15]  # YouTube cap
 
 
-def _build_backend_tags(
-    primary: str, track_segments: list[TrackSegment]
-) -> str:
+def _build_backend_tags(primary: str, track_segments: list[TrackSegment]) -> str:
     """Comma-separated backend tags including artist names."""
     primary_lower = primary.lower()
     # Primary keyword goes first; drop any base-tag duplicate so it isn't listed twice
@@ -225,20 +226,20 @@ def _build_description(
 
     if content_type == "mix":
         hook = (
-            f"Déjate llevar por la mejor bachata romántica — "
-            f"una mezcla perfecta de canciones de amor para recordar "
-            f"los momentos más especiales de tu vida. 🌹"
+            "Déjate llevar por la mejor bachata romántica — "
+            "una mezcla perfecta de canciones de amor para recordar "
+            "los momentos más especiales de tu vida. 🌹"
         )
     elif content_type == "compilation":
         hook = (
-            f"Una compilación completa de bachata romántica — "
-            f"canciones de amor seleccionadas para recordar y bailar "
-            f"con el corazón abierto. 💃🏻"
+            "Una compilación completa de bachata romántica — "
+            "canciones de amor seleccionadas para recordar y bailar "
+            "con el corazón abierto. 💃🏻"
         )
     else:
         hook = (
-            f"Bachata romántica para recordar — "
-            f"una canción de amor que llega directo al corazón. 🌹"
+            "Bachata romántica para recordar — "
+            "una canción de amor que llega directo al corazón. 🌹"
         )
 
     parts = [hook, ""]
