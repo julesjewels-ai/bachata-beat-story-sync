@@ -77,7 +77,7 @@ def test_mix_phase_returns_none_on_render_failure_instead_of_raising(
 
     result, returned_meta = generate_mix_video_phase(
         _support(),
-        args,
+        args,  # type: ignore[arg-type]
         engine=MagicMock(),
         analyzer=analyzer,
         pacing_kwargs={},
@@ -109,7 +109,7 @@ def test_mix_phase_returns_path_on_success(mock_generate, tmp_path):
 
     result, _ = generate_mix_video_phase(
         _support(),
-        args,
+        args,  # type: ignore[arg-type]
         engine=MagicMock(),
         analyzer=analyzer,
         pacing_kwargs={},
