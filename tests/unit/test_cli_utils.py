@@ -4,7 +4,6 @@ Unit tests for shared CLI utilities (src/cli_utils.py).
 
 import argparse
 from typing import Any
-from unittest.mock import MagicMock
 
 import pytest
 from src.cli_utils import (
@@ -155,7 +154,9 @@ class TestBuildPacingKwargs:
         expected.update(expected_extras)
 
         result = build_pacing_kwargs(empty_args)
-        err_msg = f"Failed on text_overlay combinations: no_cold={no_cold_open}, no_lyrics={no_lyrics}"
+        err_msg = (
+            f"Failed text_overlay combos: no_cold={no_cold_open}, no_lyrics={no_lyrics}"
+        )
         assert result == expected, err_msg
 
 
