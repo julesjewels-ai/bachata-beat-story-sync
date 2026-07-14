@@ -3,6 +3,7 @@ Unit tests for shared CLI utilities (src/cli_utils.py).
 """
 
 import argparse
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -36,82 +37,126 @@ class TestParseDuration:
 # ------------------------------------------------------------------
 
 
+@pytest.fixture
+def empty_args() -> argparse.Namespace:
+    """Provides a Namespace with all build_pacing_kwargs inputs set to None/False."""
+    return argparse.Namespace(
+        test_mode=False,
+        genre=None,
+        video_style=None,
+        audio_overlay=None,
+        audio_overlay_opacity=None,
+        audio_overlay_position=None,
+        audio_overlay_padding=None,
+        audio_overlay_color=None,
+        audio_overlay_palette=None,
+        audio_overlay_width_pct=None,
+        audio_overlay_height=None,
+        broll_interval=None,
+        broll_variance=None,
+        explain=False,
+        explain_html=None,
+        intro_effect=None,
+        intro_effect_duration=None,
+        dry_run=False,
+        pacing_drift_zoom=False,
+        pacing_crop_tighten=False,
+        pacing_saturation_pulse=False,
+        pacing_micro_jitters=False,
+        pacing_light_leaks=False,
+        pacing_warm_wash=False,
+        pacing_alternating_bokeh=False,
+        zoom=None,
+        text_overlay=False,
+        no_cold_open=False,
+        no_lyrics=False,
+        track_artist=None,
+        track_title=None,
+        lrc_path=None,
+    )
+
+
 class TestBuildPacingKwargs:
-    def test_empty_args(self):
-        args = argparse.Namespace(
-            test_mode=False,
-            genre=None,
-            video_style=None,
-            audio_overlay=None,
-            audio_overlay_opacity=None,
-            audio_overlay_position=None,
-            audio_overlay_padding=None,
-            broll_interval=None,
-            broll_variance=None,
-            explain=False,
-            intro_effect=None,
-            intro_effect_duration=None,
-            dry_run=False,
-            pacing_drift_zoom=False,
-            pacing_crop_tighten=False,
-            pacing_saturation_pulse=False,
-        )
-        result = build_pacing_kwargs(args)
+    def test_empty_args(self, empty_args: argparse.Namespace) -> None:
+        result = build_pacing_kwargs(empty_args)
         assert result == {}
 
-    def test_test_mode(self):
-        args = argparse.Namespace(
-            test_mode=True,
-            genre=None,
-            video_style=None,
-            audio_overlay=None,
-            audio_overlay_opacity=None,
-            audio_overlay_position=None,
-            audio_overlay_padding=None,
-            broll_interval=None,
-            broll_variance=None,
-            explain=False,
-            intro_effect=None,
-            intro_effect_duration=None,
-            dry_run=False,
-            pacing_drift_zoom=False,
-            pacing_crop_tighten=False,
-            pacing_saturation_pulse=False,
-        )
-        result = build_pacing_kwargs(args)
-        assert result["max_clips"] == 4
-        assert result["max_duration_seconds"] == 10.0
+    @pytest.mark.parametrize(
+        ("attr", "val", "expected"),
+        [
+            ("test_mode", True, {"max_clips": 4, "max_duration_seconds": 10.0}),
+            ("genre", "action", {"genre": "action"}),
+            ("video_style", "warm", {"video_style": "warm"}),
+            ("audio_overlay", "waveform", {"audio_overlay": "waveform"}),
+            ("audio_overlay_opacity", 0.5, {"audio_overlay_opacity": 0.5}),
+            ("audio_overlay_position", "center", {"audio_overlay_position": "center"}),
+            ("audio_overlay_padding", 20, {"audio_overlay_padding": 20}),
+            ("audio_overlay_color", "white", {"audio_overlay_color": "white"}),
+            ("audio_overlay_palette", "inferno", {"audio_overlay_palette": "inferno"}),
+            ("audio_overlay_width_pct", 0.8, {"audio_overlay_width_pct": 0.8}),
+            ("audio_overlay_height", 100, {"audio_overlay_height": 100}),
+            ("broll_interval", 15.0, {"broll_interval_seconds": 15.0}),
+            ("broll_variance", 2.0, {"broll_interval_variance": 2.0}),
+            ("explain", True, {"explain": True}),
+            (
+                "explain_html",
+                "path.html",
+                {"explain_html": "path.html", "explain": True},
+            ),
+            ("intro_effect", "bloom", {"intro_effect": "bloom"}),
+            ("intro_effect_duration", 2.0, {"intro_effect_duration": 2.0}),
+            ("dry_run", True, {"dry_run": True}),
+            ("pacing_drift_zoom", True, {"pacing_drift_zoom": True}),
+            ("pacing_crop_tighten", True, {"pacing_crop_tighten": True}),
+            ("pacing_saturation_pulse", True, {"pacing_saturation_pulse": True}),
+            ("pacing_micro_jitters", True, {"pacing_micro_jitters": True}),
+            ("pacing_light_leaks", True, {"pacing_light_leaks": True}),
+            ("pacing_warm_wash", True, {"pacing_warm_wash": True}),
+            ("pacing_alternating_bokeh", True, {"pacing_alternating_bokeh": True}),
+            ("zoom", 1.5, {"zoom_factor": 1.5}),
+            ("track_artist", "Artist", {"track_artist": "Artist"}),
+            ("track_title", "Title", {"track_title": "Title"}),
+            ("lrc_path", "lyrics.lrc", {"lyrics_lrc_path": "lyrics.lrc"}),
+        ],
+    )
+    def test_single_attributes(
+        self,
+        empty_args: argparse.Namespace,
+        attr: str,
+        val: Any,
+        expected: dict,
+    ) -> None:
+        setattr(empty_args, attr, val)
+        result = build_pacing_kwargs(empty_args)
+        err_msg = f"Failed on input: {attr}={val}"
+        assert result == expected, err_msg
 
-    def test_all_visual_args(self):
-        args = MagicMock()
-        args.test_mode = False
-        args.video_style = "warm"
-        args.audio_overlay = "waveform"
-        args.audio_overlay_opacity = 0.8
-        args.audio_overlay_position = "center"
-        args.audio_overlay_padding = 20
-        args.broll_interval = None
-        args.broll_variance = None
-        result = build_pacing_kwargs(args)
-        assert result["video_style"] == "warm"
-        assert result["audio_overlay"] == "waveform"
-        assert result["audio_overlay_opacity"] == 0.8
-        assert result["audio_overlay_position"] == "center"
-        assert result["audio_overlay_padding"] == 20
+    @pytest.mark.parametrize(
+        ("no_cold_open", "no_lyrics", "expected_extras"),
+        [
+            (False, False, {}),
+            (True, False, {"cold_open_enabled": False}),
+            (False, True, {"lyrics_overlay_enabled": False}),
+            (True, True, {"cold_open_enabled": False, "lyrics_overlay_enabled": False}),
+        ],
+    )
+    def test_text_overlay_combinations(
+        self,
+        empty_args: argparse.Namespace,
+        no_cold_open: bool,
+        no_lyrics: bool,
+        expected_extras: dict,
+    ) -> None:
+        empty_args.text_overlay = True
+        empty_args.no_cold_open = no_cold_open
+        empty_args.no_lyrics = no_lyrics
 
-    def test_broll_interval_args(self):
-        args = MagicMock()
-        args.test_mode = False
-        args.video_style = None
-        args.audio_overlay = None
-        args.audio_overlay_opacity = None
-        args.audio_overlay_position = None
-        args.audio_overlay_padding = None
-        args.broll_interval = 20.0
-        args.broll_variance = 3.0
-        result = build_pacing_kwargs(args)
-        assert result["broll_interval_seconds"] == 20.0
-        assert result["broll_interval_variance"] == 3.0
+        expected = {"text_overlay_enabled": True}
+        expected.update(expected_extras)
+
+        result = build_pacing_kwargs(empty_args)
+        err_msg = f"Failed on text_overlay combinations: no_cold={no_cold_open}, no_lyrics={no_lyrics}"
+        assert result == expected, err_msg
 
 
 # ------------------------------------------------------------------
