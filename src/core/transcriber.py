@@ -28,7 +28,7 @@ def _extract_audio(video_path: str, tmp_dir: str) -> str:
     """Extract mono 16kHz WAV from video using FFmpeg. Returns WAV path."""
     wav_path = os.path.join(tmp_dir, "audio.wav")
     try:
-        import imageio_ffmpeg
+        import imageio_ffmpeg  # type: ignore[import-untyped]
 
         ffmpeg_bin = imageio_ffmpeg.get_ffmpeg_exe()
     except ImportError:
@@ -68,7 +68,7 @@ def transcribe_video(
         TranscriptResult with all segments and word timings.
     """
     try:
-        from faster_whisper import WhisperModel  # type: ignore[import]
+        from faster_whisper import WhisperModel  # type: ignore[import-untyped]
     except ImportError as exc:
         raise ImportError(
             "faster-whisper not installed. Run: make install\n"
@@ -95,7 +95,9 @@ def transcribe_video(
             beam_size=5,
         )
 
-        detected_lang = info.language if hasattr(info, "language") else language
+        detected_lang = (
+            str(info.language) if hasattr(info, "language") else str(language)
+        )
         segments: list[TranscriptSegment] = []
 
         for seg in raw_segments:
