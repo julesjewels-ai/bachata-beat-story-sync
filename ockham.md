@@ -9,3 +9,8 @@
 **Target:** `detect_sections` in `src/core/audio_analyzer.py`
 **Delta:** Complexity Score 21 -> 8
 **Summary:** Refactored the `detect_sections` function by extracting the boundary merging loop into `_merge_short_boundaries` and the section labeling if-else block into `_determine_section_label`. Used early returns in the labeling logic to reduce nesting and cyclomatic complexity.
+
+## 2025-03-09
+**Target:** `build_pacing_kwargs` in `src/application/streamlit_requests.py`
+**Delta:** Complexity Score 24 -> 4
+**Summary:** Refactored the monolithic `build_pacing_kwargs` function by extracting specific UI settings translation logic (style, demo overrides, speed ramp, visual effects, text overlay, limit settings) into smaller helper functions.
