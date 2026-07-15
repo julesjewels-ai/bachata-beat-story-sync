@@ -10,9 +10,8 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
-
 
 # ---------------------------------------------------------------------------
 # SEO Strategy constants (from SEO-Marketing-Strategy.md v2.0)
@@ -97,9 +96,9 @@ _BACKEND_BASE_TAGS = [
 _THUMBNAIL_CONCEPTS = [
     "Couple dancing bachata silhouette against golden sunset — warm amber tones",
     "Close-up of intertwined hands with soft bokeh — deep red/rose palette",
-    "Female dancer mid-spin, flowing dress — contrast with dark bg, gold accent text",
-    "Vintage film-grain look: couple on dance floor — faded warm tones with title overlay",
-    "Two people facing each other close — cinematic crop, coral/terracotta colour grade",
+    "Female dancer mid-spin, flowing dress — contrast dark bg, gold text",
+    "Vintage film-grain look: couple on dance floor — faded warm tones with title",
+    "Two people facing each other close — cinematic crop, coral/terracotta grade",
 ]
 
 
@@ -227,20 +226,20 @@ def _build_description(
 
     if content_type == "mix":
         hook = (
-            f"Déjate llevar por la mejor bachata romántica — "
-            f"una mezcla perfecta de canciones de amor para recordar "
-            f"los momentos más especiales de tu vida. 🌹"
+            "Déjate llevar por la mejor bachata romántica — "
+            "una mezcla perfecta de canciones de amor para recordar "
+            "los momentos más especiales de tu vida. 🌹"
         )
     elif content_type == "compilation":
         hook = (
-            f"Una compilación completa de bachata romántica — "
-            f"canciones de amor seleccionadas para recordar y bailar "
-            f"con el corazón abierto. 💃🏻"
+            "Una compilación completa de bachata romántica — "
+            "canciones de amor seleccionadas para recordar y bailar "
+            "con el corazón abierto. 💃🏻"
         )
     else:
         hook = (
-            f"Bachata romántica para recordar — "
-            f"una canción de amor que llega directo al corazón. 🌹"
+            "Bachata romántica para recordar — "
+            "una canción de amor que llega directo al corazón. 🌹"
         )
 
     parts = [hook, ""]
@@ -253,10 +252,10 @@ def _build_description(
 
     parts += [
         "—",
-        "🔔 Suscríbete para más bachata romántica, canciones de amor y música para recordar.",
+        "🔔 Suscríbete para más bachata romántica, amor y música para recordar.",
         "",
-        "🔎 Palabras clave: música para recordar, canciones de amor, bachata romántica, "
-        "música para bailar, bachata para bailar, bachata vieja, música latina romántica, "
+        "🔎 Palabras clave: música para recordar, amor, bachata romántica, "
+        "música para bailar, bachata para bailar, bachata vieja, romántica, "
         "recuerdos, nostalgia, amor eterno",
     ]
 

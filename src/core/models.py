@@ -21,11 +21,11 @@ class PhaseVariation(BaseModel):
     )
     intro_effect: str = Field(
         "none",
-        description="Visual effect for segments in this phase: 'none', 'bloom', 'vignette_breathe'",
+        description="Effect for segments in this phase: 'none', 'bloom', 'vignette'",
     )
     intro_effect_duration: float | None = Field(
         None,
-        description="Effect duration override in seconds. None = use global intro_effect_duration.",
+        description="Effect duration override in secs. None = use global duration.",
     )
     pacing_saturation_pulse: bool = Field(False)
     pacing_light_leaks: bool = Field(False)
