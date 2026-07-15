@@ -1,7 +1,7 @@
 """Tests for pipeline phase resilience (graceful degradation)."""
 
+import argparse
 from contextlib import contextmanager
-from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from src.application.pipeline_phases import (
@@ -71,7 +71,7 @@ def test_mix_phase_returns_none_on_render_failure_instead_of_raising(
     mix_meta = _mix_meta()
     analyzer.analyze.return_value = mix_meta
     log = _fake_log()
-    args = SimpleNamespace(
+    args = argparse.Namespace(
         shared_scan=True, output_dir=str(tmp_path), video_dir="/videos"
     )
 
@@ -103,7 +103,7 @@ def test_mix_phase_returns_path_on_success(mock_generate, tmp_path):
     mix_path.write_bytes(b"RIFF")
     analyzer = MagicMock()
     analyzer.analyze.return_value = _mix_meta()
-    args = SimpleNamespace(
+    args = argparse.Namespace(
         shared_scan=True, output_dir=str(tmp_path), video_dir="/videos"
     )
 

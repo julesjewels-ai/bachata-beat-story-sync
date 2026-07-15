@@ -168,15 +168,9 @@ def _resolve_video_dir(video_dir: str, errors: list[str]) -> str | None:
     return resolved_video_dir
 
 
-def build_pacing_kwargs(
-    settings: GenerationSettings,
-    *,
-    demo_mode: bool,
-    demo_dry_run: bool,
-) -> dict[str, Any]:
-    """Translate UI settings into story workflow pacing overrides."""
-    pacing_kwargs: dict[str, Any] = {}
-
+def _apply_style_settings(
+    settings: GenerationSettings, pacing_kwargs: dict[str, Any]
+) -> None:
     if settings.genre_choice != "(none)":
         pacing_kwargs["genre"] = settings.genre_choice
     if settings.video_style != "none":
@@ -186,18 +180,21 @@ def build_pacing_kwargs(
     if settings.intro_effect != "none":
         pacing_kwargs["intro_effect"] = settings.intro_effect
 
-    if demo_mode:
-        if demo_dry_run:
-            pacing_kwargs["dry_run"] = True
-        pacing_kwargs["max_clips"] = 6
-        pacing_kwargs["max_duration_seconds"] = 20.0
-        pacing_kwargs["text_overlay_enabled"] = True
-        pacing_kwargs["cold_open_enabled"] = True
-        pacing_kwargs["track_artist"] = "Sample Artist"
-        pacing_kwargs["track_title"] = "Sample Bachata"
-    elif settings.dry_run:
-        pacing_kwargs["dry_run"] = True
 
+def _apply_demo_overrides(demo_dry_run: bool, pacing_kwargs: dict[str, Any]) -> None:
+    if demo_dry_run:
+        pacing_kwargs["dry_run"] = True
+    pacing_kwargs["max_clips"] = 6
+    pacing_kwargs["max_duration_seconds"] = 20.0
+    pacing_kwargs["text_overlay_enabled"] = True
+    pacing_kwargs["cold_open_enabled"] = True
+    pacing_kwargs["track_artist"] = "Sample Artist"
+    pacing_kwargs["track_title"] = "Sample Bachata"
+
+
+def _apply_speed_ramp_settings(
+    settings: GenerationSettings, pacing_kwargs: dict[str, Any]
+) -> None:
     if settings.speed_ramp_organic:
         pacing_kwargs["speed_ramp_organic"] = True
         pacing_kwargs["speed_ramp_sensitivity"] = settings.speed_ramp_sensitivity
@@ -205,6 +202,10 @@ def build_pacing_kwargs(
         pacing_kwargs["speed_ramp_min"] = settings.speed_ramp_min
         pacing_kwargs["speed_ramp_max"] = settings.speed_ramp_max
 
+
+def _apply_visual_effects(
+    settings: GenerationSettings, pacing_kwargs: dict[str, Any]
+) -> None:
     for field_name in (
         "pacing_drift_zoom",
         "pacing_crop_tighten",
@@ -217,7 +218,11 @@ def build_pacing_kwargs(
         if getattr(settings, field_name):
             pacing_kwargs[field_name] = True
 
-    if not demo_mode and settings.text_overlay_enabled:
+
+def _apply_text_overlay_settings(
+    settings: GenerationSettings, pacing_kwargs: dict[str, Any]
+) -> None:
+    if settings.text_overlay_enabled:
         pacing_kwargs["text_overlay_enabled"] = True
         if not settings.cold_open_enabled:
             pacing_kwargs["cold_open_enabled"] = False
@@ -228,20 +233,47 @@ def build_pacing_kwargs(
         if settings.track_title.strip():
             pacing_kwargs["track_title"] = settings.track_title.strip()
 
+
+def _apply_limit_settings(
+    settings: GenerationSettings, pacing_kwargs: dict[str, Any]
+) -> None:
+    effective_max_clips: int | None = None
+    effective_max_duration: float | None = None
+    if settings.test_mode:
+        effective_max_clips = 4
+        effective_max_duration = 10.0
+    if settings.max_clips_input > 0:
+        effective_max_clips = settings.max_clips_input
+    if settings.max_duration_input > 0:
+        effective_max_duration = float(settings.max_duration_input)
+    if effective_max_clips is not None:
+        pacing_kwargs["max_clips"] = effective_max_clips
+    if effective_max_duration is not None:
+        pacing_kwargs["max_duration_seconds"] = effective_max_duration
+
+
+def build_pacing_kwargs(
+    settings: GenerationSettings,
+    *,
+    demo_mode: bool,
+    demo_dry_run: bool,
+) -> dict[str, Any]:
+    """Translate UI settings into story workflow pacing overrides."""
+    pacing_kwargs: dict[str, Any] = {}
+
+    _apply_style_settings(settings, pacing_kwargs)
+
+    if demo_mode:
+        _apply_demo_overrides(demo_dry_run, pacing_kwargs)
+    elif settings.dry_run:
+        pacing_kwargs["dry_run"] = True
+
+    _apply_speed_ramp_settings(settings, pacing_kwargs)
+    _apply_visual_effects(settings, pacing_kwargs)
+
     if not demo_mode:
-        effective_max_clips: int | None = None
-        effective_max_duration: float | None = None
-        if settings.test_mode:
-            effective_max_clips = 4
-            effective_max_duration = 10.0
-        if settings.max_clips_input > 0:
-            effective_max_clips = settings.max_clips_input
-        if settings.max_duration_input > 0:
-            effective_max_duration = float(settings.max_duration_input)
-        if effective_max_clips is not None:
-            pacing_kwargs["max_clips"] = effective_max_clips
-        if effective_max_duration is not None:
-            pacing_kwargs["max_duration_seconds"] = effective_max_duration
+        _apply_text_overlay_settings(settings, pacing_kwargs)
+        _apply_limit_settings(settings, pacing_kwargs)
 
     return pacing_kwargs
 

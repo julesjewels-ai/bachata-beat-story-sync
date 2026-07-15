@@ -301,8 +301,8 @@ class MontageGenerator:
         """
         # Pick target duration and speed based on intensity level
         if config.speed_ramp_organic:
-            # Plan for the worst-case (fastest possible speed) so we don't overestimate
-            # achievable duration and later run out of source frames when the curve is applied.
+            # Plan for the worst-case (fastest speed) to not overestimate duration
+            # and avoid running out of frames.
             speed = config.speed_ramp_max
             if intensity >= config.high_intensity_threshold:
                 target_seconds = config.high_intensity_seconds
@@ -317,7 +317,9 @@ class MontageGenerator:
             if intensity >= config.high_intensity_threshold:
                 target_seconds = config.high_intensity_seconds
                 level = "high"
-                speed = config.high_intensity_speed if config.speed_ramp_enabled else 1.0
+                speed = (
+                    config.high_intensity_speed if config.speed_ramp_enabled else 1.0
+                )
             elif intensity < config.low_intensity_threshold:
                 target_seconds = config.low_intensity_seconds
                 level = "low"
@@ -325,7 +327,9 @@ class MontageGenerator:
             else:
                 target_seconds = config.medium_intensity_seconds
                 level = "medium"
-                speed = config.medium_intensity_speed if config.speed_ramp_enabled else 1.0
+                speed = (
+                    config.medium_intensity_speed if config.speed_ramp_enabled else 1.0
+                )
 
         # Dynamic Flow: accelerate pacing towards the end (reduce duration by up to 40%)
         if config.accelerate_pacing:
@@ -548,12 +552,14 @@ class MontageGenerator:
         clip_idx: int,
     ) -> _SegmentFit | None:
         """Adaptive fit strategy for short/insufficient footage."""
-        # Check if the primary clip is a forced/numeric-prefixed clip (e.g. '01_intro-bumper.mp4')
+        # Check if primary clip is a forced/prefixed clip (e.g. '01_intro.mp4')
         primary = candidate_clips[0]
         basename = os.path.basename(primary.path)
         is_forced = bool(re.match(r"^(\d+)_", basename))
 
-        min_clip_limit = MIN_RECOVERY_SEGMENT_SECONDS if is_forced else config.min_clip_seconds
+        min_clip_limit = (
+            MIN_RECOVERY_SEGMENT_SECONDS if is_forced else config.min_clip_seconds
+        )
         min_required = min(min_clip_limit, remaining)
         allow_short_terminal = remaining <= (
             min_clip_limit + config.duration_sync_tolerance_seconds
@@ -845,7 +851,7 @@ class MontageGenerator:
                 )
                 break
 
-            # If the next clip is a forced intro bumper/clip, let it play fully up to its actual duration
+            # If next clip is forced intro, let it play fully up to its duration
             is_next_forced = state.forced_clip_idx < len(forced_clips)
             if is_next_forced:
                 forced_clip = forced_clips[state.forced_clip_idx]
@@ -873,8 +879,8 @@ class MontageGenerator:
             ):
                 is_broll = True
 
-            # Video Phase System: use highest-intensity clip when phase variation requests it,
-            # but only if no forced prefix clips are pending and it's not a b-roll slot.
+            # Video Phase System: use highest-intensity clip when phase requests it,
+            # but only if no forced prefix clips are pending and not a b-roll slot.
             _use_phase_hi = (
                 phase_manager.needs_highest_intensity(state.timeline_pos)
                 and state.forced_clip_idx >= len(forced_clips)
@@ -899,7 +905,7 @@ class MontageGenerator:
                     clip_idx=state.clip_idx,
                     pick_from_pool=self._pick_from_pool,
                 )
-                # Don't advance forced_clip_idx — phase selection doesn't consume prefix clips
+                # Don't advance forced_clip_idx (phase selection ignores prefix clips)
                 state.broll_idx = selection.broll_idx
                 state.clip_idx = selection.clip_idx
                 state.last_broll_time = selection.last_broll_time
