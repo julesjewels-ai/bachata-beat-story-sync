@@ -1,6 +1,0 @@
-Task: Fix 14 MyPy type errors across the project to pass Validation Gates.
-Status: Starting step 2 (Fix type errors in benchmarking scripts).
-Task: Fix type errors in src/core/transcriber.py (Step 3)
-Task: Fix type errors in tests (Step 4)
-Task: Fix type errors in MCP Server and Pipeline (Step 5)
-Task: Verify type fixes (Step 6)

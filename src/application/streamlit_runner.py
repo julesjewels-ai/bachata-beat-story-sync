@@ -73,6 +73,7 @@ def run_streamlit_generation(
                     TrackSegment,
                     generate_and_write,
                 )
+
                 artist = pacing_kwargs.get("track_artist", "")
                 title = pacing_kwargs.get("track_title", "")
                 duration = result.audio_meta.duration if result.audio_meta else 0.0

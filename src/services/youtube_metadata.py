@@ -19,7 +19,11 @@ from typing import Any
 
 _PRIMARY_KEYWORDS = ["Música para Recordar", "Canciones de Amor"]
 
-_SUPPORTING_KEYWORDS = ["bachata romántica", "música para bailar", "bachata para bailar"]
+_SUPPORTING_KEYWORDS = [
+    "bachata romántica",
+    "música para bailar",
+    "bachata para bailar",
+]
 
 _HASHTAGS_TIER1 = [
     "#bachataromántica",
@@ -181,9 +185,7 @@ def _hashtag_selection(content_type: str, artist_names: list[str]) -> list[str]:
     return tags[:15]  # YouTube cap
 
 
-def _build_backend_tags(
-    primary: str, track_segments: list[TrackSegment]
-) -> str:
+def _build_backend_tags(primary: str, track_segments: list[TrackSegment]) -> str:
     """Comma-separated backend tags including artist names."""
     primary_lower = primary.lower()
     # Primary keyword goes first; drop any base-tag duplicate so it isn't listed twice

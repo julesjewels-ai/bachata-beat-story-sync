@@ -30,7 +30,8 @@ def parse_args() -> argparse.Namespace:
         help="Path to benchmark results JSON file (from benchmark.py --output-json)",
     )
     parser.add_argument(
-        "-o", "--output",
+        "-o",
+        "--output",
         type=str,
         default=None,
         help="Output HTML file (default: report.html or derived from input)",
@@ -93,8 +94,12 @@ def generate_html_report(
     bar_width = int(output_width * 0.6)
 
     # Scale bars to fit chart
-    manual_bar_width = int((manual_estimate_avg / max_time) * bar_width) if max_time > 0 else 0
-    auto_bar_width = int((total_avg_minutes / max_time) * bar_width) if max_time > 0 else 0
+    manual_bar_width = (
+        int((manual_estimate_avg / max_time) * bar_width) if max_time > 0 else 0
+    )
+    auto_bar_width = (
+        int((total_avg_minutes / max_time) * bar_width) if max_time > 0 else 0
+    )
 
     # Generate HTML
     html = f"""<!DOCTYPE html>
@@ -405,7 +410,9 @@ def main() -> int:
     output_path = args.output
     if not output_path:
         input_path = Path(args.input_json)
-        output_path = input_path.with_stem(input_path.stem + "_report").with_suffix(".html")
+        output_path = input_path.with_stem(input_path.stem + "_report").with_suffix(
+            ".html"
+        )
 
     # Generate HTML
     html = generate_html_report(

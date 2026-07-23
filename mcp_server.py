@@ -45,10 +45,10 @@ engine = BachataSyncEngine()
 
 # In-memory session state — reset on server restart (no persistence needed).
 _state: dict[str, Any] = {
-    "latest_audio": None,   # serialized AudioAnalysisResult dict
+    "latest_audio": None,  # serialized AudioAnalysisResult dict
     "latest_videos": None,  # list of serialized VideoAnalysisResult dicts
-    "latest_batch": None,   # serialized batch JSON dict
-    "config_overrides": {}, # user-applied PacingConfig overrides for this session
+    "latest_batch": None,  # serialized batch JSON dict
+    "config_overrides": {},  # user-applied PacingConfig overrides for this session
 }
 
 
@@ -61,6 +61,7 @@ def _build_pacing(config_overrides: dict | None) -> PacingConfig:
 # ---------------------------------------------------------------------------
 # Tools
 # ---------------------------------------------------------------------------
+
 
 @mcp.tool()
 def analyze_audio(audio_path: str) -> dict:
@@ -278,6 +279,7 @@ def update_config(overrides: dict) -> dict:
 # Resources
 # ---------------------------------------------------------------------------
 
+
 @mcp.resource("resource://config/pacing", mime_type="application/json")
 def config_pacing() -> str:
     """Current pacing configuration (montage_config.yaml + session overrides)."""
@@ -290,9 +292,11 @@ def config_pacing() -> str:
 def analysis_latest() -> str:
     """Most recent audio and video analysis results from this session."""
     if _state["latest_audio"] is None and _state["latest_videos"] is None:
-        return json.dumps({
-            "message": "No analysis has been run yet. Call analyze_audio or scan_videos first."
-        })
+        return json.dumps(
+            {
+                "message": "No analysis has been run yet. Call analyze_audio or scan_videos first."
+            }
+        )
     return json.dumps(
         {
             "audio": _state["latest_audio"],
