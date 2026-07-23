@@ -17,7 +17,6 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Optional
 
 
 def parse_args() -> argparse.Namespace:
@@ -53,8 +52,8 @@ def parse_args() -> argparse.Namespace:
 
 def load_benchmark_json(path: str) -> dict:
     """Load and parse benchmark JSON file."""
-    with open(path, "r") as f:
-        return json.load(f)
+    with open(path) as f:
+        return dict(json.load(f))
 
 
 def generate_html_report(
@@ -421,7 +420,7 @@ def main() -> int:
             f.write(html)
         print(f"Report generated: {output_path}")
         return 0
-    except IOError as e:
+    except OSError as e:
         print(f"Error writing output file: {e}", file=sys.stderr)
         return 1
 

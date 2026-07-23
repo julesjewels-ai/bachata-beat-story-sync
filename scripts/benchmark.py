@@ -25,7 +25,7 @@ import sys
 import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Optional
+from typing import Any
 
 try:
     from rich.console import Console
@@ -54,7 +54,7 @@ class BenchmarkRun:
     estimated_manual_minutes: float = 0.0
     speedup_ratio: float = 0.0
     render_success: bool = False
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
 
 @dataclass
@@ -209,7 +209,8 @@ def run_main_py(
       - render_success: bool
       - error_message: Optional[str]
     """
-    metrics = {
+    from typing import Any
+    metrics: dict[str, Any] = {
         "segments_planned": 0,
         "clips_used": 0,
         "output_duration_seconds": 0.0,
@@ -277,7 +278,7 @@ def _parse_metrics_from_output(output_text: str, output_file: str) -> dict:
 
     This is a best-effort extraction; if it fails, defaults are returned.
     """
-    metrics = {
+    metrics: dict[str, Any] = {
         "segments_planned": 0,
         "clips_used": 0,
         "output_duration_seconds": 0.0,
