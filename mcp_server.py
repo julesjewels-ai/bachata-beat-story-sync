@@ -8,7 +8,7 @@ Usage:
     venv/bin/python mcp_server.py        # start server (stdio transport)
     mcp run mcp_server.py                # MCP inspector / interactive test
 
-Add to Claude Desktop config (~/Library/Application Support/Claude/claude_desktop_config.json):
+Add to Claude Desktop config (claude_desktop_config.json):
     See mcp_config.json at the project root.
 """
 
@@ -17,17 +17,22 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from mcp.server.fastmcp import FastMCP
-
+from mcp.server.fastmcp import FastMCP  # type: ignore[import-not-found]
 from src.application.batch_bridge import (
     load_batch as _load_batch,
+)
+from src.application.batch_bridge import (
     plan_song_from_batch as _plan_song_from_batch,
+)
+from src.application.batch_bridge import (
     render_song_from_batch as _render_song_from_batch,
+)
+from src.application.batch_bridge import (
     save_batch as _save_batch,
 )
-from src.config.app_config import build_pacing_config, load_app_config
 from src.cli_utils import analyze_audio as _analyze_audio
 from src.cli_utils import detect_broll_dir, strip_thumbnails
+from src.config.app_config import build_pacing_config, load_app_config
 from src.core.app import BachataSyncEngine
 from src.core.models import PacingConfig
 
@@ -40,10 +45,10 @@ engine = BachataSyncEngine()
 
 # In-memory session state — reset on server restart (no persistence needed).
 _state: dict[str, Any] = {
-    "latest_audio": None,   # serialized AudioAnalysisResult dict
+    "latest_audio": None,  # serialized AudioAnalysisResult dict
     "latest_videos": None,  # list of serialized VideoAnalysisResult dicts
-    "latest_batch": None,   # serialized batch JSON dict
-    "config_overrides": {}, # user-applied PacingConfig overrides for this session
+    "latest_batch": None,  # serialized batch JSON dict
+    "config_overrides": {},  # user-applied PacingConfig overrides for this session
 }
 
 
@@ -56,6 +61,7 @@ def _build_pacing(config_overrides: dict | None) -> PacingConfig:
 # ---------------------------------------------------------------------------
 # Tools
 # ---------------------------------------------------------------------------
+
 
 @mcp.tool()
 def analyze_audio(audio_path: str) -> dict:
@@ -71,7 +77,7 @@ def analyze_audio(audio_path: str) -> dict:
     _resolved, audio_meta = _analyze_audio(audio_path)
     result = audio_meta.model_dump()
     _state["latest_audio"] = result
-    return result
+    return dict(result)
 
 
 @mcp.tool()
@@ -273,6 +279,7 @@ def update_config(overrides: dict) -> dict:
 # Resources
 # ---------------------------------------------------------------------------
 
+
 @mcp.resource("resource://config/pacing", mime_type="application/json")
 def config_pacing() -> str:
     """Current pacing configuration (montage_config.yaml + session overrides)."""
@@ -285,9 +292,11 @@ def config_pacing() -> str:
 def analysis_latest() -> str:
     """Most recent audio and video analysis results from this session."""
     if _state["latest_audio"] is None and _state["latest_videos"] is None:
-        return json.dumps({
-            "message": "No analysis has been run yet. Call analyze_audio or scan_videos first."
-        })
+        return json.dumps(
+            {
+                "message": "No analysis run yet. Call analyze_audio first."
+            }
+        )
     return json.dumps(
         {
             "audio": _state["latest_audio"],

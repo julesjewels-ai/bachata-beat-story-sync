@@ -25,11 +25,12 @@ import sys
 import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Optional
+from typing import Any
 
 try:
     from rich.console import Console
     from rich.table import Table
+
     HAS_RICH = True
 except ImportError:
     HAS_RICH = False
@@ -40,6 +41,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class BenchmarkRun:
     """Single benchmark run result."""
+
     run_number: int
     dry_run_time: float  # Time for dry-run (planning only)
     full_render_time: float  # Time for full render (or -1 if failed)
@@ -54,12 +56,13 @@ class BenchmarkRun:
     estimated_manual_minutes: float = 0.0
     speedup_ratio: float = 0.0
     render_success: bool = False
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
 
 @dataclass
 class BenchmarkSummary:
     """Summary statistics across multiple runs."""
+
     num_runs: int
 
     dry_run_avg: float = 0.0
@@ -106,7 +109,7 @@ Examples:
 
   # Full output
   %(prog)s --audio track.wav --video-dir clips/ --runs 3 --output-json results.json --output-csv results.csv
-        """
+        """,
     )
     parser.add_argument(
         "--audio",
@@ -209,7 +212,9 @@ def run_main_py(
       - render_success: bool
       - error_message: Optional[str]
     """
-    metrics = {
+    from typing import Any
+
+    metrics: dict[str, Any] = {
         "segments_planned": 0,
         "clips_used": 0,
         "output_duration_seconds": 0.0,
@@ -247,7 +252,9 @@ def run_main_py(
         elapsed = time.perf_counter() - start_time
 
         if result.returncode != 0:
-            metrics["error_message"] = result.stderr[:200] if result.stderr else "Unknown error"
+            metrics["error_message"] = (
+                result.stderr[:200] if result.stderr else "Unknown error"
+            )
             logger.warning(f"Command failed with return code {result.returncode}")
             logger.debug(f"stderr: {result.stderr[:500]}")
             return elapsed, metrics
@@ -277,7 +284,7 @@ def _parse_metrics_from_output(output_text: str, output_file: str) -> dict:
 
     This is a best-effort extraction; if it fails, defaults are returned.
     """
-    metrics = {
+    metrics: dict[str, Any] = {
         "segments_planned": 0,
         "clips_used": 0,
         "output_duration_seconds": 0.0,
@@ -464,8 +471,12 @@ def _compute_summary(runs: list[BenchmarkRun]) -> BenchmarkSummary:
         successful_renders=sum(1 for r in runs if r.render_success),
         segments_avg=sum(r.segments_planned for r in runs) / n if runs else 0.0,
         clips_avg=sum(r.clips_used for r in runs) / n if runs else 0.0,
-        output_duration_avg=sum(r.output_duration_seconds for r in runs) / n if runs else 0.0,
-        manual_estimate_avg=sum(r.estimated_manual_minutes for r in runs) / n if runs else 0.0,
+        output_duration_avg=sum(r.output_duration_seconds for r in runs) / n
+        if runs
+        else 0.0,
+        manual_estimate_avg=sum(r.estimated_manual_minutes for r in runs) / n
+        if runs
+        else 0.0,
         runs=runs,
     )
 
@@ -552,7 +563,9 @@ def _print_summary_table_rich(summary: BenchmarkSummary) -> None:
     stats_table.add_row("Output duration", f"{summary.output_duration_avg:.1f}s")
     stats_table.add_row("Segments planned", f"{summary.segments_avg:.0f}")
     stats_table.add_row("Clips used", f"{summary.clips_avg:.0f}")
-    stats_table.add_row("Successful renders", f"{summary.successful_renders}/{summary.num_runs}")
+    stats_table.add_row(
+        "Successful renders", f"{summary.successful_renders}/{summary.num_runs}"
+    )
 
     console.print(stats_table)
 
@@ -566,14 +579,22 @@ def _print_summary_table_plain(summary: BenchmarkSummary) -> None:
     print("=" * 70 + "\n")
 
     print("Execution Times:")
-    print(f"  Dry-run (plan):   {summary.dry_run_avg:.2f}s (min: {summary.dry_run_min:.2f}s, max: {summary.dry_run_max:.2f}s)")
-    print(f"  Full render:      {summary.render_avg:.2f}s (min: {summary.render_min:.2f}s, max: {summary.render_max:.2f}s)")
-    print(f"  Total:            {summary.total_avg:.2f}s (min: {summary.total_min:.2f}s, max: {summary.total_max:.2f}s)")
+    print(
+        f"  Dry-run (plan):   {summary.dry_run_avg:.2f}s (min: {summary.dry_run_min:.2f}s, max: {summary.dry_run_max:.2f}s)"
+    )
+    print(
+        f"  Full render:      {summary.render_avg:.2f}s (min: {summary.render_min:.2f}s, max: {summary.render_max:.2f}s)"
+    )
+    print(
+        f"  Total:            {summary.total_avg:.2f}s (min: {summary.total_min:.2f}s, max: {summary.total_max:.2f}s)"
+    )
 
     print("\nManual Edit Estimate vs. Automated:")
     print(f"  Est. manual time: {summary.manual_estimate_avg:.1f} minutes")
     print(f"  Automated time:   {summary.total_avg / 60:.1f} minutes")
-    print(f"  Speedup ratio:    {summary.speedup_avg:.1f}x (min: {summary.speedup_min:.1f}x, max: {summary.speedup_max:.1f}x)")
+    print(
+        f"  Speedup ratio:    {summary.speedup_avg:.1f}x (min: {summary.speedup_min:.1f}x, max: {summary.speedup_max:.1f}x)"
+    )
 
     print("\nVideo Statistics:")
     print(f"  Output duration:  {summary.output_duration_avg:.1f}s")
@@ -605,10 +626,12 @@ def save_csv_results(summary: BenchmarkSummary, output_file: str) -> None:
         writer = csv.writer(f)
 
         # Header
-        writer.writerow([
-            "Metric",
-            "Value",
-        ])
+        writer.writerow(
+            [
+                "Metric",
+                "Value",
+            ]
+        )
 
         # Data rows
         writer.writerow(["Runs", summary.num_runs])
@@ -627,7 +650,9 @@ def save_csv_results(summary: BenchmarkSummary, output_file: str) -> None:
         writer.writerow(["Speedup min (x)", f"{summary.speedup_min:.1f}"])
         writer.writerow(["Speedup max (x)", f"{summary.speedup_max:.1f}"])
         writer.writerow(["Successful renders", summary.successful_renders])
-        writer.writerow(["Output duration avg (s)", f"{summary.output_duration_avg:.1f}"])
+        writer.writerow(
+            ["Output duration avg (s)", f"{summary.output_duration_avg:.1f}"]
+        )
         writer.writerow(["Segments avg", f"{summary.segments_avg:.0f}"])
         writer.writerow(["Clips avg", f"{summary.clips_avg:.0f}"])
 

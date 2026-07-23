@@ -5,7 +5,12 @@ import argparse
 import logging
 
 from src.application.story_workflow import run_story_workflow
-from src.cli_utils import add_visual_args, build_pacing_kwargs, handle_cli_errors, setup_logging
+from src.cli_utils import (
+    add_visual_args,
+    build_pacing_kwargs,
+    handle_cli_errors,
+    setup_logging,
+)
 from src.services.json_output import build_json_output, write_json_output
 from src.services.plan_report import write_plan_report
 from src.services.reporting import ExcelReportGenerator

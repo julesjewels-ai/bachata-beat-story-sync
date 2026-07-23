@@ -17,7 +17,6 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Optional
 
 
 def parse_args() -> argparse.Namespace:
@@ -31,7 +30,8 @@ def parse_args() -> argparse.Namespace:
         help="Path to benchmark results JSON file (from benchmark.py --output-json)",
     )
     parser.add_argument(
-        "-o", "--output",
+        "-o",
+        "--output",
         type=str,
         default=None,
         help="Output HTML file (default: report.html or derived from input)",
@@ -53,8 +53,8 @@ def parse_args() -> argparse.Namespace:
 
 def load_benchmark_json(path: str) -> dict:
     """Load and parse benchmark JSON file."""
-    with open(path, "r") as f:
-        return json.load(f)
+    with open(path) as f:
+        return dict(json.load(f))
 
 
 def generate_html_report(
@@ -74,7 +74,7 @@ def generate_html_report(
         HTML string
     """
     summary = data["summary"]
-    runs = data.get("runs", [])
+    _runs = data.get("runs", [])
 
     # Extract key metrics
     num_runs = summary["num_runs"]
@@ -94,8 +94,12 @@ def generate_html_report(
     bar_width = int(output_width * 0.6)
 
     # Scale bars to fit chart
-    manual_bar_width = int((manual_estimate_avg / max_time) * bar_width) if max_time > 0 else 0
-    auto_bar_width = int((total_avg_minutes / max_time) * bar_width) if max_time > 0 else 0
+    manual_bar_width = (
+        int((manual_estimate_avg / max_time) * bar_width) if max_time > 0 else 0
+    )
+    auto_bar_width = (
+        int((total_avg_minutes / max_time) * bar_width) if max_time > 0 else 0
+    )
 
     # Generate HTML
     html = f"""<!DOCTYPE html>
@@ -406,7 +410,9 @@ def main() -> int:
     output_path = args.output
     if not output_path:
         input_path = Path(args.input_json)
-        output_path = input_path.with_stem(input_path.stem + "_report").with_suffix(".html")
+        output_path = input_path.with_stem(input_path.stem + "_report").with_suffix(
+            ".html"
+        )
 
     # Generate HTML
     html = generate_html_report(
@@ -421,7 +427,7 @@ def main() -> int:
             f.write(html)
         print(f"Report generated: {output_path}")
         return 0
-    except IOError as e:
+    except OSError as e:
         print(f"Error writing output file: {e}", file=sys.stderr)
         return 1
 
