@@ -74,7 +74,7 @@ def generate_html_report(
         HTML string
     """
     summary = data["summary"]
-    runs = data.get("runs", [])
+    _runs = data.get("runs", [])
 
     # Extract key metrics
     num_runs = summary["num_runs"]

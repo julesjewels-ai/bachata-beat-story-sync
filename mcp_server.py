@@ -8,7 +8,7 @@ Usage:
     venv/bin/python mcp_server.py        # start server (stdio transport)
     mcp run mcp_server.py                # MCP inspector / interactive test
 
-Add to Claude Desktop config (~/Library/Application Support/Claude/claude_desktop_config.json):
+Add to Claude Desktop config (claude_desktop_config.json):
     See mcp_config.json at the project root.
 """
 
@@ -294,7 +294,7 @@ def analysis_latest() -> str:
     if _state["latest_audio"] is None and _state["latest_videos"] is None:
         return json.dumps(
             {
-                "message": "No analysis has been run yet. Call analyze_audio or scan_videos first."
+                "message": "No analysis run yet. Call analyze_audio first."
             }
         )
     return json.dumps(

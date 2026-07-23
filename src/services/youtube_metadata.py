@@ -97,8 +97,8 @@ _THUMBNAIL_CONCEPTS = [
     "Couple dancing bachata silhouette against golden sunset — warm amber tones",
     "Close-up of intertwined hands with soft bokeh — deep red/rose palette",
     "Female dancer mid-spin, flowing dress — contrast with dark bg, gold accent text",
-    "Vintage film-grain look: couple on dance floor — faded warm tones with title overlay",
-    "Two people facing each other close — cinematic crop, coral/terracotta colour grade",
+    "Vintage film-grain look: couple on dance floor — faded tones with title",
+    "Two people facing each other close — cinematic crop, coral/terracotta grade",
 ]
 
 
@@ -252,10 +252,10 @@ def _build_description(
 
     parts += [
         "—",
-        "🔔 Suscríbete para más bachata romántica, canciones de amor y música para recordar.",
+        "🔔 Suscríbete para más bachata romántica y canciones de amor.",
         "",
-        "🔎 Palabras clave: música para recordar, canciones de amor, bachata romántica, "
-        "música para bailar, bachata para bailar, bachata vieja, música latina romántica, "
+        "🔎 Palabras clave: música para recordar, canciones de amor, "
+        "música para bailar, bachata vieja, música latina romántica, "
         "recuerdos, nostalgia, amor eterno",
     ]
 
