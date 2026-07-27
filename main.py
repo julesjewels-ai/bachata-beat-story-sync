@@ -1,11 +1,21 @@
 """
 Entry point for the Bachata Beat-Story Sync application.
 """
+
 import argparse
 import logging
 
 from src.application.story_workflow import run_story_workflow
-from src.cli_utils import add_visual_args, build_pacing_kwargs, handle_cli_errors, setup_logging
+from src.cli_utils import (
+    add_visual_args,
+    build_pacing_kwargs,
+    handle_cli_errors,
+    setup_logging,
+)
+from src.core.app import BachataSyncEngine
+from src.core.cached_analyzer import CachedVideoAnalyzer
+from src.core.repository import FileAnalysisRepository
+from src.core.video_analyzer import VideoAnalyzer
 from src.services.json_output import build_json_output, write_json_output
 from src.services.plan_report import write_plan_report
 from src.services.reporting import ExcelReportGenerator
@@ -17,60 +27,53 @@ def parse_args() -> argparse.Namespace:
         description="Bachata Beat-Story Sync: Automated Video Editor"
     )
     parser.add_argument(
-        "--audio",
-        type=str,
-        required=True,
-        help="Path to the input .wav Bachata track"
+        "--audio", type=str, required=True, help="Path to the input .wav Bachata track"
     )
     parser.add_argument(
         "--video-dir",
         type=str,
         required=True,
-        help="Directory containing .mp4 video clips"
+        help="Directory containing .mp4 video clips",
     )
     parser.add_argument(
         "--broll-dir",
         type=str,
         default=None,
         help="Optional directory containing B-roll clips"
-        " (defaults to 'broll' inside video-dir if it exists)"
+        " (defaults to 'broll' inside video-dir if it exists)",
     )
     parser.add_argument(
         "--output",
         type=str,
         default="output_story.mp4",
-        help="Path for the final output video"
+        help="Path for the final output video",
     )
     parser.add_argument(
         "--export-report",
         type=str,
         help="Path to export the analysis report (e.g., report.xlsx)",
-        default=None
+        default=None,
     )
     parser.add_argument(
         "--test-mode",
         action="store_true",
         default=False,
-        help="Run in test mode (max 4 clips, 10 seconds of music)"
+        help="Run in test mode (max 4 clips, 10 seconds of music)",
     )
     parser.add_argument(
         "--max-clips",
         type=int,
         default=None,
-        help="Maximum number of clip segments (overrides test-mode default)"
+        help="Maximum number of clip segments (overrides test-mode default)",
     )
     parser.add_argument(
         "--max-duration",
         type=float,
         default=None,
-        help="Maximum montage duration in seconds (overrides test-mode default)"
+        help="Maximum montage duration in seconds (overrides test-mode default)",
     )
     add_visual_args(parser)
-    parser.add_argument(
-        "--version",
-        action="version",
-        version="%(prog)s 0.1.0"
-    )
+    parser.add_argument("--version", action="version", version="%(prog)s 0.1.0")
     return parser.parse_args()
 
 
@@ -101,12 +104,20 @@ def main() -> None:
             )
         logger.info("Syncing visual narrative to musical dynamics...")
 
+        repository = FileAnalysisRepository()
+        base_analyzer = VideoAnalyzer()
+        cached_analyzer = CachedVideoAnalyzer(base_analyzer, repository)
+        engine = BachataSyncEngine(
+            video_analyzer=cached_analyzer, repository=repository
+        )
+
         result = run_story_workflow(
             args.audio,
             args.video_dir,
             args.output,
             broll_dir=args.broll_dir,
             pacing_overrides=pacing_kwargs,
+            engine=engine,
             scan_observer_factory=RichProgressObserver,
             render_observer_factory=RichProgressObserver,
         )
@@ -135,10 +146,7 @@ def main() -> None:
             write_json_output(data, args.output_json)
 
         if args.export_report and result.output_path is not None:
-            logger.info(
-                "Generating analysis report to %s...",
-                args.export_report
-            )
+            logger.info("Generating analysis report to %s...", args.export_report)
             report_gen = ExcelReportGenerator()
             report_gen.generate_report(
                 result.audio_meta, result.video_clips, args.export_report

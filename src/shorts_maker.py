@@ -20,6 +20,9 @@ from src.cli_utils import (
 )
 from src.config.app_config import build_pacing_config
 from src.core.app import BachataSyncEngine
+from src.core.cached_analyzer import CachedVideoAnalyzer
+from src.core.repository import FileAnalysisRepository
+from src.core.video_analyzer import VideoAnalyzer
 from src.ui.console import RichProgressObserver
 
 logger = logging.getLogger(__name__)
@@ -77,7 +80,10 @@ def main() -> None:
 
     os.makedirs(args.output_dir, exist_ok=True)
 
-    engine = BachataSyncEngine()
+    repository = FileAnalysisRepository()
+    base_analyzer = VideoAnalyzer()
+    cached_analyzer = CachedVideoAnalyzer(base_analyzer, repository)
+    engine = BachataSyncEngine(video_analyzer=cached_analyzer, repository=repository)
 
     try:
         # 1. Analyze Audio (Once)

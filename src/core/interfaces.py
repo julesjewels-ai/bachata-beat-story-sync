@@ -5,6 +5,22 @@ Core interfaces and protocols for Bachata Beat-Story Sync.
 from typing import Any, Protocol
 
 
+class AnalysisRepositoryProtocol(Protocol):
+    """Protocol for persisting and retrieving analysis results."""
+
+    def get(self, file_path: str) -> Any | None: ...
+
+    def set(self, file_path: str, result: Any) -> None: ...
+
+    def save(self) -> None: ...
+
+
+class VideoAnalyzerProtocol(Protocol):
+    """Protocol for video analysis."""
+
+    def analyze(self, input_data: Any) -> Any | None: ...
+
+
 class ProgressObserver(Protocol):
     """
     Protocol for objects that observe progress of long-running operations.
