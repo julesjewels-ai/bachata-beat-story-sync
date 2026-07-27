@@ -295,7 +295,8 @@ def process_individual_tracks(
                 track_audio_files.append(track_path)
             except Exception as e:
                 log.warn(
-                    f"Failed to generate track video for {track_name}: {e}. Skipping this track."
+                    f"Failed to generate track video for {track_name}: "
+                    f"{e}. Skipping this track."
                 )
                 continue
 
@@ -324,7 +325,8 @@ def process_individual_tracks(
                     )
                 except Exception as e:
                     log.warn(
-                        f"Failed to generate shorts for {track_name}: {e}. Skipping shorts for this track."
+                        f"Failed to generate shorts for {track_name}: "
+                        f"{e}. Skipping shorts for this track."
                     )
 
     return generated_files, track_videos, track_audio_files
