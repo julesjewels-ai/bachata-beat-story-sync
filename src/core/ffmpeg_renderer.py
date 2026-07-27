@@ -158,12 +158,15 @@ def _build_pacing_filters_for_segment(
     """Return pacing filters respecting per-segment phase overrides.
 
     If seg.phase_pacing_effects is None, falls through to global render_config flags.
-    If seg.phase_pacing_effects is a list (even empty), only those named effects are active.
+    If seg.phase_pacing_effects is a list (even empty), only those named effects are
+    active.
     Effect names in the list: 'drift_zoom', 'saturation_pulse', 'light_leaks',
     'micro_jitters', 'alternating_bokeh'.
     """
     if seg.phase_pacing_effects is None:
-        return _build_pacing_filters(render_config, seg, beat_times, target_w, target_h, seg_index)
+        return _build_pacing_filters(
+            render_config, seg, beat_times, target_w, target_h, seg_index
+        )
 
     active = set(seg.phase_pacing_effects)
     phase_render = dataclasses.replace(
@@ -175,7 +178,9 @@ def _build_pacing_filters_for_segment(
         pacing_light_leaks=("light_leaks" in active),
         pacing_alternating_bokeh=("alternating_bokeh" in active),
     )
-    return _build_pacing_filters(phase_render, seg, beat_times, target_w, target_h, seg_index)
+    return _build_pacing_filters(
+        phase_render, seg, beat_times, target_w, target_h, seg_index
+    )
 
 
 def _build_pacing_filters(
@@ -769,7 +774,9 @@ def apply_transitions(
         current_input = step_output
 
 
-def build_overlay_filter(overlay_config: OverlayConfig, intro_duration: float = 0.0) -> str:
+def build_overlay_filter(
+    overlay_config: OverlayConfig, intro_duration: float = 0.0
+) -> str:
     """Construct the FFmpeg ``-filter_complex`` string for the visualizer.
 
     Separated from :func:`overlay_audio` so the filter graph can be
@@ -820,7 +827,10 @@ def build_overlay_filter(overlay_config: OverlayConfig, intro_duration: float = 
         post = f",format=yuva420p,colorchannelmixer=aa={opacity:.2f}"
 
     enable_expr = f":enable='gt(t,{intro_duration:.3f})'" if intro_duration > 0 else ""
-    return f"[1:a]{src_filter}{post}[viz];[0:v][viz]overlay={x_expr}:H-h-{pad}{enable_expr}[outv]"
+    return (
+        f"[1:a]{src_filter}{post}[viz];"
+        f"[0:v][viz]overlay={x_expr}:H-h-{pad}{enable_expr}[outv]"
+    )
 
 
 def overlay_audio(

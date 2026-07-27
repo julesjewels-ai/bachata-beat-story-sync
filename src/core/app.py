@@ -8,7 +8,11 @@ import os
 
 from pydantic import ValidationError
 
-from src.core.interfaces import ProgressObserver
+from src.core.interfaces import (
+    AnalysisRepositoryProtocol,
+    ProgressObserver,
+    VideoAnalyzerProtocol,
+)
 from src.core.models import AudioAnalysisResult, PacingConfig, VideoAnalysisResult
 from src.core.montage import MontageGenerator
 from src.core.video_analyzer import (
@@ -26,10 +30,15 @@ class BachataSyncEngine:
     The main engine responsible for syncing video segments to audio.
     """
 
-    def __init__(self) -> None:
-        self.video_analyzer = VideoAnalyzer()
+    def __init__(
+        self,
+        video_analyzer: VideoAnalyzerProtocol | None = None,
+        repository: AnalysisRepositoryProtocol | None = None,
+    ) -> None:
+        self.video_analyzer = video_analyzer or VideoAnalyzer()
         self.montage_generator = MontageGenerator()
-        self.cache = VideoAnalysisCache()
+        self.repository = repository
+        self.cache = VideoAnalysisCache() if repository is None else None
 
     def scan_video_library(
         self,
@@ -52,24 +61,37 @@ class BachataSyncEngine:
             for i, video_path in enumerate(files_to_process):
                 filename = os.path.basename(video_path)
 
-                # Check cache first
-                cached_result = self.cache.get(video_path)
-                if cached_result is not None:
+                if self.repository is not None:
+                    # Rely on injected analyzer (which might be cached)
                     if observer:
-                        observer.on_progress(
-                            i, total_files, f"Scanning {filename} (cached)..."
-                        )
-                    clips.append(cached_result)
-                    continue
+                        observer.on_progress(i, total_files, f"Scanning {filename}...")
 
-                if observer:
-                    observer.on_progress(i, total_files, f"Scanning {filename}...")
+                    if result := self._process_video_file(video_path):
+                        clips.append(result)
+                else:
+                    # Legacy fallback
+                    # Check cache first
+                    cached_result = self.cache.get(video_path) if self.cache else None
+                    if cached_result is not None:
+                        if observer:
+                            observer.on_progress(
+                                i, total_files, f"Scanning {filename} (cached)..."
+                            )
+                        clips.append(cached_result)
+                        continue
 
-                if result := self._process_video_file(video_path):
-                    self.cache.set(video_path, result)
-                    clips.append(result)
+                    if observer:
+                        observer.on_progress(i, total_files, f"Scanning {filename}...")
+
+                    if result := self._process_video_file(video_path):
+                        if self.cache:
+                            self.cache.set(video_path, result)
+                        clips.append(result)
         finally:
-            self.cache.save()
+            if self.repository is not None:
+                self.repository.save()
+            elif self.cache:
+                self.cache.save()
             if observer:
                 observer.on_progress(total_files, total_files, "Scan complete.")
 
