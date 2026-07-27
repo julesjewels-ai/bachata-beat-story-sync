@@ -68,6 +68,6 @@ def test_cached_analyzer_miss_and_hit(tmp_path: Any) -> None:
 
     # Now verify string input works as well
     res3 = cached_analyzer.analyze(str(input_file))
-    assert base_analyzer.call_count == 2 # still hit
+    assert base_analyzer.call_count == 2  # still hit
     assert res3 is not None
     assert res3.path == os.path.abspath("dummy.mp4")

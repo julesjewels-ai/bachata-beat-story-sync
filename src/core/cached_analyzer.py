@@ -28,7 +28,11 @@ class CachedVideoAnalyzer(VideoAnalyzerProtocol):
         Attempts to fetch the result from the cache repository.
         On a miss, delegates to the base analyzer and caches the result.
         """
-        file_path = input_data if isinstance(input_data, str) else getattr(input_data, "file_path", None)
+        file_path = (
+            input_data
+            if isinstance(input_data, str)
+            else getattr(input_data, "file_path", None)
+        )
         if not file_path:
             return self._base_analyzer.analyze(input_data)
 
