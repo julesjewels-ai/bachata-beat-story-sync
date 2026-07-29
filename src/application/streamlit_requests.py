@@ -265,14 +265,15 @@ def build_pacing_kwargs(
 
     if demo_mode:
         _apply_demo_pacing(pacing_kwargs, demo_dry_run)
-    else:
-        if settings.dry_run:
-            pacing_kwargs["dry_run"] = True
-        _apply_text_overlay_pacing(pacing_kwargs, settings)
-        _apply_constraints_pacing(pacing_kwargs, settings)
+    elif settings.dry_run:
+        pacing_kwargs["dry_run"] = True
 
     _apply_speed_ramp_pacing(pacing_kwargs, settings)
     _apply_visual_effects_pacing(pacing_kwargs, settings)
+
+    if not demo_mode:
+        _apply_text_overlay_pacing(pacing_kwargs, settings)
+        _apply_constraints_pacing(pacing_kwargs, settings)
 
     return pacing_kwargs
 
