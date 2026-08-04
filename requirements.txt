@@ -46,6 +46,8 @@ click==8.4.1
     #   streamlit
     #   typer
     #   uvicorn
+coverage==7.15.3
+    # via pytest-cov
 cryptography==48.0.0
     # via pyjwt
 ctranslate2==4.8.0
@@ -178,7 +180,9 @@ pillow==12.1.1
 platformdirs==4.9.2
     # via pooch
 pluggy==1.6.0
-    # via pytest
+    # via
+    #   pytest
+    #   pytest-cov
 pooch==1.9.0
     # via librosa
 protobuf==7.35.0
@@ -209,7 +213,10 @@ pyjwt==2.13.0
 pytest==9.0.2
     # via
     #   -r requirements.in
+    #   pytest-cov
     #   pytest-mock
+pytest-cov==7.1.0
+    # via -r requirements.in
 pytest-mock==3.15.1
     # via -r requirements.in
 python-dateutil==2.9.0.post0
