@@ -2860,3 +2860,147 @@ class TestAdvancedEffects:
                 str(tmp_path / "output.mp4"),
                 audio_path="/audio/song.wav",
             )
+
+
+class TestFitSegmentAdaptive:
+    @pytest.fixture
+    def mock_clips(self) -> list[VideoAnalysisResult]:
+        return [
+            VideoAnalysisResult(
+                path="/videos/primary.mp4",
+                intensity_score=0.8,
+                duration=30.0,
+                thumbnail_data=None,
+            ),
+            VideoAnalysisResult(
+                path="/videos/alt1.mp4",
+                intensity_score=0.7,
+                duration=20.0,
+                thumbnail_data=None,
+            ),
+            VideoAnalysisResult(
+                path="/videos/alt2.mp4",
+                intensity_score=0.6,
+                duration=10.0,
+                thumbnail_data=None,
+            ),
+        ]
+
+    @pytest.fixture
+    def mock_forced_clips(self) -> list[VideoAnalysisResult]:
+        return [
+            VideoAnalysisResult(
+                path="/videos/01_intro.mp4",
+                intensity_score=0.5,
+                duration=5.0,
+                thumbnail_data=None,
+            ),
+            VideoAnalysisResult(
+                path="/videos/alt1.mp4",
+                intensity_score=0.7,
+                duration=20.0,
+                thumbnail_data=None,
+            ),
+        ]
+
+    @pytest.fixture
+    def pacing_config(self) -> Any:
+        from src.core.montage import planning_config_from_pacing
+
+        return planning_config_from_pacing(PacingConfig(min_clip_seconds=2.0))
+
+    @pytest.mark.parametrize(
+        "strategy, mock_returns, expected_reason",
+        [
+            # Strategy 1: Primary clip, variety start offset
+            (1, [(0.5, 3.0)], None),
+            # Strategy 2: Safer offset (0.0) on primary clip
+            (2, [(0.5, 1.0), (0.0, 3.0)], "Adaptive fit: safer start offset"),
+            # Strategy 3: Alternate clips
+            (3, [(0.5, 1.0), (0.0, 1.0), (1.0, 3.0)], "Adaptive fit: alternate clip"),
+            # Strategy 4: Reduce aggressiveness towards 1.0x
+            (
+                4,
+                [(0.5, 1.0), (0.0, 1.0), (1.0, 1.0), (2.0, 1.0), (0.0, 3.0)],
+                "Adaptive fit: reduced speed aggressiveness",
+            ),
+            # Strategy 5: Short recovery segment
+            (
+                5,
+                [
+                    (0.5, 1.0),
+                    (0.0, 1.0),
+                    (1.0, 1.0),
+                    (2.0, 1.0),
+                    (0.0, 1.0),
+                    (0.0, 1.0),
+                    (0.0, 1.5),
+                ],
+                "Adaptive fit: short recovery segment",
+            ),
+            # Fallback: None
+            (6, [(0.0, 0.1)] * 10, None),
+        ],
+    )
+    def test_fit_segment_adaptive_strategies(
+        self,
+        generator: MontageGenerator,
+        mock_clips: list[VideoAnalysisResult],
+        pacing_config: Any,
+        strategy: int,
+        mock_returns: list[tuple[float, float]],
+        expected_reason: str | None,
+        mocker: Any,
+    ) -> None:
+        desired_duration = 3.0
+        base_speed = 1.2
+        remaining = 5.0
+        clip_idx = 0
+
+        mocker.patch.object(
+            generator, "_fit_clip_for_duration", side_effect=mock_returns
+        )
+        result = generator._fit_segment_adaptive(
+            candidate_clips=mock_clips,
+            desired_duration=desired_duration,
+            base_speed=base_speed,
+            remaining=remaining,
+            config=pacing_config,
+            clip_idx=clip_idx,
+        )
+
+        if strategy == 6:
+            assert result is None, f"Failed on strategy {strategy}"
+        else:
+            assert result is not None, f"Failed on strategy {strategy}"
+            assert result.reason_suffix == expected_reason, (
+                f"Failed on strategy {strategy}"
+            )
+
+    def test_fit_segment_adaptive_forced_clip(
+        self,
+        generator: MontageGenerator,
+        mock_forced_clips: list[VideoAnalysisResult],
+        pacing_config: Any,
+        mocker: Any,
+    ) -> None:
+        desired_duration = 2.0
+        base_speed = 1.0
+        remaining = 5.0
+        clip_idx = 0
+
+        mocker.patch.object(
+            generator, "_fit_clip_for_duration", return_value=(0.0, 0.3)
+        )
+        result = generator._fit_segment_adaptive(
+            candidate_clips=mock_forced_clips,
+            desired_duration=desired_duration,
+            base_speed=base_speed,
+            remaining=remaining,
+            config=pacing_config,
+            clip_idx=clip_idx,
+        )
+        # Forced clips use MIN_RECOVERY_SEGMENT_SECONDS (0.25)
+        # so 0.3 should be accepted by strategy 1
+        assert result is not None
+        assert result.reason_suffix is None
