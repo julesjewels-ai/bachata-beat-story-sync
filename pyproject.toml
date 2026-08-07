@@ -42,3 +42,6 @@ ignore = []
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+
+[tool.ruff.lint.pycodestyle]
+max-line-length = 120
