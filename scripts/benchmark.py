@@ -25,7 +25,6 @@ import sys
 import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Optional
 
 try:
     from rich.console import Console
@@ -54,7 +53,7 @@ class BenchmarkRun:
     estimated_manual_minutes: float = 0.0
     speedup_ratio: float = 0.0
     render_success: bool = False
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
 
 @dataclass
