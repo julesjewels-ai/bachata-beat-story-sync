@@ -11,6 +11,7 @@ from __future__ import annotations
 import streamlit as st
 
 from src.core.app import BachataSyncEngine
+from src.io.repository import FileAnalysisRepository
 
 
 @st.cache_resource(show_spinner="Loading engine…")
@@ -26,7 +27,8 @@ def load_engine() -> BachataSyncEngine:
     try:
         from src.core.app import BachataSyncEngine  # noqa: WPS433
 
-        return BachataSyncEngine()
+        repository = FileAnalysisRepository()
+        return BachataSyncEngine(repository=repository)
     except ImportError as e:
         error_msg = f"Backend not available: {e}\nEnsure src/core/app.py is installed."
         st.error(error_msg)
