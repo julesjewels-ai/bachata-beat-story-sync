@@ -8,7 +8,7 @@ import os
 
 from pydantic import ValidationError
 
-from src.core.interfaces import ProgressObserver, VideoAnalysisRepository
+from src.core.interfaces import ProgressObserver
 from src.core.models import AudioAnalysisResult, PacingConfig, VideoAnalysisResult
 from src.core.montage import MontageGenerator
 from src.core.video_analyzer import (
@@ -26,11 +26,10 @@ class BachataSyncEngine:
     The main engine responsible for syncing video segments to audio.
     """
 
-    def __init__(self, repository: VideoAnalysisRepository | None = None) -> None:
+    def __init__(self) -> None:
         self.video_analyzer = VideoAnalyzer()
         self.montage_generator = MontageGenerator()
         self.cache = VideoAnalysisCache()
-        self.repository = repository
 
     def scan_video_library(
         self,
@@ -53,20 +52,7 @@ class BachataSyncEngine:
             for i, video_path in enumerate(files_to_process):
                 filename = os.path.basename(video_path)
 
-                # Check repository first if available
-                repo_result = None
-                if self.repository is not None:
-                    repo_result = self.repository.get_by_path(video_path)
-
-                if repo_result is not None:
-                    if observer:
-                        observer.on_progress(
-                            i, total_files, f"Scanning {filename} (repository)..."
-                        )
-                    clips.append(repo_result)
-                    continue
-
-                # Check cache next
+                # Check cache first
                 cached_result = self.cache.get(video_path)
                 if cached_result is not None:
                     if observer:
@@ -80,8 +66,6 @@ class BachataSyncEngine:
                     observer.on_progress(i, total_files, f"Scanning {filename}...")
 
                 if result := self._process_video_file(video_path):
-                    if self.repository is not None:
-                        self.repository.save(result)
                     self.cache.set(video_path, result)
                     clips.append(result)
         finally:
