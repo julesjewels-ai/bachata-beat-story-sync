@@ -294,7 +294,10 @@ def process_individual_tracks(
                 track_videos.append(result)
                 track_audio_files.append(track_path)
             except Exception as e:
-                log.warn(f"Failed to generate track video for {track_name}: {e}. Skipping this track.")
+                log.warn(
+                    "Failed to generate track video "
+                    f"for {track_name}: {e}. Skipping this track."
+                )
                 continue
 
         if args.shorts_count > 0:
@@ -317,9 +320,14 @@ def process_individual_tracks(
                         cliffhanger=getattr(args, "cliffhanger", False),
                     )
                     generated_files.extend(shorts)
-                    log.success(f"{len(shorts)} short(s) saved in [bold]{shorts_dir}[/bold]")
+                    log.success(
+                        f"{len(shorts)} short(s) saved in [bold]{shorts_dir}[/bold]"
+                    )
                 except Exception as e:
-                    log.warn(f"Failed to generate shorts for {track_name}: {e}. Skipping shorts for this track.")
+                    log.warn(
+                        "Failed to generate shorts "
+                        f"for {track_name}: {e}. Skipping shorts for this track."
+                    )
 
     return generated_files, track_videos, track_audio_files
 
@@ -384,7 +392,9 @@ def transcribe_compilation_phase(
     srt_out = f"{stem}_transcript.srt"
 
     log.phase("📝  Transcribing Compilation")
-    with log.status(f"Running Whisper ({model_size}) on {os.path.basename(compilation_path)}…"):
+    with log.status(
+        f"Running Whisper ({model_size}) on {os.path.basename(compilation_path)}…"
+    ):
         try:
             lang = language if language != "auto" else None
             result = transcribe_video(

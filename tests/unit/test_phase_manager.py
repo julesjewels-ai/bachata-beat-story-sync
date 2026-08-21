@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 from src.core.models import PacingConfig, PhaseConfig, PhaseVariation, SegmentPlan
 from src.core.planner.phase_manager import PhaseManager
 
@@ -21,7 +20,7 @@ def _make_variation(
     return PhaseVariation(
         name=name,
         intro_effect=intro_effect,
-        clip_selection=clip_selection,
+        clip_selection=clip_selection,  # type: ignore[arg-type]
         pacing_saturation_pulse=pacing_saturation_pulse,
         pacing_drift_zoom=pacing_drift_zoom,
         pacing_light_leaks=pacing_light_leaks,
@@ -40,7 +39,7 @@ def _make_phase(
         enabled=enabled,
         end_time_seconds=end_time,
         variations=variations,
-        variation_selection=selection,
+        variation_selection=selection,  # type: ignore[arg-type]
     )
 
 
@@ -200,7 +199,9 @@ class TestApplyToSegment:
         assert seg.phase_intro_effect == "none"
 
     def test_stamps_pacing_effects_list(self) -> None:
-        v = _make_variation("mixed", pacing_saturation_pulse=True, pacing_drift_zoom=True)
+        v = _make_variation(
+            "mixed", pacing_saturation_pulse=True, pacing_drift_zoom=True
+        )
         pm = PhaseManager(hook_phase=_make_phase(4.0, [v]))
         seg = _make_seg(1.0)
         pm.apply_to_segment(seg, 1.0)
@@ -302,7 +303,9 @@ class TestPacingConfigIntegration:
             hook_phase=PhaseConfig(
                 enabled=True,
                 end_time_seconds=4.0,
-                variations=[PhaseVariation(name="test", clip_selection="highest_intensity")],
+                variations=[
+                    PhaseVariation(name="test", clip_selection="highest_intensity")
+                ],
             )
         )
         assert config.hook_phase is not None

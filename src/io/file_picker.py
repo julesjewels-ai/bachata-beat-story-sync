@@ -28,7 +28,7 @@ def _run_safe_tk_dialog(script: str) -> str | None:
             [sys.executable, "-c", script],
             capture_output=True,
             text=True,
-            check=False,
+            check=False,  # nosec B603
         )
         if result.returncode == 0:
             return result.stdout.strip()

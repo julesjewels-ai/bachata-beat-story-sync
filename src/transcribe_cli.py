@@ -73,7 +73,10 @@ def main() -> None:
         result = transcribe_video(video_path, language=language, model_size=model_size)
         write_transcript_json(result, json_out)
         write_srt(result.segments, srt_out)
-        print(f"JSON: {json_out}  ({len(result.segments)} segments, lang={result.language})")
+        print(
+            f"JSON: {json_out}  ({len(result.segments)} segments, "
+            f"lang={result.language})"
+        )
         print(f"SRT:  {srt_out}")
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
