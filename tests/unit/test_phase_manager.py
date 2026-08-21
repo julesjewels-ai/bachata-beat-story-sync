@@ -20,7 +20,7 @@ def _make_variation(
     return PhaseVariation(
         name=name,
         intro_effect=intro_effect,
-        clip_selection=clip_selection,
+        clip_selection=clip_selection,  # type: ignore[arg-type]
         pacing_saturation_pulse=pacing_saturation_pulse,
         pacing_drift_zoom=pacing_drift_zoom,
         pacing_light_leaks=pacing_light_leaks,
@@ -39,7 +39,7 @@ def _make_phase(
         enabled=enabled,
         end_time_seconds=end_time,
         variations=variations,
-        variation_selection=selection,
+        variation_selection=selection,  # type: ignore[arg-type]
     )
 
 
