@@ -2,7 +2,31 @@
 Core interfaces and protocols for Bachata Beat-Story Sync.
 """
 
-from typing import Any, Protocol
+from typing import Any, Protocol, TypeVar
+
+T = TypeVar("T")
+
+
+class Repository(Protocol[T]):
+    """
+    Protocol for data persistence operations.
+    """
+
+    def get(self, key: str) -> T | None:
+        """Retrieves an item by key."""
+        ...
+
+    def save(self, key: str, item: T) -> None:
+        """Saves an item with the given key."""
+        ...
+
+    def delete(self, key: str) -> None:
+        """Deletes an item by key."""
+        ...
+
+    def list_all(self) -> list[T]:
+        """Lists all items in the repository."""
+        ...
 
 
 class ProgressObserver(Protocol):

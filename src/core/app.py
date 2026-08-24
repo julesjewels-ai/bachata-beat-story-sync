@@ -8,7 +8,7 @@ import os
 
 from pydantic import ValidationError
 
-from src.core.interfaces import ProgressObserver
+from src.core.interfaces import ProgressObserver, Repository
 from src.core.models import AudioAnalysisResult, PacingConfig, VideoAnalysisResult
 from src.core.montage import MontageGenerator
 from src.core.video_analyzer import (
@@ -16,7 +16,6 @@ from src.core.video_analyzer import (
     VideoAnalysisInput,
     VideoAnalyzer,
 )
-from src.core.video_cache_manager import VideoAnalysisCache
 
 logger = logging.getLogger(__name__)
 
@@ -26,10 +25,18 @@ class BachataSyncEngine:
     The main engine responsible for syncing video segments to audio.
     """
 
-    def __init__(self) -> None:
+    def __init__(
+        self, repository: Repository[VideoAnalysisResult] | None = None
+    ) -> None:
         self.video_analyzer = VideoAnalyzer()
         self.montage_generator = MontageGenerator()
-        self.cache = VideoAnalysisCache()
+        if repository is None:
+            # Lazy import to avoid circular dependencies when starting UI
+            from src.adapters.repository import FileAnalysisRepository
+
+            self.repository: Repository[VideoAnalysisResult] = FileAnalysisRepository()
+        else:
+            self.repository = repository
 
     def scan_video_library(
         self,
@@ -52,8 +59,8 @@ class BachataSyncEngine:
             for i, video_path in enumerate(files_to_process):
                 filename = os.path.basename(video_path)
 
-                # Check cache first
-                cached_result = self.cache.get(video_path)
+                # Check repository first
+                cached_result = self.repository.get(video_path)
                 if cached_result is not None:
                     if observer:
                         observer.on_progress(
@@ -66,10 +73,12 @@ class BachataSyncEngine:
                     observer.on_progress(i, total_files, f"Scanning {filename}...")
 
                 if result := self._process_video_file(video_path):
-                    self.cache.set(video_path, result)
+                    try:
+                        self.repository.save(video_path, result)
+                    except Exception as e:
+                        logger.warning("Failed to save result to repository: %s", e)
                     clips.append(result)
         finally:
-            self.cache.save()
             if observer:
                 observer.on_progress(total_files, total_files, "Scan complete.")
 
