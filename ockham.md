@@ -9,3 +9,8 @@
 **Target:** `detect_sections` in `src/core/audio_analyzer.py`
 **Delta:** Complexity Score 21 -> 8
 **Summary:** Refactored the `detect_sections` function by extracting the boundary merging loop into `_merge_short_boundaries` and the section labeling if-else block into `_determine_section_label`. Used early returns in the labeling logic to reduce nesting and cyclomatic complexity.
+
+## 2024-05-22
+**Target:** `append_tail_segment` in `src/core/planner/tail_coverage.py`
+**Delta:** Complexity Score 21 -> 14
+**Summary:** Refactored the `append_tail_segment` function by extracting the inner loop logic into a helper function `_process_single_tail_segment`. Replaced nested conditions with early returns (guard clauses) to flatten the logic tree and reduce overall cyclomatic complexity while preserving all behavior.
