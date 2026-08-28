@@ -1,10 +1,7 @@
-import json
 import os
 import tempfile
-from unittest.mock import MagicMock, patch
 
 import pytest
-
 from src.core.models import VideoAnalysisResult
 from src.core.video_cache_manager import VideoAnalysisCache
 
