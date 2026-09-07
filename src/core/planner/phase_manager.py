@@ -103,7 +103,7 @@ class PhaseManager:
         seg.phase_pacing_effects = active_effects
 
     def needs_highest_intensity(self, timeline_time: float) -> bool:
-        """Return True if the active phase variation requests highest_intensity selection."""
+        """Return True if active phase variation requests highest_intensity."""
         phase = self.get_phase(timeline_time)
         if phase == "main":
             return False

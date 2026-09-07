@@ -122,14 +122,15 @@ def detect_sections(
     gradient = np.abs(np.diff(smoothed))
 
     # Find change-point indices where gradient exceeds threshold
-    change_points = list(np.where(gradient >= change_threshold)[0] + 1)
+    cp_arr = np.where(gradient >= change_threshold)[0] + 1
+    change_points = [int(x) for x in cp_arr.tolist()]
 
     # Build boundary indices: [0, cp1, cp2, ..., len(curve)]
-    boundaries = [0] + change_points + [len(curve)]
+    boundaries: list[int] = [0] + change_points + [len(curve)]
     # Remove duplicates and sort
     boundaries = sorted(set(boundaries))
 
-    boundaries = _merge_short_boundaries(boundaries)
+    boundaries = _merge_short_boundaries([int(b) for b in boundaries])
 
     sections: list[MusicalSection] = []
     for i in range(len(boundaries) - 1):
