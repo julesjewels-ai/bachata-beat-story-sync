@@ -1,6 +1,7 @@
 """
 Generic Repository pattern implementation for domain models.
 """
+
 import json
 import logging
 import os

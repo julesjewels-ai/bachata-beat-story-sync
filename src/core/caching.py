@@ -1,6 +1,7 @@
 """
 Advanced caching decorator for domain models.
 """
+
 import functools
 import hashlib
 import logging
