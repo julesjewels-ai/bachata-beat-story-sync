@@ -22,7 +22,11 @@ from src.core.models import (
     SegmentDecision,
     VideoAnalysisResult,
 )
-from src.core.montage import MontageGenerator, load_pacing_config
+from src.core.montage import (
+    MontageGenerator,
+    load_pacing_config,
+    planning_config_from_pacing,
+)
 
 
 @pytest.fixture
@@ -2859,4 +2863,129 @@ class TestAdvancedEffects:
                 video_clips,
                 str(tmp_path / "output.mp4"),
                 audio_path="/audio/song.wav",
+            )
+
+
+class TestFitSegmentAdaptiveFallbacks:
+    @pytest.fixture
+    def generator(self) -> MontageGenerator:
+        return MontageGenerator()
+
+    @pytest.fixture
+    def primary_clip(self) -> VideoAnalysisResult:
+        return VideoAnalysisResult(
+            path="/videos/primary.mp4",
+            intensity_score=0.8,
+            duration=30.0,
+            thumbnail_data=None,
+        )
+
+    @pytest.fixture
+    def alt_clip(self) -> VideoAnalysisResult:
+        return VideoAnalysisResult(
+            path="/videos/alt.mp4",
+            intensity_score=0.3,
+            duration=30.0,
+            thumbnail_data=None,
+        )
+
+    @pytest.mark.parametrize(
+        "expected_path, expected_suffix, expected_speed, base_speed, fit_results",
+        [
+            (1, None, 1.5, 1.5, [(2.0, 5.0)]),
+            (2, "Adaptive fit: safer start offset", 1.5, 1.5, [(2.0, 0.1), (0.0, 5.0)]),
+            (
+                3,
+                "Adaptive fit: alternate clip",
+                1.5,
+                1.5,
+                [(2.0, 0.1), (0.0, 0.1), (0.0, 5.0)],
+            ),
+            (
+                4,
+                "Adaptive fit: reduced speed aggressiveness",
+                1.0,
+                1.5,
+                [(2.0, 0.1), (0.0, 0.1), (0.0, 0.1), (0.0, 5.0)],
+            ),
+            (
+                5,
+                "Adaptive fit: short recovery segment",
+                1.0,
+                1.5,
+                [
+                    (2.0, 0.1),
+                    (0.0, 0.1),
+                    (0.0, 0.1),
+                    (0.0, 0.1),
+                    (0.0, 0.1),
+                    (0.0, 0.5),
+                ],
+            ),
+            (
+                6,
+                None,
+                None,
+                1.5,
+                [
+                    (2.0, 0.1),
+                    (0.0, 0.1),
+                    (0.0, 0.1),
+                    (0.0, 0.1),
+                    (0.0, 0.1),
+                    (0.0, 0.1),
+                    (0.0, 0.1),
+                ],
+            ),
+            (
+                7,
+                "Adaptive fit: short recovery segment",
+                1.0,
+                1.0,
+                [
+                    (2.0, 0.1),
+                    (0.0, 0.1),
+                    (0.0, 0.1),
+                    (0.0, 0.5),
+                ],
+            ),
+        ],
+    )
+    def test_fit_segment_adaptive_fallbacks(
+        self,
+        mocker: MagicMock,
+        generator: MontageGenerator,
+        primary_clip: VideoAnalysisResult,
+        alt_clip: VideoAnalysisResult,
+        expected_path: int,
+        expected_suffix: str | None,
+        expected_speed: float | None,
+        base_speed: float,
+        fit_results: list[tuple[float, float]],
+    ) -> None:
+        mocker.patch.object(
+            generator, "_fit_clip_for_duration", side_effect=fit_results
+        )
+        config = planning_config_from_pacing(PacingConfig(min_clip_seconds=1.0))
+
+        result = generator._fit_segment_adaptive(
+            candidate_clips=[primary_clip, alt_clip],
+            desired_duration=5.0,
+            base_speed=base_speed,
+            remaining=5.0,
+            config=config,
+            clip_idx=0,
+        )
+
+        if expected_path == 6:
+            assert result is None
+        else:
+            assert result is not None
+            err_msg = (
+                f"Failed on path {expected_path}, expected {expected_suffix} "
+                f"but got {result.reason_suffix}"
+            )
+            assert result.reason_suffix == expected_suffix, err_msg
+            assert result.speed == expected_speed, (
+                f"Failed on path {expected_path} speed"
             )
