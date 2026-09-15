@@ -248,11 +248,11 @@ def test_workflow_parametrized(
 
             if "mix" in expected_phases:
                 assert cast(Mock, mock_deps.generate_mix_video_phase).called, (
-                    "Expected generate_mix_video_phase to be called when not skipping mix"
+                    "Expected generate_mix_video_phase to be called without skip"
                 )
             else:
                 assert not cast(Mock, mock_deps.generate_mix_video_phase).called, (
-                    "Did not expect generate_mix_video_phase to be called when skip_mix is True"
+                    "Did not expect generate_mix_video_phase to be called with skip"
                 )
 
             assert cast(Mock, mock_deps.process_individual_tracks).called, (
