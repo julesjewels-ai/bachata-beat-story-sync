@@ -125,9 +125,9 @@ def detect_sections(
     change_points = list(np.where(gradient >= change_threshold)[0] + 1)
 
     # Build boundary indices: [0, cp1, cp2, ..., len(curve)]
-    boundaries = [0] + change_points + [len(curve)]
+    raw_boundaries = [0] + change_points + [len(curve)]
     # Remove duplicates and sort
-    boundaries = sorted(set(boundaries))
+    boundaries: list[int] = sorted(set(int(b) for b in raw_boundaries))
 
     boundaries = _merge_short_boundaries(boundaries)
 
@@ -141,7 +141,7 @@ def detect_sections(
         avg_intensity = float(np.mean(curve[start_idx:end_idx]))
 
         label = _determine_section_label(
-            i, len(boundaries), avg_intensity, start_idx, end_idx, smoothed
+            i, len(boundaries), avg_intensity, int(start_idx), int(end_idx), smoothed
         )
 
         sections.append(

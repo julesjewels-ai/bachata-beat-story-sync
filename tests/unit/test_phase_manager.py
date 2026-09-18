@@ -6,11 +6,13 @@ from src.core.models import PacingConfig, PhaseConfig, PhaseVariation, SegmentPl
 from src.core.planner.phase_manager import PhaseManager
 
 
+from typing import Literal
+
 def _make_variation(
     name: str,
     *,
     intro_effect: str = "none",
-    clip_selection: str = "intensity",
+    clip_selection: Literal["intensity", "highest_intensity"] = "intensity",
     pacing_saturation_pulse: bool = False,
     pacing_drift_zoom: bool = False,
     pacing_light_leaks: bool = False,
@@ -32,7 +34,7 @@ def _make_variation(
 def _make_phase(
     end_time: float,
     variations: list[PhaseVariation],
-    selection: str = "rotate",
+    selection: Literal["rotate", "random", "fixed"] = "rotate",
     enabled: bool = True,
 ) -> PhaseConfig:
     return PhaseConfig(
