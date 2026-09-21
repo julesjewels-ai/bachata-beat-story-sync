@@ -8,7 +8,7 @@ from typing import Generic, Protocol, TypeVar
 
 from pydantic import BaseModel
 
-from src.core.exceptions import RepositoryError, StorageError
+from src.core.exceptions import StorageError
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -51,9 +51,9 @@ class FileSystemRepository(Generic[T]):
     def save(self, model: T) -> None:
         try:
             # Assuming models have an 'id' field as specified in instructions or inherently.
-            entity_id = getattr(model, "id")
+            entity_id = getattr(model, "id", None)
             if not entity_id:
-                 raise ValueError("Model does not have an 'id' attribute.")
+                raise ValueError("Model does not have an 'id' attribute.")
 
             file_path = self._get_file_path(str(entity_id))
             with open(file_path, "w", encoding="utf-8") as f:
@@ -67,7 +67,7 @@ class FileSystemRepository(Generic[T]):
             return None
 
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 data = json.load(f)
             return self.model_class.model_validate(data)
         except Exception as e:
@@ -84,4 +84,6 @@ class FileSystemRepository(Generic[T]):
                         entities.append(entity)
             return entities
         except OSError as e:
-             raise StorageError(f"Failed to list entities in {self.base_path}: {e}") from e
+            raise StorageError(
+                f"Failed to list entities in {self.base_path}: {e}"
+            ) from e

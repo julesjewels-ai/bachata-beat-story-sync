@@ -47,7 +47,7 @@ def test_record_and_get_metrics(metrics_service):
         broll_clips_count=2,
         duration_seconds=60.5,
         execution_time_seconds=12.3,
-        timestamp=datetime.now(UTC).isoformat()
+        timestamp=datetime.now(UTC).isoformat(),
     )
 
     # Act: Record the metrics via service

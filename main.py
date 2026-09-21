@@ -1,6 +1,7 @@
 """
 Entry point for the Bachata Beat-Story Sync application.
 """
+
 import argparse
 import logging
 import time
@@ -8,11 +9,16 @@ import uuid
 from datetime import UTC, datetime
 
 from src.application.story_workflow import run_story_workflow
-from src.cli_utils import add_visual_args, build_pacing_kwargs, handle_cli_errors, setup_logging
+from src.cli_utils import (
+    add_visual_args,
+    build_pacing_kwargs,
+    handle_cli_errors,
+    setup_logging,
+)
 from src.core.models import PipelineMetrics
 from src.core.repository import FileSystemRepository
-from src.services.metrics import PipelineMetricsService
 from src.services.json_output import build_json_output, write_json_output
+from src.services.metrics import PipelineMetricsService
 from src.services.plan_report import write_plan_report
 from src.services.reporting import ExcelReportGenerator
 from src.ui.console import RichProgressObserver
@@ -23,60 +29,53 @@ def parse_args() -> argparse.Namespace:
         description="Bachata Beat-Story Sync: Automated Video Editor"
     )
     parser.add_argument(
-        "--audio",
-        type=str,
-        required=True,
-        help="Path to the input .wav Bachata track"
+        "--audio", type=str, required=True, help="Path to the input .wav Bachata track"
     )
     parser.add_argument(
         "--video-dir",
         type=str,
         required=True,
-        help="Directory containing .mp4 video clips"
+        help="Directory containing .mp4 video clips",
     )
     parser.add_argument(
         "--broll-dir",
         type=str,
         default=None,
         help="Optional directory containing B-roll clips"
-        " (defaults to 'broll' inside video-dir if it exists)"
+        " (defaults to 'broll' inside video-dir if it exists)",
     )
     parser.add_argument(
         "--output",
         type=str,
         default="output_story.mp4",
-        help="Path for the final output video"
+        help="Path for the final output video",
     )
     parser.add_argument(
         "--export-report",
         type=str,
         help="Path to export the analysis report (e.g., report.xlsx)",
-        default=None
+        default=None,
     )
     parser.add_argument(
         "--test-mode",
         action="store_true",
         default=False,
-        help="Run in test mode (max 4 clips, 10 seconds of music)"
+        help="Run in test mode (max 4 clips, 10 seconds of music)",
     )
     parser.add_argument(
         "--max-clips",
         type=int,
         default=None,
-        help="Maximum number of clip segments (overrides test-mode default)"
+        help="Maximum number of clip segments (overrides test-mode default)",
     )
     parser.add_argument(
         "--max-duration",
         type=float,
         default=None,
-        help="Maximum montage duration in seconds (overrides test-mode default)"
+        help="Maximum montage duration in seconds (overrides test-mode default)",
     )
     add_visual_args(parser)
-    parser.add_argument(
-        "--version",
-        action="version",
-        version="%(prog)s 0.1.0"
-    )
+    parser.add_argument("--version", action="version", version="%(prog)s 0.1.0")
     return parser.parse_args()
 
 
@@ -128,9 +127,11 @@ def main() -> None:
             broll_clips_count=len(result.broll_clips) if result.broll_clips else 0,
             duration_seconds=result.audio_meta.duration,
             execution_time_seconds=execution_time,
-            timestamp=datetime.now(UTC).isoformat()
+            timestamp=datetime.now(UTC).isoformat(),
         )
-        metrics_repo = FileSystemRepository[PipelineMetrics](".metrics", PipelineMetrics)
+        metrics_repo = FileSystemRepository[PipelineMetrics](
+            ".metrics", PipelineMetrics
+        )
         metrics_service = PipelineMetricsService(metrics_repo)
         metrics_service.record_metrics(metrics)
 
@@ -158,10 +159,7 @@ def main() -> None:
             write_json_output(data, args.output_json)
 
         if args.export_report and result.output_path is not None:
-            logger.info(
-                "Generating analysis report to %s...",
-                args.export_report
-            )
+            logger.info("Generating analysis report to %s...", args.export_report)
             report_gen = ExcelReportGenerator()
             report_gen.generate_report(
                 result.audio_meta, result.video_clips, args.export_report
