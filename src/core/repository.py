@@ -50,7 +50,7 @@ class FileSystemRepository(Generic[T]):
 
     def save(self, model: T) -> None:
         try:
-            # Assuming models have an 'id' field as specified in instructions or inherently.
+            # Models should expose 'id' or we fallback to safely failing.
             entity_id = getattr(model, "id", None)
             if not entity_id:
                 raise ValueError("Model does not have an 'id' attribute.")
