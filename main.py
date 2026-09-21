@@ -3,9 +3,15 @@ Entry point for the Bachata Beat-Story Sync application.
 """
 import argparse
 import logging
+import time
+import uuid
+from datetime import UTC, datetime
 
 from src.application.story_workflow import run_story_workflow
 from src.cli_utils import add_visual_args, build_pacing_kwargs, handle_cli_errors, setup_logging
+from src.core.models import PipelineMetrics
+from src.core.repository import FileSystemRepository
+from src.services.metrics import PipelineMetricsService
 from src.services.json_output import build_json_output, write_json_output
 from src.services.plan_report import write_plan_report
 from src.services.reporting import ExcelReportGenerator
@@ -101,6 +107,8 @@ def main() -> None:
             )
         logger.info("Syncing visual narrative to musical dynamics...")
 
+        start_time = time.time()
+
         result = run_story_workflow(
             args.audio,
             args.video_dir,
@@ -110,6 +118,21 @@ def main() -> None:
             scan_observer_factory=RichProgressObserver,
             render_observer_factory=RichProgressObserver,
         )
+
+        execution_time = time.time() - start_time
+        metrics = PipelineMetrics(
+            id=str(uuid.uuid4()),
+            audio_path=args.audio,
+            video_clips_count=len(result.video_clips),
+            montage_clips_count=len(result.montage_clips),
+            broll_clips_count=len(result.broll_clips) if result.broll_clips else 0,
+            duration_seconds=result.audio_meta.duration,
+            execution_time_seconds=execution_time,
+            timestamp=datetime.now(UTC).isoformat()
+        )
+        metrics_repo = FileSystemRepository[PipelineMetrics](".metrics", PipelineMetrics)
+        metrics_service = PipelineMetricsService(metrics_repo)
+        metrics_service.record_metrics(metrics)
 
         if result.plan_report is not None:
             write_plan_report(result.plan_report, getattr(args, "dry_run_output", None))
