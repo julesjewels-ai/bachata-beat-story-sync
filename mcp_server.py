@@ -18,16 +18,21 @@ import json
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
-
 from src.application.batch_bridge import (
     load_batch as _load_batch,
+)
+from src.application.batch_bridge import (
     plan_song_from_batch as _plan_song_from_batch,
+)
+from src.application.batch_bridge import (
     render_song_from_batch as _render_song_from_batch,
+)
+from src.application.batch_bridge import (
     save_batch as _save_batch,
 )
-from src.config.app_config import build_pacing_config, load_app_config
 from src.cli_utils import analyze_audio as _analyze_audio
 from src.cli_utils import detect_broll_dir, strip_thumbnails
+from src.config.app_config import build_pacing_config, load_app_config
 from src.core.app import BachataSyncEngine
 from src.core.models import PacingConfig
 

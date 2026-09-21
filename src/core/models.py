@@ -16,14 +16,22 @@ class PhaseVariation(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    name: str = Field(..., description="Unique name for this variation (e.g. 'golden_bloom')")
+    name: str = Field(
+        ..., description="Unique name for this variation (e.g. 'golden_bloom')"
+    )
     intro_effect: str = Field(
         "none",
-        description="Visual effect for segments in this phase: 'none', 'bloom', 'vignette_breathe'",
+        description=(
+            "Visual effect for segments in this phase: "
+            "'none', 'bloom', 'vignette_breathe'"
+        ),
     )
     intro_effect_duration: float | None = Field(
         None,
-        description="Effect duration override in seconds. None = use global intro_effect_duration.",
+        description=(
+            "Effect duration override in seconds. "
+            "None = use global intro_effect_duration."
+        ),
     )
     pacing_saturation_pulse: bool = Field(False)
     pacing_light_leaks: bool = Field(False)
@@ -775,6 +783,29 @@ class AudioMixConfig(BaseModel):
         description="[Phase 2 — not yet active] Gradually ramp tempo within "
         "the crossfade window rather than applying a fixed stretch",
     )
+
+
+class PipelineMetrics(BaseModel):
+    """
+    Telemetry data representing pipeline execution metrics.
+    """
+
+    id: str = Field(..., description="Unique identifier for the run")
+    audio_path: str = Field(..., description="Path to the input audio")
+    video_clips_count: int = Field(
+        ..., description="Total number of video clips processed"
+    )
+    montage_clips_count: int = Field(
+        ..., description="Number of clips used in the montage"
+    )
+    broll_clips_count: int = Field(..., description="Number of B-roll clips used")
+    duration_seconds: float = Field(
+        ..., description="Duration of the generated story in seconds"
+    )
+    execution_time_seconds: float = Field(
+        ..., description="Total execution time in seconds"
+    )
+    timestamp: str = Field(..., description="Timestamp of the execution (ISO format)")
 
 
 class CompilationConfig(BaseModel):

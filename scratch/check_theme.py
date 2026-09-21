@@ -1,6 +1,5 @@
-import sys
 try:
-    with open('src/ui/theme.py', 'r') as f:
+    with open('src/ui/theme.py') as f:
         content = f.read()
     # Try to execute just the tokens and the THEME_CSS part
     exec(content)
