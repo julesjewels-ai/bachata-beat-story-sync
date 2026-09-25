@@ -70,10 +70,7 @@ def transcribe_video(
     try:
         from faster_whisper import WhisperModel  # type: ignore[import]
     except ImportError as exc:
-        raise ImportError(
-            "faster-whisper not installed. Run: make install\n"
-            "(or: pip install faster-whisper)"
-        ) from exc
+        raise ImportError("faster-whisper not installed. Run: make install\n(or: pip install faster-whisper)") from exc
 
     logger.info("Loading Whisper model '%s'…", model_size)
     model = WhisperModel(model_size, device="cpu", compute_type="int8")
@@ -120,9 +117,7 @@ def transcribe_video(
             )
             logger.debug("[%.1f → %.1f] %s", seg.start, seg.end, seg.text.strip())
 
-    logger.info(
-        "Transcription complete: %d segments, language=%s", len(segments), detected_lang
-    )
+    logger.info("Transcription complete: %d segments, language=%s", len(segments), detected_lang)
     return TranscriptResult(
         audio_path=video_path,
         language=detected_lang,

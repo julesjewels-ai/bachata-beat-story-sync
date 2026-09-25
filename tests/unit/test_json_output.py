@@ -113,9 +113,7 @@ class TestBuildJsonOutput:
 
     def test_output_path_included(self):
         """output_path field should appear when provided."""
-        data = build_json_output(
-            _audio(), [], None, _pacing(), output_path="/out/video.mp4"
-        )
+        data = build_json_output(_audio(), [], None, _pacing(), output_path="/out/video.mp4")
         assert data["output_path"] == "/out/video.mp4"
 
     def test_output_path_absent(self):
@@ -125,9 +123,7 @@ class TestBuildJsonOutput:
 
     def test_config_only_non_default(self):
         """Config dict should only contain non-default pacing values."""
-        data = build_json_output(
-            _audio(), [], None, _pacing(high_intensity_seconds=8.0)
-        )
+        data = build_json_output(_audio(), [], None, _pacing(high_intensity_seconds=8.0))
         assert "high_intensity_seconds" in data["config"]
 
     def test_json_round_trip(self):

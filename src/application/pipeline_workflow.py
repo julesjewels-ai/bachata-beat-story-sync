@@ -136,8 +136,7 @@ class PipelineWorkflow:
         if not individual_tracks:
             raise FileNotFoundError(
                 "No supported audio files found in "
-                f"{audio_dir}. Supported formats: "
-                + ", ".join(sorted(SUPPORTED_AUDIO_EXTENSIONS))
+                f"{audio_dir}. Supported formats: " + ", ".join(sorted(SUPPORTED_AUDIO_EXTENSIONS))
             )
         log.step(f"Found {len(individual_tracks)} track(s) in [bold]{audio_dir}[/bold]")
 
@@ -145,18 +144,14 @@ class PipelineWorkflow:
         log.phase("🎵 Mixing Audio")
         with log.status(f"Mixing {len(individual_tracks)} tracks…"):
             with RichProgressObserver() as obs:
-                mix_path, mix_track_starts = resolve_audio_path_with_segments(
-                    audio_dir, observer=obs
-                )
+                mix_path, mix_track_starts = resolve_audio_path_with_segments(audio_dir, observer=obs)
         log.success(f"Mix ready: [bold]{mix_path}[/bold]")
 
         # Build MixTrackSegments for mix video cold opens + fades (FEAT-050).
         mix_track_segments: list[dict[str, Any]] = []
         if mix_track_starts:
             for src_path, start_time in mix_track_starts:
-                artist, title = self._deps.extract_track_metadata(
-                    src_path, pipeline_config
-                )
+                artist, title = self._deps.extract_track_metadata(src_path, pipeline_config)
                 mix_track_segments.append(
                     {
                         "artist": artist,
@@ -179,9 +174,7 @@ class PipelineWorkflow:
         if args.shared_scan:
             log.phase("📹 Scanning Video Library")
             with log.status("Scanning clips…"):
-                shared_clips, shared_broll = self._deps.scan_videos(
-                    engine, args.video_dir, broll_dir
-                )
+                shared_clips, shared_broll = self._deps.scan_videos(engine, args.video_dir, broll_dir)
             clip_msg = f"Found {len(shared_clips)} main clip(s)"
             if shared_broll:
                 clip_msg += f", {len(shared_broll)} B-roll"
@@ -223,22 +216,20 @@ class PipelineWorkflow:
                 generated_files.append(mix_result)
 
         # 7. Per-track: video + shorts
-        track_files, track_videos, track_audio_files = (
-            self._deps.process_individual_tracks(
-                args,
-                engine,
-                analyzer,
-                individual_tracks,
-                pacing_kwargs,
-                base_pacing,
-                pipeline_config,
-                shared_clips,
-                shared_broll,
-                broll_dir,
-                log,
-                min_dur,
-                max_dur,
-            )
+        track_files, track_videos, track_audio_files = self._deps.process_individual_tracks(
+            args,
+            engine,
+            analyzer,
+            individual_tracks,
+            pacing_kwargs,
+            base_pacing,
+            pipeline_config,
+            shared_clips,
+            shared_broll,
+            broll_dir,
+            log,
+            min_dur,
+            max_dur,
         )
         generated_files.extend(track_files)
 
@@ -251,9 +242,7 @@ class PipelineWorkflow:
 
         # 8b. Transcribe compilation (--transcribe flag)
         if compilation_result and getattr(args, "transcribe", False):
-            transcript_files = transcribe_compilation_phase(
-                compilation_result, args, log
-            )
+            transcript_files = transcribe_compilation_phase(compilation_result, args, log)
             generated_files.extend(transcript_files)
 
         # 8c. YouTube metadata (--youtube-metadata flag)

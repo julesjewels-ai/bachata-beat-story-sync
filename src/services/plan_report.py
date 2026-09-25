@@ -94,9 +94,7 @@ def format_plan_report(
     # Audio summary
     dur_str = _fmt_time(audio.duration)
     beat_count = len(audio.beat_times)
-    lines.append(
-        f"Audio: {audio.filename} ({audio.bpm:.0f} BPM, {dur_str}, {beat_count} beats)"
-    )
+    lines.append(f"Audio: {audio.filename} ({audio.bpm:.0f} BPM, {dur_str}, {beat_count} beats)")
 
     # Clip stats
     used_paths = {s.video_path for s in segments}

@@ -237,10 +237,7 @@ def _build_description(
             "con el corazón abierto. 💃🏻"
         )
     else:
-        hook = (
-            "Bachata romántica para recordar — "
-            "una canción de amor que llega directo al corazón. 🌹"
-        )
+        hook = "Bachata romántica para recordar — una canción de amor que llega directo al corazón. 🌹"
 
     parts = [hook, ""]
 
@@ -301,9 +298,7 @@ def generate_metadata(
     if artist:
         artist_names.insert(0, artist)
 
-    description = _build_description(
-        content_type, primary, track_segments, total_duration_s
-    )
+    description = _build_description(content_type, primary, track_segments, total_duration_s)
     hashtags = _hashtag_selection(content_type, artist_names)
     tags_csv = _build_backend_tags(primary, track_segments)
     thumbnail_concepts = _THUMBNAIL_CONCEPTS[:3]

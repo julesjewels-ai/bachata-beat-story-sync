@@ -11,9 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Transcribe a video or audio file → JSON + SRT"
-    )
+    parser = argparse.ArgumentParser(description="Transcribe a video or audio file → JSON + SRT")
     parser.add_argument("video", help="Path to video or audio file to transcribe")
     parser.add_argument(
         "--language",
@@ -73,9 +71,7 @@ def main() -> None:
         result = transcribe_video(video_path, language=language, model_size=model_size)
         write_transcript_json(result, json_out)
         write_srt(result.segments, srt_out)
-        print(
-            f"JSON: {json_out}  ({len(result.segments)} segments, lang={result.language})"
-        )
+        print(f"JSON: {json_out}  ({len(result.segments)} segments, lang={result.language})")
         print(f"SRT:  {srt_out}")
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)

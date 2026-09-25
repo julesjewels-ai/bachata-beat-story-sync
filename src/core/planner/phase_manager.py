@@ -43,8 +43,7 @@ class PhaseManager:
         self._track_index = track_index
         self._seed = seed
         self._selected: dict[str, PhaseVariation | None] = {
-            phase_name: self._pick_variation(phase_cfg, phase_name)
-            for phase_name, phase_cfg in self._phases.items()
+            phase_name: self._pick_variation(phase_cfg, phase_name) for phase_name, phase_cfg in self._phases.items()
         }
 
     # ------------------------------------------------------------------
@@ -124,9 +123,7 @@ class PhaseManager:
     # Private helpers
     # ------------------------------------------------------------------
 
-    def _pick_variation(
-        self, phase_cfg: PhaseConfig | None, phase_name: str
-    ) -> PhaseVariation | None:
+    def _pick_variation(self, phase_cfg: PhaseConfig | None, phase_name: str) -> PhaseVariation | None:
         if phase_cfg is None or not phase_cfg.enabled:
             return None
         if not phase_cfg.variations:

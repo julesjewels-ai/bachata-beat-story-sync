@@ -110,9 +110,7 @@ def plan_song_from_batch(
 ) -> list[dict[str, Any]]:
     batch = resolve_batch_paths(load_batch(batch_path), Path(batch_path).parent)
     song = _song_by_id(batch, song_id)
-    audio_path = song.get("video", {}).get("audio_path") or song.get("audio", {}).get(
-        "asset_path", ""
-    )
+    audio_path = song.get("video", {}).get("audio_path") or song.get("audio", {}).get("asset_path", "")
     if not audio_path:
         raise ValueError(f"song {song_id} has no audio path")
 
@@ -142,9 +140,7 @@ def render_song_from_batch(
     batch = resolve_batch_paths(raw_batch, batch_file.parent)
     song = _song_by_id(batch, song_id)
     raw_song = _song_by_id(raw_batch, song_id)
-    audio_path = song.get("video", {}).get("audio_path") or song.get("audio", {}).get(
-        "asset_path", ""
-    )
+    audio_path = song.get("video", {}).get("audio_path") or song.get("audio", {}).get("asset_path", "")
     if not audio_path:
         raise ValueError(f"song {song_id} has no audio path")
 

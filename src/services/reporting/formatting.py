@@ -51,9 +51,7 @@ class ReportFormatter:
             col_letter = get_column_letter(col_idx)
             ws.column_dimensions[col_letter].width = adjusted_width
 
-    def apply_intensity_conditional_formatting(
-        self, ws: Worksheet, min_row: int, max_row: int, col_idx: int
-    ) -> None:
+    def apply_intensity_conditional_formatting(self, ws: Worksheet, min_row: int, max_row: int, col_idx: int) -> None:
         """
         Applies a 3-color scale to the specified column range.
         Red (Low Intensity) -> Yellow -> Green (High Intensity).

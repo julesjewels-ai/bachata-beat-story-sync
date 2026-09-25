@@ -54,8 +54,7 @@ def append_tail_segment(
     current_timeline = timeline_pos
     tail_uncovered = target_duration - current_timeline
     log.debug(
-        "_append_tail_segment: tail_uncovered=%.2fs, target=%.2fs, max_dur=%s, "
-        "max_clips=%s, sorted_clips=%d",
+        "_append_tail_segment: tail_uncovered=%.2fs, target=%.2fs, max_dur=%s, max_clips=%s, sorted_clips=%d",
         tail_uncovered,
         target_duration,
         config.max_duration_seconds,
@@ -136,8 +135,7 @@ def append_tail_segment(
         )
         segments.append(tail_seg)
         log.debug(
-            "APPENDED tail segment: %.2fs at %.2fs "
-            "(remaining was %.2fs), total_segments=%d",
+            "APPENDED tail segment: %.2fs at %.2fs (remaining was %.2fs), total_segments=%d",
             tail_duration,
             current_timeline,
             remaining,

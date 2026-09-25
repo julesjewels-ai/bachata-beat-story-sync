@@ -16,9 +16,7 @@ class PhaseVariation(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    name: str = Field(
-        ..., description="Unique name for this variation (e.g. 'golden_bloom')"
-    )
+    name: str = Field(..., description="Unique name for this variation (e.g. 'golden_bloom')")
     intro_effect: str = Field(
         "none",
         description="Visual effect for segments in this phase: 'none', 'bloom', 'vignette_breathe'",
@@ -79,14 +77,11 @@ class MusicalSection(BaseModel):
 
     label: str = Field(
         ...,
-        description="Section label: 'intro', 'high_energy', "
-        "'low_energy', 'buildup', 'breakdown', 'outro'",
+        description="Section label: 'intro', 'high_energy', 'low_energy', 'buildup', 'breakdown', 'outro'",
     )
     start_time: float = Field(..., description="Start timestamp in seconds")
     end_time: float = Field(..., description="End timestamp in seconds")
-    avg_intensity: float = Field(
-        ..., description="Average normalised intensity (0.0-1.0)"
-    )
+    avg_intensity: float = Field(..., description="Average normalised intensity (0.0-1.0)")
 
 
 class AudioAnalysisResult(BaseModel):
@@ -122,16 +117,10 @@ class VideoAnalysisResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     path: str = Field(..., description="Absolute path to the video file")
-    intensity_score: float = Field(
-        ..., description="Visual intensity score (0.0 to 1.0)"
-    )
+    intensity_score: float = Field(..., description="Visual intensity score (0.0 to 1.0)")
     duration: float = Field(..., description="Duration of the video clip in seconds")
-    is_vertical: bool = Field(
-        False, description="Whether the video is vertical (height > width)"
-    )
-    thumbnail_data: bytes | None = Field(
-        None, description="Binary data of the video thumbnail (PNG format)"
-    )
+    is_vertical: bool = Field(False, description="Whether the video is vertical (height > width)")
+    thumbnail_data: bytes | None = Field(None, description="Binary data of the video thumbnail (PNG format)")
     scene_changes: list[float] = Field(
         default_factory=list,
         description="Timestamps (seconds) of detected visual scene changes",
@@ -150,9 +139,7 @@ class SegmentPlan(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     video_path: str = Field(..., description="Path to the source video file")
-    start_time: float = Field(
-        ..., description="Start time in the source video (seconds)"
-    )
+    start_time: float = Field(..., description="Start time in the source video (seconds)")
     duration: float = Field(..., description="Duration to extract (seconds)")
     clip_duration: float = Field(
         0.0,
@@ -160,19 +147,12 @@ class SegmentPlan(BaseModel):
         "Used by the renderer to clamp extract_duration so FFmpeg is never "
         "asked for more material than the file contains after start_time.",
     )
-    timeline_position: float = Field(
-        ..., description="Position on the output timeline (seconds)"
-    )
-    intensity_level: str = Field(
-        ..., description="Intensity category: 'high', 'medium', or 'low'"
-    )
-    speed_factor: float = Field(
-        1.0, description="Playback speed multiplier (>1 = fast, <1 = slow-mo)"
-    )
+    timeline_position: float = Field(..., description="Position on the output timeline (seconds)")
+    intensity_level: str = Field(..., description="Intensity category: 'high', 'medium', or 'low'")
+    speed_factor: float = Field(1.0, description="Playback speed multiplier (>1 = fast, <1 = slow-mo)")
     section_label: str | None = Field(
         None,
-        description="Musical section this segment belongs to"
-        " (e.g. 'intro', 'high_energy')",
+        description="Musical section this segment belongs to (e.g. 'intro', 'high_energy')",
     )
     speed_curve: list[float] = Field(
         default_factory=list,
@@ -197,8 +177,7 @@ class SegmentPlan(BaseModel):
     )
     phase_intro_effect_duration: float | None = Field(
         None,
-        description="Per-segment intro effect duration override. "
-        "None = use global intro_effect_duration.",
+        description="Per-segment intro effect duration override. None = use global intro_effect_duration.",
     )
     phase_pacing_effects: list[str] | None = Field(
         None,
@@ -249,9 +228,7 @@ class TranscriptSegment(BaseModel):
     start: float = Field(..., description="Segment start time in seconds")
     end: float = Field(..., description="Segment end time in seconds")
     text: str = Field(..., description="Transcribed text for this segment")
-    words: list[TranscriptWord] = Field(
-        default_factory=list, description="Word-level timings (if available)"
-    )
+    words: list[TranscriptWord] = Field(default_factory=list, description="Word-level timings (if available)")
 
 
 class TranscriptResult(BaseModel):
@@ -261,9 +238,7 @@ class TranscriptResult(BaseModel):
 
     audio_path: str = Field(..., description="Source audio or video path transcribed")
     language: str = Field(..., description="Detected or specified language code")
-    segments: list[TranscriptSegment] = Field(
-        default_factory=list, description="All timed transcript segments"
-    )
+    segments: list[TranscriptSegment] = Field(default_factory=list, description="All timed transcript segments")
 
 
 class MixTrackSegment(BaseModel):
@@ -301,39 +276,17 @@ class PacingConfig(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    min_clip_seconds: float = Field(
-        1.5, description="Hard floor — no clip shorter than this (seconds)"
-    )
-    high_intensity_seconds: float = Field(
-        2.5, description="Target duration for high-intensity clips (seconds)"
-    )
-    medium_intensity_seconds: float = Field(
-        4.0, description="Target duration for medium-intensity clips (seconds)"
-    )
-    low_intensity_seconds: float = Field(
-        6.0, description="Target duration for low-intensity clips (seconds)"
-    )
-    snap_to_beats: bool = Field(
-        True, description="Round durations to nearest beat boundary"
-    )
-    high_intensity_threshold: float = Field(
-        0.65, description="Intensity >= this is 'high'"
-    )
-    low_intensity_threshold: float = Field(
-        0.35, description="Intensity < this is 'low'"
-    )
-    speed_ramp_enabled: bool = Field(
-        True, description="Enable speed ramping per intensity level"
-    )
-    high_intensity_speed: float = Field(
-        1.2, description="Speed multiplier for high-intensity clips (>1 = fast)"
-    )
-    medium_intensity_speed: float = Field(
-        1.0, description="Speed multiplier for medium-intensity clips"
-    )
-    low_intensity_speed: float = Field(
-        0.9, description="Speed multiplier for low-intensity clips (<1 = slow-mo)"
-    )
+    min_clip_seconds: float = Field(1.5, description="Hard floor — no clip shorter than this (seconds)")
+    high_intensity_seconds: float = Field(2.5, description="Target duration for high-intensity clips (seconds)")
+    medium_intensity_seconds: float = Field(4.0, description="Target duration for medium-intensity clips (seconds)")
+    low_intensity_seconds: float = Field(6.0, description="Target duration for low-intensity clips (seconds)")
+    snap_to_beats: bool = Field(True, description="Round durations to nearest beat boundary")
+    high_intensity_threshold: float = Field(0.65, description="Intensity >= this is 'high'")
+    low_intensity_threshold: float = Field(0.35, description="Intensity < this is 'low'")
+    speed_ramp_enabled: bool = Field(True, description="Enable speed ramping per intensity level")
+    high_intensity_speed: float = Field(1.2, description="Speed multiplier for high-intensity clips (>1 = fast)")
+    medium_intensity_speed: float = Field(1.0, description="Speed multiplier for medium-intensity clips")
+    low_intensity_speed: float = Field(0.9, description="Speed multiplier for low-intensity clips (<1 = slow-mo)")
 
     # Organic Per-Beat Speed Ramping (FEAT-036)
     speed_ramp_organic: bool = Field(
@@ -350,69 +303,44 @@ class PacingConfig(BaseModel):
         "ease_in_out",
         description="Smoothing curve applied across beat windows to interpolate speeds",
     )
-    speed_ramp_min: float = Field(
-        0.8, description="Minimum speed multiplier (slow, low-energy beats)"
-    )
-    speed_ramp_max: float = Field(
-        1.3, description="Maximum speed multiplier (fast, high-energy beats)"
-    )
+    speed_ramp_min: float = Field(0.8, description="Minimum speed multiplier (slow, low-energy beats)")
+    speed_ramp_max: float = Field(1.3, description="Maximum speed multiplier (fast, high-energy beats)")
 
-    max_clips: int | None = Field(
-        None, description="Maximum number of clip segments (None = unlimited)"
-    )
+    max_clips: int | None = Field(None, description="Maximum number of clip segments (None = unlimited)")
     max_duration_seconds: float | None = Field(
         None, description="Maximum total montage duration in seconds (None = unlimited)"
     )
 
     # Clip variety — randomise start offset within reused clips
-    clip_variety_enabled: bool = Field(
-        True, description="Randomise start offset within clips to avoid repetition"
-    )
+    clip_variety_enabled: bool = Field(True, description="Randomise start offset within clips to avoid repetition")
 
     # B-Roll settings (FEAT-011)
-    broll_interval_seconds: float = Field(
-        13.5, description="Target interval between B-roll clips in seconds"
-    )
-    broll_interval_variance: float = Field(
-        1.5, description="Allowed variance in B-roll intervals (± seconds)"
-    )
+    broll_interval_seconds: float = Field(13.5, description="Target interval between B-roll clips in seconds")
+    broll_interval_variance: float = Field(1.5, description="Allowed variance in B-roll intervals (± seconds)")
 
     # Shorts Generator Configs
     is_shorts: bool = Field(False, description="Generate a vertical 9:16 short")
-    seed: str = Field(
-        "", description="Seed for deterministic stochasticity in unique generation"
-    )
+    seed: str = Field("", description="Seed for deterministic stochasticity in unique generation")
     accelerate_pacing: bool = Field(
         False,
         description="Gradually decrease clip durations towards the end (Dynamic Flow)",
     )
-    randomize_speed_ramps: bool = Field(
-        False, description="Apply random variance to speed ramps for a human touch"
-    )
-    abrupt_ending: bool = Field(
-        False, description="End sharply to create a cliffhanger effect"
-    )
+    randomize_speed_ramps: bool = Field(False, description="Apply random variance to speed ramps for a human touch")
+    abrupt_ending: bool = Field(False, description="End sharply to create a cliffhanger effect")
 
     # Section detection configuration
-    section_detection_enabled: bool = Field(
-        True, description="Enable musical section detection"
-    )
+    section_detection_enabled: bool = Field(True, description="Enable musical section detection")
     section_smoothing_window: int = Field(
         8, description="Number of beats to smooth intensity over for section detection"
     )
-    section_change_threshold: float = Field(
-        0.15, description="Minimum intensity change to trigger a section boundary"
-    )
+    section_change_threshold: float = Field(0.15, description="Minimum intensity change to trigger a section boundary")
 
     # Transition configuration
     transition_type: str = Field(
         "none",
-        description="FFmpeg xfade transition type: "
-        "'none', 'fade', 'wipeleft', 'wiperight', 'slideup', etc.",
+        description="FFmpeg xfade transition type: 'none', 'fade', 'wipeleft', 'wiperight', 'slideup', etc.",
     )
-    transition_duration: float = Field(
-        0.5, description="Duration of each transition in seconds"
-    )
+    transition_duration: float = Field(0.5, description="Duration of each transition in seconds")
 
     # Duration sync tolerance — how much the rendered video duration is
     # allowed to diverge from the target timeline before we raise. Also
@@ -428,8 +356,7 @@ class PacingConfig(BaseModel):
     # Frame Interpolation for Slow Motion (FEAT-010)
     interpolation_method: str = Field(
         "blend",
-        description="Frame interpolation method for slow"
-        " motion (<1.0x). Options: 'none', 'blend', 'mci'",
+        description="Frame interpolation method for slow motion (<1.0x). Options: 'none', 'blend', 'mci'",
     )
 
     # Video Style / Color Grading (FEAT-012)
@@ -461,22 +388,17 @@ class PacingConfig(BaseModel):
     )
 
     # Audio Overlay (FEAT-013)
-    audio_overlay: Literal[
-        "none", "waveform", "waveform_centered", "bars", "spectrum", "cqt"
-    ] = Field(
+    audio_overlay: Literal["none", "waveform", "waveform_centered", "bars", "spectrum", "cqt"] = Field(
         "none",
         description="Music-synced visualizer pattern. Options: 'none', "
         "'waveform' (line), 'waveform_centered' (symmetric line), "
         "'bars' (frequency bars), 'spectrum' (scrolling spectrogram), "
         "'cqt' (constant-Q rainbow spectrogram)",
     )
-    audio_overlay_opacity: float = Field(
-        0.5, description="Opacity of the audio visualizer block (0.0 to 1.0)"
-    )
+    audio_overlay_opacity: float = Field(0.5, description="Opacity of the audio visualizer block (0.0 to 1.0)")
     audio_overlay_position: Literal["left", "center", "right"] = Field(
         "right",
-        description="Horizontal position of the audio overlay: "
-        "'left', 'center', 'right'",
+        description="Horizontal position of the audio overlay: 'left', 'center', 'right'",
     )
     audio_overlay_padding: int = Field(
         10,
@@ -488,9 +410,7 @@ class PacingConfig(BaseModel):
         "or 'custom'. Accepts a hex string (e.g. '#FF8800') or an FFmpeg "
         "color name (e.g. 'gold').",
     )
-    audio_overlay_palette: Literal[
-        "none", "warm", "cool", "sunset", "neon", "rainbow", "mono", "custom"
-    ] = Field(
+    audio_overlay_palette: Literal["none", "warm", "cool", "sunset", "neon", "rainbow", "mono", "custom"] = Field(
         "none",
         description="Named color palette. 'none' and 'custom' use "
         "audio_overlay_color; other values apply a curated multi-color "
@@ -499,8 +419,7 @@ class PacingConfig(BaseModel):
     )
     audio_overlay_width_pct: float = Field(
         0.2,
-        description="Width of the visualizer as a fraction of the video "
-        "width (0.05–1.0). Default 0.2 (20%).",
+        description="Width of the visualizer as a fraction of the video width (0.05–1.0). Default 0.2 (20%).",
     )
     audio_overlay_height: int = Field(
         120,
@@ -521,8 +440,7 @@ class PacingConfig(BaseModel):
     )
     explain_html: str | None = Field(
         None,
-        description="Path to write an HTML decision report. "
-        "If specified, automatically enables explain=True.",
+        description="Path to write an HTML decision report. If specified, automatically enables explain=True.",
     )
 
     # Intro Visual Effects (FEAT-022)
@@ -585,10 +503,7 @@ class PacingConfig(BaseModel):
     # Static Zoom / Crop Factor (FEAT-029)
     zoom_factor: float = Field(
         1.0,
-        description=(
-            "Static zoom/crop factor. 1.0 = full frame, "
-            "0.88 = crop center 88% and scale up."
-        ),
+        description=("Static zoom/crop factor. 1.0 = full frame, 0.88 = crop center 88% and scale up."),
     )
 
     # Per-Track Video Clip Pools (FEAT-030)
@@ -755,15 +670,12 @@ class AudioMixConfig(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    crossfade_duration_seconds: float = Field(
-        2.0, description="Duration in seconds for the crossfades between tracks"
-    )
+    crossfade_duration_seconds: float = Field(2.0, description="Duration in seconds for the crossfades between tracks")
 
     # Tempo synchronisation (Phase 1)
     tempo_sync: bool = Field(
         True,
-        description="Automatically match each incoming track's BPM to the "
-        "current mix tempo using FFmpeg atempo filter",
+        description="Automatically match each incoming track's BPM to the current mix tempo using FFmpeg atempo filter",
     )
     sync_threshold: float = Field(
         0.10,
@@ -793,9 +705,7 @@ class CompilationConfig(BaseModel):
     )
     transition_type: Literal["fade", "crossfade", "none"] = Field(
         "fade",
-        description=(
-            "Type of transition between track videos: 'fade', 'crossfade', 'none'"
-        ),
+        description=("Type of transition between track videos: 'fade', 'crossfade', 'none'"),
     )
     transition_duration: float = Field(
         0.5,
@@ -803,6 +713,5 @@ class CompilationConfig(BaseModel):
     )
     include_chapter_markers: bool = Field(
         True,
-        description="Generate a chapters JSON file with timestamps and track names "
-        "for YouTube description",
+        description="Generate a chapters JSON file with timestamps and track names for YouTube description",
     )

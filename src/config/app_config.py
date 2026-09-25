@@ -73,9 +73,7 @@ def load_app_config(config_path: str | None = None) -> AppConfig:
             logger.info("Loaded app config from %s", path)
             return config
         except Exception as e:
-            logger.warning(
-                "Failed to load app config from %s: %s. Using defaults.", path, e
-            )
+            logger.warning("Failed to load app config from %s: %s. Using defaults.", path, e)
 
     return AppConfig()
 

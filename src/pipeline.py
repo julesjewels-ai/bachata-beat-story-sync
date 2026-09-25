@@ -119,9 +119,7 @@ def _build_workflow_dependencies() -> PipelineWorkflowDependencies:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Bachata Beat-Story Sync: Full Pipeline"
-    )
+    parser = argparse.ArgumentParser(description="Bachata Beat-Story Sync: Full Pipeline")
     parser.add_argument(
         "--audio",
         required=True,
@@ -167,9 +165,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--compilation",
         action="store_true",
-        help=(
-            "Generate a compilation video by concatenating all individual track videos"
-        ),
+        help=("Generate a compilation video by concatenating all individual track videos"),
     )
     parser.add_argument(
         "--no-compilation",

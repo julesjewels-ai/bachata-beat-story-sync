@@ -29,10 +29,7 @@ class VideoAnalysisCache:
         """Finds the root directory containing pyproject.toml, Makefile, or .git."""
         current = os.path.dirname(os.path.abspath(__file__))
         while current != os.path.dirname(current):
-            if any(
-                os.path.exists(os.path.join(current, marker))
-                for marker in ["pyproject.toml", "Makefile", ".git"]
-            ):
+            if any(os.path.exists(os.path.join(current, marker)) for marker in ["pyproject.toml", "Makefile", ".git"]):
                 return current
             current = os.path.dirname(current)
         return os.getcwd()
@@ -45,9 +42,7 @@ class VideoAnalysisCache:
                     self._cache = json.load(f)
                 logger.info("Loaded video analysis cache from %s", self.cache_path)
             except Exception as e:
-                logger.warning(
-                    "Failed to load video analysis cache: %s. Starting fresh.", e
-                )
+                logger.warning("Failed to load video analysis cache: %s. Starting fresh.", e)
                 self._cache = {}
 
     def get(self, file_path: str) -> VideoAnalysisResult | None:
@@ -66,18 +61,13 @@ class VideoAnalysisCache:
             stat = os.stat(abs_path)
             cached_entry = self._cache[abs_path]
 
-            if (
-                cached_entry.get("mtime") == stat.st_mtime
-                and cached_entry.get("size") == stat.st_size
-            ):
+            if cached_entry.get("mtime") == stat.st_mtime and cached_entry.get("size") == stat.st_size:
                 result_data = cached_entry["result"].copy()
                 # Decode thumbnail bytes from base64 if present
                 if result_data.get("thumbnail_data") is not None:
                     import base64
 
-                    result_data["thumbnail_data"] = base64.b64decode(
-                        result_data["thumbnail_data"]
-                    )
+                    result_data["thumbnail_data"] = base64.b64decode(result_data["thumbnail_data"])
                 return VideoAnalysisResult.model_validate(result_data)
         except Exception as e:
             logger.debug("Cache validation failed for %s: %s", file_path, e)
@@ -97,9 +87,7 @@ class VideoAnalysisCache:
             if result_data.get("thumbnail_data") is not None:
                 import base64
 
-                result_data["thumbnail_data"] = base64.b64encode(
-                    result_data["thumbnail_data"]
-                ).decode("utf-8")
+                result_data["thumbnail_data"] = base64.b64encode(result_data["thumbnail_data"]).decode("utf-8")
 
             self._cache[abs_path] = {
                 "mtime": stat.st_mtime,

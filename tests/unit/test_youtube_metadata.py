@@ -116,17 +116,12 @@ def test_generate_metadata_mix_has_tracklist_in_description():
 
 
 def test_generate_metadata_song_uses_title_in_titletemplate():
-    meta = generate_metadata(
-        "song", [], total_duration_s=0.0, artist="Prince Royce", title="Darte un Beso"
-    )
+    meta = generate_metadata("song", [], total_duration_s=0.0, artist="Prince Royce", title="Darte un Beso")
     assert "Darte un Beso" in meta.title
 
 
 def test_hashtags_capped_at_15():
-    segs = [
-        TrackSegment(artist=f"Artist{i}", title=f"T{i}", start_time=float(i))
-        for i in range(20)
-    ]
+    segs = [TrackSegment(artist=f"Artist{i}", title=f"T{i}", start_time=float(i)) for i in range(20)]
     meta = generate_metadata("compilation", segs, total_duration_s=100.0)
     assert len(meta.hashtags) <= 15
 

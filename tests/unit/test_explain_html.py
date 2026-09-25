@@ -112,17 +112,13 @@ def config():
     )
 
 
-def test_generate_explain_html_creates_file(
-    temp_output_path, audio_data, decisions, config
-):
+def test_generate_explain_html_creates_file(temp_output_path, audio_data, decisions, config):
     """Test that generate_explain_html creates a file at the specified path."""
     generate_explain_html(temp_output_path, audio_data, decisions, config)
     assert os.path.exists(temp_output_path)
 
 
-def test_generate_explain_html_contains_valid_html(
-    temp_output_path, audio_data, decisions, config
-):
+def test_generate_explain_html_contains_valid_html(temp_output_path, audio_data, decisions, config):
     """Test that the generated file contains valid HTML structure."""
     generate_explain_html(temp_output_path, audio_data, decisions, config)
 
@@ -136,9 +132,7 @@ def test_generate_explain_html_contains_valid_html(
     assert "<body>" in content
 
 
-def test_generate_explain_html_contains_audio_metadata(
-    temp_output_path, audio_data, decisions, config
-):
+def test_generate_explain_html_contains_audio_metadata(temp_output_path, audio_data, decisions, config):
     """Test that HTML includes audio metadata."""
     generate_explain_html(temp_output_path, audio_data, decisions, config)
 
@@ -150,9 +144,7 @@ def test_generate_explain_html_contains_audio_metadata(
     assert "Decision Report" in content
 
 
-def test_generate_explain_html_contains_decision_table(
-    temp_output_path, audio_data, decisions, config
-):
+def test_generate_explain_html_contains_decision_table(temp_output_path, audio_data, decisions, config):
     """Test that HTML includes the decision table with segment data."""
     generate_explain_html(temp_output_path, audio_data, decisions, config)
 
@@ -167,9 +159,7 @@ def test_generate_explain_html_contains_decision_table(
     assert "clip3.mp4" in content
 
 
-def test_generate_explain_html_contains_timeline_visualization(
-    temp_output_path, audio_data, decisions, config
-):
+def test_generate_explain_html_contains_timeline_visualization(temp_output_path, audio_data, decisions, config):
     """Test that HTML includes SVG timeline visualization."""
     generate_explain_html(temp_output_path, audio_data, decisions, config)
 
@@ -181,9 +171,7 @@ def test_generate_explain_html_contains_timeline_visualization(
     assert "<rect" in content  # SVG rectangles for segments
 
 
-def test_generate_explain_html_contains_statistics(
-    temp_output_path, audio_data, decisions, config
-):
+def test_generate_explain_html_contains_statistics(temp_output_path, audio_data, decisions, config):
     """Test that HTML includes statistics summary."""
     generate_explain_html(temp_output_path, audio_data, decisions, config)
 
@@ -195,9 +183,7 @@ def test_generate_explain_html_contains_statistics(
     assert "Unique Clips" in content
 
 
-def test_generate_explain_html_contains_config_summary(
-    temp_output_path, audio_data, decisions, config
-):
+def test_generate_explain_html_contains_config_summary(temp_output_path, audio_data, decisions, config):
     """Test that HTML includes configuration summary."""
     generate_explain_html(temp_output_path, audio_data, decisions, config)
 
@@ -208,9 +194,7 @@ def test_generate_explain_html_contains_config_summary(
     assert "Min clip duration" in content
 
 
-def test_generate_explain_html_escapes_special_characters(
-    temp_output_path, audio_data, config
-):
+def test_generate_explain_html_escapes_special_characters(temp_output_path, audio_data, config):
     """Test that special HTML characters in paths/names are properly escaped."""
     # Create decisions with special characters
     decisions_with_special_chars = [
@@ -243,9 +227,7 @@ def test_generate_explain_html_escapes_special_characters(
     assert "<script>" not in content
 
 
-def test_generate_explain_html_handles_empty_decisions(
-    temp_output_path, audio_data, config
-):
+def test_generate_explain_html_handles_empty_decisions(temp_output_path, audio_data, config):
     """Test that HTML generation handles empty decision list gracefully."""
     decisions: list[SegmentDecision] = []
     generate_explain_html(temp_output_path, audio_data, decisions, config)
@@ -300,9 +282,7 @@ def test_generate_explain_html_intensity_colors(temp_output_path, audio_data, co
     assert "#3b82f6" in content  # Blue for low
 
 
-def test_generate_explain_html_file_is_readable_utf8(
-    temp_output_path, audio_data, decisions, config
-):
+def test_generate_explain_html_file_is_readable_utf8(temp_output_path, audio_data, decisions, config):
     """Test that the generated HTML file is valid UTF-8."""
     generate_explain_html(temp_output_path, audio_data, decisions, config)
 
@@ -312,9 +292,7 @@ def test_generate_explain_html_file_is_readable_utf8(
     assert len(content) > 0
 
 
-def test_generate_explain_html_with_sections(
-    temp_output_path, audio_data, decisions, config
-):
+def test_generate_explain_html_with_sections(temp_output_path, audio_data, decisions, config):
     """Test that musical sections are included in the timeline."""
     generate_explain_html(temp_output_path, audio_data, decisions, config)
 

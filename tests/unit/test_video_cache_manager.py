@@ -89,6 +89,4 @@ class TestVideoAnalysisCache:
         """Should return project root when markers are present."""
         cache = VideoAnalysisCache()
         root = cache._find_project_root()
-        assert os.path.exists(os.path.join(root, "Makefile")) or os.path.exists(
-            os.path.join(root, ".git")
-        )
+        assert os.path.exists(os.path.join(root, "Makefile")) or os.path.exists(os.path.join(root, ".git"))

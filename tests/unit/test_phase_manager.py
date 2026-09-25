@@ -121,10 +121,7 @@ class TestVariationSelection:
         variations = [_make_variation(f"v{i}") for i in range(3)]
         phase = _make_phase(4.0, variations, selection="rotate")
 
-        selected = [
-            PhaseManager(hook_phase=phase, track_index=i)._selected["hook"]
-            for i in range(7)
-        ]
+        selected = [PhaseManager(hook_phase=phase, track_index=i)._selected["hook"] for i in range(7)]
         names = [v.name if v else None for v in selected]
         assert names == ["v0", "v1", "v2", "v0", "v1", "v2", "v0"]
 
@@ -199,9 +196,7 @@ class TestApplyToSegment:
         assert seg.phase_intro_effect == "none"
 
     def test_stamps_pacing_effects_list(self) -> None:
-        v = _make_variation(
-            "mixed", pacing_saturation_pulse=True, pacing_drift_zoom=True
-        )
+        v = _make_variation("mixed", pacing_saturation_pulse=True, pacing_drift_zoom=True)
         pm = PhaseManager(hook_phase=_make_phase(4.0, [v]))
         seg = _make_seg(1.0)
         pm.apply_to_segment(seg, 1.0)
@@ -303,9 +298,7 @@ class TestPacingConfigIntegration:
             hook_phase=PhaseConfig(
                 enabled=True,
                 end_time_seconds=4.0,
-                variations=[
-                    PhaseVariation(name="test", clip_selection="highest_intensity")
-                ],
+                variations=[PhaseVariation(name="test", clip_selection="highest_intensity")],
             )
         )
         assert config.hook_phase is not None

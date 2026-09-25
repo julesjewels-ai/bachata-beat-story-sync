@@ -69,9 +69,7 @@ class ExcelReportGenerator:
             cell = ws.cell(row=1, column=col, value=header)
             self.formatter.apply_header_style(cell, center=center)
 
-    def _build_summary_sheet(
-        self, ws: Any, audio_data: AudioAnalysisResult, video_count: int
-    ) -> None:
+    def _build_summary_sheet(self, ws: Any, audio_data: AudioAnalysisResult, video_count: int) -> None:
         """Constructs the summary sheet."""
         headers = ["Metric", "Value"]
         data = [
@@ -95,9 +93,7 @@ class ExcelReportGenerator:
 
         self.formatter.adjust_column_widths(ws)
 
-    def _build_video_sheet(
-        self, ws: Any, video_data: list[VideoAnalysisResult]
-    ) -> None:
+    def _build_video_sheet(self, ws: Any, video_data: list[VideoAnalysisResult]) -> None:
         """Constructs the video details sheet."""
         headers = ["File Path", "Duration (s)", "Intensity Score", "Thumbnail"]
 
@@ -114,9 +110,7 @@ class ExcelReportGenerator:
                 ws.cell(row=r, column=4, value="[No Image]")
                 continue
 
-            if not self.thumbnail_embedder.embed_thumbnail(
-                ws, r, 4, video.thumbnail_data
-            ):
+            if not self.thumbnail_embedder.embed_thumbnail(ws, r, 4, video.thumbnail_data):
                 ws.cell(row=r, column=4, value="[Error]")
 
         # Auto-size columns
@@ -125,13 +119,9 @@ class ExcelReportGenerator:
         # Apply Conditional Formatting to Intensity Score (Column 3)
         row_count = len(video_data)
         if row_count > 0:
-            self.formatter.apply_intensity_conditional_formatting(
-                ws, min_row=2, max_row=row_count + 1, col_idx=3
-            )
+            self.formatter.apply_intensity_conditional_formatting(ws, min_row=2, max_row=row_count + 1, col_idx=3)
 
-    def _build_visualization_sheet(
-        self, wb: Any, source_sheet_name: str, data_count: int
-    ) -> None:
+    def _build_visualization_sheet(self, wb: Any, source_sheet_name: str, data_count: int) -> None:
         """Adds charts to the workbook."""
         if data_count == 0:
             return
@@ -140,9 +130,7 @@ class ExcelReportGenerator:
         source_ws = wb[source_sheet_name]
 
         # Create Intensity Chart (Column 3 is Intensity)
-        chart = self.chart_builder.create_intensity_chart(
-            source_ws, data_count, intensity_col_idx=3
-        )
+        chart = self.chart_builder.create_intensity_chart(source_ws, data_count, intensity_col_idx=3)
 
         if chart:
             ws.add_chart(chart, "A1")

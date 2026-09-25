@@ -188,11 +188,7 @@ def render_progress_fragment() -> None:
         st.rerun()
 
     stage_keys = list(tracker.STAGE_HEURISTICS.keys())
-    current_idx = (
-        stage_keys.index(tracker.current_stage)
-        if tracker.current_stage in stage_keys
-        else 0
-    )
+    current_idx = stage_keys.index(tracker.current_stage) if tracker.current_stage in stage_keys else 0
     cumulative = sum(tracker.STAGE_HEURISTICS[k] for k in stage_keys[:current_idx])
     current_weight = tracker.STAGE_HEURISTICS.get(tracker.current_stage, 10)
     progress_value = min((cumulative + current_weight * 0.5) / 100.0, 0.97)

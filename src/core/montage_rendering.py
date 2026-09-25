@@ -80,10 +80,7 @@ def render_montage(
             beat_times=audio_data.beat_times,
         )
 
-        transitions_enabled = (
-            render_config.transition_type
-            and render_config.transition_type.lower() != "none"
-        )
+        transitions_enabled = render_config.transition_type and render_config.transition_type.lower() != "none"
 
         if transitions_enabled:
             groups = group_segments_by_section(segments)
@@ -92,9 +89,7 @@ def render_montage(
                 group_files = []
                 file_idx = 0
                 for group_idx, group in enumerate(groups):
-                    group_segment_files = segment_files[
-                        file_idx : file_idx + len(group)
-                    ]
+                    group_segment_files = segment_files[file_idx : file_idx + len(group)]
                     file_idx += len(group)
 
                     if len(group_segment_files) == 1:
@@ -124,8 +119,7 @@ def render_montage(
             delta = abs(video_dur - output_target_duration)
             signed_delta = output_target_duration - video_dur
             logger.info(
-                "Pre-overlay duration check: rendered=%.3fs target=%.3fs "
-                "delta=%+.3fs tolerance=%.3fs",
+                "Pre-overlay duration check: rendered=%.3fs target=%.3fs delta=%+.3fs tolerance=%.3fs",
                 video_dur,
                 output_target_duration,
                 signed_delta,
@@ -198,17 +192,11 @@ def render_montage(
         else:
             shutil.move(concat_path, output_path)
 
-        wants_mix_fades = render_config.mix_fade_transitions and bool(
-            render_config.mix_track_segments
-        )
+        wants_mix_fades = render_config.mix_fade_transitions and bool(render_config.mix_track_segments)
         if render_config.text_overlay_enabled or wants_mix_fades:
             from src.core.text_overlay import build_text_events  # noqa: WPS433
 
-            text_events = (
-                build_text_events(config, audio_path)
-                if render_config.text_overlay_enabled
-                else []
-            )
+            text_events = build_text_events(config, audio_path) if render_config.text_overlay_enabled else []
             if text_events or wants_mix_fades:
                 if os.path.isfile(output_path):
                     pre_text = output_path + ".pre_text.mp4"

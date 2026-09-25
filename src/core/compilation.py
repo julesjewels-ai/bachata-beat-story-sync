@@ -171,11 +171,7 @@ def generate_compilation(
         config.transition_duration,
     )
 
-    use_transitions = (
-        config.transition_type != "none"
-        and len(track_videos) > 1
-        and config.transition_duration > 0
-    )
+    use_transitions = config.transition_type != "none" and len(track_videos) > 1 and config.transition_duration > 0
 
     with tempfile.TemporaryDirectory() as temp_dir:
         if use_transitions:
@@ -239,10 +235,7 @@ def _generate_chapter_markers(
 
     youtube_path = output_path.replace(".json", ".txt")
     with open(youtube_path, "w") as f:
-        lines = [
-            f"{chapter['start_time_formatted']} - {chapter['title']}"
-            for chapter in chapters
-        ]
+        lines = [f"{chapter['start_time_formatted']} - {chapter['title']}" for chapter in chapters]
         f.write("\n".join(lines) + "\n")
 
 

@@ -56,9 +56,7 @@ class BachataSyncEngine:
                 cached_result = self.cache.get(video_path)
                 if cached_result is not None:
                     if observer:
-                        observer.on_progress(
-                            i, total_files, f"Scanning {filename} (cached)..."
-                        )
+                        observer.on_progress(i, total_files, f"Scanning {filename} (cached)...")
                     clips.append(cached_result)
                     continue
 
@@ -75,13 +73,9 @@ class BachataSyncEngine:
 
         return clips
 
-    def _collect_video_files(
-        self, directory: str, exclude_dirs: list[str] | None = None
-    ) -> list[str]:
+    def _collect_video_files(self, directory: str, exclude_dirs: list[str] | None = None) -> list[str]:
         """Recursively collects all supported video files in a directory."""
-        exclude_dirs = (
-            [os.path.abspath(d) for d in exclude_dirs] if exclude_dirs else []
-        )
+        exclude_dirs = [os.path.abspath(d) for d in exclude_dirs] if exclude_dirs else []
         collected = []
         for root, dirs, files in os.walk(directory):
             # Skip excluded directories
@@ -94,10 +88,7 @@ class BachataSyncEngine:
             dirs[:] = [
                 d
                 for d in dirs
-                if not any(
-                    os.path.abspath(os.path.join(root, d)).startswith(ex_dir)
-                    for ex_dir in exclude_dirs
-                )
+                if not any(os.path.abspath(os.path.join(root, d)).startswith(ex_dir) for ex_dir in exclude_dirs)
             ]
 
             for file in files:

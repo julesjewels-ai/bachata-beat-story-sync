@@ -77,11 +77,7 @@ def run_streamlit_generation(
                 artist = pacing_kwargs.get("track_artist", "")
                 title = pacing_kwargs.get("track_title", "")
                 duration = result.audio_meta.duration if result.audio_meta else 0.0
-                segments = (
-                    [TrackSegment(artist=artist, title=title, start_time=0.0)]
-                    if title
-                    else []
-                )
+                segments = [TrackSegment(artist=artist, title=title, start_time=0.0)] if title else []
                 written = generate_and_write(
                     content_type="song",
                     track_segments=segments,
@@ -102,9 +98,7 @@ def run_streamlit_generation(
             # Collect metadata for result metrics panel
             bpm = round(result.audio_meta.bpm, 1) if result.audio_meta else 0
             clips_total = len(result.video_clips) if result.video_clips else 0
-            duration_s = (
-                round(result.audio_meta.duration, 1) if result.audio_meta else 0
-            )
+            duration_s = round(result.audio_meta.duration, 1) if result.audio_meta else 0
             effects_count = sum(
                 [
                     bool(pacing_kwargs.get("video_style") not in (None, "none")),

@@ -26,9 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Bachata Beat-Story Sync: Shorts Batch Generator"
-    )
+    parser = argparse.ArgumentParser(description="Bachata Beat-Story Sync: Shorts Batch Generator")
     parser.add_argument(
         "--audio",
         type=str,
@@ -53,9 +51,7 @@ def parse_args() -> argparse.Namespace:
         default="60",
         help="Target duration in seconds (e.g. '60' or '10-15' for variance)",
     )
-    parser.add_argument(
-        "--count", type=int, default=1, help="Number of unique shorts to generate"
-    )
+    parser.add_argument("--count", type=int, default=1, help="Number of unique shorts to generate")
 
     parser.add_argument(
         "--test-mode",
