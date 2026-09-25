@@ -31,9 +31,7 @@ logger = logging.getLogger(__name__)
 # Font resolution
 # ---------------------------------------------------------------------------
 
-_ASSETS_FONTS_DIR = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "..", "assets", "fonts")
-)
+_ASSETS_FONTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "assets", "fonts"))
 
 _FONT_SEARCH_DIRS = [
     _ASSETS_FONTS_DIR,
@@ -508,9 +506,7 @@ def build_text_events(
         if lrc_path:
             entries = parse_lrc(lrc_path)
             lrc_events = lrc_to_text_events(entries, cold_open_end=cold_open_end)
-            logger.info(
-                "LRC overlay: %d lyric lines loaded from %s", len(lrc_events), lrc_path
-            )
+            logger.info("LRC overlay: %d lyric lines loaded from %s", len(lrc_events), lrc_path)
             events.extend(lrc_events)
 
     events.sort(key=lambda e: e.start)

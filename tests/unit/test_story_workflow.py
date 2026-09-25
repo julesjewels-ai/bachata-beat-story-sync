@@ -88,9 +88,7 @@ def test_build_story_pacing_merges_runtime_overrides(monkeypatch) -> None:
     assert pacing.max_duration_seconds == 30.0
 
 
-def test_run_story_workflow_returns_plan_report_for_dry_run(
-    monkeypatch, tmp_path
-) -> None:
+def test_run_story_workflow_returns_plan_report_for_dry_run(monkeypatch, tmp_path) -> None:
     audio_meta = _make_audio_result()
     clip = _make_clip("/videos/clip.mp4")
     broll_clip = _make_clip("/videos/broll/bg.mp4")
@@ -151,9 +149,7 @@ def test_run_story_workflow_renders_with_observer_factories(monkeypatch) -> None
     )
     monkeypatch.setattr(
         "src.application.story_workflow.build_pacing_config",
-        lambda overrides=None: PacingConfig(
-            video_style=(overrides or {}).get("video_style", "golden")
-        ),
+        lambda overrides=None: PacingConfig(video_style=(overrides or {}).get("video_style", "golden")),
     )
 
     engine = MagicMock()

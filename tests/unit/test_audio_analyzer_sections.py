@@ -4,8 +4,7 @@ from src.core.models import MusicalSection
 
 
 @pytest.mark.parametrize(
-    "beat_times, intensity_curve, duration,"
-    " smoothing_window, expected_labels, expected_count",
+    "beat_times, intensity_curve, duration, smoothing_window, expected_labels, expected_count",
     [
         # Case 1: Empty input -> Full track
         ([], [], 10.0, 8, ["full_track"], 1),
@@ -130,15 +129,11 @@ def test_detect_sections_scenarios(
         smoothing_window=smoothing_window,
     )
 
-    assert len(sections) == expected_count, (
-        f"Expected {expected_count} sections, got {len(sections)}"
-    )
+    assert len(sections) == expected_count, f"Expected {expected_count} sections, got {len(sections)}"
 
     for i, section in enumerate(sections):
         assert isinstance(section, MusicalSection)
         if i < len(expected_labels):
             assert section.label == expected_labels[i], (
-                f"Section {i} label mismatch."
-                f" Expected {expected_labels[i]},"
-                f" got {section.label}"
+                f"Section {i} label mismatch. Expected {expected_labels[i]}, got {section.label}"
             )

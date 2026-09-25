@@ -116,9 +116,7 @@ def test_no_font_arg_when_path_empty():
 
 
 def _write_lrc(lines: list[str]) -> str:
-    f = tempfile.NamedTemporaryFile(
-        mode="w", suffix=".lrc", delete=False, encoding="utf-8"
-    )
+    f = tempfile.NamedTemporaryFile(mode="w", suffix=".lrc", delete=False, encoding="utf-8")
     f.write("\n".join(lines))
     f.close()
     return f.name
@@ -295,12 +293,7 @@ def test_cold_open_lrc_fallback_when_no_scene_txt():
         lrc = os.path.join(d, "track.lrc")
         open(audio, "w").close()
         with open(lrc, "w", encoding="utf-8") as f:
-            f.write(
-                "[00:10.00]Verso\n"
-                "[00:14.00]Te quiero\n"
-                "[00:20.00]Verso dos\n"
-                "[00:24.00]Te quiero\n"
-            )
+            f.write("[00:10.00]Verso\n[00:14.00]Te quiero\n[00:20.00]Verso dos\n[00:24.00]Te quiero\n")
 
         config = _make_config()
         events = build_cold_open_events(config, audio_path=audio)

@@ -53,9 +53,7 @@ def mock_get_video_duration():
         yield mock
 
 
-def create_mock_cap(
-    fps=30.0, frame_count=300, width=1920.0, height=1080.0, read_success=True
-):
+def create_mock_cap(fps=30.0, frame_count=300, width=1920.0, height=1080.0, read_success=True):
     """
     Helper to create a configured Mock VideoCapture.
 
@@ -162,9 +160,7 @@ def test_analyze_video_success(
     assert result.thumbnail_data is not None
 
 
-def test_thumbnail_encode_failure(
-    analyzer, mock_video_capture, mock_exists, mock_isdir
-):
+def test_thumbnail_encode_failure(analyzer, mock_video_capture, mock_exists, mock_isdir):
     """Test handling when thumbnail encoding fails."""
     mock_cap = create_mock_cap()
     mock_video_capture.return_value = mock_cap
@@ -178,9 +174,7 @@ def test_thumbnail_encode_failure(
     assert result.intensity_score >= 0.0
 
 
-def test_analyze_video_dos_frames(
-    analyzer, mock_video_capture, mock_exists, mock_isdir
-):
+def test_analyze_video_dos_frames(analyzer, mock_video_capture, mock_exists, mock_isdir):
     """Test DoS protection against excessive frame count."""
     # Use helper with excessive frames
     mock_cap = create_mock_cap(frame_count=MAX_VIDEO_FRAMES + 1)
@@ -192,9 +186,7 @@ def test_analyze_video_dos_frames(
         analyzer.analyze(input_data)
 
 
-def test_analyze_video_dos_duration(
-    analyzer, mock_video_capture, mock_exists, mock_isdir, mock_get_video_duration
-):
+def test_analyze_video_dos_duration(analyzer, mock_video_capture, mock_exists, mock_isdir, mock_get_video_duration):
     """Test DoS protection against excessive duration."""
     # Mock get_video_duration to return a duration that exceeds the max
     mock_get_video_duration.return_value = MAX_VIDEO_DURATION_SECONDS + 1
@@ -207,9 +199,7 @@ def test_analyze_video_dos_duration(
         analyzer.analyze(input_data)
 
 
-def test_analyze_video_open_failure(
-    analyzer, mock_video_capture, mock_exists, mock_isdir
-):
+def test_analyze_video_open_failure(analyzer, mock_video_capture, mock_exists, mock_isdir):
     """Test failure when video cannot be opened."""
     mock_cap = MagicMock()
     mock_cap.isOpened.return_value = False
@@ -221,9 +211,7 @@ def test_analyze_video_open_failure(
         analyzer.analyze(input_data)
 
 
-def test_analyze_video_read_failure(
-    analyzer, mock_video_capture, mock_exists, mock_isdir
-):
+def test_analyze_video_read_failure(analyzer, mock_video_capture, mock_exists, mock_isdir):
     """Test when video exists but frames cannot be read."""
     mock_cap = create_mock_cap(read_success=False)
     mock_video_capture.return_value = mock_cap
@@ -255,9 +243,7 @@ def test_validate_extension(mock_exists, mock_isdir):
         VideoAnalysisInput(file_path="test.exe")
 
 
-def test_thumbnail_extraction_failure(
-    analyzer, mock_video_capture, mock_exists, mock_isdir, mock_get_video_duration
-):
+def test_thumbnail_extraction_failure(analyzer, mock_video_capture, mock_exists, mock_isdir, mock_get_video_duration):
     """Test that analysis proceeds even if thumbnail extraction fails."""
     mock_cap = create_mock_cap()
 

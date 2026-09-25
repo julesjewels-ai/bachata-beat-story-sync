@@ -139,9 +139,7 @@ def test_filter_waveform_centered_uses_cline() -> None:
 
 
 def test_filter_bars_with_palette_distributes_colors() -> None:
-    f = build_overlay_filter(
-        _overlay(audio_overlay="bars", audio_overlay_palette="rainbow")
-    )
+    f = build_overlay_filter(_overlay(audio_overlay="bars", audio_overlay_palette="rainbow"))
     assert "showfreqs" in f
     assert "mode=bar" in f
     # Pipe-joined colors for the rainbow palette.
@@ -149,9 +147,7 @@ def test_filter_bars_with_palette_distributes_colors() -> None:
 
 
 def test_filter_spectrum_uses_color_preset_and_log_scale() -> None:
-    f = build_overlay_filter(
-        _overlay(audio_overlay="spectrum", audio_overlay_palette="warm")
-    )
+    f = build_overlay_filter(_overlay(audio_overlay="spectrum", audio_overlay_palette="warm"))
     assert "showspectrum" in f
     assert "color=fiery" in f
     assert "scale=log" in f
@@ -175,9 +171,7 @@ def test_filter_shorts_width_uses_1080_base() -> None:
 
 
 def test_filter_respects_width_pct_and_height() -> None:
-    f = build_overlay_filter(
-        _overlay(audio_overlay_width_pct=0.5, audio_overlay_height=200)
-    )
+    f = build_overlay_filter(_overlay(audio_overlay_width_pct=0.5, audio_overlay_height=200))
     assert "s=960x200" in f  # 50% of 1920
 
 

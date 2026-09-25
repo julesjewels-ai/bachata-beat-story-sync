@@ -34,21 +34,14 @@ def _write_click_track(
             if idx >= total_samples:
                 break
             envelope = 1.0 - (i / click_len)
-            value = (
-                amplitude * math.sin(2 * math.pi * 880 * (i / sample_rate)) * envelope
-            )
+            value = amplitude * math.sin(2 * math.pi * 880 * (i / sample_rate)) * envelope
             samples[idx] += value
 
     with wave.open(str(path), "wb") as wav:
         wav.setnchannels(1)
         wav.setsampwidth(2)  # int16
         wav.setframerate(sample_rate)
-        wav.writeframes(
-            b"".join(
-                struct.pack("<h", max(-32767, min(32767, int(sample * 32767))))
-                for sample in samples
-            )
-        )
+        wav.writeframes(b"".join(struct.pack("<h", max(-32767, min(32767, int(sample * 32767)))) for sample in samples))
 
 
 def _render_clip(path: Path, source_filter: str, *, duration: float = 8.0) -> None:

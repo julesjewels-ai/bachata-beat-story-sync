@@ -57,23 +57,17 @@ def _support() -> PipelinePhaseSupport:
 
 
 @patch("src.application.pipeline_phases.generate_video")
-def test_mix_phase_returns_none_on_render_failure_instead_of_raising(
-    mock_generate, tmp_path
-):
+def test_mix_phase_returns_none_on_render_failure_instead_of_raising(mock_generate, tmp_path):
     """A mix render failure degrades to (None, mix_meta) so the pipeline
     can continue with individual track videos rather than aborting."""
-    mock_generate.side_effect = ValueError(
-        "Invalid segment plan: under-covers target duration"
-    )
+    mock_generate.side_effect = ValueError("Invalid segment plan: under-covers target duration")
     mix_path = tmp_path / "_mixed_audio.wav"
     mix_path.write_bytes(b"RIFF")
     analyzer = MagicMock()
     mix_meta = _mix_meta()
     analyzer.analyze.return_value = mix_meta
     log = _fake_log()
-    args = SimpleNamespace(
-        shared_scan=True, output_dir=str(tmp_path), video_dir="/videos"
-    )
+    args = SimpleNamespace(shared_scan=True, output_dir=str(tmp_path), video_dir="/videos")
 
     result, returned_meta = generate_mix_video_phase(
         _support(),
@@ -103,9 +97,7 @@ def test_mix_phase_returns_path_on_success(mock_generate, tmp_path):
     mix_path.write_bytes(b"RIFF")
     analyzer = MagicMock()
     analyzer.analyze.return_value = _mix_meta()
-    args = SimpleNamespace(
-        shared_scan=True, output_dir=str(tmp_path), video_dir="/videos"
-    )
+    args = SimpleNamespace(shared_scan=True, output_dir=str(tmp_path), video_dir="/videos")
 
     result, _ = generate_mix_video_phase(
         _support(),

@@ -327,9 +327,7 @@ def test_mix_audio_folder_cache_invalidated_on_config_change():
         # Patch load_audio_mix_config to return the new config, and _mix_files to spy
         from src.core.audio_mixer import MixResult
 
-        with patch(
-            "src.core.audio_mixer.load_audio_mix_config", return_value=new_config
-        ):
+        with patch("src.core.audio_mixer.load_audio_mix_config", return_value=new_config):
             with patch.object(
                 mixer,
                 "_mix_files",

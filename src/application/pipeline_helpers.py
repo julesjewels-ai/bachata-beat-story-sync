@@ -42,9 +42,7 @@ def get_track_video_dir(
     if track_filename in per_track_clips:
         per_track_dir = per_track_clips[track_filename]
         if not os.path.isdir(per_track_dir):
-            raise FileNotFoundError(
-                f"Per-track clip folder not found for {track_filename}: {per_track_dir}"
-            )
+            raise FileNotFoundError(f"Per-track clip folder not found for {track_filename}: {per_track_dir}")
         logger.info(
             "Using per-track clip folder for %s: %s",
             track_filename,

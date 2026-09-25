@@ -79,11 +79,7 @@ def run_dry_run_phase(
         mix_audio_input = AudioAnalysisInput(file_path=mix_path)
         with log.status("Analyzing mix audio…"):
             mix_meta = analyzer.analyze(mix_audio_input)
-        clips_for_mix = (
-            shared_clips
-            if args.shared_scan
-            else support.scan_videos(engine, args.video_dir, broll_dir)[0]
-        )
+        clips_for_mix = shared_clips if args.shared_scan else support.scan_videos(engine, args.video_dir, broll_dir)[0]
         report = run_dry_run_handler(
             engine,
             mix_meta,
@@ -101,13 +97,9 @@ def run_dry_run_phase(
         with log.status(f"Analyzing track {idx} audio…"):
             track_meta = analyzer.analyze(track_input)
 
-        track_video_dir = support.get_track_video_dir(
-            track_path, pipeline_config, args.video_dir
-        )
+        track_video_dir = support.get_track_video_dir(track_path, pipeline_config, args.video_dir)
         clips_for_track = (
-            shared_clips
-            if args.shared_scan
-            else support.scan_videos(engine, track_video_dir, broll_dir)[0]
+            shared_clips if args.shared_scan else support.scan_videos(engine, track_video_dir, broll_dir)[0]
         )
 
         track_pacing_kwargs = {**pacing_kwargs, "prefix_offset": idx - 1}
@@ -119,9 +111,7 @@ def run_dry_run_phase(
         if track_style != base_pacing.video_style:
             track_pacing_kwargs["video_style"] = track_style
 
-        track_artist, track_title = support.extract_track_metadata(
-            track_path, pipeline_config
-        )
+        track_artist, track_title = support.extract_track_metadata(track_path, pipeline_config)
         if track_artist:
             track_pacing_kwargs["track_artist"] = track_artist
         if track_title:
@@ -171,10 +161,7 @@ def generate_mix_video_phase(
     mix_audio_input = AudioAnalysisInput(file_path=mix_path)
     with log.status("Analyzing mix audio…"):
         mix_meta = analyzer.analyze(mix_audio_input)
-    log.detail(
-        f"BPM={mix_meta.bpm:.1f}  peaks={len(mix_meta.peaks)}"
-        f"  duration={mix_meta.duration:.1f}s"
-    )
+    log.detail(f"BPM={mix_meta.bpm:.1f}  peaks={len(mix_meta.peaks)}  duration={mix_meta.duration:.1f}s")
 
     if args.shared_scan:
         clips, broll = shared_clips, shared_broll
@@ -199,10 +186,7 @@ def generate_mix_video_phase(
                 broll_clips=broll,
             )
         except Exception as e:
-            log.warn(
-                f"Failed to generate mix video: {e}. "
-                "Skipping mix — continuing with individual track videos."
-            )
+            log.warn(f"Failed to generate mix video: {e}. Skipping mix — continuing with individual track videos.")
             logger.exception("Mix video generation error:")
             return None, mix_meta
     log.success(f"Mix video: [bold]{result}[/bold]")
@@ -239,14 +223,9 @@ def process_individual_tracks(
         track_input = AudioAnalysisInput(file_path=track_path)
         with log.status("Analyzing track audio…"):
             track_meta = analyzer.analyze(track_input)
-        log.detail(
-            f"BPM={track_meta.bpm:.1f}  peaks={len(track_meta.peaks)}"
-            f"  duration={track_meta.duration:.1f}s"
-        )
+        log.detail(f"BPM={track_meta.bpm:.1f}  peaks={len(track_meta.peaks)}  duration={track_meta.duration:.1f}s")
 
-        track_video_dir = support.get_track_video_dir(
-            track_path, pipeline_config, args.video_dir
-        )
+        track_video_dir = support.get_track_video_dir(track_path, pipeline_config, args.video_dir)
 
         if args.shared_scan:
             clips, broll = shared_clips, shared_broll
@@ -268,9 +247,7 @@ def process_individual_tracks(
         if track_style != base_pacing.video_style:
             track_pacing["video_style"] = track_style
 
-        track_artist, track_title = support.extract_track_metadata(
-            track_path, pipeline_config
-        )
+        track_artist, track_title = support.extract_track_metadata(track_path, pipeline_config)
         if track_artist:
             track_pacing["track_artist"] = track_artist
         if track_title:
@@ -356,10 +333,7 @@ def generate_compilation_phase(
             chapters_path = compilation_out.replace(".mp4", "_chapters.json")
             if os.path.exists(chapters_path):
                 chapters_txt = compilation_out.replace(".mp4", "_chapters.txt")
-                log.detail(
-                    f"Chapter markers: [bold]{chapters_txt}[/bold] "
-                    "(paste into YouTube description)"
-                )
+                log.detail(f"Chapter markers: [bold]{chapters_txt}[/bold] (paste into YouTube description)")
             return result
         except Exception as e:
             log.warn(f"Compilation generation failed: {e}")
@@ -395,8 +369,7 @@ def transcribe_compilation_phase(
             write_transcript_json(result, json_out)
             write_srt(result.segments, srt_out)
             log.success(
-                f"Transcript JSON: [bold]{json_out}[/bold] "
-                f"({len(result.segments)} segments, lang={result.language})"
+                f"Transcript JSON: [bold]{json_out}[/bold] ({len(result.segments)} segments, lang={result.language})"
             )
             log.detail(f"SRT subtitles:  [bold]{srt_out}[/bold]")
             return [json_out, srt_out]

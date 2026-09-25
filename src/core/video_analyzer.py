@@ -147,9 +147,7 @@ class VideoAnalyzer:
         new_height = int(height * scale_ratio)
         return cv2.resize(frame, (new_width, new_height))
 
-    def _validate_video_properties(
-        self, cap: cv2.VideoCapture, file_path: str
-    ) -> float:
+    def _validate_video_properties(self, cap: cv2.VideoCapture, file_path: str) -> float:
         """
         Validates frame count and duration to prevent DoS.
         Uses ffprobe for accurate duration (OpenCV CAP_PROP_FRAME_COUNT is unreliable).
@@ -159,9 +157,7 @@ class VideoAnalyzer:
 
         # Security Check: Prevent DoS via massive video files
         if frame_count > MAX_VIDEO_FRAMES:
-            raise ValueError(
-                f"Video exceeds maximum allowed frames ({MAX_VIDEO_FRAMES})"
-            )
+            raise ValueError(f"Video exceeds maximum allowed frames ({MAX_VIDEO_FRAMES})")
 
         # Get duration via ffprobe (more reliable than OpenCV's frame count)
         duration = get_video_duration(file_path)
@@ -170,8 +166,7 @@ class VideoAnalyzer:
             if frame_count > 0 and fps > 0:
                 duration = frame_count / fps
                 logger.warning(
-                    "Could not probe duration for %s via ffprobe; "
-                    "falling back to frame_count/fps (%.2fs)",
+                    "Could not probe duration for %s via ffprobe; falling back to frame_count/fps (%.2fs)",
                     file_path,
                     duration,
                 )
@@ -180,9 +175,7 @@ class VideoAnalyzer:
             raise ValueError(f"Could not determine duration for video: {file_path}")
 
         if duration > MAX_VIDEO_DURATION_SECONDS:
-            raise ValueError(
-                f"Video exceeds maximum duration ({MAX_VIDEO_DURATION_SECONDS}s)"
-            )
+            raise ValueError(f"Video exceeds maximum duration ({MAX_VIDEO_DURATION_SECONDS}s)")
 
         return duration
 
@@ -242,11 +235,7 @@ class VideoAnalyzer:
         top_changes = scene_candidates[:MAX_SCENE_CHANGES]
         scene_changes = sorted(t for t, _ in top_changes)
 
-        opening_intensity = (
-            float(np.mean(opening_scores)) / NORMALIZATION_FACTOR
-            if opening_scores
-            else 0.0
-        )
+        opening_intensity = float(np.mean(opening_scores)) / NORMALIZATION_FACTOR if opening_scores else 0.0
 
         return IntensityResult(
             mean_motion=mean_motion,

@@ -119,15 +119,11 @@ def run_ffmpeg(
                     stderr_text = retry_result.stderr or stderr_text
 
             stderr_tail = stderr_text[-500:] if stderr_text else ""
-            raise RuntimeError(
-                f"FFmpeg failed during {stage_name} "
-                f"(exit code {result.returncode}): {stderr_tail}"
-            )
+            raise RuntimeError(f"FFmpeg failed during {stage_name} (exit code {result.returncode}): {stderr_tail}")
 
     except subprocess.TimeoutExpired:
         raise RuntimeError(
-            f"FFmpeg timed out during {stage_name} "
-            f"(>{effective_timeout}s). The input file may be too large."
+            f"FFmpeg timed out during {stage_name} (>{effective_timeout}s). The input file may be too large."
         ) from None
 
 

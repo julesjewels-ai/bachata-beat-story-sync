@@ -40,13 +40,7 @@ def validate_duration_contract(
     issues: list[str] = []
     duration_delta = actual_duration - expected_duration
     absolute_delta = abs(duration_delta)
-    alignment_status = (
-        "over"
-        if duration_delta > tolerance
-        else "under"
-        if duration_delta < -tolerance
-        else "ok"
-    )
+    alignment_status = "over" if duration_delta > tolerance else "under" if duration_delta < -tolerance else "ok"
 
     if expected_duration > 0:
         if duration_delta < -tolerance:
@@ -93,34 +87,20 @@ def validate_segment_plan(
     total_segments = len(segments)
     for idx, seg in enumerate(segments, start=1):
         if seg.duration <= 0:
-            issues.append(
-                f"Segment {idx} has non-positive duration ({seg.duration:.3f}s)."
-            )
+            issues.append(f"Segment {idx} has non-positive duration ({seg.duration:.3f}s).")
         # Allow a shorter terminal segment for exact tail coverage or forced clips.
         basename = os.path.basename(seg.video_path)
         is_forced = bool(re.match(r"^(\d+)_", basename))
         if idx < total_segments and not is_forced and seg.duration + tolerance < min_clip_seconds:
-            issues.append(
-                f"Segment {idx} is below min_clip_seconds "
-                f"({seg.duration:.3f}s < {min_clip_seconds:.3f}s)."
-            )
+            issues.append(f"Segment {idx} is below min_clip_seconds ({seg.duration:.3f}s < {min_clip_seconds:.3f}s).")
         if seg.timeline_position < -tolerance:
-            issues.append(
-                f"Segment {idx} has negative timeline position "
-                f"({seg.timeline_position:.3f}s)."
-            )
+            issues.append(f"Segment {idx} has negative timeline position ({seg.timeline_position:.3f}s).")
 
         delta = seg.timeline_position - previous_end
         if delta > tolerance:
-            issues.append(
-                f"Gap before segment {idx}: {delta:.3f}s "
-                f"(previous_end={previous_end:.3f}s)."
-            )
+            issues.append(f"Gap before segment {idx}: {delta:.3f}s (previous_end={previous_end:.3f}s).")
         elif delta < -tolerance:
-            issues.append(
-                f"Overlap before segment {idx}: {-delta:.3f}s "
-                f"(previous_end={previous_end:.3f}s)."
-            )
+            issues.append(f"Overlap before segment {idx}: {-delta:.3f}s (previous_end={previous_end:.3f}s).")
 
         previous_end = seg.timeline_position + seg.duration
 

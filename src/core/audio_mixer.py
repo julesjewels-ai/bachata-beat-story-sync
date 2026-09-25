@@ -181,9 +181,7 @@ def _config_fingerprint(config: AudioMixConfig, audio_files: list[str]) -> str:
         "sync_threshold": config.sync_threshold,
         "files": file_meta,
     }
-    return hashlib.md5(
-        json.dumps(data, sort_keys=True).encode(), usedforsecurity=False
-    ).hexdigest()
+    return hashlib.md5(json.dumps(data, sort_keys=True).encode(), usedforsecurity=False).hexdigest()
 
 
 def _calculate_atempo_ratio(
@@ -206,17 +204,14 @@ def _calculate_atempo_ratio(
         The ``atempo`` ratio as a float, or ``None`` to skip stretching.
     """
     if abs(source_bpm - target_bpm) < 1.0:
-        logger.debug(
-            "BPM diff < 1 BPM (%.1f→%.1f); skipping tempo sync.", source_bpm, target_bpm
-        )
+        logger.debug("BPM diff < 1 BPM (%.1f→%.1f); skipping tempo sync.", source_bpm, target_bpm)
         return None
 
     ratio = target_bpm / source_bpm
 
     if not (1.0 - threshold) <= ratio <= (1.0 + threshold):
         logger.warning(
-            "BPM diff %.1f→%.1f (ratio %.3f) exceeds threshold %.0f%%; "
-            "tempo sync skipped to preserve audio quality.",
+            "BPM diff %.1f→%.1f (ratio %.3f) exceeds threshold %.0f%%; tempo sync skipped to preserve audio quality.",
             source_bpm,
             target_bpm,
             ratio,
@@ -296,10 +291,7 @@ class AudioMixer:
                     "Mixed audio cache hit at %s (config and files unchanged).",
                     output_path,
                 )
-                starts = [
-                    (entry["path"], float(entry["start"]))
-                    for entry in cached.get("track_starts", [])
-                ]
+                starts = [(entry["path"], float(entry["start"])) for entry in cached.get("track_starts", [])]
                 return MixResult(output_path, starts)
             logger.info("Mix folder or config changed; regenerating mix.")
             try:
@@ -328,9 +320,7 @@ class AudioMixer:
                 json.dump(
                     {
                         "fingerprint": current_fp,
-                        "track_starts": [
-                            {"path": p, "start": s} for p, s in result.track_starts
-                        ],
+                        "track_starts": [{"path": p, "start": s} for p, s in result.track_starts],
                     },
                     f,
                 )
@@ -373,9 +363,7 @@ class AudioMixer:
             try:
                 result = analyzer.analyze(AudioAnalysisInput(file_path=path))
                 bpm_map[path] = result.bpm
-                logger.info(
-                    "BPM detected: %s → %.1f BPM", os.path.basename(path), result.bpm
-                )
+                logger.info("BPM detected: %s → %.1f BPM", os.path.basename(path), result.bpm)
             except Exception as e:
                 logger.warning(
                     "BPM analysis failed for %s: %s — tempo sync will be skipped.",
@@ -445,9 +433,7 @@ class AudioMixer:
                 is_last = i == len(audio_files) - 1
 
                 if observer:
-                    observer.on_progress(
-                        i, len(audio_files), f"Mixing track {i + 1}..."
-                    )
+                    observer.on_progress(i, len(audio_files), f"Mixing track {i + 1}...")
 
                 # Measure the current mix duration BEFORE this crossfade so we
                 # can compute where the next track starts in the final mix.
@@ -464,18 +450,12 @@ class AudioMixer:
                         )
                         measurement_failed = True
 
-                step_output = (
-                    output_path
-                    if is_last
-                    else os.path.join(temp_dir, f"mix_step_{i:04d}.wav")
-                )
+                step_output = output_path if is_last else os.path.join(temp_dir, f"mix_step_{i:04d}.wav")
 
                 # Calculate tempo ratio for this transition
                 atempo_ratio: float | None = None
                 if current_bpm is not None and next_bpm is not None:
-                    atempo_ratio = _calculate_atempo_ratio(
-                        next_bpm, current_bpm, sync_threshold
-                    )
+                    atempo_ratio = _calculate_atempo_ratio(next_bpm, current_bpm, sync_threshold)
                     if atempo_ratio is not None:
                         logger.info(
                             "Tempo sync: %.1f→%.1f BPM (atempo=%.4f) for track %d→%d",
@@ -515,9 +495,7 @@ class AudioMixer:
                 current_bpm = next_bpm
 
             if observer:
-                observer.on_progress(
-                    len(audio_files), len(audio_files), "Mixing complete."
-                )
+                observer.on_progress(len(audio_files), len(audio_files), "Mixing complete.")
 
             if measurement_failed:
                 return MixResult(output_path, [])

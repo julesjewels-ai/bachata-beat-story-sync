@@ -158,9 +158,7 @@ def _resolve_video_dir(video_dir: str, errors: list[str]) -> str | None:
 
     resolved_video_dir = video_dir.strip()
     if not resolved_video_dir:
-        errors.append(
-            "Please upload video files or enter the path to your video clips folder."
-        )
+        errors.append("Please upload video files or enter the path to your video clips folder.")
         return None
     if not os.path.isdir(resolved_video_dir):
         errors.append(f"Video clips folder not found: {resolved_video_dir}")

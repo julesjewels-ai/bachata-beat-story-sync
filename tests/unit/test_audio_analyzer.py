@@ -147,9 +147,7 @@ class TestFindAudioHooks:
         min_sep = 15.0 * 0.5
         for i, a in enumerate(hooks):
             for b in hooks[i + 1 :]:
-                assert abs(a - b) >= min_sep, (
-                    f"Hooks {a:.1f}s and {b:.1f}s are too close"
-                )
+                assert abs(a - b) >= min_sep, f"Hooks {a:.1f}s and {b:.1f}s are too close"
 
     def test_prefers_high_intensity(self):
         # First half low, second half high

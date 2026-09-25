@@ -29,6 +29,7 @@ def _extract_audio(video_path: str, tmp_dir: str) -> str:
     wav_path = os.path.join(tmp_dir, "audio.wav")
     try:
         import imageio_ffmpeg
+
         ffmpeg_bin = imageio_ffmpeg.get_ffmpeg_exe()
     except ImportError:
         ffmpeg_bin = "ffmpeg"
@@ -36,10 +37,13 @@ def _extract_audio(video_path: str, tmp_dir: str) -> str:
     cmd = [
         ffmpeg_bin,
         "-y",
-        "-i", video_path,
-        "-ac", "1",          # mono
-        "-ar", "16000",      # 16kHz — Whisper's native rate
-        "-vn",               # strip video
+        "-i",
+        video_path,
+        "-ac",
+        "1",  # mono
+        "-ar",
+        "16000",  # 16kHz — Whisper's native rate
+        "-vn",  # strip video
         wav_path,
     ]
     subprocess.run(cmd, check=True, capture_output=True)
@@ -66,10 +70,7 @@ def transcribe_video(
     try:
         from faster_whisper import WhisperModel  # type: ignore[import]
     except ImportError as exc:
-        raise ImportError(
-            "faster-whisper not installed. Run: make install\n"
-            "(or: pip install faster-whisper)"
-        ) from exc
+        raise ImportError("faster-whisper not installed. Run: make install\n(or: pip install faster-whisper)") from exc
 
     logger.info("Loading Whisper model '%s'…", model_size)
     model = WhisperModel(model_size, device="cpu", compute_type="int8")
@@ -114,9 +115,7 @@ def transcribe_video(
                     words=words,
                 )
             )
-            logger.debug(
-                "[%.1f → %.1f] %s", seg.start, seg.end, seg.text.strip()
-            )
+            logger.debug("[%.1f → %.1f] %s", seg.start, seg.end, seg.text.strip())
 
     logger.info("Transcription complete: %d segments, language=%s", len(segments), detected_lang)
     return TranscriptResult(

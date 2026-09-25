@@ -177,9 +177,7 @@ class MontageGenerator:
             # FEAT-020: Prioritise vertical clips first, then score by opener
             # quality (opening_intensity + scene change near 4s mark).
             def _opener_score(c: VideoAnalysisResult) -> float:
-                has_scene_near_4s = (
-                    1.0 if any(3.0 <= t <= 5.0 for t in c.scene_changes) else 0.0
-                )
+                has_scene_near_4s = 1.0 if any(3.0 <= t <= 5.0 for t in c.scene_changes) else 0.0
                 return 0.5 * c.opening_intensity + 0.5 * has_scene_near_4s
 
             sorted_clips = sorted(
@@ -188,9 +186,7 @@ class MontageGenerator:
                 reverse=True,
             )
         else:
-            sorted_clips = sorted(
-                unique_clips, key=lambda c: c.intensity_score, reverse=True
-            )
+            sorted_clips = sorted(unique_clips, key=lambda c: c.intensity_score, reverse=True)
 
         return sorted_clips, forced_clips
 
@@ -472,9 +468,7 @@ class MontageGenerator:
     def _transitions_enabled(config: PlanningConfig) -> bool:
         """Whether section transitions are expected in render."""
         return (
-            bool(config.transition_type)
-            and config.transition_type.lower() != "none"
-            and config.transition_duration > 0
+            bool(config.transition_type) and config.transition_type.lower() != "none" and config.transition_duration > 0
         )
 
     @classmethod
@@ -555,9 +549,7 @@ class MontageGenerator:
 
         min_clip_limit = MIN_RECOVERY_SEGMENT_SECONDS if is_forced else config.min_clip_seconds
         min_required = min(min_clip_limit, remaining)
-        allow_short_terminal = remaining <= (
-            min_clip_limit + config.duration_sync_tolerance_seconds
-        )
+        allow_short_terminal = remaining <= (min_clip_limit + config.duration_sync_tolerance_seconds)
 
         def _accept(duration: float) -> bool:
             if duration + 1e-6 >= min_required:
@@ -772,10 +764,7 @@ class MontageGenerator:
         max_iterations = max(MAX_PLANNING_ITERATIONS, len(beat_times) * 4 + 100)
         last_anchor_beat_idx = -1
         for iteration in range(max_iterations):
-            if (
-                state.timeline_pos
-                >= target_duration - config.duration_sync_tolerance_seconds
-            ):
+            if state.timeline_pos >= target_duration - config.duration_sync_tolerance_seconds:
                 break
             if config.max_clips is not None and len(segments) >= config.max_clips:
                 logger.debug(
@@ -802,11 +791,7 @@ class MontageGenerator:
                 )
                 break
 
-            progress = (
-                min(1.0, state.timeline_pos / target_duration)
-                if target_duration > 0
-                else 0.0
-            )
+            progress = min(1.0, state.timeline_pos / target_duration) if target_duration > 0 else 0.0
             if beat_idx < len(intensity_curve):
                 intensity = intensity_curve[beat_idx]
             else:
@@ -866,8 +851,7 @@ class MontageGenerator:
             is_broll = False
             if (
                 broll_clips
-                and (state.timeline_pos - state.last_broll_time)
-                >= state.target_broll_interval
+                and (state.timeline_pos - state.last_broll_time) >= state.target_broll_interval
                 and state.has_regular_clip_since_broll
                 and state.timeline_pos > 0.0
             ):
@@ -958,15 +942,9 @@ class MontageGenerator:
             )
 
             # FEAT-036: Compute per-beat organic speed ramping when unchanged.
-            if (
-                config.speed_ramp_organic
-                and beat_count > 0
-                and fit.reason_suffix is None
-            ):
+            if config.speed_ramp_organic and beat_count > 0 and fit.reason_suffix is None:
                 curve_beats = max(1, round(seg.duration / spb))
-                intensity_slice = intensity_curve[
-                    beat_idx : min(beat_idx + curve_beats, len(intensity_curve))
-                ]
+                intensity_slice = intensity_curve[beat_idx : min(beat_idx + curve_beats, len(intensity_curve))]
                 if intensity_slice:
                     speed_curve = self._compute_speed_curve(intensity_slice, config)
                     seg.speed_curve = speed_curve
@@ -1067,9 +1045,7 @@ class MontageGenerator:
                     return None
 
                 candidate_clips = self._build_candidate_clips(primary, sorted_clips)
-                base_speed = (
-                    reference.speed_factor if not reference.speed_curve else 1.0
-                )
+                base_speed = reference.speed_factor if not reference.speed_curve else 1.0
                 fit = self._fit_segment_adaptive(
                     candidate_clips=candidate_clips,
                     desired_duration=remaining,
@@ -1119,21 +1095,13 @@ class MontageGenerator:
                 logger=logger,
             )
 
-        planned_duration = (
-            segments[-1].timeline_position + segments[-1].duration if segments else 0.0
-        )
+        planned_duration = segments[-1].timeline_position + segments[-1].duration if segments else 0.0
         final_overlap_budget = self._compute_transition_overlap_budget(segments, config)
         planned_target_duration = target_duration + final_overlap_budget
         expected_render_duration = max(0.0, planned_duration - final_overlap_budget)
-        clipped_by_max_clips = (
-            config.max_clips is not None and len(segments) >= config.max_clips
-        )
-        validation_target_duration = (
-            planned_duration if clipped_by_max_clips else planned_target_duration
-        )
-        render_target_duration = (
-            expected_render_duration if clipped_by_max_clips else target_duration
-        )
+        clipped_by_max_clips = config.max_clips is not None and len(segments) >= config.max_clips
+        validation_target_duration = planned_duration if clipped_by_max_clips else planned_target_duration
+        render_target_duration = expected_render_duration if clipped_by_max_clips else target_duration
         logger.debug(
             "=== build_segment_plan END ===\n"
             "  Total segments: %d\n"
@@ -1229,10 +1197,7 @@ class MontageGenerator:
 
         # Verify ffmpeg is available
         if not shutil.which("ffmpeg"):
-            raise RuntimeError(
-                "FFmpeg is not installed or not on PATH. "
-                "Install it with: brew install ffmpeg"
-            )
+            raise RuntimeError("FFmpeg is not installed or not on PATH. Install it with: brew install ffmpeg")
 
         # Load pacing config (explicit > file > defaults), then split by concern.
         config = pacing or load_pacing_config()
@@ -1252,15 +1217,10 @@ class MontageGenerator:
             broll_clips,
         )
         if not segments:
-            raise ValueError(
-                "Could not build a segment plan — no beats detected "
-                "in the audio analysis."
-            )
+            raise ValueError("Could not build a segment plan — no beats detected in the audio analysis.")
 
         total_dur = segments[-1].timeline_position + segments[-1].duration
-        overlap_budget = self._compute_transition_overlap_budget(
-            segments, planning_config
-        )
+        overlap_budget = self._compute_transition_overlap_budget(segments, planning_config)
         expected_render_dur = max(0.0, total_dur - overlap_budget)
         logger.info(
             "Built segment plan: %d segments, timeline=%.1fs "

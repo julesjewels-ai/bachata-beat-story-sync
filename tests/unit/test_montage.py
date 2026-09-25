@@ -114,9 +114,7 @@ def single_clip():
 class TestBuildSegmentPlan:
     """Tests for the pure-Python segment planning logic."""
 
-    def test_returns_segments_for_valid_input(
-        self, generator, audio_data, video_clips, default_pacing
-    ):
+    def test_returns_segments_for_valid_input(self, generator, audio_data, video_clips, default_pacing):
         """Valid audio + clips produces a non-empty segment plan."""
         segments = generator.build_segment_plan(audio_data, video_clips, default_pacing)
         assert len(segments) > 0
@@ -196,9 +194,7 @@ class TestBuildSegmentPlan:
         segments = generator.build_segment_plan(audio_data, [])
         assert segments == []
 
-    def test_no_beats_returns_empty(
-        self, generator, audio_data_empty_beats, video_clips
-    ):
+    def test_no_beats_returns_empty(self, generator, audio_data_empty_beats, video_clips):
         """No beats detected → empty segment plan."""
         segments = generator.build_segment_plan(audio_data_empty_beats, video_clips)
         assert segments == []
@@ -219,9 +215,7 @@ class TestBuildSegmentPlan:
         planned_duration = segments[-1].timeline_position + segments[-1].duration
         assert abs(planned_duration - 1.0) <= 0.10
 
-    def test_timeline_positions_are_sequential(
-        self, generator, audio_data, video_clips
-    ):
+    def test_timeline_positions_are_sequential(self, generator, audio_data, video_clips):
         """Timeline positions should be monotonically increasing."""
         segments = generator.build_segment_plan(audio_data, video_clips)
 
@@ -267,9 +261,7 @@ class TestBuildSegmentPlan:
                     "High-intensity beat should use the high-action clip"
                 )
             elif seg.intensity_level == "low":
-                assert seg.video_path == "/videos/calm_footage.mp4", (
-                    "Low-intensity beat should use the calm clip"
-                )
+                assert seg.video_path == "/videos/calm_footage.mp4", "Low-intensity beat should use the calm clip"
 
 
 class TestTransitionDurationContract:
@@ -319,12 +311,9 @@ class TestTransitionDurationContract:
 
         groups = generator._group_segments_by_section(segments)
         planned_duration = segments[-1].timeline_position + segments[-1].duration
-        expected_render = (
-            planned_duration
-            - generator._compute_transition_overlap_budget(
-                segments,
-                config,
-            )
+        expected_render = planned_duration - generator._compute_transition_overlap_budget(
+            segments,
+            config,
         )
 
         assert len(groups) == 2
@@ -349,12 +338,9 @@ class TestTransitionDurationContract:
         )
 
         planned_duration = segments[-1].timeline_position + segments[-1].duration
-        expected_render = (
-            planned_duration
-            - generator._compute_transition_overlap_budget(
-                segments,
-                config,
-            )
+        expected_render = planned_duration - generator._compute_transition_overlap_budget(
+            segments,
+            config,
         )
 
         assert planned_duration > 6.0
@@ -576,8 +562,7 @@ class TestMinimumClipDuration:
 
         for seg in segments:
             assert seg.duration >= config.min_clip_seconds, (
-                f"Segment duration {seg.duration:.2f}s is below "
-                f"minimum {config.min_clip_seconds}s"
+                f"Segment duration {seg.duration:.2f}s is below minimum {config.min_clip_seconds}s"
             )
 
     def test_high_bpm_still_respects_minimum(self, generator, video_clips):
@@ -646,11 +631,7 @@ class TestPacingConfig:
         config = PacingConfig(medium_intensity_seconds=3.0)
         segments = generator.build_segment_plan(audio, video_clips, config)
 
-        full_medium = [
-            seg
-            for seg in segments
-            if seg.intensity_level == "medium" and abs(seg.duration - 3.0) < 0.01
-        ]
+        full_medium = [seg for seg in segments if seg.intensity_level == "medium" and abs(seg.duration - 3.0) < 0.01]
         assert full_medium, "Expected at least one full 3.0s medium segment"
         planned_duration = segments[-1].timeline_position + segments[-1].duration
         assert abs(planned_duration - audio.duration) <= 0.10
@@ -663,9 +644,7 @@ class TestPacingConfig:
     def test_load_pacing_config_reads_yaml(self, tmp_path):
         """Loading from a valid YAML file returns correct values."""
         config_file = tmp_path / "test_config.yaml"
-        config_file.write_text(
-            "pacing:\n  min_clip_seconds: 2.0\n  high_intensity_seconds: 3.0\n"
-        )
+        config_file.write_text("pacing:\n  min_clip_seconds: 2.0\n  high_intensity_seconds: 3.0\n")
 
         config = load_pacing_config(str(config_file))
         assert config.min_clip_seconds == 2.0
@@ -683,17 +662,13 @@ class TestGenerateValidation:
             generator.generate(audio_data, [], "/tmp/out.mp4")
 
     @patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")
-    def test_raises_on_no_beats(
-        self, mock_which, generator, audio_data_empty_beats, video_clips
-    ):
+    def test_raises_on_no_beats(self, mock_which, generator, audio_data_empty_beats, video_clips):
         """No beats in audio raises ValueError."""
         with pytest.raises(ValueError, match="segment plan"):
             generator.generate(audio_data_empty_beats, video_clips, "/tmp/out.mp4")
 
     @patch("src.core.montage.shutil.which", return_value=None)
-    def test_raises_when_ffmpeg_missing(
-        self, mock_which, generator, audio_data, video_clips
-    ):
+    def test_raises_when_ffmpeg_missing(self, mock_which, generator, audio_data, video_clips):
         """Missing FFmpeg raises RuntimeError."""
         with pytest.raises(RuntimeError, match="FFmpeg is not installed"):
             generator.generate(audio_data, video_clips, "/tmp/out.mp4")
@@ -834,9 +809,7 @@ class TestFFmpegOrchestration:
         mock_run.side_effect = RuntimeError("Encoding error")
 
         with pytest.raises(RuntimeError):
-            generator.generate(
-                audio_data, video_clips, "/tmp/out.mp4", audio_path="/audio/song.wav"
-            )
+            generator.generate(audio_data, video_clips, "/tmp/out.mp4", audio_path="/audio/song.wav")
 
         # Cleanup MUST still happen
         mock_rmtree.assert_called_once_with(temp_dir, ignore_errors=True)
@@ -1010,9 +983,7 @@ class TestTransitionConfig:
     def test_load_transition_config_from_yaml(self, tmp_path):
         """Transition config is loaded from YAML file."""
         config_file = tmp_path / "test_config.yaml"
-        config_file.write_text(
-            "pacing:\n  transition_type: wipeleft\n  transition_duration: 0.3\n"
-        )
+        config_file.write_text("pacing:\n  transition_type: wipeleft\n  transition_duration: 0.3\n")
         config = load_pacing_config(str(config_file))
         assert config.transition_type == "wipeleft"
         assert config.transition_duration == 0.3
@@ -1149,13 +1120,7 @@ class TestTransitionPipeline:
         xfade_calls = [
             call_args
             for call_args in mock_run.call_args_list
-            if "xfade"
-            in " ".join(
-                str(c)
-                for c in (
-                    call_args[0][0] if call_args[0] else call_args[1].get("cmd", [])
-                )
-            )
+            if "xfade" in " ".join(str(c) for c in (call_args[0][0] if call_args[0] else call_args[1].get("cmd", [])))
         ]
         assert len(xfade_calls) >= 1, "Expected at least one xfade FFmpeg call"
 
@@ -1198,13 +1163,9 @@ class TestClipVariety:
         segments = gen.build_segment_plan(medium_audio, single_clip_30s, config)
         start_times = [s.start_time for s in segments]
         # With a single reused clip, not all start times should be 0.0
-        assert len(set(start_times)) > 1, (
-            "Expected varied start offsets but all were identical"
-        )
+        assert len(set(start_times)) > 1, "Expected varied start offsets but all were identical"
 
-    def test_clip_variety_offsets_within_bounds(
-        self, gen, medium_audio, single_clip_30s
-    ):
+    def test_clip_variety_offsets_within_bounds(self, gen, medium_audio, single_clip_30s):
         """All start_times must satisfy 0 <= start <= clip.duration - seg.duration."""
         config = PacingConfig(clip_variety_enabled=True)
         segments = gen.build_segment_plan(medium_audio, single_clip_30s, config)
@@ -1292,14 +1253,10 @@ class TestBRollInsertion:
             intensity_curve=[0.5] * 120,
         )
 
-    def test_broll_inserted_at_intervals(
-        self, gen, long_audio, video_clips, broll_clips
-    ):
+    def test_broll_inserted_at_intervals(self, gen, long_audio, video_clips, broll_clips):
         """B-roll clips are inserted roughly at configured intervals."""
         config = PacingConfig(broll_interval_seconds=13.5, broll_interval_variance=1.5)
-        segments = gen.build_segment_plan(
-            long_audio, video_clips, pacing=config, broll_clips=broll_clips
-        )
+        segments = gen.build_segment_plan(long_audio, video_clips, pacing=config, broll_clips=broll_clips)
 
         broll_segments = [seg for seg in segments if "broll" in seg.video_path]
         assert len(broll_segments) > 0, "Expected B-roll clips to be inserted"
@@ -1314,9 +1271,7 @@ class TestBRollInsertion:
             # Given variance is 1.5, gap shouldn't be wildly
             # out of [12.0, 15.0] range though it snaps to
             # beats so allow a slight margin of error
-            assert gap >= (
-                config.broll_interval_seconds - config.broll_interval_variance - 3.0
-            )
+            assert gap >= (config.broll_interval_seconds - config.broll_interval_variance - 3.0)
             assert gap <= (
                 config.broll_interval_seconds + config.broll_interval_variance + 12.0
             )  # Might overshoot slightly due to previous clip finishing
@@ -1325,9 +1280,7 @@ class TestBRollInsertion:
     def test_no_broll_provided(self, gen, long_audio, video_clips):
         """Works fine if no broll clips are provided."""
         config = PacingConfig()
-        segments = gen.build_segment_plan(
-            long_audio, video_clips, pacing=config, broll_clips=[]
-        )
+        segments = gen.build_segment_plan(long_audio, video_clips, pacing=config, broll_clips=[])
 
         for seg in segments:
             assert "broll" not in seg.video_path
@@ -1470,10 +1423,7 @@ class TestVideoStyleFilters:
             if call_args[0]:
                 cmd_str = " ".join(str(c) for c in call_args[0][0])
                 for f_name in color_filters:
-                    assert f_name not in cmd_str, (
-                        f"Unexpected color filter '{f_name}' found when "
-                        f"video_style='none'"
-                    )
+                    assert f_name not in cmd_str, f"Unexpected color filter '{f_name}' found when video_style='none'"
 
 
 class TestAudioOverlay:
@@ -1530,9 +1480,7 @@ class TestAudioOverlay:
         import platform
 
         expected_encoder = (
-            "h264_videotoolbox"
-            if platform.system() == "Darwin" and platform.machine() == "arm64"
-            else "libx264"
+            "h264_videotoolbox" if platform.system() == "Darwin" and platform.machine() == "arm64" else "libx264"
         )
         assert f"-c:v {expected_encoder}" in cmd_str
 
@@ -1571,11 +1519,7 @@ class TestAudioOverlay:
         cmd = mock_run.call_args[0][0]
         # -ss should appear before the audio -i
         ss_idx = cmd.index("-ss")
-        audio_i_indices = [
-            i
-            for i, v in enumerate(cmd)
-            if v == "-i" and i + 1 < len(cmd) and cmd[i + 1] == "audio.wav"
-        ]
+        audio_i_indices = [i for i, v in enumerate(cmd) if v == "-i" and i + 1 < len(cmd) and cmd[i + 1] == "audio.wav"]
         assert len(audio_i_indices) == 1
         assert ss_idx < audio_i_indices[0], "-ss must appear before audio -i"
         assert cmd[ss_idx + 1] == "30.000"
@@ -1986,9 +1930,7 @@ class TestIntroEffects:
             for call_args in mock_run.call_args_list
             if call_args[0] and "-ss" in str(call_args[0][0])
         ]
-        assert "vignette=a=" in extraction_calls[0], (
-            "Expected 'vignette=a=' in first segment extraction"
-        )
+        assert "vignette=a=" in extraction_calls[0], "Expected 'vignette=a=' in first segment extraction"
 
     @patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")
     @patch("src.core.ffmpeg_renderer.run_ffmpeg")
@@ -2043,9 +1985,7 @@ class TestIntroEffects:
         ]
         # Later segments (1+) should NOT contain gblur
         for cmd in extraction_calls[1:]:
-            assert "gblur" not in cmd, (
-                "Intro gblur filter must NOT appear in later segments"
-            )
+            assert "gblur" not in cmd, "Intro gblur filter must NOT appear in later segments"
 
     def test_intro_none_applies_no_filters(self):
         """Default intro_effect='none' produces no intro filters."""
@@ -2101,9 +2041,7 @@ class TestSceneAwareStartOffset:
             thumbnail_data=None,
             scene_changes=[2.0, 5.0, 10.0, 15.0],
         )
-        config = default_pacing.model_copy(
-            update={"clip_variety_enabled": True, "seed": 42}
-        )
+        config = default_pacing.model_copy(update={"clip_variety_enabled": True, "seed": 42})
         offset = MontageGenerator._compute_start_offset(
             clip,
             segment_duration=4.0,
@@ -2128,9 +2066,7 @@ class TestSceneAwareStartOffset:
             thumbnail_data=None,
             scene_changes=[],
         )
-        config = default_pacing.model_copy(
-            update={"clip_variety_enabled": True, "seed": 42}
-        )
+        config = default_pacing.model_copy(update={"clip_variety_enabled": True, "seed": 42})
         offset = MontageGenerator._compute_start_offset(
             clip,
             segment_duration=4.0,
@@ -2414,9 +2350,7 @@ class TestPacingEffects:
                     found_sat = True
 
         assert found_drift, "Expected drift zoom filter"
-        assert not found_tighten, (
-            "crop_tighten should be skipped when drift_zoom is active"
-        )
+        assert not found_tighten, "crop_tighten should be skipped when drift_zoom is active"
         assert found_sat, "Expected saturation pulse filter"
 
 
@@ -2519,9 +2453,7 @@ class TestAdvancedEffects:
             cmd_str = " ".join(str(c) for c in cmd)
             if "-ss" in cmd_str and "colorbalance=" in cmd_str and "enable=" in cmd_str:
                 found = True
-        assert found, (
-            "Expected colorbalance light-leak filter in FFmpeg extraction call"
-        )
+        assert found, "Expected colorbalance light-leak filter in FFmpeg extraction call"
 
     @patch("src.core.montage.shutil.which", return_value="/usr/bin/ffmpeg")
     @patch("src.core.ffmpeg_renderer.run_ffmpeg")
@@ -2561,9 +2493,7 @@ class TestAdvancedEffects:
 
         # At least one extraction call should have boxblur (even-index segments)
         found = any("boxblur" in c for c in extraction_calls)
-        assert found, (
-            "Expected boxblur alternating-bokeh filter on some extraction calls"
-        )
+        assert found, "Expected boxblur alternating-bokeh filter on some extraction calls"
 
     def test_advanced_effects_disabled_by_default(self):
         """Default PacingConfig produces no FEAT-024 filter strings."""
@@ -2612,9 +2542,7 @@ class TestAdvancedEffects:
         assert "eq=saturation=" in filter_str, "Expected FEAT-023 saturation pulse"
         assert "geq=" in filter_str, "Expected FEAT-024 micro-jitters"
         assert "colorbalance=" in filter_str, "Expected FEAT-024 light leaks"
-        assert "boxblur" in filter_str, (
-            "Expected FEAT-024 alternating bokeh (even index)"
-        )
+        assert "boxblur" in filter_str, "Expected FEAT-024 alternating bokeh (even index)"
 
     @patch("src.core.ffmpeg_renderer.get_video_duration", return_value=5.0)
     @patch("src.core.ffmpeg_renderer.run_ffmpeg")

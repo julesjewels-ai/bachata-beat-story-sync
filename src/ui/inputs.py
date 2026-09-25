@@ -14,9 +14,7 @@ from src.io.file_picker import pick_audio_file, pick_folder, pick_output_file
 from src.state.session import SessionState
 from src.ui.video_cache import get_cached_clips
 
-DEMO_AUDIO = (
-    Path(__file__).parent.parent.parent / "demo" / "audio" / "sample_bachata.mp3"
-)
+DEMO_AUDIO = Path(__file__).parent.parent.parent / "demo" / "audio" / "sample_bachata.mp3"
 DEMO_CLIPS = Path(__file__).parent.parent.parent / "demo" / "clips"
 
 
@@ -29,9 +27,7 @@ def demo_assets_available() -> bool:
     return bool(list(DEMO_CLIPS.glob("*.mp4")))
 
 
-def audio_input_component(
-    state: SessionState, is_deployed: bool, disabled: bool = False
-) -> str:
+def audio_input_component(state: SessionState, is_deployed: bool, disabled: bool = False) -> str:
     """Audio file input with deploy-aware fallback.
 
     Args:
@@ -92,9 +88,7 @@ def audio_input_component(
             # Local: upload + file picker (stacked vertically)
             # Transfer any file-picker result before the widget is instantiated.
             if "_audio_path_pending" in st.session_state:
-                st.session_state["audio_path"] = st.session_state.pop(
-                    "_audio_path_pending"
-                )
+                st.session_state["audio_path"] = st.session_state.pop("_audio_path_pending")
 
             st.markdown("**Upload audio file**")
             uploaded_audio = st.file_uploader(
@@ -135,9 +129,7 @@ def audio_input_component(
             return cast(str, audio_path)
 
 
-def video_input_component(
-    state: SessionState, is_deployed: bool, disabled: bool = False
-) -> str:
+def video_input_component(state: SessionState, is_deployed: bool, disabled: bool = False) -> str:
     """Video clips input with deploy-aware fallback.
 
     Args:
@@ -209,9 +201,7 @@ def video_input_component(
         else:
             # Local: upload + folder picker (stacked vertically)
             if "_video_dir_pending" in st.session_state:
-                st.session_state["video_dir"] = st.session_state.pop(
-                    "_video_dir_pending"
-                )
+                st.session_state["video_dir"] = st.session_state.pop("_video_dir_pending")
 
             st.markdown("**Upload video files**")
             st.file_uploader(
@@ -248,16 +238,11 @@ def video_input_component(
                         st.session_state["_video_dir_pending"] = picked
                         st.rerun()
 
-            st.caption(
-                "Upload individual video files or select the root directory "
-                "containing your dance footage."
-            )
+            st.caption("Upload individual video files or select the root directory containing your dance footage.")
             return cast(str, video_path)
 
 
-def broll_input_component(
-    state: SessionState, is_deployed: bool, disabled: bool = False
-) -> str:
+def broll_input_component(state: SessionState, is_deployed: bool, disabled: bool = False) -> str:
     """B-roll folder input with deploy-aware fallback.
 
     Args:
@@ -277,9 +262,7 @@ def broll_input_component(
 
         if not is_deployed:
             if "_broll_dir_pending" in st.session_state:
-                st.session_state["broll_dir"] = st.session_state.pop(
-                    "_broll_dir_pending"
-                )
+                st.session_state["broll_dir"] = st.session_state.pop("_broll_dir_pending")
 
             col_path, col_btn = st.columns([4, 1])
             with col_btn:
@@ -300,10 +283,7 @@ def broll_input_component(
                     placeholder="/Users/Artist/Documents/Stock/Atmosph",
                     key="broll_dir",
                     label_visibility="collapsed",
-                    help=(
-                        "Auto-detected as a 'broll/' subfolder inside the "
-                        "clips folder if it exists."
-                    ),
+                    help=("Auto-detected as a 'broll/' subfolder inside the clips folder if it exists."),
                     disabled=disabled,
                 )
             return broll_path
@@ -315,9 +295,7 @@ def broll_input_component(
             return ""
 
 
-def output_input_component(
-    state: SessionState, is_deployed: bool, disabled: bool = False
-) -> str:
+def output_input_component(state: SessionState, is_deployed: bool, disabled: bool = False) -> str:
     """Output file input with deploy-aware fallback.
 
     Args:
@@ -345,9 +323,7 @@ def output_input_component(
         else:
             # Local: full path picker
             if "_output_path_pending" in st.session_state:
-                st.session_state["output_path"] = st.session_state.pop(
-                    "_output_path_pending"
-                )
+                st.session_state["output_path"] = st.session_state.pop("_output_path_pending")
 
             col_path, col_btn = st.columns([4, 1])
             with col_btn:

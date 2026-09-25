@@ -19,9 +19,7 @@ class ChartBuilder:
     Constructs Excel charts for visualization.
     """
 
-    def create_intensity_chart(
-        self, source_ws: Worksheet, data_count: int, intensity_col_idx: int
-    ) -> BarChart | None:
+    def create_intensity_chart(self, source_ws: Worksheet, data_count: int, intensity_col_idx: int) -> BarChart | None:
         """
         Creates a Bar Chart visualizing intensity scores.
 
@@ -60,9 +58,7 @@ class ThumbnailEmbedder:
     Handles embedding of thumbnail images into Excel cells.
     """
 
-    def embed_thumbnail(
-        self, ws: Worksheet, row: int, col: int, image_data: bytes
-    ) -> bool:
+    def embed_thumbnail(self, ws: Worksheet, row: int, col: int, image_data: bytes) -> bool:
         """
         Embeds a PNG thumbnail into the specified cell.
 

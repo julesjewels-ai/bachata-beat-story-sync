@@ -63,9 +63,7 @@ def render_advanced_settings(
     if state.demo_mode:
         return GenerationSettings(), "", ""
 
-    with st.expander(
-        "Advanced Settings — Visual Style, Effects & Limits", expanded=False
-    ):
+    with st.expander("Advanced Settings — Visual Style, Effects & Limits", expanded=False):
         col_s1, col_s2 = st.columns(2)
 
         with col_s1:
@@ -73,10 +71,7 @@ def render_advanced_settings(
             genre_choice = st.selectbox(
                 "Genre preset",
                 options=get_genres(),
-                help=(
-                    "Applies tuned clip pacing, colour grade and transitions "
-                    "for a genre."
-                ),
+                help=("Applies tuned clip pacing, colour grade and transitions for a genre."),
                 disabled=controls_disabled,
             )
             video_style = st.selectbox(
@@ -322,10 +317,7 @@ def _render_text_overlay_settings(controls_disabled: bool) -> dict[str, object]:
         lyrics_overlay_enabled = st.checkbox(
             "LRC lyrics",
             value=True,
-            help=(
-                "Show synced lyrics burned into the video. "
-                "Auto-discovers {audio_stem}.lrc next to the audio file."
-            ),
+            help=("Show synced lyrics burned into the video. Auto-discovers {audio_stem}.lrc next to the audio file."),
             disabled=controls_disabled,
         )
 
@@ -362,8 +354,5 @@ def render_run_controls(state: SessionState) -> bool:
             "▶  Generate Montage",
             type="primary",
             width="stretch",
-            help=(
-                "Process audio and video clips. This may take several minutes "
-                "depending on video length."
-            ),
+            help=("Process audio and video clips. This may take several minutes depending on video length."),
         )

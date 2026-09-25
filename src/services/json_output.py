@@ -70,9 +70,7 @@ def build_json_output(
         "timestamp": datetime.now(UTC).isoformat(),
         "audio": _serialise_audio(audio_meta),
         "clips": [_serialise_clip(c) for c in clips],
-        "segment_plan": (
-            [s.model_dump() for s in segments] if segments is not None else None
-        ),
+        "segment_plan": ([s.model_dump() for s in segments] if segments is not None else None),
         "config": _serialise_pacing(pacing),
     }
     if output_path is not None:

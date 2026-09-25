@@ -160,9 +160,7 @@ class PipelineLogger:
             return
 
         if self._interactive:
-            with self.console.status(
-                f"[bold blue]{message}[/bold blue]", spinner="dots"
-            ):
+            with self.console.status(f"[bold blue]{message}[/bold blue]", spinner="dots"):
                 yield
         else:
             self.console.print(f"… {message}")

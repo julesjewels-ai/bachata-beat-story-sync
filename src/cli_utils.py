@@ -63,9 +63,7 @@ def handle_cli_errors(
     sys.exit(1)
 
 
-def detect_broll_dir(
-    video_dir: str, explicit_broll_dir: str | None = None
-) -> str | None:
+def detect_broll_dir(video_dir: str, explicit_broll_dir: str | None = None) -> str | None:
     """Auto-detect B-roll subfolder inside *video_dir*.
 
     If *explicit_broll_dir* is provided it is returned unchanged.
@@ -112,9 +110,7 @@ def parse_duration(duration_str: str) -> tuple[float, float]:
         val = float(duration_str.strip())
         return val, val
     except ValueError:
-        raise argparse.ArgumentTypeError(
-            f"Invalid duration format: '{duration_str}'. Use '60' or '10-15'."
-        ) from None
+        raise argparse.ArgumentTypeError(f"Invalid duration format: '{duration_str}'. Use '60' or '10-15'.") from None
 
 
 def build_pacing_kwargs(args: argparse.Namespace) -> dict:
@@ -262,10 +258,7 @@ def add_visual_args(parser: argparse.ArgumentParser) -> None:
             "spectrum",
             "cqt",
         ],
-        help=(
-            "Music-synced visualizer pattern: none, waveform, "
-            "waveform_centered, bars, spectrum, cqt"
-        ),
+        help=("Music-synced visualizer pattern: none, waveform, waveform_centered, bars, spectrum, cqt"),
     )
     parser.add_argument(
         "--audio-overlay-opacity",
@@ -360,8 +353,7 @@ def add_visual_args(parser: argparse.ArgumentParser) -> None:
         type=str,
         default=None,
         choices=["none", *sorted(INTRO_EFFECTS.keys())],
-        help="Visual effect on the first clip: none, "
-        + ", ".join(sorted(INTRO_EFFECTS.keys())),
+        help="Visual effect on the first clip: none, " + ", ".join(sorted(INTRO_EFFECTS.keys())),
     )
     parser.add_argument(
         "--intro-effect-duration",
@@ -480,17 +472,14 @@ def add_visual_args(parser: argparse.ArgumentParser) -> None:
         default=None,
         metavar="PATH",
         help=(
-            "Explicit path to an LRC lyrics file. "
-            "If omitted, auto-discovers {audio_stem}.lrc alongside the audio file."
+            "Explicit path to an LRC lyrics file. If omitted, auto-discovers {audio_stem}.lrc alongside the audio file."
         ),
     )
     parser.add_argument(
         "--no-cold-open",
         action="store_true",
         default=False,
-        help=(
-            "Disable the cinematic cold open (scene-setter + artist/title lower-third)"
-        ),
+        help=("Disable the cinematic cold open (scene-setter + artist/title lower-third)"),
     )
     parser.add_argument(
         "--no-lyrics",

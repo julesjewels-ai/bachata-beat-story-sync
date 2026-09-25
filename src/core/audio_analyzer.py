@@ -140,9 +140,7 @@ def detect_sections(
         end_time = beat_times[end_idx] if end_idx < len(beat_times) else duration
         avg_intensity = float(np.mean(curve[start_idx:end_idx]))
 
-        label = _determine_section_label(
-            i, len(boundaries), avg_intensity, start_idx, end_idx, smoothed
-        )
+        label = _determine_section_label(i, len(boundaries), avg_intensity, start_idx, end_idx, smoothed)
 
         sections.append(
             MusicalSection(
@@ -197,8 +195,7 @@ class AudioAnalyzer:
             if beat_times_list:
                 last_beat_time = beat_times_list[-1]
                 logger.debug(
-                    "Beat tracking: duration=%.2fs, beats=%d, last_beat=%.2fs, "
-                    "tail_gap=%.2fs (%.1f%% coverage)",
+                    "Beat tracking: duration=%.2fs, beats=%d, last_beat=%.2fs, tail_gap=%.2fs (%.1f%% coverage)",
                     duration,
                     len(beat_times_list),
                     last_beat_time,
@@ -333,11 +330,7 @@ def find_audio_hooks(
         target_time = beat_t + pace_target
         target_idx = bisect.bisect_left(beat_times, target_time)
         target_idx = min(target_idx, len(intensity) - 1)
-        delta = (
-            abs(intensity[target_idx] - beat_intensity)
-            if target_idx < len(intensity)
-            else 0.0
-        )
+        delta = abs(intensity[target_idx] - beat_intensity) if target_idx < len(intensity) else 0.0
 
         # 4. Section boundary bonus near pace_target (0.2)
         section_bonus = 0.0
@@ -346,9 +339,7 @@ def find_audio_hooks(
                 section_bonus = 1.0
                 break
 
-        total = (
-            0.3 * beat_intensity + 0.3 * peak_bonus + 0.2 * delta + 0.2 * section_bonus
-        )
+        total = 0.3 * beat_intensity + 0.3 * peak_bonus + 0.2 * delta + 0.2 * section_bonus
         scored.append((total, beat_t))
 
     if not scored:

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 from src.core.models import PacingConfig, PhaseConfig, PhaseVariation, SegmentPlan
 from src.core.planner.phase_manager import PhaseManager
 
@@ -122,10 +121,7 @@ class TestVariationSelection:
         variations = [_make_variation(f"v{i}") for i in range(3)]
         phase = _make_phase(4.0, variations, selection="rotate")
 
-        selected = [
-            PhaseManager(hook_phase=phase, track_index=i)._selected["hook"]
-            for i in range(7)
-        ]
+        selected = [PhaseManager(hook_phase=phase, track_index=i)._selected["hook"] for i in range(7)]
         names = [v.name if v else None for v in selected]
         assert names == ["v0", "v1", "v2", "v0", "v1", "v2", "v0"]
 

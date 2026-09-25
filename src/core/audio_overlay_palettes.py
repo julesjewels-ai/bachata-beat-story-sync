@@ -71,10 +71,7 @@ def validate_color(color: str) -> str:
         raise ValueError("audio_overlay_color must not be empty")
     if _HEX_RE.match(c) or _NAME_RE.match(c):
         return c
-    raise ValueError(
-        f"audio_overlay_color {color!r} is not a valid hex "
-        "(e.g. '#FF8800') or color name"
-    )
+    raise ValueError(f"audio_overlay_color {color!r} is not a valid hex (e.g. '#FF8800') or color name")
 
 
 def resolve_colors(palette: str, custom_color: str, opacity: float) -> str:

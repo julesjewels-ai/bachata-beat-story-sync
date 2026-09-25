@@ -46,11 +46,7 @@ _VIDEO_STYLE_FILTERS = {
     "vintage": "curves=vintage,vignette",
     "warm": "colorchannelmixer=rr=1.1:gg=1.0:bb=0.9",
     "cool": "colorchannelmixer=rr=0.9:gg=1.0:bb=1.1",
-    "golden": (
-        "colorchannelmixer=rr=1.15:rg=0.05:gg=1.05:bb=0.75,"
-        "eq=saturation=0.85:gamma=1.05,"
-        "vignette"
-    ),
+    "golden": ("colorchannelmixer=rr=1.15:rg=0.05:gg=1.05:bb=0.75,eq=saturation=0.85:gamma=1.05,vignette"),
 }
 
 
@@ -117,9 +113,7 @@ def _build_intro_filters(effect: str, duration: float) -> list[str]:
     builder = INTRO_EFFECTS.get(effect)
     if builder is None:
         valid = ", ".join(sorted(INTRO_EFFECTS.keys()))
-        raise ValueError(
-            f"Unknown intro effect '{effect}'. Valid options: none, {valid}"
-        )
+        raise ValueError(f"Unknown intro effect '{effect}'. Valid options: none, {valid}")
     return builder(duration)
 
 
@@ -213,19 +207,16 @@ def _build_pacing_filters(
         # Mutually exclusive with drift_zoom — both use zoompan and
         # chaining two zoompan filters produces broken output.
         # Zoom in over ~10s (300 frames @30fps), cap at 105%.
-        filters.append(
-            f"zoompan=z='if(lt(in,300),1+0.005*(in/30),1.05)'"
-            f":d=1:s={target_w}x{target_h}"
-        )
+        filters.append(f"zoompan=z='if(lt(in,300),1+0.005*(in/30),1.05)':d=1:s={target_w}x{target_h}")
 
     # -- Helper: extract local beats relative to this segment's window --
     seg_start = seg.timeline_position
     seg_end = seg_start + seg.duration
     local_beats: list[float] = []
     if beat_times:
-        local_beats = [
-            bt - seg_start for bt in beat_times if seg_start <= bt < seg_end
-        ][:16]  # Cap at 16 terms for FFmpeg expression length safety
+        local_beats = [bt - seg_start for bt in beat_times if seg_start <= bt < seg_end][
+            :16
+        ]  # Cap at 16 terms for FFmpeg expression length safety
 
     if render_config.pacing_saturation_pulse and local_beats:
         # Build a beat-relative pulse expression.
@@ -243,9 +234,7 @@ def _build_pacing_filters(
         jitter_terms = []
         for j, b in enumerate(local_beats):
             direction = 1 if j % 2 == 0 else -1
-            jitter_terms.append(
-                f"if(between(t,{b:.3f},{b + 0.1:.3f}),{2 * direction},0)"
-            )
+            jitter_terms.append(f"if(between(t,{b:.3f},{b + 0.1:.3f}),{2 * direction},0)")
         jitter_expr = "+".join(jitter_terms)
         filters.append(
             f"geq=lum='lum(X-({jitter_expr}),Y-({jitter_expr}))'"
@@ -318,9 +307,7 @@ def _build_variable_speed_filter_complex(
 
     # FEAT-029: Static Zoom / Crop Factor
     if render_config.zoom_factor != 1.0:
-        preceding.append(
-            f"crop=iw*{render_config.zoom_factor}:ih*{render_config.zoom_factor}"
-        )
+        preceding.append(f"crop=iw*{render_config.zoom_factor}:ih*{render_config.zoom_factor}")
 
     if is_shorts:
         preceding.extend(
@@ -357,8 +344,7 @@ def _build_variable_speed_filter_complex(
         # trim filter: extract a window from the source
         # setpts: adjust timestamps to compress/stretch to exactly spb seconds
         trim_filter = (
-            f"[s{i}]trim=start={source_pos:.6f}:end={source_end:.6f},"
-            f"setpts=(PTS-STARTPTS)/{speed}{output_pad};"
+            f"[s{i}]trim=start={source_pos:.6f}:end={source_end:.6f},setpts=(PTS-STARTPTS)/{speed}{output_pad};"
         )
         fc_parts.append(trim_filter)
         source_pos = source_end
@@ -439,11 +425,7 @@ def extract_segments(
         t_height = 1920 if render_config.is_shorts else TARGET_HEIGHT
 
         # FEAT-036: Use variable speed filter_complex if speed_curve is populated
-        if (
-            seg.speed_curve
-            and len(seg.speed_curve) > 1
-            and render_config.speed_ramp_organic
-        ):
+        if seg.speed_curve and len(seg.speed_curve) > 1 and render_config.speed_ramp_organic:
             filter_complex, extract_duration = _build_variable_speed_filter_complex(
                 seg,
                 seg.speed_curve,
@@ -514,9 +496,7 @@ def extract_segments(
 
             # FEAT-029: Static Zoom / Crop Factor (applied first)
             if render_config.zoom_factor != 1.0:
-                vf_parts.append(
-                    f"crop=iw*{render_config.zoom_factor}:ih*{render_config.zoom_factor}"
-                )
+                vf_parts.append(f"crop=iw*{render_config.zoom_factor}:ih*{render_config.zoom_factor}")
 
             if render_config.is_shorts:
                 # Crop center to 9:16 aspect ratio (safe for
@@ -538,10 +518,7 @@ def extract_segments(
             if seg.speed_factor != 1.0:
                 vf_parts.append(f"setpts=PTS/{seg.speed_factor}")
                 # FEAT-010: Smooth Slow Motion Interpolation
-                if (
-                    seg.speed_factor < 1.0
-                    and render_config.interpolation_method != "none"
-                ):
+                if seg.speed_factor < 1.0 and render_config.interpolation_method != "none":
                     if render_config.interpolation_method == "mci":
                         vf_parts.append(f"minterpolate=fps={TARGET_FPS}:mi_mode=mci")
                     else:
@@ -709,9 +686,7 @@ def apply_transitions(
 
         # Build the filter_complex expression
         xfade_expr = (
-            f"[0:v][1:v]xfade=transition={transition_type}"
-            f":duration={transition_duration:.3f}"
-            f":offset={offset:.3f}"
+            f"[0:v][1:v]xfade=transition={transition_type}:duration={transition_duration:.3f}:offset={offset:.3f}"
         )
         if warm_wash:
             # Amber flash for the first 150ms after the transition starts.
@@ -719,8 +694,7 @@ def apply_transitions(
             wash_start = offset
             wash_end = offset + 0.15
             xfade_expr += (
-                f"[v0];[v0]colorbalance=rs=0.3:gs=0.1:bs=-0.1"
-                f":enable='between(t,{wash_start:.3f},{wash_end:.3f})'"
+                f"[v0];[v0]colorbalance=rs=0.3:gs=0.1:bs=-0.1:enable='between(t,{wash_start:.3f},{wash_end:.3f})'"
             )
         xfade_expr += "[v]"
 
@@ -803,10 +777,7 @@ def build_overlay_filter(overlay_config: OverlayConfig, intro_duration: float = 
         src_filter = f"showfreqs=s={size}:mode=bar:colors={colors}"
     elif style == "spectrum":
         spectrum_color = spectrum_color_for_palette(palette)
-        src_filter = (
-            f"showspectrum=s={size}:mode=combined:color={spectrum_color}"
-            ":scale=log:slide=scroll"
-        )
+        src_filter = f"showspectrum=s={size}:mode=combined:color={spectrum_color}:scale=log:slide=scroll"
     elif style == "cqt":
         src_filter = f"showcqt=s={size}:count=6:gamma=5"
     else:
@@ -987,8 +958,7 @@ def fill_tail_gap(
 
     filled_dur = get_video_duration(output_path)
     logger.info(
-        "Tail gap filled: appended %d clip(s) "
-        "(%.3fs requested, residual %.3fs) → %.3fs",
+        "Tail gap filled: appended %d clip(s) (%.3fs requested, residual %.3fs) → %.3fs",
         len(fillers),
         delta_seconds,
         max(0.0, remaining),
@@ -1052,9 +1022,7 @@ def _build_mix_fade_filters(config: RenderConfig | PacingConfig) -> list[str]:
 
     # Sort boundaries defensively so misordered metadata never scrambles
     # time windows. Keep only positive starts (0.0 is the first track).
-    starts = sorted(
-        seg.start_time for seg in render_config.mix_track_segments if seg.start_time > 0
-    )
+    starts = sorted(seg.start_time for seg in render_config.mix_track_segments if seg.start_time > 0)
 
     filters: list[str] = []
     for t in starts:
@@ -1064,15 +1032,9 @@ def _build_mix_fade_filters(config: RenderConfig | PacingConfig) -> list[str]:
         # Without enable=between(...), FFmpeg's fade-out keeps the stream
         # black after completion, which can blank the rest of the mix video.
         filters.append(
-            "fade="
-            f"t=out:st={out_start:.3f}:d={d:.3f}:color=black:"
-            f"enable='between(t,{out_start:.3f},{t:.3f})'"
+            f"fade=t=out:st={out_start:.3f}:d={d:.3f}:color=black:enable='between(t,{out_start:.3f},{t:.3f})'"
         )
-        filters.append(
-            "fade="
-            f"t=in:st={t:.3f}:d={d:.3f}:color=black:"
-            f"enable='between(t,{t:.3f},{in_end:.3f})'"
-        )
+        filters.append(f"fade=t=in:st={t:.3f}:d={d:.3f}:color=black:enable='between(t,{t:.3f},{in_end:.3f})'")
     return filters
 
 

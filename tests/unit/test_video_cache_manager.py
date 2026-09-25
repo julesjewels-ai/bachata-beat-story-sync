@@ -1,10 +1,7 @@
-import json
 import os
 import tempfile
-from unittest.mock import MagicMock, patch
 
 import pytest
-
 from src.core.models import VideoAnalysisResult
 from src.core.video_cache_manager import VideoAnalysisCache
 
@@ -92,6 +89,4 @@ class TestVideoAnalysisCache:
         """Should return project root when markers are present."""
         cache = VideoAnalysisCache()
         root = cache._find_project_root()
-        assert os.path.exists(os.path.join(root, "Makefile")) or os.path.exists(
-            os.path.join(root, ".git")
-        )
+        assert os.path.exists(os.path.join(root, "Makefile")) or os.path.exists(os.path.join(root, ".git"))

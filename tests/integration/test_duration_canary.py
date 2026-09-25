@@ -30,16 +30,13 @@ def test_dry_run_segment_plan_covers_audio(
     assert result.plan_report is not None
     assert result.segments, "Expected non-empty segment plan for click-track audio"
 
-    planned_duration = (
-        result.segments[-1].timeline_position + result.segments[-1].duration
-    )
+    planned_duration = result.segments[-1].timeline_position + result.segments[-1].duration
     audio_duration = float(synthetic_story_media["audio_duration"])
     gap = abs(audio_duration - planned_duration)
 
     # Canary threshold: dry-run should align tightly to target contract.
     assert gap <= 0.10, (
-        f"Dry-run plan drifted by {gap:.3f}s "
-        f"(planned={planned_duration:.3f}s, audio={audio_duration:.3f}s)"
+        f"Dry-run plan drifted by {gap:.3f}s (planned={planned_duration:.3f}s, audio={audio_duration:.3f}s)"
     )
 
 
@@ -64,8 +61,7 @@ def test_rendered_output_duration_matches_audio(
     delta = abs(rendered_duration - audio_duration)
 
     assert delta <= 0.10, (
-        f"Rendered duration drifted by {delta:.3f}s "
-        f"(rendered={rendered_duration:.3f}s, audio={audio_duration:.3f}s)"
+        f"Rendered duration drifted by {delta:.3f}s (rendered={rendered_duration:.3f}s, audio={audio_duration:.3f}s)"
     )
 
 
@@ -114,8 +110,7 @@ def test_rendered_output_duration_matches_audio_with_transitions(
     delta = abs(rendered_duration - audio_duration)
 
     assert delta <= 0.10, (
-        f"Transition render drifted by {delta:.3f}s "
-        f"(rendered={rendered_duration:.3f}s, audio={audio_duration:.3f}s)"
+        f"Transition render drifted by {delta:.3f}s (rendered={rendered_duration:.3f}s, audio={audio_duration:.3f}s)"
     )
 
 
@@ -141,12 +136,9 @@ def test_dry_run_short_footage_stress_stays_aligned(
     )
 
     assert result.segments, "Expected non-empty plan in short-footage stress canary"
-    planned_duration = (
-        result.segments[-1].timeline_position + result.segments[-1].duration
-    )
+    planned_duration = result.segments[-1].timeline_position + result.segments[-1].duration
     audio_duration = float(synthetic_story_media["audio_duration"])
     delta = abs(planned_duration - audio_duration)
     assert delta <= 0.10, (
-        f"Short-footage dry-run drifted by {delta:.3f}s "
-        f"(planned={planned_duration:.3f}s, audio={audio_duration:.3f}s)"
+        f"Short-footage dry-run drifted by {delta:.3f}s (planned={planned_duration:.3f}s, audio={audio_duration:.3f}s)"
     )
