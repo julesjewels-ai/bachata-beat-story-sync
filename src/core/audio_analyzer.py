@@ -125,7 +125,7 @@ def detect_sections(
     change_points = list(np.where(gradient >= change_threshold)[0] + 1)
 
     # Build boundary indices: [0, cp1, cp2, ..., len(curve)]
-    boundaries = [0] + change_points + [len(curve)]
+    boundaries = [0] + [int(cp) for cp in change_points] + [len(curve)]
     # Remove duplicates and sort
     boundaries = sorted(set(boundaries))
 

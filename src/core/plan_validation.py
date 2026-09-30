@@ -99,9 +99,13 @@ def validate_segment_plan(
         # Allow a shorter terminal segment for exact tail coverage or forced clips.
         basename = os.path.basename(seg.video_path)
         is_forced = bool(re.match(r"^(\d+)_", basename))
-        if idx < total_segments and not is_forced and seg.duration + tolerance < min_clip_seconds:
+        if (
+            idx < total_segments
+            and not is_forced
+            and seg.duration + tolerance < min_clip_seconds
+        ):
             issues.append(
-                f"Segment {idx} is below min_clip_seconds "
+                f"Seg {idx} is below min_clip_seconds "
                 f"({seg.duration:.3f}s < {min_clip_seconds:.3f}s)."
             )
         if seg.timeline_position < -tolerance:
