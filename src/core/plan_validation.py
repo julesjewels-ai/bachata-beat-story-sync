@@ -105,7 +105,7 @@ def validate_segment_plan(
             and seg.duration + tolerance < min_clip_seconds
         ):
             issues.append(
-                f"Segment {idx} is below min_clip_seconds "
+                f"Seg {idx} is below min_clip_seconds "
                 f"({seg.duration:.3f}s < {min_clip_seconds:.3f}s)."
             )
         if seg.timeline_position < -tolerance:

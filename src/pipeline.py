@@ -111,7 +111,7 @@ def _build_workflow_dependencies() -> PipelineWorkflowDependencies:
         extract_track_metadata=_extract_track_metadata,
         scan_videos=_scan_videos,
         run_dry_run_phase=partial(run_dry_run_phase, phase_support),
-        generate_mix_video_phase=partial(generate_mix_video_phase, phase_support),
+        generate_mix_video_phase=partial(generate_mix_video_phase, phase_support),  # type: ignore[arg-type]
         process_individual_tracks=partial(process_individual_tracks, phase_support),
         generate_compilation_phase=generate_compilation_phase,
         write_summary=write_summary,
