@@ -42,7 +42,7 @@ def _extract_audio(video_path: str, tmp_dir: str) -> str:
         "-vn",               # strip video
         wav_path,
     ]
-    subprocess.run(cmd, check=True, capture_output=True)
+    subprocess.run(cmd, check=True, capture_output=True)  # nosec B603
     return wav_path
 
 
