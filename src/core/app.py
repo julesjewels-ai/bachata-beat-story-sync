@@ -11,6 +11,7 @@ from pydantic import ValidationError
 from src.core.interfaces import ProgressObserver
 from src.core.models import AudioAnalysisResult, PacingConfig, VideoAnalysisResult
 from src.core.montage import MontageGenerator
+from src.core.repository import FileSystemRepository, ModelRepository
 from src.core.video_analyzer import (
     SUPPORTED_VIDEO_EXTENSIONS,
     VideoAnalysisInput,
@@ -26,10 +27,20 @@ class BachataSyncEngine:
     The main engine responsible for syncing video segments to audio.
     """
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        analysis_repo: ModelRepository[VideoAnalysisResult] | None = None,
+    ) -> None:
         self.video_analyzer = VideoAnalyzer()
         self.montage_generator = MontageGenerator()
         self.cache = VideoAnalysisCache()
+
+        # Register the new generic repository. If none is provided, default to
+        # FileSystemRepository in the .data directory for VideoAnalysisResult.
+        self.analysis_repo = analysis_repo or FileSystemRepository(
+            base_dir=os.path.join(os.getcwd(), ".data", "analysis"),
+            model_type=VideoAnalysisResult,
+        )
 
     def scan_video_library(
         self,
