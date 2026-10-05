@@ -16,7 +16,9 @@ class PhaseVariation(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    name: str = Field(..., description="Unique name for this variation (e.g. 'golden_bloom')")
+    name: str = Field(
+        ..., description="Unique name for this variation (e.g. 'golden_bloom')"
+    )
     intro_effect: str = Field(
         "none",
         description="Visual effect for segments in this phase: 'none', 'bloom', 'vignette_breathe'",
