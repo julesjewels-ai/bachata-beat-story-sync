@@ -129,7 +129,7 @@ def detect_sections(
     # Remove duplicates and sort
     boundaries = sorted(set(boundaries))
 
-    boundaries = _merge_short_boundaries(boundaries)
+    boundaries = _merge_short_boundaries(boundaries)  # type: ignore
 
     sections: list[MusicalSection] = []
     for i in range(len(boundaries) - 1):
@@ -141,7 +141,12 @@ def detect_sections(
         avg_intensity = float(np.mean(curve[start_idx:end_idx]))
 
         label = _determine_section_label(
-            i, len(boundaries), avg_intensity, start_idx, end_idx, smoothed
+            i,
+            len(boundaries),
+            avg_intensity,
+            int(start_idx),
+            int(end_idx),
+            smoothed,
         )
 
         sections.append(

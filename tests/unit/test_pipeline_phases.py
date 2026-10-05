@@ -1,7 +1,7 @@
 """Tests for pipeline phase resilience (graceful degradation)."""
 
+from argparse import Namespace as SimpleNamespace
 from contextlib import contextmanager
-from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from src.application.pipeline_phases import (
