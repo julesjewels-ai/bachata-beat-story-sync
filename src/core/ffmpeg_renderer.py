@@ -157,8 +157,8 @@ def _build_pacing_filters_for_segment(
 ) -> list[str]:
     """Return pacing filters respecting per-segment phase overrides.
 
-    If seg.phase_pacing_effects is None, falls back to global config.
-    If seg.phase_pacing_effects is a list, only named effects are active.
+    If seg.phase_pacing_effects is None, falls through to global render_config flags.
+    If seg.phase_pacing_effects is a list (even empty), only those named effects are active.
     Effect names in the list: 'drift_zoom', 'saturation_pulse', 'light_leaks',
     'micro_jitters', 'alternating_bokeh'.
     """
@@ -825,7 +825,8 @@ def build_overlay_filter(
     if style in ("spectrum", "cqt") and opacity < 1.0:
         post = f",format=yuva420p,colorchannelmixer=aa={opacity:.2f}"
 
-    return f"[1:a]{src_filter}{post}[viz];[0:v][viz]overlay={x_expr}:H-h-{pad}"
+    enable_expr = f":enable='gt(t,{intro_duration:.3f})'" if intro_duration > 0 else ""
+    return f"[1:a]{src_filter}{post}[viz];[0:v][viz]overlay={x_expr}:H-h-{pad}{enable_expr}[outv]"
 
 
 def overlay_audio(
