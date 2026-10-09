@@ -158,7 +158,8 @@ def _build_pacing_filters_for_segment(
     """Return pacing filters respecting per-segment phase overrides.
 
     If seg.phase_pacing_effects is None, falls through to global render_config flags.
-    If seg.phase_pacing_effects is a list (even empty), only those named effects are active.
+    If seg.phase_pacing_effects is a list (even empty), only those named effects are
+    active.
     Effect names in the list: 'drift_zoom', 'saturation_pulse', 'light_leaks',
     'micro_jitters', 'alternating_bokeh'.
     """
@@ -519,7 +520,7 @@ def extract_segments(
             # FEAT-029: Static Zoom / Crop Factor (applied first)
             if render_config.zoom_factor != 1.0:
                 vf_parts.append(
-                    f"crop=iw*{render_config.zoom_factor}:ih*{render_config.zoom_factor}"
+                    f"crop=iw*{render_config.zoom_factor}:ih*{render_config.zoom_factor}"  # noqa: E501
                 )
 
             if render_config.is_shorts:
@@ -534,7 +535,7 @@ def extract_segments(
             else:
                 vf_parts.extend(
                     [
-                        f"scale={t_width}:{t_height}:force_original_aspect_ratio=decrease",
+                        f"scale={t_width}:{t_height}:force_original_aspect_ratio=decrease",  # noqa: E501
                         f"pad={t_width}:{t_height}:(ow-iw)/2:(oh-ih)/2",
                     ]
                 )
@@ -654,7 +655,7 @@ def get_video_duration(video_path: str) -> float:
             text=True,
             timeout=10,
             shell=False,
-        )  # nosec B603
+        )  # noqa: E501
         return float(result.stdout.strip())
     except (ValueError, subprocess.TimeoutExpired, OSError):
         logger.warning(
@@ -826,7 +827,7 @@ def build_overlay_filter(
         post = f",format=yuva420p,colorchannelmixer=aa={opacity:.2f}"
 
     enable_expr = f":enable='gt(t,{intro_duration:.3f})'" if intro_duration > 0 else ""
-    return f"[1:a]{src_filter}{post}[viz];[0:v][viz]overlay={x_expr}:H-h-{pad}{enable_expr}[outv]"
+    return f"[1:a]{src_filter}{post}[viz];[0:v][viz]overlay={x_expr}:H-h-{pad}{enable_expr}[outv]"  # noqa: E501
 
 
 def overlay_audio(

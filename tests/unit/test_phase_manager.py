@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 from src.core.models import PacingConfig, PhaseConfig, PhaseVariation, SegmentPlan
 from src.core.planner.phase_manager import PhaseManager
 

@@ -74,7 +74,7 @@ def main() -> None:
         write_transcript_json(result, json_out)
         write_srt(result.segments, srt_out)
         print(
-            f"JSON: {json_out}  ({len(result.segments)} segments, lang={result.language})"
+            f"JSON: {json_out}  ({len(result.segments)} segments, lang={result.language})"  # noqa: E501
         )
         print(f"SRT:  {srt_out}")
     except Exception as e:
