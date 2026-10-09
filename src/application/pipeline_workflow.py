@@ -56,7 +56,7 @@ class PipelineWorkflowDependencies:
     generate_mix_video_phase: Callable[
         [
             argparse.Namespace,
-            BachataSyncEngine,
+            Any,
             AudioAnalyzer,
             dict[str, Any],
             list[VideoAnalysisResult],
@@ -66,7 +66,7 @@ class PipelineWorkflowDependencies:
             str,
             list[dict[str, Any]],
         ],
-        tuple[str, AudioAnalysisResult],
+        tuple[str | None, AudioAnalysisResult],
     ]
     process_individual_tracks: Callable[
         [
