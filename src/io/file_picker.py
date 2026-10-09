@@ -24,7 +24,7 @@ def _run_safe_tk_dialog(script: str) -> str | None:
         User-selected path, or None if dialog was cancelled or execution failed.
     """
     try:
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603
             [sys.executable, "-c", script],
             capture_output=True,
             text=True,
