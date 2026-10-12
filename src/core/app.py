@@ -27,7 +27,9 @@ class BachataSyncEngine:
     The main engine responsible for syncing video segments to audio.
     """
 
-    def __init__(self, pacing_repository: ModelRepository[PacingConfig] | None = None) -> None:
+    def __init__(
+        self, pacing_repository: ModelRepository[PacingConfig] | None = None
+    ) -> None:
         self.video_analyzer = VideoAnalyzer()
         self.montage_generator = MontageGenerator()
         self.cache = VideoAnalysisCache()
@@ -35,7 +37,7 @@ class BachataSyncEngine:
         # Initialize default FileSystemRepository if not provided
         self.pacing_repository = pacing_repository or FileSystemRepository(
             base_dir=os.path.join(os.getcwd(), ".data", "pacing"),
-            model_type=PacingConfig
+            model_type=PacingConfig,
         )
 
     def scan_video_library(
