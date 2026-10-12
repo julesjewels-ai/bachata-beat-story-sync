@@ -294,9 +294,7 @@ def process_individual_tracks(
                 track_videos.append(result)
                 track_audio_files.append(track_path)
             except Exception as e:
-                log.warn(
-                    f"Failed track video for {track_name}: {e}. Skipping."
-                )
+                log.warn(f"Failed track video for {track_name}: {e}. Skipping.")
                 continue
 
         if args.shorts_count > 0:
