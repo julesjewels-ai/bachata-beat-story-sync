@@ -41,7 +41,7 @@ class VideoAnalysisCache:
         """Loads cache content from the disk."""
         if os.path.exists(self.cache_path):
             try:
-                with open(self.cache_path, "r", encoding="utf-8") as f:
+                with open(self.cache_path, encoding="utf-8") as f:
                     self._cache = json.load(f)
                 logger.info("Loaded video analysis cache from %s", self.cache_path)
             except Exception as e:
