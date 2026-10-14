@@ -12,4 +12,4 @@
 
 Target: build_pacing_kwargs in src/cli_utils.py
 Delta: Complexity Score 33 -> 10
-Summary: Replaced a large sequence of individual `if getattr(args, field, None)` conditions with data-driven dictionary and list mapping loops to significantly flatten branching logic and reduce cyclomatic complexity.
+Summary: Replaced a large sequence of individual `if getattr(args, field, None)` conditions with data-driven dictionary and list mapping loops to significantly flatten branching logic and reduce cyclomatic complexity, preserving string truthy and explicit numeric none-checks perfectly.
