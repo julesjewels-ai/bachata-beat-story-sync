@@ -10,9 +10,8 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
-
 
 # ---------------------------------------------------------------------------
 # SEO Strategy constants (from SEO-Marketing-Strategy.md v2.0)
@@ -227,20 +226,20 @@ def _build_description(
 
     if content_type == "mix":
         hook = (
-            f"Déjate llevar por la mejor bachata romántica — "
-            f"una mezcla perfecta de canciones de amor para recordar "
-            f"los momentos más especiales de tu vida. 🌹"
+            "Déjate llevar por la mejor bachata romántica — "
+            "una mezcla perfecta de canciones de amor para recordar "
+            "los momentos más especiales de tu vida. 🌹"
         )
     elif content_type == "compilation":
         hook = (
-            f"Una compilación completa de bachata romántica — "
-            f"canciones de amor seleccionadas para recordar y bailar "
-            f"con el corazón abierto. 💃🏻"
+            "Una compilación completa de bachata romántica — "
+            "canciones de amor seleccionadas para recordar y bailar "
+            "con el corazón abierto. 💃🏻"
         )
     else:
         hook = (
-            f"Bachata romántica para recordar — "
-            f"una canción de amor que llega directo al corazón. 🌹"
+            "Bachata romántica para recordar — "
+            "una canción de amor que llega directo al corazón. 🌹"
         )
 
     parts = [hook, ""]
