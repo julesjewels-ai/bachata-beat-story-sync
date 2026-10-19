@@ -7,7 +7,6 @@ from pathlib import Path
 
 import pytest
 from pydantic import BaseModel, Field
-
 from src.core.exceptions import EntityNotFoundError, StorageError
 from src.core.repository import FileSystemRepository
 

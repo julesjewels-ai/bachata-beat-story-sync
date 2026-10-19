@@ -84,7 +84,7 @@ class FileSystemRepository(Generic[T]):
             raise EntityNotFoundError(f"Entity with ID {entity_id} not found.")
 
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 data = json.load(f)
             return model_type.model_validate(data)
         except json.JSONDecodeError as e:
