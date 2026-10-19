@@ -66,7 +66,7 @@ class PipelineWorkflowDependencies:
             str,
             list[dict[str, Any]],
         ],
-        tuple[str, AudioAnalysisResult],
+        tuple[str | None, AudioAnalysisResult],
     ]
     process_individual_tracks: Callable[
         [
