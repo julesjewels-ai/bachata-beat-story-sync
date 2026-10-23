@@ -56,3 +56,4 @@ transcripts/
 
 # Documentation
 docs/internal/
+uv.lock
