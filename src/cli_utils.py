@@ -151,58 +151,47 @@ def build_pacing_kwargs(args: argparse.Namespace) -> dict:
         kwargs["max_clips"] = 4
         kwargs["max_duration_seconds"] = 10.0
 
-    if getattr(args, "genre", None):
-        kwargs["genre"] = args.genre
-    if getattr(args, "video_style", None):
-        kwargs["video_style"] = args.video_style
-    if getattr(args, "audio_overlay", None):
-        kwargs["audio_overlay"] = args.audio_overlay
-    if getattr(args, "audio_overlay_opacity", None) is not None:
-        kwargs["audio_overlay_opacity"] = args.audio_overlay_opacity
-    if getattr(args, "audio_overlay_position", None):
-        kwargs["audio_overlay_position"] = args.audio_overlay_position
-    if getattr(args, "audio_overlay_padding", None) is not None:
-        kwargs["audio_overlay_padding"] = args.audio_overlay_padding
-    if getattr(args, "audio_overlay_color", None):
-        kwargs["audio_overlay_color"] = args.audio_overlay_color
-    if getattr(args, "audio_overlay_palette", None):
-        kwargs["audio_overlay_palette"] = args.audio_overlay_palette
-    if getattr(args, "audio_overlay_width_pct", None) is not None:
-        kwargs["audio_overlay_width_pct"] = args.audio_overlay_width_pct
-    if getattr(args, "audio_overlay_height", None) is not None:
-        kwargs["audio_overlay_height"] = args.audio_overlay_height
-    if getattr(args, "broll_interval", None) is not None:
-        kwargs["broll_interval_seconds"] = args.broll_interval
-    if getattr(args, "broll_variance", None) is not None:
-        kwargs["broll_interval_variance"] = args.broll_variance
-    if getattr(args, "explain", False):
-        kwargs["explain"] = True
-    if getattr(args, "explain_html", None):
-        kwargs["explain_html"] = args.explain_html
-        kwargs["explain"] = True  # Auto-enable explain when explain_html is set
-    if getattr(args, "intro_effect", None):
-        kwargs["intro_effect"] = args.intro_effect
-    if getattr(args, "intro_effect_duration", None) is not None:
-        kwargs["intro_effect_duration"] = args.intro_effect_duration
-    if getattr(args, "dry_run", False):
-        kwargs["dry_run"] = True
-    if getattr(args, "pacing_drift_zoom", False):
-        kwargs["pacing_drift_zoom"] = True
-    if getattr(args, "pacing_crop_tighten", False):
-        kwargs["pacing_crop_tighten"] = True
-    if getattr(args, "pacing_saturation_pulse", False):
-        kwargs["pacing_saturation_pulse"] = True
-    if getattr(args, "pacing_micro_jitters", False):
-        kwargs["pacing_micro_jitters"] = True
-    if getattr(args, "pacing_light_leaks", False):
-        kwargs["pacing_light_leaks"] = True
-    if getattr(args, "pacing_warm_wash", False):
-        kwargs["pacing_warm_wash"] = True
-    if getattr(args, "pacing_alternating_bokeh", False):
-        kwargs["pacing_alternating_bokeh"] = True
+    truthy_attrs = [
+        "genre", "video_style", "audio_overlay", "audio_overlay_position",
+        "audio_overlay_color", "audio_overlay_palette", "explain_html",
+        "intro_effect", "track_artist", "track_title"
+    ]
+    for attr in truthy_attrs:
+        if val := getattr(args, attr, None):
+            kwargs[attr] = val
 
-    if getattr(args, "zoom", None) is not None:
-        kwargs["zoom_factor"] = args.zoom
+    if val := getattr(args, "lrc_path", None):
+        kwargs["lyrics_lrc_path"] = val
+
+    not_none_attrs = [
+        "audio_overlay_opacity", "audio_overlay_padding",
+        "audio_overlay_width_pct", "audio_overlay_height",
+        "intro_effect_duration"
+    ]
+    for attr in not_none_attrs:
+        if (val := getattr(args, attr, None)) is not None:
+            kwargs[attr] = val
+
+    not_none_mapped = {
+        "broll_interval": "broll_interval_seconds",
+        "broll_variance": "broll_interval_variance",
+        "zoom": "zoom_factor",
+    }
+    for attr, key in not_none_mapped.items():
+        if (val := getattr(args, attr, None)) is not None:
+            kwargs[key] = val
+
+    bool_flags = [
+        "explain", "dry_run", "pacing_drift_zoom", "pacing_crop_tighten",
+        "pacing_saturation_pulse", "pacing_micro_jitters", "pacing_light_leaks",
+        "pacing_warm_wash", "pacing_alternating_bokeh"
+    ]
+    for flag in bool_flags:
+        if getattr(args, flag, False):
+            kwargs[flag] = True
+
+    if getattr(args, "explain_html", None):
+        kwargs["explain"] = True
 
     # Text Overlays (FEAT-045 / FEAT-046 / FEAT-047)
     if getattr(args, "text_overlay", False):
@@ -213,12 +202,6 @@ def build_pacing_kwargs(args: argparse.Namespace) -> dict:
             kwargs["cold_open_enabled"] = False
         if getattr(args, "no_lyrics", False):
             kwargs["lyrics_overlay_enabled"] = False
-    if getattr(args, "track_artist", None):
-        kwargs["track_artist"] = args.track_artist
-    if getattr(args, "track_title", None):
-        kwargs["track_title"] = args.track_title
-    if getattr(args, "lrc_path", None):
-        kwargs["lyrics_lrc_path"] = args.lrc_path
 
     return kwargs
 
