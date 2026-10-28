@@ -152,9 +152,16 @@ def build_pacing_kwargs(args: argparse.Namespace) -> dict:
         kwargs["max_duration_seconds"] = 10.0
 
     truthy_attrs = [
-        "genre", "video_style", "audio_overlay", "audio_overlay_position",
-        "audio_overlay_color", "audio_overlay_palette", "explain_html",
-        "intro_effect", "track_artist", "track_title"
+        "genre",
+        "video_style",
+        "audio_overlay",
+        "audio_overlay_position",
+        "audio_overlay_color",
+        "audio_overlay_palette",
+        "explain_html",
+        "intro_effect",
+        "track_artist",
+        "track_title",
     ]
     for attr in truthy_attrs:
         if val := getattr(args, attr, None):
@@ -164,9 +171,11 @@ def build_pacing_kwargs(args: argparse.Namespace) -> dict:
         kwargs["lyrics_lrc_path"] = val
 
     not_none_attrs = [
-        "audio_overlay_opacity", "audio_overlay_padding",
-        "audio_overlay_width_pct", "audio_overlay_height",
-        "intro_effect_duration"
+        "audio_overlay_opacity",
+        "audio_overlay_padding",
+        "audio_overlay_width_pct",
+        "audio_overlay_height",
+        "intro_effect_duration",
     ]
     for attr in not_none_attrs:
         if (val := getattr(args, attr, None)) is not None:
@@ -182,9 +191,15 @@ def build_pacing_kwargs(args: argparse.Namespace) -> dict:
             kwargs[key] = val
 
     bool_flags = [
-        "explain", "dry_run", "pacing_drift_zoom", "pacing_crop_tighten",
-        "pacing_saturation_pulse", "pacing_micro_jitters", "pacing_light_leaks",
-        "pacing_warm_wash", "pacing_alternating_bokeh"
+        "explain",
+        "dry_run",
+        "pacing_drift_zoom",
+        "pacing_crop_tighten",
+        "pacing_saturation_pulse",
+        "pacing_micro_jitters",
+        "pacing_light_leaks",
+        "pacing_warm_wash",
+        "pacing_alternating_bokeh",
     ]
     for flag in bool_flags:
         if getattr(args, flag, False):
