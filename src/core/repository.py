@@ -5,7 +5,7 @@ Generic repository pattern for Pydantic models.
 import json
 import logging
 import os
-from typing import Any, Generic, Protocol, TypeVar, runtime_checkable
+from typing import Generic, Protocol, TypeVar, runtime_checkable
 
 from pydantic import BaseModel, ValidationError
 

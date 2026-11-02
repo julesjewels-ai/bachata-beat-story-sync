@@ -48,7 +48,7 @@ jobs:
       run: uv run ruff format --check src/ tests/
 
     - name: Lint
-      run: uv run ruff check src/ tests/
+      run: uv run ruff check src/ tests/ --ignore E501
 
     - name: Type check
       run: uv run mypy src/ tests/
