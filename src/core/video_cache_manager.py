@@ -74,6 +74,7 @@ class VideoAnalysisCache:
                 # Decode thumbnail bytes from base64 if present
                 if result_data.get("thumbnail_data") is not None:
                     import base64
+
                     result_data["thumbnail_data"] = base64.b64decode(
                         result_data["thumbnail_data"]
                     )
@@ -95,6 +96,7 @@ class VideoAnalysisCache:
             # Encode thumbnail bytes to base64 for JSON serialization
             if result_data.get("thumbnail_data") is not None:
                 import base64
+
                 result_data["thumbnail_data"] = base64.b64encode(
                     result_data["thumbnail_data"]
                 ).decode("utf-8")
