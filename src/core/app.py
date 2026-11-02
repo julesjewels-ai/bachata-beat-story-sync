@@ -11,6 +11,7 @@ from pydantic import ValidationError
 from src.core.interfaces import ProgressObserver
 from src.core.models import AudioAnalysisResult, PacingConfig, VideoAnalysisResult
 from src.core.montage import MontageGenerator
+from src.core.repository import FileSystemRepository
 from src.core.video_analyzer import (
     SUPPORTED_VIDEO_EXTENSIONS,
     VideoAnalysisInput,
@@ -30,6 +31,12 @@ class BachataSyncEngine:
         self.video_analyzer = VideoAnalyzer()
         self.montage_generator = MontageGenerator()
         self.cache = VideoAnalysisCache()
+
+        # Instantiate repository for VideoAnalysisResult
+        self.video_result_repository = FileSystemRepository[VideoAnalysisResult](
+            directory=os.path.join(os.getcwd(), ".bachata_sync_data", "video_results"),
+            model_class=VideoAnalysisResult,
+        )
 
     def scan_video_library(
         self,
