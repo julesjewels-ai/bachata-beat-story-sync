@@ -28,7 +28,9 @@ def load_engine() -> BachataSyncEngine:
         from src.core.models import VideoAnalysisResult
         from src.core.repository import FileSystemRepository
 
-        repo = FileSystemRepository(base_dir=".cache/video_analysis", model_class=VideoAnalysisResult)
+        repo = FileSystemRepository(
+            base_dir=".cache/video_analysis", model_class=VideoAnalysisResult
+        )
         return BachataSyncEngine(analysis_repository=repo)
     except ImportError as e:
         error_msg = f"Backend not available: {e}\nEnsure src/core/app.py is installed."

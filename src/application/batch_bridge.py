@@ -101,7 +101,9 @@ def _build_engine() -> BachataSyncEngine:
     from src.core.models import VideoAnalysisResult
     from src.core.repository import FileSystemRepository
 
-    repo = FileSystemRepository(base_dir=".cache/video_analysis", model_class=VideoAnalysisResult)
+    repo = FileSystemRepository(
+        base_dir=".cache/video_analysis", model_class=VideoAnalysisResult
+    )
     return BachataSyncEngine(analysis_repository=repo)
 
 

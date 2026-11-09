@@ -103,7 +103,9 @@ def run_story_workflow(
         from src.core.models import VideoAnalysisResult
         from src.core.repository import FileSystemRepository
 
-        repo = FileSystemRepository(base_dir=".cache/video_analysis", model_class=VideoAnalysisResult)
+        repo = FileSystemRepository(
+            base_dir=".cache/video_analysis", model_class=VideoAnalysisResult
+        )
         engine = BachataSyncEngine(analysis_repository=repo)
 
     resolved_audio_path, audio_meta = analyze_audio(audio_path)

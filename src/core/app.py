@@ -27,7 +27,9 @@ class BachataSyncEngine:
     The main engine responsible for syncing video segments to audio.
     """
 
-    def __init__(self, analysis_repository: ModelRepository[VideoAnalysisResult] | None = None) -> None:
+    def __init__(
+        self, analysis_repository: ModelRepository[VideoAnalysisResult] | None = None
+    ) -> None:
         self.video_analyzer = VideoAnalyzer()
         self.montage_generator = MontageGenerator()
         self.cache = VideoAnalysisCache()
