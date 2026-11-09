@@ -4,7 +4,7 @@ Generic data persistence layer for Pydantic domain models using the Repository p
 
 import json
 import os
-from typing import Generic, Protocol, Type, TypeVar
+from typing import Generic, Protocol, TypeVar
 
 from pydantic import BaseModel, ValidationError
 
@@ -36,7 +36,7 @@ class FileSystemRepository(Generic[T]):
     Concrete implementation of ModelRepository using the file system.
     """
 
-    def __init__(self, base_dir: str, model_class: Type[T]) -> None:
+    def __init__(self, base_dir: str, model_class: type[T]) -> None:
         """
         Initialize the repository.
 
@@ -68,7 +68,7 @@ class FileSystemRepository(Generic[T]):
             return None
 
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 data = json.load(f)
             return self.model_class.model_validate(data)
         except (OSError, json.JSONDecodeError) as e:
