@@ -41,7 +41,7 @@ class VideoAnalysisCache:
         """Loads cache content from the disk."""
         if os.path.exists(self.cache_path):
             try:
-                with open(self.cache_path, "r", encoding="utf-8") as f:
+                with open(self.cache_path, encoding="utf-8") as f:
                     self._cache = json.load(f)
                 logger.info("Loaded video analysis cache from %s", self.cache_path)
             except Exception as e:
@@ -74,6 +74,7 @@ class VideoAnalysisCache:
                 # Decode thumbnail bytes from base64 if present
                 if result_data.get("thumbnail_data") is not None:
                     import base64
+
                     result_data["thumbnail_data"] = base64.b64decode(
                         result_data["thumbnail_data"]
                     )
@@ -95,6 +96,7 @@ class VideoAnalysisCache:
             # Encode thumbnail bytes to base64 for JSON serialization
             if result_data.get("thumbnail_data") is not None:
                 import base64
+
                 result_data["thumbnail_data"] = base64.b64encode(
                     result_data["thumbnail_data"]
                 ).decode("utf-8")

@@ -99,7 +99,14 @@ def run_story_workflow(
     render_observer_factory: ObserverFactory | None = None,
 ) -> StoryWorkflowResult:
     """Run the shared single-track orchestration for planning or rendering."""
-    engine = engine or BachataSyncEngine()
+    if not engine:
+        from src.core.models import VideoAnalysisResult
+        from src.core.repository import FileSystemRepository
+
+        repo = FileSystemRepository(
+            base_dir=".cache/video_analysis", model_class=VideoAnalysisResult
+        )
+        engine = BachataSyncEngine(analysis_repository=repo)
 
     resolved_audio_path, audio_meta = analyze_audio(audio_path)
 

@@ -98,7 +98,13 @@ def _maybe_relpath(path_value: str, batch_dir: Path) -> str:
 
 
 def _build_engine() -> BachataSyncEngine:
-    return BachataSyncEngine()
+    from src.core.models import VideoAnalysisResult
+    from src.core.repository import FileSystemRepository
+
+    repo = FileSystemRepository(
+        base_dir=".cache/video_analysis", model_class=VideoAnalysisResult
+    )
+    return BachataSyncEngine(analysis_repository=repo)
 
 
 def plan_song_from_batch(
